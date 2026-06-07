@@ -259,20 +259,20 @@ export function PredictLeveragePanel({
     const tpPremium =
       tpSl && tp
         ? tpSlToPremiumRaw({
-            value: parseFloat(tp),
-            unit: tpUnit as "pct" | "cents",
-            entryPremiumRaw,
-            isTakeProfit: true,
-          })
+          value: parseFloat(tp),
+          unit: tpUnit as "pct" | "cents",
+          entryPremiumRaw,
+          isTakeProfit: true,
+        })
         : 0n;
     const slPremium =
       tpSl && sl
         ? tpSlToPremiumRaw({
-            value: parseFloat(sl),
-            unit: slUnit as "pct" | "cents",
-            entryPremiumRaw,
-            isTakeProfit: false,
-          })
+          value: parseFloat(sl),
+          unit: slUnit as "pct" | "cents",
+          entryPremiumRaw,
+          isTakeProfit: false,
+        })
         : 0n;
 
     openTrade.mutate(
@@ -410,8 +410,8 @@ export function PredictLeveragePanel({
       </div>
 
       <div className="flex flex-col space-y-5 p-4">
-        <div>
-          {isRange ? (
+        {isRange ? (
+          <div>
             <div className="space-y-3">
               <LabelWithInfo
                 className="mb-3"
@@ -450,7 +450,7 @@ export function PredictLeveragePanel({
                 />
               </div>
             </div>
-          ) : orderType === "limit" ? (
+            ) : orderType === "limit" ? (
             <div>
               <div className="mb-2 flex justify-between text-xs text-muted-foreground">
                 <LabelWithInfo
@@ -473,8 +473,8 @@ export function PredictLeveragePanel({
                 </p>
               ) : null}
             </div>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
 
         <div>
           <div className="mb-2 flex items-center justify-between gap-2">
