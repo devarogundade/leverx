@@ -28,6 +28,8 @@ services:
     environment:
       DATABASE_URL: postgres://shieldbook:shieldbook@postgres:5432/shieldbook_indexer
       INDEXER_DATABASE_URL: postgres://shieldbook:shieldbook@postgres:5432/shieldbook_indexer
+      LEVERX_PACKAGE_ID: '0xa471ec72186fc00723d013fe0067ee829d28421dcf31f47e2413600cdbfb1467'
+      PREDICT_PACKAGE_ID: '0xf5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138'
       PGHOST: postgres
       PGUSER: shieldbook
       FIRST_CHECKPOINT: '344968552'

@@ -7,17 +7,19 @@ module leverx::deploy;
 use leverx::{
     fee_collector::{Self, FeeCollector},
     leverage_vault::{Self, LeverageVault},
+    lxplp::LXPLP,
     protocol_registry::{Self, AdminCap, LeverxRegistry},
 };
+use sui::coin::TreasuryCap;
 
 /// Create the quote vault, fee collector, and registry linked to a Predict shared object.
 /// Returns unshared objects — caller must invoke `share` on each before use.
 public fun deploy_protocol<Quote>(
     admin: &AdminCap,
+    treasury_cap: TreasuryCap<LXPLP>,
     predict_id: ID,
     ctx: &mut TxContext,
 ): (LeverageVault<Quote>, FeeCollector<Quote>, LeverxRegistry) {
-    let treasury_cap = leverage_vault::create_lvlp_treasury(ctx);
     let vault = leverage_vault::new(treasury_cap, ctx);
     let vault_id = object::id(&vault);
     let collector = fee_collector::new<Quote>(vault_id, ctx);
@@ -29,10 +31,11 @@ public fun deploy_protocol<Quote>(
 /// Deploy, emit `ProtocolDeployed`, and share vault + fee collector + registry.
 public entry fun deploy_and_share<Quote>(
     admin: &AdminCap,
+    treasury_cap: TreasuryCap<LXPLP>,
     predict_id: ID,
     ctx: &mut TxContext,
 ) {
-    let (vault, collector, registry) = deploy_protocol<Quote>(admin, predict_id, ctx);
+    let (vault, collector, registry) = deploy_protocol<Quote>(admin, treasury_cap, predict_id, ctx);
     leverx::events::emit_protocol_deployed(
         object::id(&registry),
         object::id(&vault),

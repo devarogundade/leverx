@@ -74,7 +74,11 @@ function MarketsPage() {
               className="border-border bg-card pl-9"
             />
           </div>
-          <div className={cn(segTabsClass("icon"), "shrink-0")} role="group" aria-label="View mode">
+          <div
+            className={cn(segTabsClass("icon"), "hidden shrink-0 lg:inline-flex")}
+            role="group"
+            aria-label="View mode"
+          >
             <button
               type="button"
               className={cn(segTab, view === "list" && segTabActive)}
@@ -123,12 +127,24 @@ function MarketsPage() {
             offline={offline}
           />
         ) : (
-          <PredictMarketsTable
-            markets={markets}
-            liquidityLabel={liquidityLabel}
-            loading={loading}
-            offline={offline}
-          />
+          <>
+            <div className="hidden lg:block">
+              <PredictMarketsTable
+                markets={markets}
+                liquidityLabel={liquidityLabel}
+                loading={loading}
+                offline={offline}
+              />
+            </div>
+            <div className="lg:hidden">
+              <PredictMarketsGrid
+                markets={markets}
+                liquidityLabel={liquidityLabel}
+                loading={loading}
+                offline={offline}
+              />
+            </div>
+          </>
         )}
       </div>
     </section>

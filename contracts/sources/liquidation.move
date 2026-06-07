@@ -10,6 +10,7 @@ use deepbook_predict::{
     oracle::OracleSVI,
     predict::Predict,
     predict_manager::PredictManager,
+    range_key::RangeKey,
 };
 use leverx::{
     user_proxy::UserProxy,
@@ -19,7 +20,7 @@ use leverx::{
     fee_collector::{Self, FeeCollector},
     ltv,
     predict_client,
-    protocol_registry::LeverxRegistry,
+    protocol_registry::{Self, LeverxRegistry},
     spot_swap,
     leverage_vault::{Self as vault_mod, LeverageVault},
 };
@@ -52,7 +53,7 @@ public fun flash_liquidate_binary<Quote, CollateralAsset>(
         clock,
         ctx,
     );
-    emit_liquidation(
+    emit_liquidation<CollateralAsset>(
         proxy,
         key,
         debt,
@@ -116,7 +117,7 @@ public fun flash_liquidate_with_redeem<Quote, CollateralAsset>(
         clock,
         ctx,
     );
-    emit_liquidation(
+    emit_liquidation<CollateralAsset>(
         proxy,
         key,
         debt,
@@ -161,7 +162,8 @@ public fun flash_liquidate_binary_with_spot_swap<Quote, CollateralAsset>(
 
     let collateral_seized = seized.value();
     if (collateral_seized > 0) {
-        let (_base_left, mut quote_out, deep_left) = spot_swap::swap_collateral_coin(
+        assert_liquidation_swap_pool<CollateralAsset, Quote>(registry, spot_pool);
+        let (mut base_left, mut quote_out, deep_left) = spot_swap::swap_collateral_coin(
             spot_pool,
             seized,
             fee_deep,
@@ -169,10 +171,15 @@ public fun flash_liquidate_binary_with_spot_swap<Quote, CollateralAsset>(
             clock,
             ctx,
         );
+        if (base_left.value() == 0) {
+            coin::destroy_zero(base_left);
+        } else {
+            transfer::public_transfer(base_left, ctx.sender());
+        };
         let quote_from_swap = quote_out.value();
         skim_protocol_fee<Quote>(vault, collector, object::id(proxy), &mut quote_out, ctx);
         quote_left.join(quote_out);
-        emit_liquidation(
+        emit_liquidation<CollateralAsset>(
             proxy,
             key,
             debt,
@@ -185,8 +192,9 @@ public fun flash_liquidate_binary_with_spot_swap<Quote, CollateralAsset>(
         );
         (quote_left, deep_left)
     } else {
-        emit_liquidation(proxy, key, debt, 0, 0, quote_left.value(), health, false, ctx);
-        (quote_left, coin::zero(ctx))
+        coin::destroy_zero(seized);
+        emit_liquidation<CollateralAsset>(proxy, key, debt, 0, 0, quote_left.value(), health, false, ctx);
+        (quote_left, fee_deep)
     }
 }
 
@@ -245,7 +253,8 @@ public fun flash_liquidate_with_spot_swap_and_redeem<Quote, CollateralAsset>(
 
     let collateral_seized = seized.value();
     if (collateral_seized > 0) {
-        let (_base_left, mut quote_out, deep_left) = spot_swap::swap_collateral_coin(
+        assert_liquidation_swap_pool<CollateralAsset, Quote>(registry, spot_pool);
+        let (mut base_left, mut quote_out, deep_left) = spot_swap::swap_collateral_coin(
             spot_pool,
             seized,
             fee_deep,
@@ -253,10 +262,15 @@ public fun flash_liquidate_with_spot_swap_and_redeem<Quote, CollateralAsset>(
             clock,
             ctx,
         );
+        if (base_left.value() == 0) {
+            coin::destroy_zero(base_left);
+        } else {
+            transfer::public_transfer(base_left, ctx.sender());
+        };
         let quote_from_swap = quote_out.value();
         skim_protocol_fee<Quote>(vault, collector, object::id(proxy), &mut quote_out, ctx);
         quote_left.join(quote_out);
-        emit_liquidation(
+        emit_liquidation<CollateralAsset>(
             proxy,
             key,
             debt,
@@ -269,8 +283,9 @@ public fun flash_liquidate_with_spot_swap_and_redeem<Quote, CollateralAsset>(
         );
         (quote_left, deep_left)
     } else {
-        emit_liquidation(proxy, key, debt, 0, 0, quote_left.value(), health, had_redeem, ctx);
-        (quote_left, coin::zero(ctx))
+        coin::destroy_zero(seized);
+        emit_liquidation<CollateralAsset>(proxy, key, debt, 0, 0, quote_left.value(), health, had_redeem, ctx);
+        (quote_left, fee_deep)
     }
 }
 
@@ -287,25 +302,31 @@ fun flash_liquidate_binary_internal<Quote, CollateralAsset>(
     clock: &Clock,
     ctx: &mut TxContext,
 ): (Coin<Quote>, Coin<CollateralAsset>, u64, u64) {
+    protocol_registry::assert_vault(registry, vault);
+    protocol_registry::assert_fee_collector(registry, collector);
     vault_mod::accrue_interest(vault, clock);
-    let debt = proxy.binary_borrowed_quote(key);
+    let ledger_principal = proxy.binary_borrowed_quote(key);
+    let debt = vault_mod::debt_with_accrued_interest(vault, ledger_principal);
     let collateral_amount = proxy.binary_collateral_balance<CollateralAsset>(key);
     assert!(debt > 0, errors::not_liquidatable());
-    let health = ltv::evaluate_account_health<CollateralAsset, Quote>(
+    let liq_max_age = protocol_registry::liquidation_pyth_max_age_secs(registry);
+    let health = ltv::evaluate_account_health_with_max_age<CollateralAsset, Quote>(
         registry,
         collateral_amount,
         debt,
         collateral_oracle,
         quote_oracle,
+        liq_max_age,
         clock,
     );
     assert!(
-        ltv::is_liquidatable<CollateralAsset, Quote>(
+        ltv::is_liquidatable_with_max_age<CollateralAsset, Quote>(
             registry,
             collateral_amount,
             debt,
             collateral_oracle,
             quote_oracle,
+            liq_max_age,
             clock,
         ),
         errors::not_liquidatable(),
@@ -314,15 +335,16 @@ fun flash_liquidate_binary_internal<Quote, CollateralAsset>(
 
     let mut payment = flash_loan_payment;
     let repay_coin = payment.split(debt, ctx);
-    fee_collector::repay_vault_with_fee_split(
+    fee_collector::repay_vault_for_ledger_principal(
         vault,
         collector,
         repay_coin,
+        ledger_principal,
         protocol_constants::fee_source_interest(),
         clock,
         ctx,
     );
-    proxy.record_repay_for_binary(key, debt);
+    proxy.record_repay_for_binary(key, ledger_principal);
     events::emit_vault_repaid(
         object::id(vault),
         object::id(proxy),
@@ -337,6 +359,203 @@ fun flash_liquidate_binary_internal<Quote, CollateralAsset>(
 
     let seized = proxy.seize_binary_collateral<CollateralAsset>(key, ctx);
     (payment, seized, debt, health)
+}
+
+/// Keeper liquidation for a range market key: repay key debt and seize key collateral.
+public fun flash_liquidate_range<Quote, CollateralAsset>(
+    registry: &LeverxRegistry,
+    vault: &mut LeverageVault<Quote>,
+    collector: &mut FeeCollector<Quote>,
+    proxy: &mut UserProxy,
+    key: RangeKey,
+    collateral_oracle: &PriceInfoObject,
+    quote_oracle: &PriceInfoObject,
+    flash_loan_payment: Coin<Quote>,
+    clock: &Clock,
+    ctx: &mut TxContext,
+): (Coin<Quote>, Coin<CollateralAsset>) {
+    let (payment, seized, debt, health) = flash_liquidate_range_internal<Quote, CollateralAsset>(
+        registry,
+        vault,
+        collector,
+        proxy,
+        key,
+        collateral_oracle,
+        quote_oracle,
+        flash_loan_payment,
+        clock,
+        ctx,
+    );
+    emit_range_liquidation<CollateralAsset>(
+        proxy,
+        key,
+        debt,
+        seized.value(),
+        0,
+        payment.value(),
+        health,
+        false,
+        ctx,
+    );
+    (payment, seized)
+}
+
+/// Liquidate a range market key with DeepBook spot swap.
+public fun flash_liquidate_range_with_spot_swap<Quote, CollateralAsset>(
+    registry: &LeverxRegistry,
+    vault: &mut LeverageVault<Quote>,
+    collector: &mut FeeCollector<Quote>,
+    proxy: &mut UserProxy,
+    key: RangeKey,
+    spot_pool: &mut Pool<CollateralAsset, Quote>,
+    collateral_oracle: &PriceInfoObject,
+    quote_oracle: &PriceInfoObject,
+    flash_loan_payment: Coin<Quote>,
+    fee_deep: Coin<DEEP>,
+    min_quote_out: u64,
+    clock: &Clock,
+    ctx: &mut TxContext,
+): (Coin<Quote>, Coin<DEEP>) {
+    let (mut quote_left, seized, debt, health) = flash_liquidate_range_internal<Quote, CollateralAsset>(
+        registry,
+        vault,
+        collector,
+        proxy,
+        key,
+        collateral_oracle,
+        quote_oracle,
+        flash_loan_payment,
+        clock,
+        ctx,
+    );
+
+    let collateral_seized = seized.value();
+    if (collateral_seized > 0) {
+        assert_liquidation_swap_pool<CollateralAsset, Quote>(registry, spot_pool);
+        let (base_left, mut quote_out, deep_left) = spot_swap::swap_collateral_coin(
+            spot_pool,
+            seized,
+            fee_deep,
+            min_quote_out,
+            clock,
+            ctx,
+        );
+        if (base_left.value() == 0) {
+            coin::destroy_zero(base_left);
+        } else {
+            transfer::public_transfer(base_left, ctx.sender());
+        };
+        let quote_from_swap = quote_out.value();
+        skim_protocol_fee<Quote>(vault, collector, object::id(proxy), &mut quote_out, ctx);
+        quote_left.join(quote_out);
+        emit_range_liquidation<CollateralAsset>(
+            proxy,
+            key,
+            debt,
+            collateral_seized,
+            quote_from_swap,
+            quote_left.value(),
+            health,
+            false,
+            ctx,
+        );
+        (quote_left, deep_left)
+    } else {
+        coin::destroy_zero(seized);
+        emit_range_liquidation<CollateralAsset>(
+            proxy,
+            key,
+            debt,
+            0,
+            0,
+            quote_left.value(),
+            health,
+            false,
+            ctx,
+        );
+        (quote_left, fee_deep)
+    }
+}
+
+fun flash_liquidate_range_internal<Quote, CollateralAsset>(
+    registry: &LeverxRegistry,
+    vault: &mut LeverageVault<Quote>,
+    collector: &mut FeeCollector<Quote>,
+    proxy: &mut UserProxy,
+    key: RangeKey,
+    collateral_oracle: &PriceInfoObject,
+    quote_oracle: &PriceInfoObject,
+    flash_loan_payment: Coin<Quote>,
+    clock: &Clock,
+    ctx: &mut TxContext,
+): (Coin<Quote>, Coin<CollateralAsset>, u64, u64) {
+    protocol_registry::assert_vault(registry, vault);
+    protocol_registry::assert_fee_collector(registry, collector);
+    vault_mod::accrue_interest(vault, clock);
+    let ledger_principal = proxy.range_borrowed_quote(key);
+    let debt = vault_mod::debt_with_accrued_interest(vault, ledger_principal);
+    let collateral_amount = proxy.range_collateral_balance<CollateralAsset>(key);
+    assert!(debt > 0, errors::not_liquidatable());
+    let liq_max_age = protocol_registry::liquidation_pyth_max_age_secs(registry);
+    let health = ltv::evaluate_account_health_with_max_age<CollateralAsset, Quote>(
+        registry,
+        collateral_amount,
+        debt,
+        collateral_oracle,
+        quote_oracle,
+        liq_max_age,
+        clock,
+    );
+    assert!(
+        ltv::is_liquidatable_with_max_age<CollateralAsset, Quote>(
+            registry,
+            collateral_amount,
+            debt,
+            collateral_oracle,
+            quote_oracle,
+            liq_max_age,
+            clock,
+        ),
+        errors::not_liquidatable(),
+    );
+    assert!(flash_loan_payment.value() >= debt, errors::insufficient_repayment());
+
+    let mut payment = flash_loan_payment;
+    let repay_coin = payment.split(debt, ctx);
+    fee_collector::repay_vault_for_ledger_principal(
+        vault,
+        collector,
+        repay_coin,
+        ledger_principal,
+        protocol_constants::fee_source_interest(),
+        clock,
+        ctx,
+    );
+    proxy.record_repay_for_range(key, ledger_principal);
+    events::emit_vault_repaid(
+        object::id(vault),
+        object::id(proxy),
+        proxy.owner(),
+        debt,
+        vault_mod::total_borrowed(vault),
+        vault_mod::utilization_bps(vault),
+        vault_mod::current_borrow_rate(vault),
+        vault_mod::current_lp_apr_bps(vault),
+    );
+    events::emit_debt_repaid(object::id(proxy), proxy.owner(), debt, proxy.borrowed_quote());
+
+    let seized = proxy.seize_range_collateral<CollateralAsset>(key, ctx);
+    (payment, seized, debt, health)
+}
+
+fun assert_liquidation_swap_pool<CollateralAsset, Quote>(
+    registry: &LeverxRegistry,
+    spot_pool: &Pool<CollateralAsset, Quote>,
+) {
+    assert!(
+        spot_pool.id() == protocol_registry::swap_pool_id<CollateralAsset>(registry),
+        errors::invalid_swap_pool(),
+    );
 }
 
 /// Skim a bps slice of swap proceeds and split 80% vault / 10% collector / 10% keeper.
@@ -389,6 +608,38 @@ fun emit_liquidation<CollateralAsset>(
         0,
         key.is_up(),
         false,
+        std::type_name::with_defining_ids<CollateralAsset>(),
+        debt_repaid,
+        collateral_seized,
+        quote_from_swap,
+        surplus_quote,
+        health_bps,
+        had_position_redeem,
+    );
+}
+
+/// Emit a range `PositionLiquidated` event.
+fun emit_range_liquidation<CollateralAsset>(
+    proxy: &UserProxy,
+    key: RangeKey,
+    debt_repaid: u64,
+    collateral_seized: u64,
+    quote_from_swap: u64,
+    surplus_quote: u64,
+    health_bps: u64,
+    had_position_redeem: bool,
+    ctx: &TxContext,
+) {
+    events::emit_position_liquidated(
+        object::id(proxy),
+        proxy.owner(),
+        ctx.sender(),
+        key.oracle_id(),
+        key.expiry(),
+        key.lower_strike(),
+        key.higher_strike(),
+        false,
+        true,
         std::type_name::with_defining_ids<CollateralAsset>(),
         debt_repaid,
         collateral_seized,

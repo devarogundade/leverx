@@ -7,7 +7,7 @@ use crate::schema::{
     account_timeline, collateral_assets, collateral_balances, global_market_trades, leverx_events,
     limit_mint_orders, leveraged_positions, liquidations, market_trades, markets,
     position_triggers, predict_managers, protocol_settings, proxy_executors, swap_pools,
-    user_proxies, vault_snapshots,
+    user_points, user_proxies, vault_snapshots,
 };
 
 #[derive(Queryable, Selectable, Serialize, Debug, Clone)]
@@ -541,6 +541,32 @@ pub struct NewLiquidation {
     pub health_bps: i64,
     pub had_position_redeem: bool,
     pub timestamp_ms: i64,
+}
+
+#[derive(Queryable, Selectable, Serialize, Debug, Clone)]
+#[diesel(table_name = user_points)]
+pub struct UserPointsRow {
+    pub owner: String,
+    pub account_id: Option<String>,
+    pub volume_quote: i64,
+    pub trade_count: i64,
+    pub points: i64,
+    pub first_trade_at_ms: Option<i64>,
+    pub last_trade_at_ms: Option<i64>,
+    pub updated_at_ms: i64,
+}
+
+#[derive(Insertable, AsChangeset, Debug, Clone, FieldCount)]
+#[diesel(table_name = user_points)]
+pub struct NewUserPoints {
+    pub owner: String,
+    pub account_id: Option<String>,
+    pub volume_quote: i64,
+    pub trade_count: i64,
+    pub points: i64,
+    pub first_trade_at_ms: Option<i64>,
+    pub last_trade_at_ms: Option<i64>,
+    pub updated_at_ms: i64,
 }
 
 #[derive(Insertable, Debug, Clone, FieldCount)]

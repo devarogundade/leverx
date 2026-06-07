@@ -16,7 +16,10 @@ export const tradeSurface = cn(
 );
 
 /** Trade leverage panel — extends trade surface; height follows content only */
-export const tradeLeveragePanel = cn(tradeSurface, "flex flex-col lg:h-auto lg:max-h-none lg:min-h-0");
+export const tradeLeveragePanel = cn(
+  tradeSurface,
+  "flex flex-col lg:h-auto lg:max-h-none lg:min-h-0",
+);
 
 /** Amount / limit price input wrapper */
 export const tradeInputCard = cn(
@@ -103,11 +106,9 @@ export const pageSimple = "flex w-full flex-col gap-4";
 export const pageSimpleToolbar =
   "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between";
 
-export const pageSimpleTitle =
-  "min-w-0 text-lg font-semibold tracking-tight sm:text-xl";
+export const pageSimpleTitle = "min-w-0 text-lg font-semibold tracking-tight sm:text-xl";
 
-export const pageSimpleActions =
-  "flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2";
+export const pageSimpleActions = "flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2";
 
 export const vaultWorkspace = cn(
   "grid gap-[var(--trade-gap)]",
@@ -209,11 +210,9 @@ export const marketSideAction = cn(
   "transition-[color,background-color] duration-150",
 );
 
-export const marketSideActionUp =
-  "hover:bg-[var(--long-bg)] hover:text-[var(--long-text)]";
+export const marketSideActionUp = "hover:bg-[var(--long-bg)] hover:text-[var(--long-text)]";
 
-export const marketSideActionDown =
-  "hover:bg-[var(--short-bg)] hover:text-[var(--short-text)]";
+export const marketSideActionDown = "hover:bg-[var(--short-bg)] hover:text-[var(--short-text)]";
 
 export const marketSideActionRange =
   "hover:bg-[color-mix(in_oklab,var(--color-accent)_12%,var(--color-hover))] hover:text-accent";
@@ -227,7 +226,7 @@ export const marketCardSparkline =
 /** Trade terminal layout */
 export const tradeTerminal = "flex w-full flex-col";
 
-export const tradeTerminalHeader = "flex flex-col gap-3 border-b border-border pb-3";
+export const tradeTerminalHeader = "flex flex-col gap-3 pb-3";
 
 export const tradeTerminalHeaderTop = "flex items-start gap-3";
 
@@ -323,10 +322,7 @@ export const tpSlRow = cn(
 export const tpSlLabel =
   "w-6 shrink-0 text-[0.6875rem] font-bold tracking-wide text-muted-foreground";
 
-export const tpSlInput = cn(
-  inputInField,
-  "py-1.5 font-mono text-[0.8125rem]",
-);
+export const tpSlInput = cn(inputInField, "py-1.5 font-mono text-[0.8125rem]");
 
 export const tpSlUnit = cn(
   "h-7 w-auto min-w-0 shrink-0 rounded-none rounded-r-sm border-0 border-l border-border bg-card px-2 text-xs shadow-none",
@@ -342,12 +338,10 @@ export const btnTradeSignin = cn(
 export function tradeCtaClass(side: "up" | "down" | "range"): string {
   return cn(
     btnTradeSignin,
-    side === "up" &&
-      "!bg-success !text-white hover:!bg-[#2dd4a8] hover:brightness-100",
+    side === "up" && "!bg-success !text-white hover:!bg-[#2dd4a8] hover:brightness-100",
     side === "down" &&
       "!bg-destructive !text-destructive-foreground hover:!bg-destructive/90 hover:brightness-100",
-    side === "range" &&
-      "!bg-accent !text-white hover:opacity-90 hover:brightness-100",
+    side === "range" && "!bg-accent !text-white hover:opacity-90 hover:brightness-100",
   );
 }
 
@@ -393,13 +387,9 @@ export const marketsTable =
 
 export const marketsTableMobileList = "space-y-3 lg:hidden";
 
-export const marketsTableMobileCard = cn(
-  tradeSurface,
-  "flex flex-col gap-3 p-4",
-);
+export const marketsTableMobileCard = cn(tradeSurface, "flex flex-col gap-3 p-4");
 
-export const marketsTableMobileCardHeader =
-  "flex items-start gap-2.5 border-b border-border pb-3";
+export const marketsTableMobileCardHeader = "flex items-start gap-2.5 border-b border-border pb-3";
 
 export const marketsTableMobileCardStats = "grid grid-cols-2 gap-x-3 gap-y-2.5";
 

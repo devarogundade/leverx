@@ -67,6 +67,31 @@ import { cn } from "@/lib/utils";
 
 const TABS = ["Positions", "Open Orders", "Market trades", "Summary"] as const;
 
+function tradeTabLabel(
+  tab: (typeof TABS)[number],
+  tradesLoading: boolean,
+  tradeCount: string,
+) {
+  if (tab === "Market trades") {
+    const count = tradesLoading ? "…" : tradeCount;
+    return (
+      <>
+        <span className="sm:hidden">Trades ({count})</span>
+        <span className="hidden sm:inline">Market trades ({count})</span>
+      </>
+    );
+  }
+  if (tab === "Open Orders") {
+    return (
+      <>
+        <span className="sm:hidden">Orders</span>
+        <span className="hidden sm:inline">Open Orders</span>
+      </>
+    );
+  }
+  return tab;
+}
+
 function StatItem({
   label,
   value,
@@ -292,10 +317,11 @@ export function PredictTradeTerminal({
                 onValueChange={(v) => setActiveTab(v as (typeof TABS)[number])}
                 options={TABS.map((tab) => ({
                   value: tab,
-                  label:
-                    tab === "Market trades"
-                      ? `Market trades (${tradesLoading ? "…" : formatCount(tradeStats.total)})`
-                      : tab,
+                  label: tradeTabLabel(
+                    tab,
+                    tradesLoading,
+                    formatCount(tradeStats.total),
+                  ),
                 }))}
               />
               {activeTab === "Positions" ? (
@@ -403,7 +429,7 @@ export function PredictTradeTerminal({
                           {p.is_up ? "UP" : "DOWN"} · qty {p.open_quantity.toLocaleString()}
                         </span>
                         <span className="font-mono text-muted-foreground">
-                          margin {formatUsdc(scaleQuote(p.margin_quote))}
+                          margin {formatUsdcOrPlaceholder(scaleQuote(p.margin_quote))}
                         </span>
                         <span className="text-muted-foreground">{p.status}</span>
                         {p.status === "open" ? (

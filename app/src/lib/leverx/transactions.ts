@@ -25,7 +25,7 @@ import {
   type MintOrderParams,
 } from "@/lib/leverx/ptb-builder";
 import {
-  lvlpCoinType,
+  lxplpCoinType,
   resolveCollateralRoute,
   type CollateralRoute,
   type LeverxProtocolConfig,
@@ -112,11 +112,7 @@ function computeCollateralDeposit(
   if (!collateralSpotUsd || collateralSpotUsd <= 0) {
     throw new Error("Collateral spot price is required for non-quote collateral.");
   }
-  return collateralAtomsFromQuoteValue(
-    quoteValue,
-    collateralSpotUsd,
-    route.decimals,
-  );
+  return collateralAtomsFromQuoteValue(quoteValue, collateralSpotUsd, route.decimals);
 }
 
 export async function executeOpenTrade(params: {
@@ -163,9 +159,7 @@ export async function executeOpenTrade(params: {
     marginQuoteAtoms: marginAtoms,
     leverageBps,
     quantity,
-    limitPremiumPerUnit: input.limitCents
-      ? centsToPremiumRaw(input.limitCents)
-      : undefined,
+    limitPremiumPerUnit: input.limitCents ? centsToPremiumRaw(input.limitCents) : undefined,
     placementSlippageBps,
     maxMintCost: applySlippageBps(positionAtoms, marketSlippageBps),
     orderExpiresMs: input.orderExpiresMs ?? input.key.expiryMs,
@@ -176,9 +170,7 @@ export async function executeOpenTrade(params: {
       ? computeCollateralDeposit(route, cfg, borrowAtoms, input.collateralSpotUsd)
       : 0n;
   const sameCoin = route.coinType === cfg.quoteType;
-  const totalQuoteNeeded = sameCoin
-    ? marginAtoms + collateralDeposit
-    : marginAtoms;
+  const totalQuoteNeeded = sameCoin ? marginAtoms + collateralDeposit : marginAtoms;
 
   return executeWalletTransaction(
     client,
@@ -195,9 +187,7 @@ export async function executeOpenTrade(params: {
         );
 
         if (collateralDeposit > 0n) {
-          const [collateralCoin] = tx.splitCoins(fundingCoin, [
-            tx.pure.u64(collateralDeposit),
-          ]);
+          const [collateralCoin] = tx.splitCoins(fundingCoin, [tx.pure.u64(collateralDeposit)]);
           appendDepositCollateral(
             tx,
             cfg,
@@ -473,16 +463,12 @@ export async function executeVaultSupply(params: {
         params.amountAtoms,
         tx,
       );
-      const [lvlpCoin] = tx.moveCall({
+      const [lxplpCoin] = tx.moveCall({
         target: `${params.cfg.packageId}::leverage_vault::deposit_liquidity`,
         typeArguments: [params.cfg.quoteType],
-        arguments: [
-          tx.object(params.cfg.vaultId),
-          quoteCoin,
-          tx.object(SUI_CLOCK_OBJECT_ID),
-        ],
+        arguments: [tx.object(params.cfg.vaultId), quoteCoin, tx.object(SUI_CLOCK_OBJECT_ID)],
       });
-      tx.transferObjects([lvlpCoin!], params.account.address);
+      tx.transferObjects([lxplpCoin!], params.account.address);
     },
     { gasBudget: TRADE_GAS_BUDGET },
   );
@@ -495,7 +481,7 @@ export async function executeVaultWithdraw(params: {
   cfg: LeverxProtocolConfig;
   lpAmountAtoms: bigint;
 }): Promise<{ digest: string }> {
-  const lvlpType = lvlpCoinType(params.cfg.packageId);
+  const lxplpType = lxplpCoinType(params.cfg.packageId);
 
   return executeWalletTransaction(
     params.client,
@@ -505,18 +491,14 @@ export async function executeVaultWithdraw(params: {
       const lpCoin = await splitCoinAmount(
         params.client,
         params.account.address,
-        lvlpType,
+        lxplpType,
         params.lpAmountAtoms,
         tx,
       );
       const [quoteCoin] = tx.moveCall({
         target: `${params.cfg.packageId}::leverage_vault::withdraw_liquidity`,
         typeArguments: [params.cfg.quoteType],
-        arguments: [
-          tx.object(params.cfg.vaultId),
-          lpCoin,
-          tx.object(SUI_CLOCK_OBJECT_ID),
-        ],
+        arguments: [tx.object(params.cfg.vaultId), lpCoin, tx.object(SUI_CLOCK_OBJECT_ID)],
       });
       tx.transferObjects([quoteCoin!], params.account.address);
     },

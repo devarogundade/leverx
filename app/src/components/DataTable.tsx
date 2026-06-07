@@ -31,7 +31,7 @@ export function DataTable<T>({ columns, rows, rowKey, empty, onRowClick, rowClas
 
   return (
     <>
-      <div className="data-table-wrap hidden overflow-x-auto overscroll-x-contain md:block">
+      <div className="data-table-wrap hidden overflow-x-auto overscroll-x-contain lg:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-[11px] uppercase tracking-wider text-muted-foreground">
@@ -80,7 +80,7 @@ export function DataTable<T>({ columns, rows, rowKey, empty, onRowClick, rowClas
         </table>
       </div>
 
-      <div className="space-y-3 md:hidden">
+      <div className="space-y-3 lg:hidden">
         {rows.map((row) => {
           const emphasis = columns.filter((c) => c.mobileEmphasis);
           const rest = columns.filter((c) => !c.mobileEmphasis && !c.hideOnMobile);

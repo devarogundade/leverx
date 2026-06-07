@@ -51,9 +51,9 @@ export const leverxInfo = {
     "Recent liquidation events where vault debt was repaid from your posted collateral.",
 
   vaultSupply:
-    "Deposit dUSDC into LeverageVault and receive LVLP shares. LPs earn yield from trader borrow fees.",
-  vaultWithdraw: "Burn LVLP shares to withdraw dUSDC plus accrued yield from the pool.",
-  vaultAmount: "dUSDC to supply, or LVLP shares to burn when withdrawing.",
+    "Deposit dUSDC into LeverageVault and receive lxPLP shares. LPs earn yield from trader borrow fees.",
+  vaultWithdraw: "Burn lxPLP shares to withdraw dUSDC plus accrued yield from the pool.",
+  vaultAmount: "dUSDC to supply, or lxPLP shares to burn when withdrawing.",
   vaultTvl: "Total net asset value of liquidity in the LeverageVault pool.",
   vaultApr: "Annualized yield paid to liquidity providers from borrow utilization and fees.",
   vaultUtil: "Share of vault liquidity currently lent to leveraged traders.",

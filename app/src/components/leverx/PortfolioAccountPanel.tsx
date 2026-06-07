@@ -69,16 +69,16 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
             labelClassName="text-xs text-muted-foreground"
             info={leverxInfo.predictManager}
           />
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <Input
               value={managerId}
               onChange={(e) => setManagerId(e.target.value)}
               placeholder="0x…"
-              className="font-mono text-xs"
+              className="min-w-0 font-mono text-xs"
             />
             <button
               type="button"
-              className={cn(pillToggleBtn, pillToggleIdle, "shrink-0 px-3")}
+              className={cn(pillToggleBtn, pillToggleIdle, "shrink-0 px-3 sm:self-start")}
               disabled={!isProtocolReady || !managerId || linkManager.isPending}
               onClick={() =>
                 linkManager.mutate(
@@ -97,16 +97,16 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
             labelClassName="text-xs text-muted-foreground"
             info={leverxInfo.sessionExecutor}
           />
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <Input
               value={executorAddress}
               onChange={(e) => setExecutorAddress(e.target.value)}
               placeholder="0x executor address"
-              className="font-mono text-xs"
+              className="min-w-0 font-mono text-xs"
             />
             <button
               type="button"
-              className={cn(pillToggleBtn, pillToggleIdle, "shrink-0 px-3")}
+              className={cn(pillToggleBtn, pillToggleIdle, "shrink-0 px-3 sm:self-start")}
               disabled={!isProtocolReady || !executorAddress || registerExecutor.isPending}
               onClick={() =>
                 registerExecutor.mutate(

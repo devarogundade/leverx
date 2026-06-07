@@ -245,6 +245,19 @@ diesel::table! {
 }
 
 diesel::table! {
+    user_points (owner) {
+        owner -> Text,
+        account_id -> Nullable<Text>,
+        volume_quote -> Int8,
+        trade_count -> Int8,
+        points -> Int8,
+        first_trade_at_ms -> Nullable<Int8>,
+        last_trade_at_ms -> Nullable<Int8>,
+        updated_at_ms -> Int8,
+    }
+}
+
+diesel::table! {
     global_market_trades (event_digest) {
         event_digest -> Text,
         event_type -> Text,

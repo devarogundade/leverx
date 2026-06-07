@@ -13,6 +13,7 @@ use crate::handlers::{
     LiquidationPositionPatch, PositionClosePatch, PythMaxAgePatch, TradingPausedPatch,
 };
 use crate::keys::{limit_order_key, position_key};
+use crate::points::record_volume;
 use crate::relation_upserts::{ensure_market, ensure_predict_manager};
 use crate::move_events::{
     parse_event_json, try_parse, AccountCreated, CollateralDeposited, CollateralSwapped,
@@ -150,26 +151,14 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                 batch.limit_executed.push(LimitExecutePatch {
                     account_id: ev.account_id.to_string(),
                     position_key: pk.clone(),
+                    order_expires_ms: ev.order_expires_ms as i64,
                     executed_event_digest: ctx.event_digest.to_string(),
                     filled_at_ms: ctx.timestamp_ms,
                     market_ask_at_fill: ev.market_ask_at_fill as i64,
                     mint_cost: ev.mint_cost as i64,
                     executor: ev.executor.to_string(),
                 });
-                batch.trades.push(NewMarketTrade {
-                    event_digest: ctx.event_digest.to_string(),
-                    position_key: pk,
-                    oracle_id: ev.oracle_id.to_string(),
-                    trade_kind: "limit_fill".into(),
-                    side: "buy".into(),
-                    quantity: ev.quantity as i64,
-                    premium_per_unit: Some(ev.limit_premium_per_unit as i64),
-                    notional_quote: Some(ev.mint_cost as i64),
-                    account_id: Some(ev.account_id.to_string()),
-                    owner: Some(ev.owner.to_string()),
-                    order_type: Some(1),
-                    timestamp_ms: ctx.timestamp_ms,
-                });
+                // Volume is recorded via LeveragedPositionOpened in the same tx (avoids double count).
                 timeline(batch, ctx, ev.account_id.to_string(), Some(ev.owner.to_string()));
             }
         }
@@ -185,6 +174,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                         ev.is_up,
                         ev.is_range,
                     ),
+                    order_expires_ms: ev.order_expires_ms as i64,
                     cancelled_event_digest: ctx.event_digest.to_string(),
                     cancelled_at_ms: ctx.timestamp_ms,
                     cancelled_by: ev.cancelled_by.to_string(),
@@ -254,6 +244,13 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     order_type: Some(ev.order_type as i16),
                     timestamp_ms: ctx.timestamp_ms,
                 });
+                record_volume(
+                    batch,
+                    &ev.owner.to_string(),
+                    Some(&ev.account_id.to_string()),
+                    ev.mint_cost as i64,
+                    ctx.timestamp_ms,
+                );
                 batch.debt_repaid.push(DebtRepaidPatch {
                     account_id: ev.account_id.to_string(),
                     remaining_debt: ev.borrowed_quote_after as i64,
@@ -305,6 +302,13 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     order_type: None,
                     timestamp_ms: ctx.timestamp_ms,
                 });
+                record_volume(
+                    batch,
+                    &ev.owner.to_string(),
+                    Some(&ev.account_id.to_string()),
+                    ev.payout as i64,
+                    ctx.timestamp_ms,
+                );
                 timeline(batch, ctx, ev.account_id.to_string(), Some(ev.owner.to_string()));
             }
         }

@@ -3,6 +3,10 @@ use std::str::FromStr;
 use anyhow::{Context, Result};
 use sui_types::base_types::ObjectID;
 
+/// Default published leverx package on testnet (see `contracts/deploy-testnet.env`).
+const DEFAULT_LEVERX_PACKAGE_ID: &str =
+    "0xa471ec72186fc00723d013fe0067ee829d28421dcf31f47e2413600cdbfb1467";
+
 /// Default testnet `deepbook_predict` package (`contracts/Move.toml` published-at).
 const DEFAULT_PREDICT_PACKAGE_ID: &str =
     "0xf5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138";
@@ -16,7 +20,7 @@ pub struct LeverxConfig {
 impl LeverxConfig {
     pub fn from_env() -> Result<Self> {
         let raw = std::env::var("LEVERX_PACKAGE_ID")
-            .context("LEVERX_PACKAGE_ID must be set")?;
+            .unwrap_or_else(|_| DEFAULT_LEVERX_PACKAGE_ID.to_string());
         let package_id = ObjectID::from_str(raw.trim())
             .context("invalid LEVERX_PACKAGE_ID")?;
 

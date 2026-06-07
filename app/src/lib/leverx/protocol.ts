@@ -27,8 +27,7 @@ export function resolveLeverxProtocol(
   const registryId = settings?.registry_id ?? "";
   const vaultId = settings?.vault_id ?? "";
   const packageId = appConfig.leverxPackageId;
-  const feeCollectorId =
-    settings?.fee_collector_id ?? appConfig.feeCollectorId;
+  const feeCollectorId = settings?.fee_collector_id ?? appConfig.feeCollectorId;
 
   if (!packageId || !registryId || !vaultId || !feeCollectorId) {
     return null;
@@ -73,6 +72,6 @@ export function resolveCollateralRoute(
   };
 }
 
-export function lvlpCoinType(packageId: string): string {
-  return `${packageId}::leverage_vault::LVLP`;
+export function lxplpCoinType(packageId: string): string {
+  return `${packageId}::lxplp::LXPLP`;
 }

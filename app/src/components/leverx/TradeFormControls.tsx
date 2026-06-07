@@ -131,7 +131,7 @@ interface TradeQuickAmountsProps {
 
 export function TradeQuickAmounts({ amounts, onPick, className }: TradeQuickAmountsProps) {
   return (
-    <div className={cn("grid grid-cols-5 gap-1", className)}>
+    <div className={cn("grid grid-cols-3 gap-1 sm:grid-cols-5", className)}>
       {amounts.map((a) => (
         <Button
           key={a.label}

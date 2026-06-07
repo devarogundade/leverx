@@ -8,13 +8,13 @@ use leverx_schema::models::{
     NewAccountTimeline, NewCollateralAsset, NewCollateralBalance, NewGlobalMarketTrade,
     NewLeverxEvent, NewLimitMintOrder, NewLeveragedPosition, NewLiquidation, NewMarket,
     NewMarketTrade, NewPositionTrigger, NewPredictManager, NewProtocolSettings, NewProxyExecutor,
-    NewSwapPool, NewUserProxy, NewVaultSnapshot,
+    NewSwapPool, NewUserPoints, NewUserProxy, NewVaultSnapshot,
 };
 use leverx_schema::schema::{
     account_timeline, collateral_assets, collateral_balances, global_market_trades, leverx_events,
     limit_mint_orders, leveraged_positions, liquidations, market_trades, markets,
     position_triggers, predict_managers, protocol_settings, proxy_executors, swap_pools,
-    user_proxies, vault_snapshots,
+    user_points, user_proxies, vault_snapshots,
 };
 use sui_indexer_alt_framework::pipeline::Processor;
 use sui_indexer_alt_framework::pipeline::sequential::Handler;
@@ -54,11 +54,22 @@ pub struct LeverxBatch {
     pub borrow_rate_patches: Vec<BorrowRatePatch>,
     pub trading_paused_patches: Vec<TradingPausedPatch>,
     pub pyth_max_age_patches: Vec<PythMaxAgePatch>,
+    pub points_patches: Vec<UserPointsPatch>,
+}
+
+#[derive(Clone)]
+pub struct UserPointsPatch {
+    pub owner: String,
+    pub account_id: Option<String>,
+    pub volume_delta: i64,
+    pub trade_delta: i64,
+    pub timestamp_ms: i64,
 }
 
 pub struct LimitExecutePatch {
     pub account_id: String,
     pub position_key: String,
+    pub order_expires_ms: i64,
     pub executed_event_digest: String,
     pub filled_at_ms: i64,
     pub market_ask_at_fill: i64,
@@ -69,6 +80,7 @@ pub struct LimitExecutePatch {
 pub struct LimitCancelPatch {
     pub account_id: String,
     pub position_key: String,
+    pub order_expires_ms: i64,
     pub cancelled_event_digest: String,
     pub cancelled_at_ms: i64,
     pub cancelled_by: String,
@@ -178,6 +190,26 @@ fn dedupe_predict_managers(rows: &[NewPredictManager]) -> Vec<NewPredictManager>
     by_id.into_values().collect()
 }
 
+fn dedupe_points_patches(rows: &[UserPointsPatch]) -> Vec<UserPointsPatch> {
+    let mut by_owner: HashMap<String, UserPointsPatch> = HashMap::new();
+    for row in rows {
+        by_owner
+            .entry(row.owner.clone())
+            .and_modify(|existing| {
+                existing.volume_delta += row.volume_delta;
+                existing.trade_delta += row.trade_delta;
+                if row.timestamp_ms > existing.timestamp_ms {
+                    existing.timestamp_ms = row.timestamp_ms;
+                }
+                if row.account_id.is_some() {
+                    existing.account_id = row.account_id.clone();
+                }
+            })
+            .or_insert_with(|| row.clone());
+    }
+    by_owner.into_values().collect()
+}
+
 #[async_trait::async_trait]
 impl Processor for LeverxEventsHandler {
     const NAME: &'static str = "leverx_events";
@@ -260,6 +292,7 @@ impl Handler for LeverxEventsHandler {
             batch.borrow_rate_patches.extend(v.borrow_rate_patches);
             batch.trading_paused_patches.extend(v.trading_paused_patches);
             batch.pyth_max_age_patches.extend(v.pyth_max_age_patches);
+            batch.points_patches.extend(v.points_patches);
         }
     }
 
@@ -313,6 +346,7 @@ impl Handler for LeverxEventsHandler {
                 .do_update()
                 .set((
                     predict_managers::owner.eq(excluded(predict_managers::owner)),
+                    predict_managers::account_id.eq(excluded(predict_managers::account_id)),
                     predict_managers::updated_at_ms.eq(excluded(predict_managers::updated_at_ms)),
                 ))
                 .execute(conn)
@@ -357,6 +391,7 @@ impl Handler for LeverxEventsHandler {
                 limit_mint_orders::table
                     .filter(limit_mint_orders::account_id.eq(&patch.account_id))
                     .filter(limit_mint_orders::position_key.eq(&patch.position_key))
+                    .filter(limit_mint_orders::order_expires_ms.eq(patch.order_expires_ms))
                     .filter(limit_mint_orders::status.eq("open")),
             )
             .set((
@@ -376,6 +411,7 @@ impl Handler for LeverxEventsHandler {
                 limit_mint_orders::table
                     .filter(limit_mint_orders::account_id.eq(&patch.account_id))
                     .filter(limit_mint_orders::position_key.eq(&patch.position_key))
+                    .filter(limit_mint_orders::order_expires_ms.eq(patch.order_expires_ms))
                     .filter(limit_mint_orders::status.eq("open")),
             )
             .set((
@@ -416,21 +452,21 @@ impl Handler for LeverxEventsHandler {
         }
 
         for close in &batch.position_closes {
-            let status = if close.settled { "closed" } else { "open" };
-            rows += diesel::update(
-                leveraged_positions::table
-                    .filter(leveraged_positions::position_key.eq(&close.position_key))
-                    .filter(leveraged_positions::account_id.eq(&close.account_id)),
+            rows += diesel::sql_query(
+                "UPDATE leveraged_positions SET \
+                 open_quantity = open_quantity - $1, \
+                 realized_payout = realized_payout + $2, \
+                 borrow_quote = $3, \
+                 status = CASE WHEN open_quantity - $1 <= 0 THEN 'closed' ELSE 'open' END, \
+                 closed_at_ms = $4 \
+                 WHERE position_key = $5 AND account_id = $6",
             )
-            .set((
-                leveraged_positions::open_quantity
-                    .eq(leveraged_positions::open_quantity - close.quantity),
-                leveraged_positions::realized_payout
-                    .eq(leveraged_positions::realized_payout + close.payout),
-                leveraged_positions::borrow_quote.eq(close.remaining_borrow_quote),
-                leveraged_positions::status.eq(status),
-                leveraged_positions::closed_at_ms.eq(close.closed_at_ms),
-            ))
+            .bind::<diesel::sql_types::BigInt, _>(close.quantity)
+            .bind::<diesel::sql_types::BigInt, _>(close.payout)
+            .bind::<diesel::sql_types::BigInt, _>(close.remaining_borrow_quote)
+            .bind::<diesel::sql_types::BigInt, _>(close.closed_at_ms)
+            .bind::<diesel::sql_types::Text, _>(&close.position_key)
+            .bind::<diesel::sql_types::Text, _>(&close.account_id)
             .execute(conn)
             .await?;
         }
@@ -649,6 +685,42 @@ impl Handler for LeverxEventsHandler {
                     .execute(conn)
                     .await?;
             }
+        }
+
+        let points_rows = dedupe_points_patches(&batch.points_patches);
+        for patch in &points_rows {
+            rows += diesel::insert_into(user_points::table)
+                .values(NewUserPoints {
+                    owner: patch.owner.clone(),
+                    account_id: patch.account_id.clone(),
+                    volume_quote: patch.volume_delta,
+                    trade_count: patch.trade_delta,
+                    points: patch.volume_delta,
+                    first_trade_at_ms: Some(patch.timestamp_ms),
+                    last_trade_at_ms: Some(patch.timestamp_ms),
+                    updated_at_ms: patch.timestamp_ms,
+                })
+                .on_conflict(user_points::owner)
+                .do_update()
+                .set((
+                    user_points::account_id.eq(diesel::dsl::sql(
+                        "COALESCE(EXCLUDED.account_id, user_points.account_id)",
+                    )),
+                    user_points::volume_quote
+                        .eq(user_points::volume_quote + excluded(user_points::volume_quote)),
+                    user_points::trade_count
+                        .eq(user_points::trade_count + excluded(user_points::trade_count)),
+                    user_points::points.eq(user_points::points + excluded(user_points::points)),
+                    user_points::first_trade_at_ms.eq(diesel::dsl::sql(
+                        "LEAST(user_points.first_trade_at_ms, EXCLUDED.first_trade_at_ms)",
+                    )),
+                    user_points::last_trade_at_ms.eq(diesel::dsl::sql(
+                        "GREATEST(user_points.last_trade_at_ms, EXCLUDED.last_trade_at_ms)",
+                    )),
+                    user_points::updated_at_ms.eq(excluded(user_points::updated_at_ms)),
+                ))
+                .execute(conn)
+                .await?;
         }
 
         Ok(rows)

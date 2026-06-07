@@ -7,11 +7,13 @@
 /// `borrow_rate × utilization × vault_fee_share` and updates as utilization changes.
 module leverx::leverage_vault;
 
-use leverx::{protocol_constants, errors, events, ltv};
-use sui::{balance::{Self, Balance}, clock::Clock, coin::{Self, Coin, TreasuryCap}};
-
-/// One-time witness for minting LVLP LP share tokens.
-public struct LVLP has drop {}
+use leverx::{protocol_constants, errors, events, lxplp::LXPLP};
+use std::u128;
+use sui::{
+    balance::{Self, Balance},
+    clock::Clock,
+    coin::{Self, Coin, TreasuryCap},
+};
 
 /// Kinked utilization borrow curve parameters (annualized bps).
 public struct BorrowRateConfig has copy, drop, store {
@@ -44,10 +46,10 @@ public struct LeverageVault<phantom Quote> has key {
     total_borrowed: u64,
     /// Outstanding borrow principal excluding accrued interest (for fee split on repay).
     total_principal_borrowed: u64,
-    /// Total LVLP shares outstanding (pro-rata claim on NAV).
+    /// Total LXPLP shares outstanding (pro-rata claim on NAV).
     total_shares: u64,
-    /// Treasury cap for minting/burning LVLP on deposit and withdraw.
-    treasury_cap: TreasuryCap<LVLP>,
+    /// Treasury cap for minting/burning LXPLP on deposit and withdraw.
+    treasury_cap: TreasuryCap<LXPLP>,
     /// Kinked borrow curve and flash-loan fee parameters.
     rate_config: BorrowRateConfig,
     /// Last timestamp (ms) interest was accrued to `total_borrowed`.
@@ -56,24 +58,9 @@ public struct LeverageVault<phantom Quote> has key {
     insurance_fund: Balance<Quote>,
 }
 
-/// Mint the LVLP treasury cap (one-time per deployment PTB).
-public fun create_lvlp_treasury(ctx: &mut TxContext): TreasuryCap<LVLP> {
-    let (treasury_cap, metadata) = coin::create_currency(
-        LVLP {},
-        9,
-        b"LVLP",
-        b"LeverX LP Share",
-        b"LeverX vault LP token",
-        option::none(),
-        ctx,
-    );
-    transfer::public_freeze_object(metadata);
-    treasury_cap
-}
-
 /// Create an empty vault; caller must `share` it as a shared object.
 public fun new<Quote>(
-    treasury_cap: TreasuryCap<LVLP>,
+    treasury_cap: TreasuryCap<LXPLP>,
     ctx: &mut TxContext,
 ): LeverageVault<Quote> {
     LeverageVault {
@@ -114,21 +101,21 @@ public fun set_borrow_rate_params<Quote>(
 
 // === LP ===
 
-/// Accrue interest then deposit quote; mint LVLP shares pro-rata to NAV.
+/// Accrue interest then deposit quote; mint LXPLP shares pro-rata to NAV.
 public fun deposit_liquidity<Quote>(
     vault: &mut LeverageVault<Quote>,
     funds: Coin<Quote>,
     clock: &Clock,
     ctx: &mut TxContext,
-): Coin<LVLP> {
+): Coin<LXPLP> {
     accrue_interest(vault, clock);
     supply(vault, funds, ctx)
 }
 
-/// Accrue interest then burn LVLP shares for a pro-rata quote withdrawal.
+/// Accrue interest then burn LXPLP shares for a pro-rata quote withdrawal.
 public fun withdraw_liquidity<Quote>(
     vault: &mut LeverageVault<Quote>,
-    lp_shares: Coin<LVLP>,
+    lp_shares: Coin<LXPLP>,
     clock: &Clock,
     ctx: &mut TxContext,
 ): Coin<Quote> {
@@ -136,12 +123,12 @@ public fun withdraw_liquidity<Quote>(
     withdraw(vault, lp_shares, ctx)
 }
 
-/// Deposit quote into the vault and mint LVLP shares at current NAV.
+/// Deposit quote into the vault and mint LXPLP shares at current NAV.
 public fun supply<Quote>(
     vault: &mut LeverageVault<Quote>,
     coin: Coin<Quote>,
     ctx: &mut TxContext,
-): Coin<LVLP> {
+): Coin<LXPLP> {
     let amount = coin.value();
     assert!(amount > 0, errors::zero_amount());
 
@@ -172,10 +159,10 @@ public fun supply<Quote>(
     lp
 }
 
-/// Burn LVLP shares and withdraw the caller's pro-rata quote from NAV.
+/// Burn LXPLP shares and withdraw the caller's pro-rata quote from NAV.
 public fun withdraw<Quote>(
     vault: &mut LeverageVault<Quote>,
-    shares: Coin<LVLP>,
+    shares: Coin<LXPLP>,
     ctx: &mut TxContext,
 ): Coin<Quote> {
     let shares_burned = shares.value();
@@ -279,8 +266,8 @@ public fun lp_apr_at_utilization<Quote>(
     util_bps: u64,
     borrow_rate_bps: u64,
 ): u64 {
-    let gross = ltv::mul_bps(borrow_rate_bps, util_bps);
-    ltv::mul_bps(gross, protocol_constants::vault_fee_share_bps())
+    let gross = protocol_constants::mul_bps(borrow_rate_bps, util_bps);
+    protocol_constants::mul_bps(gross, protocol_constants::vault_fee_share_bps())
 }
 
 /// Pool utilization as bps: `total_borrowed / NAV`.
@@ -314,6 +301,38 @@ public(package) fun outstanding_accrued_interest<Quote>(vault: &LeverageVault<Qu
     } else {
         0
     }
+}
+
+/// Ledger principal plus pro-rata share of vault-wide accrued interest (round up).
+public(package) fun debt_with_accrued_interest<Quote>(
+    vault: &LeverageVault<Quote>,
+    ledger_principal: u64,
+): u64 {
+    if (ledger_principal == 0) return 0;
+    let total_principal = vault.total_principal_borrowed;
+    if (total_principal == 0) return ledger_principal;
+    let total_debt = vault.total_borrowed;
+    u128::divide_and_round_up(
+        (ledger_principal as u128) * (total_debt as u128),
+        total_principal as u128,
+    ) as u64
+}
+
+/// Split a repayment against `ledger_principal` into interest vs principal portions.
+public(package) fun repayment_split_for_ledger_principal<Quote>(
+    vault: &LeverageVault<Quote>,
+    ledger_principal: u64,
+    repay_amt: u64,
+): (u64, u64) {
+    if (repay_amt == 0 || ledger_principal == 0) return (0, 0);
+    let effective = debt_with_accrued_interest(vault, ledger_principal);
+    if (effective == 0) return (0, 0);
+    let principal_in_payment = if (repay_amt >= effective) {
+        ledger_principal
+    } else {
+        ((repay_amt as u128) * (ledger_principal as u128) / (effective as u128)) as u64
+    };
+    (repay_amt - principal_in_payment, principal_in_payment)
 }
 
 /// Apply a repayment to debt accounting after splitting interest vs principal.
@@ -358,6 +377,12 @@ public fun borrow_flash_liquidity<Quote>(
     (coin, FlashReceipt { amount, fee })
 }
 
+/// Unpack flash loan receipt fields (package-only; receipt is defined here).
+public(package) fun flash_receipt_amounts(receipt: FlashReceipt): (u64, u64) {
+    let FlashReceipt { amount, fee } = receipt;
+    (amount, fee)
+}
+
 /// Credit quote proceeds to the vault insurance fund (e.g. bad-debt backstop).
 public(package) fun skim_to_insurance<Quote>(
     vault: &mut LeverageVault<Quote>,
@@ -378,7 +403,7 @@ public fun available_liquidity<Quote>(vault: &LeverageVault<Quote>): u64 {
     vault.balance.value()
 }
 
-/// Total LVLP shares minted to liquidity providers.
+/// Total LXPLP shares minted to liquidity providers.
 public fun total_shares<Quote>(vault: &LeverageVault<Quote>): u64 {
     vault.total_shares
 }
@@ -408,7 +433,7 @@ fun default_rate_config(): BorrowRateConfig {
 
 #[test_only]
 public fun create_for_testing<Quote>(
-    treasury_cap: TreasuryCap<LVLP>,
+    treasury_cap: TreasuryCap<LXPLP>,
     ctx: &mut TxContext,
 ): LeverageVault<Quote> {
     new(treasury_cap, ctx)

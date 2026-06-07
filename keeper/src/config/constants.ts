@@ -16,13 +16,15 @@ export const TESTNET_PREDICT = {
   serverUrl: 'https://predict-server.testnet.mystenlabs.com',
 } as const;
 
-/** Published LeverX package + shared objects (fill after `deploy_and_share`). */
+/** Published LeverX package + shared objects (testnet). */
 export const TESTNET_LEVERX = {
   packageId:
-    '0xfe042fb234a20c8599227bec8cf17ace8bf21276c0f499d23f075425cd7973f2',
-  registryId: '',
-  vaultId: '',
-  feeCollectorId: '',
+    '0xa471ec72186fc00723d013fe0067ee829d28421dcf31f47e2413600cdbfb1467',
+  registryId:
+    '0x8d07198915b859fc89dcc62cb40752ba185364a8599cf472f29301e287256857',
+  vaultId: '0x0c577c0de77aea7eaf1891d24476353efd74e85f865a0e02e5da54adde58c966',
+  feeCollectorId:
+    '0x63815d553d3db63bbbf3337fee23f4875feb1e91a2be2a2c31e22f52238181fa',
 } as const;
 
 /** Quote / default collateral coin types on testnet. */
@@ -52,21 +54,13 @@ export const LIQUIDATION_SWAP_SLIPPAGE_BPS = 300;
  */
 export const LAUNCH_COLLATERAL_CATALOG: CollateralCatalogEntry[] = [
   {
-    symbol: 'BTC',
-    coinType: '',
-    maxLtvBps: 8000,
-    liquidationLtvBps: 8500,
-    pythOracleId: '',
-    spotPoolId: '',
-    deepCoinId: '',
-  },
-  {
     symbol: 'SUI',
     coinType: '0x2::sui::SUI',
-    maxLtvBps: 7000,
-    liquidationLtvBps: 7500,
-    pythOracleId: '',
-    spotPoolId: '',
+    maxLtvBps: 8000,
+    liquidationLtvBps: 8500,
+    pythOracleId:
+      '0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0',
+    spotPoolId: '', // pending DeepBook SUI/dUSDC pool
     deepCoinId: '',
   },
   {
@@ -74,17 +68,20 @@ export const LAUNCH_COLLATERAL_CATALOG: CollateralCatalogEntry[] = [
     coinType: TESTNET_ASSETS.quoteType,
     maxLtvBps: 10000,
     liquidationLtvBps: 10000,
-    pythOracleId: '',
+    pythOracleId:
+      '0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81',
     spotPoolId: '',
     deepCoinId: '',
   },
   {
     symbol: 'DEEP',
-    coinType: '',
-    maxLtvBps: 6000,
-    liquidationLtvBps: 6500,
-    pythOracleId: '',
-    spotPoolId: '',
+    coinType:
+      '0x36dbef866a1d62bf7328989a10fb2f07d769f4ee587c0de4a0a256e57e0a58a8::deep::DEEP',
+    maxLtvBps: 7000,
+    liquidationLtvBps: 7500,
+    pythOracleId:
+      '0x3d52fffa2cd9e54b39bb36d282bdda560b15b8b4fdf4766a3c58499ef172bafc',
+    spotPoolId: '', // pending DeepBook DEEP/dUSDC pool
     deepCoinId: '',
   },
 ];

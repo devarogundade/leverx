@@ -69,15 +69,11 @@ function cancelFn(isRange: boolean): string {
 }
 
 function depositCollateralFn(isRange: boolean): string {
-  return isRange
-    ? "deposit_collateral_for_range"
-    : "deposit_collateral_for_binary";
+  return isRange ? "deposit_collateral_for_range" : "deposit_collateral_for_binary";
 }
 
 function depositQuoteFn(isRange: boolean): string {
-  return isRange
-    ? "deposit_quote_for_range_market"
-    : "deposit_quote_for_binary_market";
+  return isRange ? "deposit_quote_for_range_market" : "deposit_quote_for_binary_market";
 }
 
 export function buildDepositCollateral(
@@ -246,14 +242,7 @@ export function buildLeveragedMintTx(
   const tx = new Transaction();
 
   if (deposits?.collateralCoin) {
-    appendDepositCollateral(
-      tx,
-      cfg,
-      route,
-      accountId,
-      params.key,
-      deposits.collateralCoin,
-    );
+    appendDepositCollateral(tx, cfg, route, accountId, params.key, deposits.collateralCoin);
   }
   if (deposits?.quoteCoin) {
     appendDepositQuote(tx, cfg, accountId, params.key, deposits.quoteCoin);
@@ -296,9 +285,7 @@ export function appendSettleExpired(
   params: RedeemParams,
 ): void {
   const marketKey = addMarketKey(tx, params.key);
-  const fn = params.key.isRange
-    ? "settle_expired_proxy_range"
-    : "settle_expired_proxy_position";
+  const fn = params.key.isRange ? "settle_expired_proxy_range" : "settle_expired_proxy_position";
 
   tx.moveCall({
     target: `${cfg.packageId}::trade::${fn}`,
@@ -336,6 +323,7 @@ export function appendDeleverageDebt(
     target: `${cfg.packageId}::trade::${fn}`,
     typeArguments: [cfg.quoteType],
     arguments: [
+      tx.object(cfg.registryId),
       tx.object(cfg.vaultId),
       tx.object(cfg.feeCollectorId),
       tx.object(params.accountId),
@@ -411,15 +399,10 @@ export function appendCancelLimit(
   });
 }
 
-export function buildSetTriggersTx(
-  cfg: LeverxProtocolConfig,
-  params: TriggerParams,
-): Transaction {
+export function buildSetTriggersTx(cfg: LeverxProtocolConfig, params: TriggerParams): Transaction {
   const tx = new Transaction();
   const marketKey = addMarketKey(tx, params.key);
-  const fn = params.key.isRange
-    ? "set_range_triggers"
-    : "set_automated_triggers_entry";
+  const fn = params.key.isRange ? "set_range_triggers" : "set_automated_triggers_entry";
 
   tx.moveCall({
     target: `${cfg.packageId}::triggers::${fn}`,
@@ -441,17 +424,13 @@ export function buildVaultSupplyTx(
 ): Transaction {
   const tx = new Transaction();
 
-  const [lvlpCoin] = tx.moveCall({
+  const [lxplpCoin] = tx.moveCall({
     target: `${cfg.packageId}::leverage_vault::deposit_liquidity`,
     typeArguments: [cfg.quoteType],
-    arguments: [
-      tx.object(cfg.vaultId),
-      params.quoteCoin,
-      tx.object(SUI_CLOCK_OBJECT_ID),
-    ],
+    arguments: [tx.object(cfg.vaultId), params.quoteCoin, tx.object(SUI_CLOCK_OBJECT_ID)],
   });
 
-  tx.transferObjects([lvlpCoin!], recipient);
+  tx.transferObjects([lxplpCoin!], recipient);
   return tx;
 }
 
@@ -465,11 +444,7 @@ export function buildVaultWithdrawTx(
   const [quoteCoin] = tx.moveCall({
     target: `${cfg.packageId}::leverage_vault::withdraw_liquidity`,
     typeArguments: [cfg.quoteType],
-    arguments: [
-      tx.object(cfg.vaultId),
-      params.lpCoin,
-      tx.object(SUI_CLOCK_OBJECT_ID),
-    ],
+    arguments: [tx.object(cfg.vaultId), params.lpCoin, tx.object(SUI_CLOCK_OBJECT_ID)],
   });
 
   tx.transferObjects([quoteCoin!], recipient);

@@ -17,11 +17,12 @@ const TESTNET_PREDICT = {
     "0xe95040085976bfd54a1a07225cd46c8a2b4e8e2b6732f140a0fc49850ba73e1a::dusdc::DUSDC",
 } as const;
 
-/** Published LeverX package — fill shared object IDs after deploy_and_share. */
+/** Published LeverX package (testnet). */
 const TESTNET_LEVERX = {
   packageId:
-    "0xfe042fb234a20c8599227bec8cf17ace8bf21276c0f499d23f075425cd7973f2",
-  feeCollectorId: import.meta.env.VITE_FEE_COLLECTOR_ID ?? "",
+    "0xa471ec72186fc00723d013fe0067ee829d28421dcf31f47e2413600cdbfb1467",
+  feeCollectorId:
+    "0x63815d553d3db63bbbf3337fee23f4875feb1e91a2be2a2c31e22f52238181fa",
   pythQuoteOracleId: import.meta.env.VITE_PYTH_QUOTE_ORACLE_ID ?? "",
 } as const;
 

@@ -14,9 +14,7 @@ use leverx::{
     errors,
     events,
     leverage_vault::{Self as vault_mod, LeverageVault, FlashReceipt},
-    ltv,
     protocol_constants,
-    protocol_registry::AdminCap,
 };
 use sui::{balance::{Self, Balance}, clock::Clock, coin::{Self, Coin}};
 
@@ -46,9 +44,8 @@ public fun share<Quote>(collector: FeeCollector<Quote>) {
     transfer::share_object(collector);
 }
 
-/// Admin withdraws accumulated protocol fees.
-public fun withdraw<Quote>(
-    _admin: &AdminCap,
+/// Admin withdraws accumulated protocol fees (caller must verify `AdminCap` upstream).
+public(package) fun withdraw<Quote>(
     collector: &mut FeeCollector<Quote>,
     amount: u64,
     ctx: &mut TxContext,
@@ -79,8 +76,8 @@ public(package) fun distribute_protocol_fee<Quote>(
         return
     };
 
-    let vault_amt = ltv::mul_bps(total, protocol_constants::vault_fee_share_bps());
-    let collector_amt = ltv::mul_bps(total, protocol_constants::fee_collector_share_bps());
+    let vault_amt = protocol_constants::mul_bps(total, protocol_constants::vault_fee_share_bps());
+    let collector_amt = protocol_constants::mul_bps(total, protocol_constants::fee_collector_share_bps());
     let keeper_amt = total - vault_amt - collector_amt;
 
     let mut remaining = fee;
@@ -120,19 +117,40 @@ public(package) fun repay_vault_with_fee_split<Quote>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
+    repay_vault_for_ledger_principal(vault, collector, payment, 0, fee_source, clock, ctx);
+}
+
+/// Repay vault debt attributed to a proxy ledger principal (includes pro-rata accrued interest).
+public(package) fun repay_vault_for_ledger_principal<Quote>(
+    vault: &mut LeverageVault<Quote>,
+    collector: &mut FeeCollector<Quote>,
+    payment: Coin<Quote>,
+    ledger_principal: u64,
+    fee_source: u8,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
     vault_mod::accrue_interest(vault, clock);
     let amount = payment.value();
     assert!(amount > 0, errors::zero_amount());
 
-    let outstanding = vault_mod::total_borrowed(vault);
-    let repay_amt = if (amount >= outstanding) { outstanding } else { amount };
-    let accrued_interest = vault_mod::outstanding_accrued_interest(vault);
-    let interest_in_payment = if (repay_amt < accrued_interest) {
-        repay_amt
+    let outstanding = if (ledger_principal > 0) {
+        vault_mod::debt_with_accrued_interest(vault, ledger_principal)
     } else {
-        accrued_interest
+        vault_mod::total_borrowed(vault)
     };
-    let principal_in_payment = repay_amt - interest_in_payment;
+    let repay_amt = if (amount >= outstanding) { outstanding } else { amount };
+    let (interest_in_payment, principal_in_payment) = if (ledger_principal > 0) {
+        vault_mod::repayment_split_for_ledger_principal(vault, ledger_principal, repay_amt)
+    } else {
+        let accrued_interest = vault_mod::outstanding_accrued_interest(vault);
+        let interest = if (repay_amt < accrued_interest) {
+            repay_amt
+        } else {
+            accrued_interest
+        };
+        (interest, repay_amt - interest)
+    };
 
     vault_mod::apply_repayment(vault, repay_amt, principal_in_payment);
 
@@ -162,7 +180,7 @@ public fun repay_flash_liquidity<Quote>(
     ctx: &mut TxContext,
 ) {
     vault_mod::accrue_interest(vault, clock);
-    let FlashReceipt { amount, fee } = receipt;
+    let (amount, fee) = vault_mod::flash_receipt_amounts(receipt);
     let required = amount + fee;
     assert!(payment.value() >= required, errors::invalid_flash_repayment());
 

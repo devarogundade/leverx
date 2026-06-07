@@ -68,13 +68,8 @@ public fun swap_to_quote_via_swaps<BaseAsset, QuoteAsset>(
     assert!(pool.id() == leverx::protocol_registry::swap_pool_id<BaseAsset>(registry), errors::invalid_swap_pool());
 
     proxy.deposit_physical(fee_deep, ctx);
-    let balance_manager = proxy.balance_manager_trading_mut(ctx);
-
-    let (base_left, quote_out) = pool.swap_exact_base_for_quote_with_manager(
-        balance_manager,
-        proxy.trade_cap(),
-        proxy.deposit_cap(),
-        proxy.withdraw_cap(),
+    let (base_left, quote_out) = proxy.swap_exact_base_for_quote_with_manager(
+        pool,
         base_in,
         min_quote_out,
         clock,

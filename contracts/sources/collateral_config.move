@@ -74,3 +74,15 @@ public fun liquidation_ltv_bps(config: &CollateralConfig): u64 {
 public fun max_conf_bps(config: &CollateralConfig): u64 {
     config.max_conf_bps
 }
+
+/// Reject misconfigured LTV / confidence parameters at whitelist time.
+public fun assert_valid(config: &CollateralConfig) {
+    use leverx::{errors, protocol_constants};
+    let bps = protocol_constants::bps();
+    assert!(config.max_ltv_bps > 0 && config.max_ltv_bps <= bps, errors::invalid_collateral_config());
+    assert!(
+        config.liquidation_ltv_bps >= config.max_ltv_bps && config.liquidation_ltv_bps <= bps,
+        errors::invalid_collateral_config(),
+    );
+    assert!(config.max_conf_bps > 0 && config.max_conf_bps <= bps, errors::invalid_collateral_config());
+}

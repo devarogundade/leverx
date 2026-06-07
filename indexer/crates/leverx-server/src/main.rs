@@ -1,4 +1,5 @@
 mod catalog;
+mod leaderboard;
 mod orderbook;
 mod pagination;
 mod routes;

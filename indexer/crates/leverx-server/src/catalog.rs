@@ -46,25 +46,48 @@ SELECT
     m.is_up,
     m.is_range,
     lt.last_ask_price,
-    lt.last_bid_price,
+    lb.last_bid_price,
     COALESCE(v.volume_24h, 0) AS volume_24h,
     COALESCE(v.trade_count_24h, 0) AS trade_count_24h,
     m.updated_at_ms
 FROM markets m
 LEFT JOIN LATERAL (
-    SELECT ask_price AS last_ask_price, bid_price AS last_bid_price
+    SELECT ask_price AS last_ask_price
     FROM global_market_trades g
-    WHERE g.market_key = m.market_key
+    WHERE g.market_key = m.market_key AND g.trade_side = 'mint'
     ORDER BY g.timestamp_ms DESC
     LIMIT 1
 ) lt ON TRUE
+LEFT JOIN LATERAL (
+    SELECT bid_price AS last_bid_price
+    FROM global_market_trades g
+    WHERE g.market_key = m.market_key AND g.trade_side = 'redeem'
+    ORDER BY g.timestamp_ms DESC
+    LIMIT 1
+) lb ON TRUE
 LEFT JOIN (
     SELECT
         market_key,
-        SUM(COALESCE(cost, payout, 0)) AS volume_24h,
-        COUNT(*) AS trade_count_24h
-    FROM global_market_trades
-    WHERE timestamp_ms > (EXTRACT(EPOCH FROM NOW()) * 1000 - 86400000)
+        SUM(volume) AS volume_24h,
+        SUM(trade_count) AS trade_count_24h
+    FROM (
+        SELECT
+            market_key,
+            SUM(COALESCE(cost, payout, 0)) AS volume,
+            COUNT(*) AS trade_count
+        FROM global_market_trades
+        WHERE timestamp_ms > (EXTRACT(EPOCH FROM NOW()) * 1000 - 86400000)
+        GROUP BY market_key
+        UNION ALL
+        SELECT
+            position_key AS market_key,
+            SUM(COALESCE(notional_quote, 0)) AS volume,
+            COUNT(*) AS trade_count
+        FROM market_trades
+        WHERE timestamp_ms > (EXTRACT(EPOCH FROM NOW()) * 1000 - 86400000)
+          AND trade_kind IN ('open', 'close')
+        GROUP BY position_key
+    ) combined
     GROUP BY market_key
 ) v ON v.market_key = m.market_key
 WHERE ($1::text IS NULL OR m.oracle_id = $1)

@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { APP_NAME } from "@/lib/brand";
 import { SiteHeaderNav } from "@/components/SiteHeaderNav";
@@ -20,6 +20,15 @@ interface Props {
 export function SiteShell({ children, fullWidth }: Props) {
   const [open, setOpen] = useState(false);
   const closeMenu = () => setOpen(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
 
   return (
     <div className="site-shell relative flex min-h-dvh flex-col bg-background">
@@ -43,10 +52,10 @@ export function SiteShell({ children, fullWidth }: Props) {
             How it works?
           </Link>
 
-          <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
-            <BalanceBreakdown />
+          <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
+            <BalanceBreakdown className="hidden lg:inline-flex" />
             <ThemeToggle />
-            <WalletConnectButton className="max-w-[7rem] sm:max-w-none" />
+            <WalletConnectButton className="hidden lg:inline-flex" />
             <Button
               type="button"
               variant="ghost"
@@ -72,6 +81,7 @@ export function SiteShell({ children, fullWidth }: Props) {
             onClick={closeMenu}
           />
           <div className="site-mobile-menu lg:hidden">
+            <BalanceBreakdown className="site-mobile-menu-balance mb-3 w-full" />
             <SiteHeaderNav vertical onNavigate={closeMenu} className="mb-3" />
             <Link
               to="/guide"

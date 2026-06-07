@@ -25,11 +25,12 @@ use leverx::{
     fee_collector::{Self, FeeCollector},
     ltv,
     predict_client,
-    protocol_registry::LeverxRegistry,
+    protocol_registry::{Self, LeverxRegistry},
     spot_swap,
     leverage_vault::{Self as vault_mod, LeverageVault},
 };
 use pyth::price_info::PriceInfoObject;
+use std::u128;
 use sui::{clock::Clock, coin::{Self, Coin}};
 use token::deep::DEEP;
 
@@ -86,6 +87,7 @@ public fun deposit_collateral_for_binary<Collateral, Quote>(
 ) {
     let amount = collateral.value();
     assert!(amount > 0, errors::zero_amount());
+    let _ = registry.collateral_config<Collateral>();
     proxy.deposit_collateral_for_binary(key, collateral, ctx);
 
     let value_quote = ltv::collateral_value_in_quote<Collateral, Quote>(
@@ -124,6 +126,7 @@ public fun deposit_collateral_for_range<Collateral, Quote>(
 ) {
     let amount = collateral.value();
     assert!(amount > 0, errors::zero_amount());
+    let _ = registry.collateral_config<Collateral>();
     proxy.deposit_collateral_for_range(key, collateral, ctx);
 
     let value_quote = ltv::collateral_value_in_quote<Collateral, Quote>(
@@ -181,16 +184,19 @@ public fun withdraw_collateral_for_binary<Collateral, Quote>(
     clock: &Clock,
     ctx: &mut TxContext,
 ): Coin<Collateral> {
+    proxy.assert_can_act(ctx);
+    vault_mod::accrue_interest(vault, clock);
+    let ledger_principal = proxy.binary_borrowed_quote(key);
+    let debt = vault_mod::debt_with_accrued_interest(vault, ledger_principal);
     ltv::assert_withdraw_allowed<Collateral, Quote>(
         registry,
         proxy.binary_collateral_balance<Collateral>(key),
         amount,
-        proxy.binary_borrowed_quote(key),
+        debt,
         collateral_oracle,
         quote_oracle,
         clock,
     );
-    vault_mod::accrue_interest(vault, clock);
     let coin = proxy.withdraw_collateral_from_binary<Collateral>(key, amount, ctx);
     events::emit_collateral_withdrawn(
         object::id(proxy),
@@ -220,16 +226,19 @@ public fun withdraw_collateral_for_range<Collateral, Quote>(
     clock: &Clock,
     ctx: &mut TxContext,
 ): Coin<Collateral> {
+    proxy.assert_can_act(ctx);
+    vault_mod::accrue_interest(vault, clock);
+    let ledger_principal = proxy.range_borrowed_quote(key);
+    let debt = vault_mod::debt_with_accrued_interest(vault, ledger_principal);
     ltv::assert_withdraw_allowed<Collateral, Quote>(
         registry,
         proxy.range_collateral_balance<Collateral>(key),
         amount,
-        proxy.range_borrowed_quote(key),
+        debt,
         collateral_oracle,
         quote_oracle,
         clock,
     );
-    vault_mod::accrue_interest(vault, clock);
     let coin = proxy.withdraw_collateral_from_range<Collateral>(key, amount, ctx);
     events::emit_collateral_withdrawn(
         object::id(proxy),
@@ -680,6 +689,7 @@ public fun place_binary_limit_mint_order<Collateral, Quote>(
     ctx: &mut TxContext,
 ) {
     assert!(!registry.trading_paused(), errors::trading_paused());
+    proxy.assert_can_act(ctx);
     assert!(quantity > 0, errors::zero_quantity());
     assert!(margin_quote > 0, errors::zero_amount());
     assert!(
@@ -755,6 +765,7 @@ public fun place_range_limit_mint_order<Collateral, Quote>(
     ctx: &mut TxContext,
 ) {
     assert!(!registry.trading_paused(), errors::trading_paused());
+    proxy.assert_can_act(ctx);
     assert!(quantity > 0, errors::zero_quantity());
     assert!(margin_quote > 0, errors::zero_amount());
     assert!(
@@ -1161,6 +1172,7 @@ public fun synchronize_proxy_accounting<Quote>(
 
 /// Repay binary key vault debt from external quote coins; surplus credited back to the key.
 public fun deleverage_binary_account_balance<Quote>(
+    registry: &LeverxRegistry,
     vault: &mut LeverageVault<Quote>,
     collector: &mut FeeCollector<Quote>,
     proxy: &mut UserProxy,
@@ -1170,22 +1182,32 @@ public fun deleverage_binary_account_balance<Quote>(
     ctx: &mut TxContext,
 ) {
     proxy.assert_can_act(ctx);
+    protocol_registry::assert_vault(registry, vault);
+    protocol_registry::assert_fee_collector(registry, collector);
+    vault_mod::accrue_interest(vault, clock);
     let amount = repayment_funds.value();
     assert!(amount > 0, errors::zero_amount());
-    let debt = proxy.binary_borrowed_quote(key);
+    let ledger_principal = proxy.binary_borrowed_quote(key);
+    let debt = vault_mod::debt_with_accrued_interest(vault, ledger_principal);
     let repay_amt = if (amount > debt) { debt } else { amount };
+    let principal_repaid = if (repay_amt >= debt) {
+        ledger_principal
+    } else {
+        ((repay_amt as u128) * (ledger_principal as u128) / (debt as u128)) as u64
+    };
     let mut funds = repayment_funds;
     let repay_coin = funds.split(repay_amt, ctx);
-    fee_collector::repay_vault_with_fee_split(
+    fee_collector::repay_vault_for_ledger_principal(
         vault,
         collector,
         repay_coin,
+        ledger_principal,
         protocol_constants::fee_source_interest(),
         clock,
         ctx,
     );
-    if (repay_amt > 0) {
-        proxy.record_repay_for_binary(key, repay_amt);
+    if (principal_repaid > 0) {
+        proxy.record_repay_for_binary(key, principal_repaid);
     };
     events::emit_vault_repaid(
         object::id(vault),
@@ -1207,6 +1229,7 @@ public fun deleverage_binary_account_balance<Quote>(
 
 /// Repay range key vault debt from external quote coins; surplus credited back to the key.
 public fun deleverage_range_account_balance<Quote>(
+    registry: &LeverxRegistry,
     vault: &mut LeverageVault<Quote>,
     collector: &mut FeeCollector<Quote>,
     proxy: &mut UserProxy,
@@ -1216,22 +1239,32 @@ public fun deleverage_range_account_balance<Quote>(
     ctx: &mut TxContext,
 ) {
     proxy.assert_can_act(ctx);
+    protocol_registry::assert_vault(registry, vault);
+    protocol_registry::assert_fee_collector(registry, collector);
+    vault_mod::accrue_interest(vault, clock);
     let amount = repayment_funds.value();
     assert!(amount > 0, errors::zero_amount());
-    let debt = proxy.range_borrowed_quote(key);
+    let ledger_principal = proxy.range_borrowed_quote(key);
+    let debt = vault_mod::debt_with_accrued_interest(vault, ledger_principal);
     let repay_amt = if (amount > debt) { debt } else { amount };
+    let principal_repaid = if (repay_amt >= debt) {
+        ledger_principal
+    } else {
+        ((repay_amt as u128) * (ledger_principal as u128) / (debt as u128)) as u64
+    };
     let mut funds = repayment_funds;
     let repay_coin = funds.split(repay_amt, ctx);
-    fee_collector::repay_vault_with_fee_split(
+    fee_collector::repay_vault_for_ledger_principal(
         vault,
         collector,
         repay_coin,
+        ledger_principal,
         protocol_constants::fee_source_interest(),
         clock,
         ctx,
     );
-    if (repay_amt > 0) {
-        proxy.record_repay_for_range(key, repay_amt);
+    if (principal_repaid > 0) {
+        proxy.record_repay_for_range(key, principal_repaid);
     };
     events::emit_vault_repaid(
         object::id(vault),
@@ -1253,6 +1286,7 @@ public fun deleverage_range_account_balance<Quote>(
 
 /// Repay binary key debt using quote already held on the market key.
 public fun repay_debt_for_binary<Quote>(
+    registry: &LeverxRegistry,
     proxy: &mut UserProxy,
     vault: &mut LeverageVault<Quote>,
     collector: &mut FeeCollector<Quote>,
@@ -1261,12 +1295,14 @@ public fun repay_debt_for_binary<Quote>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
+    let quote = proxy.withdraw_quote_from_binary<Quote>(key, amount, ctx);
     deleverage_binary_account_balance(
+        registry,
         vault,
         collector,
         proxy,
         key,
-        proxy.withdraw_quote_from_binary<Quote>(key, amount, ctx),
+        quote,
         clock,
         ctx,
     );
@@ -1274,6 +1310,7 @@ public fun repay_debt_for_binary<Quote>(
 
 /// Repay range key debt using quote already held on the market key.
 public fun repay_debt_for_range<Quote>(
+    registry: &LeverxRegistry,
     proxy: &mut UserProxy,
     vault: &mut LeverageVault<Quote>,
     collector: &mut FeeCollector<Quote>,
@@ -1282,12 +1319,14 @@ public fun repay_debt_for_range<Quote>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
+    let quote = proxy.withdraw_quote_from_range<Quote>(key, amount, ctx);
     deleverage_range_account_balance(
+        registry,
         vault,
         collector,
         proxy,
         key,
-        proxy.withdraw_quote_from_range<Quote>(key, amount, ctx),
+        quote,
         clock,
         ctx,
     );
@@ -1378,18 +1417,23 @@ public fun quote_leveraged_redeem_range(
 /// True when the binary market key's LTV is at or below the asset liquidation threshold.
 public fun is_binary_position_liquidatable<Collateral, Quote>(
     registry: &LeverxRegistry,
+    vault: &mut LeverageVault<Quote>,
     proxy: &UserProxy,
     key: MarketKey,
     collateral_oracle: &PriceInfoObject,
     quote_oracle: &PriceInfoObject,
     clock: &Clock,
 ): bool {
-    ltv::is_liquidatable<Collateral, Quote>(
+    vault_mod::accrue_interest(vault, clock);
+    let debt = vault_mod::debt_with_accrued_interest(vault, proxy.binary_borrowed_quote(key));
+    let liq_max_age = protocol_registry::liquidation_pyth_max_age_secs(registry);
+    ltv::is_liquidatable_with_max_age<Collateral, Quote>(
         registry,
         proxy.binary_collateral_balance<Collateral>(key),
-        proxy.binary_borrowed_quote(key),
+        debt,
         collateral_oracle,
         quote_oracle,
+        liq_max_age,
         clock,
     )
 }
@@ -1397,18 +1441,23 @@ public fun is_binary_position_liquidatable<Collateral, Quote>(
 /// True when the range market key's LTV is at or below the asset liquidation threshold.
 public fun is_range_position_liquidatable<Collateral, Quote>(
     registry: &LeverxRegistry,
+    vault: &mut LeverageVault<Quote>,
     proxy: &UserProxy,
     key: RangeKey,
     collateral_oracle: &PriceInfoObject,
     quote_oracle: &PriceInfoObject,
     clock: &Clock,
 ): bool {
-    ltv::is_liquidatable<Collateral, Quote>(
+    vault_mod::accrue_interest(vault, clock);
+    let debt = vault_mod::debt_with_accrued_interest(vault, proxy.range_borrowed_quote(key));
+    let liq_max_age = protocol_registry::liquidation_pyth_max_age_secs(registry);
+    ltv::is_liquidatable_with_max_age<Collateral, Quote>(
         registry,
         proxy.range_collateral_balance<Collateral>(key),
-        proxy.range_borrowed_quote(key),
+        debt,
         collateral_oracle,
         quote_oracle,
+        liq_max_age,
         clock,
     )
 }
@@ -1416,16 +1465,19 @@ public fun is_range_position_liquidatable<Collateral, Quote>(
 /// Current collateral health for a binary market key, in basis points (10_000 = 100% LTV).
 public fun evaluate_binary_position_health<Collateral, Quote>(
     registry: &LeverxRegistry,
+    vault: &mut LeverageVault<Quote>,
     proxy: &UserProxy,
     key: MarketKey,
     collateral_oracle: &PriceInfoObject,
     quote_oracle: &PriceInfoObject,
     clock: &Clock,
 ): u64 {
+    vault_mod::accrue_interest(vault, clock);
+    let debt = vault_mod::debt_with_accrued_interest(vault, proxy.binary_borrowed_quote(key));
     ltv::evaluate_account_health<Collateral, Quote>(
         registry,
         proxy.binary_collateral_balance<Collateral>(key),
-        proxy.binary_borrowed_quote(key),
+        debt,
         collateral_oracle,
         quote_oracle,
         clock,
@@ -1435,16 +1487,19 @@ public fun evaluate_binary_position_health<Collateral, Quote>(
 /// Current collateral health for a range market key, in basis points (10_000 = 100% LTV).
 public fun evaluate_range_position_health<Collateral, Quote>(
     registry: &LeverxRegistry,
+    vault: &mut LeverageVault<Quote>,
     proxy: &UserProxy,
     key: RangeKey,
     collateral_oracle: &PriceInfoObject,
     quote_oracle: &PriceInfoObject,
     clock: &Clock,
 ): u64 {
+    vault_mod::accrue_interest(vault, clock);
+    let debt = vault_mod::debt_with_accrued_interest(vault, proxy.range_borrowed_quote(key));
     ltv::evaluate_account_health<Collateral, Quote>(
         registry,
         proxy.range_collateral_balance<Collateral>(key),
-        proxy.range_borrowed_quote(key),
+        debt,
         collateral_oracle,
         quote_oracle,
         clock,
@@ -1493,11 +1548,12 @@ fun quote_borrow_for_leverage_binary<Collateral, Quote>(
     );
     let position_quote = ltv::position_from_margin(margin_quote, leverage_bps);
     let borrow_quote = ltv::borrow_for_leverage(position_quote, margin_quote);
-    ltv::assert_borrow_allowed<Collateral, Quote>(
+    ltv::assert_incremental_borrow_allowed<Collateral, Quote>(
         registry,
         collateral_oracle,
         quote_oracle,
         proxy.binary_collateral_balance<Collateral>(key),
+        proxy.binary_borrowed_quote(key),
         borrow_quote,
         clock,
     );
@@ -1522,11 +1578,12 @@ fun quote_borrow_for_leverage_range<Collateral, Quote>(
     );
     let position_quote = ltv::position_from_margin(margin_quote, leverage_bps);
     let borrow_quote = ltv::borrow_for_leverage(position_quote, margin_quote);
-    ltv::assert_borrow_allowed<Collateral, Quote>(
+    ltv::assert_incremental_borrow_allowed<Collateral, Quote>(
         registry,
         collateral_oracle,
         quote_oracle,
         proxy.range_collateral_balance<Collateral>(key),
+        proxy.range_borrowed_quote(key),
         borrow_quote,
         clock,
     );
@@ -1674,7 +1731,7 @@ fun execute_leveraged_mint_binary<Collateral, Quote>(
     );
     assert!(mint_cost <= margin_quote + borrow_quote, errors::mint_cost_exceeds_position());
 
-    execute_borrow_binary(vault, proxy, key, borrow_quote, clock, ctx);
+    execute_borrow_binary(registry, vault, proxy, key, borrow_quote, clock, ctx);
     let funding = proxy.withdraw_quote_from_binary<Quote>(key, mint_cost, ctx);
     predict_client::deposit_quote(manager, funding, ctx);
     predict_client::mint_binary<Quote>(predict_global, manager, oracle, key, quantity, clock, ctx);
@@ -1746,7 +1803,7 @@ fun execute_leveraged_mint_range<Collateral, Quote>(
     );
     assert!(mint_cost <= margin_quote + borrow_quote, errors::mint_cost_exceeds_position());
 
-    execute_borrow_range(vault, proxy, key, borrow_quote, clock, ctx);
+    execute_borrow_range(registry, vault, proxy, key, borrow_quote, clock, ctx);
     let funding = proxy.withdraw_quote_from_range<Quote>(key, mint_cost, ctx);
     predict_client::deposit_quote(manager, funding, ctx);
     predict_client::mint_range<Quote>(predict_global, manager, oracle, key, quantity, clock, ctx);
@@ -1920,11 +1977,12 @@ fun plan_leverage_binary<Collateral, Quote>(
     let position_quote = ltv::position_from_margin(margin_quote, leverage_bps);
     let borrow_quote = ltv::borrow_for_leverage(position_quote, margin_quote);
 
-    ltv::assert_borrow_allowed<Collateral, Quote>(
+    ltv::assert_incremental_borrow_allowed<Collateral, Quote>(
         registry,
         collateral_oracle,
         quote_oracle,
         proxy.binary_collateral_balance<Collateral>(key),
+        proxy.binary_borrowed_quote(key),
         borrow_quote,
         clock,
     );
@@ -1964,11 +2022,12 @@ fun plan_leverage_range<Collateral, Quote>(
     let position_quote = ltv::position_from_margin(margin_quote, leverage_bps);
     let borrow_quote = ltv::borrow_for_leverage(position_quote, margin_quote);
 
-    ltv::assert_borrow_allowed<Collateral, Quote>(
+    ltv::assert_incremental_borrow_allowed<Collateral, Quote>(
         registry,
         collateral_oracle,
         quote_oracle,
         proxy.range_collateral_balance<Collateral>(key),
+        proxy.range_borrowed_quote(key),
         borrow_quote,
         clock,
     );
@@ -1982,6 +2041,7 @@ fun plan_leverage_range<Collateral, Quote>(
 
 /// Borrow quote from the vault for a binary market key and record proxy debt.
 fun execute_borrow_binary<Quote>(
+    registry: &LeverxRegistry,
     vault: &mut LeverageVault<Quote>,
     proxy: &mut UserProxy,
     key: MarketKey,
@@ -1989,6 +2049,7 @@ fun execute_borrow_binary<Quote>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
+    protocol_registry::assert_vault(registry, vault);
     if (borrow_quote > 0) {
         let borrowed = vault_mod::borrow(vault, borrow_quote, clock, ctx);
         proxy.credit_quote_for_binary(key, borrowed, ctx);
@@ -2014,6 +2075,7 @@ fun execute_borrow_binary<Quote>(
 
 /// Borrow quote from the vault for a range market key and record proxy debt.
 fun execute_borrow_range<Quote>(
+    registry: &LeverxRegistry,
     vault: &mut LeverageVault<Quote>,
     proxy: &mut UserProxy,
     key: RangeKey,
@@ -2021,6 +2083,7 @@ fun execute_borrow_range<Quote>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
+    protocol_registry::assert_vault(registry, vault);
     if (borrow_quote > 0) {
         let borrowed = vault_mod::borrow(vault, borrow_quote, clock, ctx);
         proxy.credit_quote_for_range(key, borrowed, ctx);
@@ -2058,22 +2121,32 @@ fun repay_from_payout_binary<Quote>(
 ) {
     if (payout == 0) return;
 
-    let debt = proxy.binary_borrowed_quote(key);
+    vault_mod::accrue_interest(vault, clock);
+    let ledger_principal = proxy.binary_borrowed_quote(key);
+    let debt = vault_mod::debt_with_accrued_interest(vault, ledger_principal);
     let repay_amt = if (payout >= debt) { debt } else { payout };
+    let principal_repaid = if (repay_amt >= debt) {
+        ledger_principal
+    } else {
+        ((repay_amt as u128) * (ledger_principal as u128) / (debt as u128)) as u64
+    };
     let surplus = payout - repay_amt;
 
     let mut payout_coin = predict_client::withdraw_quote(manager, payout, ctx);
     if (repay_amt > 0) {
         let repay_coin = payout_coin.split(repay_amt, ctx);
-        fee_collector::repay_vault_with_fee_split(
+        fee_collector::repay_vault_for_ledger_principal(
             vault,
             collector,
             repay_coin,
+            ledger_principal,
             protocol_constants::fee_source_interest(),
             clock,
             ctx,
         );
-        proxy.record_repay_for_binary(key, repay_amt);
+        if (principal_repaid > 0) {
+            proxy.record_repay_for_binary(key, principal_repaid);
+        };
         events::emit_vault_repaid(
             object::id(vault),
             object::id(proxy),
@@ -2125,22 +2198,32 @@ fun repay_from_payout_range<Quote>(
 ) {
     if (payout == 0) return;
 
-    let debt = proxy.range_borrowed_quote(key);
+    vault_mod::accrue_interest(vault, clock);
+    let ledger_principal = proxy.range_borrowed_quote(key);
+    let debt = vault_mod::debt_with_accrued_interest(vault, ledger_principal);
     let repay_amt = if (payout >= debt) { debt } else { payout };
+    let principal_repaid = if (repay_amt >= debt) {
+        ledger_principal
+    } else {
+        ((repay_amt as u128) * (ledger_principal as u128) / (debt as u128)) as u64
+    };
     let surplus = payout - repay_amt;
 
     let mut payout_coin = predict_client::withdraw_quote(manager, payout, ctx);
     if (repay_amt > 0) {
         let repay_coin = payout_coin.split(repay_amt, ctx);
-        fee_collector::repay_vault_with_fee_split(
+        fee_collector::repay_vault_for_ledger_principal(
             vault,
             collector,
             repay_coin,
+            ledger_principal,
             protocol_constants::fee_source_interest(),
             clock,
             ctx,
         );
-        proxy.record_repay_for_range(key, repay_amt);
+        if (principal_repaid > 0) {
+            proxy.record_repay_for_range(key, principal_repaid);
+        };
         events::emit_vault_repaid(
             object::id(vault),
             object::id(proxy),

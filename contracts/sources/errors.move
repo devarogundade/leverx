@@ -124,3 +124,12 @@ public fun invalid_limit_order_expiry(): u64 { 34 }
 
 /// No take-profit / stop-loss triggers are set for the requested market key.
 public fun trigger_not_found(): u64 { 20 }
+
+/// Vault object ID does not match the registry's linked vault.
+public fun invalid_protocol_vault(): u64 { 36 }
+
+/// Fee collector object ID does not match the registry's linked collector.
+public fun invalid_fee_collector(): u64 { 37 }
+
+/// Collateral LTV parameters fail protocol sanity checks.
+public fun invalid_collateral_config(): u64 { 38 }

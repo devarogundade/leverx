@@ -100,6 +100,7 @@ public fun whitelist_collateral_asset<Collateral>(
         liquidation_ltv_bps,
         max_conf_bps,
     );
+    collateral_config::assert_valid(&config);
     register_collateral<Collateral>(_admin, registry, config);
 }
 
@@ -111,6 +112,7 @@ public fun register_collateral<Collateral>(
 ) {
     let asset = type_name::with_defining_ids<Collateral>();
     assert!(collateral_config::asset(&config) == asset, errors::collateral_not_supported());
+    collateral_config::assert_valid(&config);
     if (registry.collaterals.contains(asset)) {
         let existing = registry.collaterals.borrow_mut(asset);
         *existing = config;
@@ -152,6 +154,10 @@ public fun set_trading_paused(_admin: &AdminCap, registry: &mut LeverxRegistry, 
 
 /// Update the maximum acceptable age for Pyth oracle prices used in LTV checks.
 public fun set_pyth_max_age(_admin: &AdminCap, registry: &mut LeverxRegistry, max_age_secs: u64) {
+    assert!(
+        max_age_secs > 0 && max_age_secs <= protocol_constants::max_pyth_max_age_secs(),
+        errors::invalid_pyth_price(),
+    );
     registry.pyth_max_age_secs = max_age_secs;
     events::emit_pyth_max_age_updated(object::id(registry), max_age_secs);
 }
@@ -214,7 +220,7 @@ public entry fun withdraw_fee_collector_entry<Quote>(
     ctx: &mut TxContext,
 ) {
     assert!(object::id(collector) == registry.fee_collector_id, errors::invalid_manager());
-    let coin = fee_collector::withdraw(admin, collector, amount, ctx);
+    let coin = fee_collector::withdraw(collector, amount, ctx);
     transfer::public_transfer(coin, ctx.sender());
 }
 
@@ -246,6 +252,8 @@ public fun set_borrow_rate_params<Quote>(
     slope2_bps: u64,
     flash_fee_bps: u64,
 ) {
+    assert!(kink_utilization_bps <= protocol_constants::bps(), errors::invalid_leverage());
+    assert!(flash_fee_bps <= protocol_constants::bps(), errors::invalid_leverage());
     vault.set_borrow_rate_params(
         base_rate_bps,
         kink_utilization_bps,
@@ -288,6 +296,23 @@ public fun trading_paused(registry: &LeverxRegistry): bool {
 /// Maximum Pyth price age (seconds) enforced during collateral valuation.
 public fun pyth_max_age_secs(registry: &LeverxRegistry): u64 {
     registry.pyth_max_age_secs
+}
+
+/// Wider Pyth staleness bound used for liquidation eligibility (reduces bad debt during oracle stalls).
+public fun liquidation_pyth_max_age_secs(registry: &LeverxRegistry): u64 {
+    let trading = registry.pyth_max_age_secs;
+    let liquidation = protocol_constants::liquidation_pyth_max_age_secs();
+    if (trading > liquidation) trading else liquidation
+}
+
+/// Assert the vault object matches the registry deployment link.
+public fun assert_vault<Quote>(registry: &LeverxRegistry, vault: &LeverageVault<Quote>) {
+    assert!(object::id(vault) == registry.vault_id, errors::invalid_protocol_vault());
+}
+
+/// Assert the fee collector object matches the registry deployment link.
+public fun assert_fee_collector<Quote>(registry: &LeverxRegistry, collector: &FeeCollector<Quote>) {
+    assert!(object::id(collector) == registry.fee_collector_id, errors::invalid_fee_collector());
 }
 
 /// LTV and Pyth feed configuration for a whitelisted collateral `Asset`.

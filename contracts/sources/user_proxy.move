@@ -30,6 +30,7 @@ module leverx::user_proxy;
 
 use deepbook::{
     balance_manager::{Self, BalanceManager, DepositCap, TradeCap, WithdrawCap},
+    pool::Pool,
     registry::Registry,
 };
 use deepbook_predict::{market_key::MarketKey, range_key::RangeKey};
@@ -796,6 +797,28 @@ public(package) fun withdraw_cap(proxy: &UserProxy): &WithdrawCap {
 /// Borrow the trade cap (protocol modules only).
 public(package) fun trade_cap(proxy: &UserProxy): &TradeCap {
     &proxy.trade_cap
+}
+
+/// Spot sell base for quote via this proxy's balance manager and DeepBook caps.
+public(package) fun swap_exact_base_for_quote_with_manager<BaseAsset, QuoteAsset>(
+    proxy: &mut UserProxy,
+    pool: &mut Pool<BaseAsset, QuoteAsset>,
+    base_in: Coin<BaseAsset>,
+    min_quote_out: u64,
+    clock: &Clock,
+    ctx: &mut TxContext,
+): (Coin<BaseAsset>, Coin<QuoteAsset>) {
+    proxy.assert_can_act(ctx);
+    pool.swap_exact_base_for_quote_with_manager(
+        &mut proxy.balance_manager,
+        &proxy.trade_cap,
+        &proxy.deposit_cap,
+        &proxy.withdraw_cap,
+        base_in,
+        min_quote_out,
+        clock,
+        ctx,
+    )
 }
 
 // === Triggers ===

@@ -33,7 +33,7 @@ export const ui = {
   vaultSupplyCta: "Supply dUSDC",
   vaultWithdrawCta: "Withdraw dUSDC",
   vaultActionHint:
-    "Supply dUSDC to earn LP yield or withdraw LVLP shares. Requires a connected wallet and deployed protocol IDs.",
+    "Supply dUSDC to earn LP yield or withdraw lxPLP shares. Requires a connected wallet and deployed protocol IDs.",
   vaultPoolDetails: "Pool details",
   vaultPoolDetailsHint: "Live stats from the LeverX indexer vault snapshots.",
   vaultChartTitle: "Performance",

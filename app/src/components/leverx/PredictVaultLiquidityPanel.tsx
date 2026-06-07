@@ -9,7 +9,7 @@ import { useWalletCoinBalance } from "@/hooks/useWalletCoinBalance";
 import { useWallet } from "@/context/WalletContext";
 import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
 import { appConfig } from "@/lib/config";
-import { lvlpCoinType } from "@/lib/leverx/protocol";
+import { lxplpCoinType } from "@/lib/leverx/protocol";
 import { formatCollateralAmount } from "@/lib/predict/quote-assets";
 import { QUOTE_UNIT } from "@/lib/predict/constants";
 import { ui } from "@/lib/copy";
@@ -49,13 +49,13 @@ export function PredictVaultLiquidityPanel({ vaultNav, vaultId, className }: Pro
     useLeverxTransactions(address ?? undefined);
 
   const quoteType = appConfig.quoteType;
-  const lvlpType = cfg ? lvlpCoinType(cfg.packageId) : null;
+  const lxplpType = cfg ? lxplpCoinType(cfg.packageId) : null;
 
   const { data: quoteBalance, isLoading: quoteBalanceLoading } = useWalletCoinBalance(
     action === "supply" ? quoteType : null,
   );
-  const { data: lvlpBalance, isLoading: lvlpBalanceLoading } = useWalletCoinBalance(
-    action === "withdraw" ? lvlpType : null,
+  const { data: lxplpBalance, isLoading: lxplpBalanceLoading } = useWalletCoinBalance(
+    action === "withdraw" ? lxplpType : null,
   );
 
   useEffect(() => {
@@ -63,24 +63,24 @@ export function PredictVaultLiquidityPanel({ vaultNav, vaultId, className }: Pro
     setTxError(null);
   }, [action]);
 
-  const symbol = action === "supply" ? "DUSDC" : "LVLP";
+  const symbol = action === "supply" ? "DUSDC" : "lxPLP";
   const balanceLabel = useMemo(() => {
     if (action === "supply") {
       if (quoteBalanceLoading) return "…";
       if (quoteBalance == null) return "_";
       return formatCollateralAmount(quoteType, quoteBalance);
     }
-    if (lvlpBalanceLoading) return "…";
-    if (lvlpBalance == null) return "_";
-    return formatCollateralAmount(lvlpType ?? quoteType, lvlpBalance);
+    if (lxplpBalanceLoading) return "…";
+    if (lxplpBalance == null) return "_";
+    return formatCollateralAmount(lxplpType ?? quoteType, lxplpBalance);
   }, [
     action,
     quoteBalanceLoading,
     quoteBalance,
-    lvlpBalanceLoading,
-    lvlpBalance,
+    lxplpBalanceLoading,
+    lxplpBalance,
     quoteType,
-    lvlpType,
+    lxplpType,
   ]);
 
   const amountNum = parseFloat(amount) || 0;
@@ -165,7 +165,7 @@ export function PredictVaultLiquidityPanel({ vaultNav, vaultId, className }: Pro
           <TradeQuickAmounts
             className="mt-2"
             amounts={QUICK_AMOUNTS}
-            onSelect={(v) => setAmount(v)}
+            onPick={(v) => setAmount(v)}
           />
         </div>
 

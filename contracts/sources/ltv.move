@@ -35,8 +35,39 @@ public fun collateral_value_in_quote<Collateral, Quote>(
     amount: u64,
     clock: &Clock,
 ): u64 {
-    let collateral_usd = usd_value<Collateral>(registry, collateral_oracle, amount, clock);
-    quote_amount_from_usd<Quote>(registry, quote_oracle, collateral_usd, clock)
+    collateral_value_in_quote_with_max_age<Collateral, Quote>(
+        registry,
+        collateral_oracle,
+        quote_oracle,
+        amount,
+        registry.pyth_max_age_secs(),
+        clock,
+    )
+}
+
+/// Collateral→quote valuation with an explicit Pyth staleness bound.
+public fun collateral_value_in_quote_with_max_age<Collateral, Quote>(
+    registry: &LeverxRegistry,
+    collateral_oracle: &PriceInfoObject,
+    quote_oracle: &PriceInfoObject,
+    amount: u64,
+    max_age_secs: u64,
+    clock: &Clock,
+): u64 {
+    let collateral_usd = usd_value_with_max_age<Collateral>(
+        registry,
+        collateral_oracle,
+        amount,
+        max_age_secs,
+        clock,
+    );
+    quote_amount_from_usd_with_max_age<Quote>(
+        registry,
+        quote_oracle,
+        collateral_usd,
+        max_age_secs,
+        clock,
+    )
 }
 
 /// Maximum borrow in quote atoms supported by `collateral_amount` at max LTV.
@@ -98,6 +129,26 @@ public fun assert_borrow_allowed<Collateral, Quote>(
     );
 }
 
+/// Assert `existing_borrowed + new_borrow` is within max LTV for stacked positions.
+public fun assert_incremental_borrow_allowed<Collateral, Quote>(
+    registry: &LeverxRegistry,
+    collateral_oracle: &PriceInfoObject,
+    quote_oracle: &PriceInfoObject,
+    collateral_amount: u64,
+    existing_borrowed_quote: u64,
+    new_borrow_quote: u64,
+    clock: &Clock,
+) {
+    assert_borrow_allowed<Collateral, Quote>(
+        registry,
+        collateral_oracle,
+        quote_oracle,
+        collateral_amount,
+        existing_borrowed_quote + new_borrow_quote,
+        clock,
+    );
+}
+
 /// Compute borrow amount for a leveraged trade: `position_quote - margin_quote`.
 public fun borrow_for_leverage(position_quote: u64, margin_quote: u64): u64 {
     assert!(position_quote >= margin_quote, errors::invalid_leverage());
@@ -111,7 +162,7 @@ public fun position_from_margin(margin_quote: u64, leverage_bps: u64): u64 {
 
 /// Multiply `amount` by basis points (10_000 = 100%).
 public fun mul_bps(amount: u64, bps: u64): u64 {
-    ((amount as u128) * (bps as u128) / (protocol_constants::bps() as u128)) as u64
+    protocol_constants::mul_bps(amount, bps)
 }
 
 /// Health factor in bps: `(collateral_value * BPS) / debt`. Below liquidation threshold = underwater.
@@ -123,12 +174,34 @@ public fun evaluate_account_health<Collateral, Quote>(
     quote_oracle: &PriceInfoObject,
     clock: &Clock,
 ): u64 {
+    evaluate_account_health_with_max_age<Collateral, Quote>(
+        registry,
+        collateral_amount,
+        borrowed_quote,
+        collateral_oracle,
+        quote_oracle,
+        registry.pyth_max_age_secs(),
+        clock,
+    )
+}
+
+/// Health factor with an explicit Pyth staleness bound.
+public fun evaluate_account_health_with_max_age<Collateral, Quote>(
+    registry: &LeverxRegistry,
+    collateral_amount: u64,
+    borrowed_quote: u64,
+    collateral_oracle: &PriceInfoObject,
+    quote_oracle: &PriceInfoObject,
+    max_age_secs: u64,
+    clock: &Clock,
+): u64 {
     if (borrowed_quote == 0) return protocol_constants::bps() * 10;
-    let collateral_quote = collateral_value_in_quote<Collateral, Quote>(
+    let collateral_quote = collateral_value_in_quote_with_max_age<Collateral, Quote>(
         registry,
         collateral_oracle,
         quote_oracle,
         collateral_amount,
+        max_age_secs,
         clock,
     );
     if (collateral_quote == 0) return 0;
@@ -144,12 +217,34 @@ public fun is_liquidatable<Collateral, Quote>(
     quote_oracle: &PriceInfoObject,
     clock: &Clock,
 ): bool {
-    let health = evaluate_account_health<Collateral, Quote>(
+    is_liquidatable_with_max_age<Collateral, Quote>(
         registry,
         collateral_amount,
         borrowed_quote,
         collateral_oracle,
         quote_oracle,
+        registry.pyth_max_age_secs(),
+        clock,
+    )
+}
+
+/// Liquidation health check with an explicit Pyth staleness bound (wider during oracle stalls).
+public fun is_liquidatable_with_max_age<Collateral, Quote>(
+    registry: &LeverxRegistry,
+    collateral_amount: u64,
+    borrowed_quote: u64,
+    collateral_oracle: &PriceInfoObject,
+    quote_oracle: &PriceInfoObject,
+    max_age_secs: u64,
+    clock: &Clock,
+): bool {
+    let health = evaluate_account_health_with_max_age<Collateral, Quote>(
+        registry,
+        collateral_amount,
+        borrowed_quote,
+        collateral_oracle,
+        quote_oracle,
+        max_age_secs,
         clock,
     );
     let config = registry.collateral_config<Collateral>();
@@ -194,7 +289,23 @@ fun usd_value<Asset>(
     amount: u64,
     clock: &Clock,
 ): u64 {
-    let config = conversion_config<Asset>(registry, price_info, true, clock);
+    usd_value_with_max_age<Asset>(registry, price_info, amount, registry.pyth_max_age_secs(), clock)
+}
+
+fun usd_value_with_max_age<Asset>(
+    registry: &LeverxRegistry,
+    price_info: &PriceInfoObject,
+    amount: u64,
+    max_age_secs: u64,
+    clock: &Clock,
+): u64 {
+    let config = conversion_config_with_max_age<Asset>(
+        registry,
+        price_info,
+        true,
+        max_age_secs,
+        clock,
+    );
     convert_amount(config, amount)
 }
 
@@ -205,7 +316,29 @@ fun quote_amount_from_usd<Quote>(
     usd_amount: u64,
     clock: &Clock,
 ): u64 {
-    let config = conversion_config<Quote>(registry, quote_oracle, false, clock);
+    quote_amount_from_usd_with_max_age<Quote>(
+        registry,
+        quote_oracle,
+        usd_amount,
+        registry.pyth_max_age_secs(),
+        clock,
+    )
+}
+
+fun quote_amount_from_usd_with_max_age<Quote>(
+    registry: &LeverxRegistry,
+    quote_oracle: &PriceInfoObject,
+    usd_amount: u64,
+    max_age_secs: u64,
+    clock: &Clock,
+): u64 {
+    let config = conversion_config_with_max_age<Quote>(
+        registry,
+        quote_oracle,
+        false,
+        max_age_secs,
+        clock,
+    );
     convert_amount_inverse(config, usd_amount)
 }
 
@@ -216,11 +349,28 @@ fun conversion_config<Asset>(
     to_usd: bool,
     clock: &Clock,
 ): ConversionConfig {
+    conversion_config_with_max_age<Asset>(
+        registry,
+        price_info,
+        to_usd,
+        registry.pyth_max_age_secs(),
+        clock,
+    )
+}
+
+fun conversion_config_with_max_age<Asset>(
+    registry: &LeverxRegistry,
+    price_info: &PriceInfoObject,
+    to_usd: bool,
+    max_age_secs: u64,
+    clock: &Clock,
+): ConversionConfig {
     let collateral = registry.collateral_config<Asset>();
     let (pyth_price, pyth_decimals, pyth_conf) = validated_pyth_price(
         registry,
         price_info,
         &collateral,
+        max_age_secs,
         clock,
     );
     assert!(
@@ -261,9 +411,9 @@ fun convert_amount(config: ConversionConfig, base_amount: u64): u64 {
         (protocol_constants::pyth_exponent_buffer() as u64) + (config.base_decimals as u64)
             - (config.target_decimals as u64);
     let numerator = (base_amount as u128) * (config.pyth_price as u128);
-    let scaled = u128::divide_and_round_up(numerator, pow10(config.pyth_decimals as u64));
+    let scaled = numerator / pow10(config.pyth_decimals as u64);
     let buffered = scaled * pow10(protocol_constants::pyth_exponent_buffer() as u64);
-    u128::divide_and_round_up(buffered, pow10(exponent_with_buffer)) as u64
+    (buffered / pow10(exponent_with_buffer)) as u64
 }
 
 /// Inverse of `convert_amount`: target atoms back to base atoms via Pyth price.
@@ -286,12 +436,13 @@ fun validated_pyth_price(
     registry: &LeverxRegistry,
     price_info: &PriceInfoObject,
     config: &CollateralConfig,
+    max_age_secs: u64,
     clock: &Clock,
 ): (u64, u8, u64) {
     let price = pyth::get_price_no_older_than(
         price_info,
         clock,
-        registry.pyth_max_age_secs(),
+        max_age_secs,
     );
     let info = price_info.get_price_info_from_price_info_object();
     assert!(

@@ -5,7 +5,8 @@
 /// Keeps liquidation and repayment paths composable without importing pool internals.
 module leverx::deepbook_flash;
 
-use deepbook::pool::{Self, Pool, FlashLoan};
+use deepbook::pool::{Self, Pool};
+use deepbook::vault::FlashLoan;
 use sui::coin::Coin;
 
 /// Borrow quote from a DeepBook pool; must be repaid in the same PTB via `return_flash_loan_quote`.

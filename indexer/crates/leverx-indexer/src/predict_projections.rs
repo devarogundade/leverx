@@ -6,6 +6,7 @@ use sui_types::event::Event;
 
 use crate::handlers::LeverxBatch;
 use crate::move_events::try_parse;
+use crate::points::record_volume;
 use crate::predict_events::{
     parse_predict_event_json, PositionMinted, PositionRedeemed, PredictManagerCreated,
     RangeMinted, RangeRedeemed,
@@ -110,6 +111,13 @@ pub fn apply_predict_event(batch: &mut LeverxBatch, ctx: PredictEventContext<'_>
                     is_settled: None,
                     timestamp_ms: ctx.timestamp_ms,
                 });
+                record_volume(
+                    batch,
+                    &ev.trader.to_string(),
+                    None,
+                    ev.cost as i64,
+                    ctx.timestamp_ms,
+                );
             }
         }
         "PositionRedeemed" => {
@@ -156,6 +164,13 @@ pub fn apply_predict_event(batch: &mut LeverxBatch, ctx: PredictEventContext<'_>
                     is_settled: Some(ev.is_settled),
                     timestamp_ms: ctx.timestamp_ms,
                 });
+                record_volume(
+                    batch,
+                    &ev.owner.to_string(),
+                    None,
+                    ev.payout as i64,
+                    ctx.timestamp_ms,
+                );
             }
         }
         "RangeMinted" => {
@@ -202,6 +217,13 @@ pub fn apply_predict_event(batch: &mut LeverxBatch, ctx: PredictEventContext<'_>
                     is_settled: None,
                     timestamp_ms: ctx.timestamp_ms,
                 });
+                record_volume(
+                    batch,
+                    &ev.trader.to_string(),
+                    None,
+                    ev.cost as i64,
+                    ctx.timestamp_ms,
+                );
             }
         }
         "RangeRedeemed" => {
@@ -248,6 +270,13 @@ pub fn apply_predict_event(batch: &mut LeverxBatch, ctx: PredictEventContext<'_>
                     is_settled: Some(ev.is_settled),
                     timestamp_ms: ctx.timestamp_ms,
                 });
+                record_volume(
+                    batch,
+                    &ev.trader.to_string(),
+                    None,
+                    ev.payout as i64,
+                    ctx.timestamp_ms,
+                );
             }
         }
         _ => {}

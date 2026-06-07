@@ -70,7 +70,7 @@ export function BalanceBreakdown({ className }: Props) {
           aria-label="Trading balance breakdown"
         >
           <Wallet className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
-          <span className="max-w-[4.5rem] truncate sm:max-w-none">{pillLabel}</span>
+          <span className="min-w-0 max-w-[4.5rem] truncate sm:max-w-none">{pillLabel}</span>
           <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
         </button>
       </PopoverTrigger>

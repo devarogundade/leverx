@@ -184,6 +184,7 @@ export class PtbBuilderService {
       typeArguments: [route.coinType, cfg.quoteType],
       arguments: [
         tx.object(cfg.registryId),
+        tx.object(cfg.vaultId),
         tx.object(position.account_id),
         key,
         tx.object(route.pythOracleId),

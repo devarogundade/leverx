@@ -25,6 +25,10 @@ const DEFAULT_LIQUIDATION_LTV_BPS: u64 = 8_500;
 // --- Pyth oracle defaults ---
 
 const DEFAULT_PYTH_MAX_AGE_SECS: u64 = 60;
+/// Wider staleness window for liquidation-only Pyth reads (trading stays at `DEFAULT_PYTH_MAX_AGE_SECS`).
+const LIQUIDATION_PYTH_MAX_AGE_SECS: u64 = 300;
+/// Admin cannot set trading staleness above this bound.
+const MAX_PYTH_MAX_AGE_SECS: u64 = 300;
 const PYTH_EXPONENT_BUFFER: u8 = 10;
 
 // --- Interest rate model defaults (two-slope kink) ---
@@ -72,6 +76,11 @@ const MAX_LIMIT_ORDER_SLIPPAGE_BPS: u64 = 5_000;
 /// Denominator for basis-point math (10_000 = 100%).
 public fun bps(): u64 { BPS }
 
+/// Multiply `amount` by basis points (10_000 = 100%).
+public fun mul_bps(amount: u64, bps: u64): u64 {
+    ((amount as u128) * (bps as u128) / (BPS as u128)) as u64
+}
+
 /// Decimal places for USD-denominated internal accounting.
 public fun usd_decimals(): u8 { USD_DECIMALS }
 
@@ -103,6 +112,12 @@ public fun default_liquidation_ltv_bps(): u64 { DEFAULT_LIQUIDATION_LTV_BPS }
 
 /// Maximum Pyth price age in seconds before a feed is considered stale.
 public fun default_pyth_max_age_secs(): u64 { DEFAULT_PYTH_MAX_AGE_SECS }
+
+/// Staleness bound for liquidation health checks (wider than trading to reduce oracle-stall bad debt).
+public fun liquidation_pyth_max_age_secs(): u64 { LIQUIDATION_PYTH_MAX_AGE_SECS }
+
+/// Upper cap admin may set for trading-time Pyth staleness.
+public fun max_pyth_max_age_secs(): u64 { MAX_PYTH_MAX_AGE_SECS }
 
 /// Extra exponent headroom when normalizing Pyth prices to internal decimals.
 public fun pyth_exponent_buffer(): u8 { PYTH_EXPONENT_BUFFER }

@@ -25,6 +25,7 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::catalog::{catalog_response, fetch_market_catalog, parse_catalog_pagination};
+use crate::leaderboard::{fetch_leaderboard, fetch_owner_rank, leaderboard_response, parse_leaderboard_pagination};
 use crate::orderbook;
 use crate::pagination::{paginate, parse_limit_offset};
 
@@ -39,6 +40,8 @@ pub fn router() -> Router<AppState> {
         .route("/v1/orderbook", get(orderbook_handler))
         .route("/v1/limit-orders", get(limit_orders))
         .route("/v1/markets/catalog", get(market_catalog))
+        .route("/v1/points/leaderboard", get(points_leaderboard))
+        .route("/v1/points/{owner}", get(points_for_owner))
         .route("/v1/positions", get(positions))
         .route("/v1/accounts", get(accounts))
         .route("/v1/accounts/{account_id}", get(account_summary))
@@ -134,6 +137,31 @@ async fn market_catalog(
     )
     .await?;
     Ok(Json(catalog_response(rows, limit, offset)))
+}
+
+#[derive(Debug, Deserialize)]
+struct LeaderboardQuery {
+    #[serde(default)]
+    limit: Option<i64>,
+    #[serde(default)]
+    offset: Option<i64>,
+}
+
+async fn points_leaderboard(
+    State(state): State<AppState>,
+    Query(q): Query<LeaderboardQuery>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    let (limit, offset) = parse_leaderboard_pagination(q.limit, q.offset);
+    let rows = fetch_leaderboard(&state.pool, limit, offset).await?;
+    Ok(Json(leaderboard_response(rows, limit, offset)))
+}
+
+async fn points_for_owner(
+    State(state): State<AppState>,
+    Path(owner): Path<String>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    let row = fetch_owner_rank(&state.pool, &owner).await?;
+    Ok(Json(json!({ "entry": row })))
 }
 
 async fn limit_orders(

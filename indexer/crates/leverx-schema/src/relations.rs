@@ -6,7 +6,7 @@
 use crate::schema::{
     account_timeline, collateral_assets, collateral_balances, global_market_trades, leverx_events,
     limit_mint_orders, liquidations, leveraged_positions, market_trades, markets, position_triggers,
-    predict_managers, proxy_executors, swap_pools, user_proxies, vault_snapshots,
+    predict_managers, proxy_executors, swap_pools, user_points, user_proxies, vault_snapshots,
 };
 
 diesel::joinable!(predict_managers -> user_proxies (account_id));
@@ -37,7 +37,7 @@ diesel::joinable!(proxy_executors -> user_proxies (account_id));
 diesel::joinable!(liquidations -> user_proxies (account_id));
 diesel::joinable!(liquidations -> markets (position_key));
 diesel::joinable!(liquidations -> leverx_events (event_digest));
-diesel::joinable!(liquidations -> collateral_assets (collateral_asset));
+diesel::joinable!(user_points -> user_proxies (account_id));
 
 diesel::joinable!(account_timeline -> user_proxies (account_id));
 diesel::joinable!(account_timeline -> leverx_events (event_digest));
@@ -61,6 +61,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     predict_managers,
     proxy_executors,
     swap_pools,
+    user_points,
     user_proxies,
     vault_snapshots,
 );
