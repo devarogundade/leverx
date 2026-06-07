@@ -12,6 +12,7 @@ import {
   fetchLiquidations,
   fetchMarketCatalog,
   fetchOrderBook,
+  fetchPointsLeaderboard,
   fetchPositions,
   fetchProtocolSettings,
   fetchTriggers,
@@ -57,6 +58,7 @@ export const indexerKeys = {
     ["indexer-collateral-balances", accountId ?? ""] as const,
   liquidations: (accountId?: string, owner?: string) =>
     ["indexer-liquidations", accountId ?? "", owner ?? ""] as const,
+  leaderboard: (limit?: number) => ["indexer-leaderboard", limit ?? 100] as const,
 };
 
 const enabled = Boolean(appConfig.leverxIndexerUrl);
@@ -307,6 +309,20 @@ export function useIndexerLiquidations(args?: { accountId?: string; owner?: stri
     },
     enabled: enabled && Boolean(accountId || owner),
     staleTime: 30_000,
+    retry: 1,
+  });
+}
+
+export function usePointsLeaderboard(limit = 100) {
+  return useQuery({
+    queryKey: indexerKeys.leaderboard(limit),
+    queryFn: async () => {
+      const { items } = await fetchPointsLeaderboard({ limit, offset: 0 });
+      return items;
+    },
+    enabled,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
     retry: 1,
   });
 }

@@ -46,7 +46,7 @@ Production checkpoint sources: [Sui custom indexer build guide](https://docs.sui
 | `leverx_events` | All `leverx::events` (raw + `parsed_json`) |
 | `limit_mint_orders` | `LimitMintOrderPlaced/Executed/Cancelled` |
 | `leveraged_positions` | `LeveragedPositionOpened/Closed`, liquidations |
-| `market_trades` | LeverX opens, closes, limit fills |
+| `market_trades` | LeverX opens and closes (`LeveragedPositionOpened/Closed`; limit fills share open events) |
 | `global_market_trades` | Predict `mint`/`redeem` (`PositionMinted/Redeemed`, `RangeMinted/Redeemed`) |
 | `markets` | Canonical market dimension (`market_key` = `position_key`) |
 | `predict_managers` | Predict manager registry (`manager_id` → optional LeverX `account_id`) |
@@ -60,12 +60,27 @@ Production checkpoint sources: [Sui custom indexer build guide](https://docs.sui
 | `position_triggers` | `TriggersUpdated/Cleared` |
 | `proxy_executors` | `ExecutorRegistered/Revoked` |
 | `liquidations` | `PositionLiquidated` |
+| `user_points` | Volume leaderboard (`LeveragedPositionOpened/Closed`, Predict mint/redeem) |
+
+## Docker
+
+Build and run the indexer + API image (from repo root):
+
+```bash
+docker build -f indexer/Dockerfile -t devarogundade/leverx-indexer:latest .
+docker push devarogundade/leverx-indexer:latest
+```
+
+Required env: `DATABASE_URL`, `LEVERX_PACKAGE_ID`, `PREDICT_PACKAGE_ID`. Optional: `FIRST_CHECKPOINT`, `LEVERX_API_PORT` (default 3100), `METRICS_PORT` (default 9186).
 
 ## HTTP API (`leverx-server`)
 
 | Endpoint | Description |
 |----------|-------------|
 | `GET /health` | Liveness |
+| `GET /v1/markets/catalog?oracle_id&is_range` | Volume-ranked market catalog (global + LeverX trades) |
+| `GET /v1/points/leaderboard?limit&offset` | Volume-based user leaderboard |
+| `GET /v1/points/:owner` | Single trader rank + stats |
 | `GET /v1/orderbook?oracle_id&expiry_ms&strike&is_up&is_range&higher_strike` | Bid depth + synthetic asks |
 | `GET /v1/limit-orders?account_id&status&oracle_id` | Resting / filled limits |
 | `GET /v1/positions?owner&account_id&oracle_id&status` | Leveraged positions |
@@ -93,10 +108,10 @@ Parent tables and join keys (enforced with deferred FKs; see `leverx-schema/src/
 
 | Parent | Children (FK column) |
 |--------|----------------------|
-| `user_proxies` (`account_id`) | `limit_mint_orders`, `leveraged_positions`, `collateral_balances`, `position_triggers`, `proxy_executors`, `liquidations`, `account_timeline`, `market_trades` |
+| `user_proxies` (`account_id`) | `limit_mint_orders`, `leveraged_positions`, `collateral_balances`, `position_triggers`, `proxy_executors`, `liquidations`, `account_timeline`, `market_trades`, `user_points` |
 | `markets` (`market_key`) | `leveraged_positions` (`position_key`), `limit_mint_orders`, `market_trades`, `collateral_balances`, `liquidations`, `global_market_trades` |
 | `predict_managers` (`manager_id`) | `global_market_trades` |
-| `collateral_assets` (`coin_type`) | `swap_pools`, `collateral_balances`, `liquidations` |
+| `collateral_assets` (`coin_type`) | `swap_pools`, `collateral_balances` |
 | `leverx_events` (`event_digest`) | All event-sourced projection rows |
 
 `position_key` on LeverX tables and `market_key` on global trades share the encoding:

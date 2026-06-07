@@ -49,6 +49,17 @@ export type Paginated<T> = {
   has_more: boolean;
 };
 
+export type LeaderboardEntry = {
+  rank: number;
+  owner: string;
+  account_id: string | null;
+  volume_quote: number;
+  trade_count: number;
+  points: number;
+  first_trade_at_ms: number | null;
+  last_trade_at_ms: number | null;
+};
+
 export type LimitMintOrder = {
   placed_event_digest: string;
   position_key: string;
@@ -528,4 +539,22 @@ export function fetchLiquidations(args?: {
       offset: args?.offset,
     })}`,
   );
+}
+
+export function fetchPointsLeaderboard(args?: {
+  limit?: number;
+  offset?: number;
+}): Promise<Paginated<LeaderboardEntry>> {
+  return get(
+    `/v1/points/leaderboard${buildQuery({
+      limit: args?.limit,
+      offset: args?.offset,
+    })}`,
+  );
+}
+
+export function fetchPointsForOwner(
+  owner: string,
+): Promise<{ entry: LeaderboardEntry | null }> {
+  return get(`/v1/points/${encodeURIComponent(owner)}`);
 }

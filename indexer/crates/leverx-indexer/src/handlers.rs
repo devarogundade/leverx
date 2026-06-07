@@ -3,6 +3,8 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use diesel::upsert::excluded;
+use diesel::ExpressionMethods;
+use diesel::QueryDsl;
 use diesel_async::RunQueryDsl;
 use leverx_schema::models::{
     NewAccountTimeline, NewCollateralAsset, NewCollateralBalance, NewGlobalMarketTrade,
@@ -21,6 +23,7 @@ use sui_indexer_alt_framework::pipeline::sequential::Handler;
 use sui_indexer_alt_framework::postgres::{Connection, Db};
 use sui_indexer_alt_framework::types::full_checkpoint_content::Checkpoint;
 use sui_types::event::Event;
+use sui_types::effects::TransactionEffectsAPI;
 
 use crate::config::LeverxConfig;
 use crate::predict_events::{is_predict_manager_event, is_predict_trade_event};
@@ -712,10 +715,10 @@ impl Handler for LeverxEventsHandler {
                         .eq(user_points::trade_count + excluded(user_points::trade_count)),
                     user_points::points.eq(user_points::points + excluded(user_points::points)),
                     user_points::first_trade_at_ms.eq(diesel::dsl::sql(
-                        "LEAST(user_points.first_trade_at_ms, EXCLUDED.first_trade_at_ms)",
+                        "LEAST(COALESCE(user_points.first_trade_at_ms, EXCLUDED.first_trade_at_ms), EXCLUDED.first_trade_at_ms)",
                     )),
                     user_points::last_trade_at_ms.eq(diesel::dsl::sql(
-                        "GREATEST(user_points.last_trade_at_ms, EXCLUDED.last_trade_at_ms)",
+                        "GREATEST(COALESCE(user_points.last_trade_at_ms, EXCLUDED.last_trade_at_ms), EXCLUDED.last_trade_at_ms)",
                     )),
                     user_points::updated_at_ms.eq(excluded(user_points::updated_at_ms)),
                 ))
