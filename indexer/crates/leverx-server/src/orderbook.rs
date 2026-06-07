@@ -105,7 +105,8 @@ pub async fn build_orderbook(
     .optional()?;
 
     let last_traded = last_trade.and_then(|t| t.premium_per_unit);
-    let mid = last_traded.or_else(|| bids.first().map(|b| b.price)).unwrap_or(0);
+    let best_bid = bids.get(0).map(|b| b.price);
+    let mid = last_traded.or(best_bid).unwrap_or(0);
     let asks = if mid > 0 { synthetic_asks(mid) } else { vec![] };
 
     let bid_size: i64 = bids.iter().map(|b| b.size).sum();
@@ -117,7 +118,7 @@ pub async fn build_orderbook(
         50
     };
 
-    let spread_bps = match (bids.first(), asks.last()) {
+    let spread_bps = match (bids.get(0), asks.last()) {
         (Some(bid), Some(ask)) => Some((((ask.price - bid.price) * 10000) / 1_000_000_000) as i64),
         _ => None,
     };
