@@ -1,22 +1,57 @@
-// @lovable.dev/vite-tanstack-config already includes the following — do NOT add them manually
-// or the app will break with duplicate plugins:
-//   - tanstackStart, viteReact, tailwindcss, tsConfigPaths, nitro (build-only using cloudflare as a default target),
-//     componentTagger (dev-only), VITE_* env injection, @ path alias, React/TanStack dedupe,
-//     error logger plugins, and sandbox detection (port/host/strictPort).
-// You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
-import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import tailwindcss from "@tailwindcss/vite";
+import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import react from "@vitejs/plugin-react";
+import { nitro } from "nitro/vite";
+import { defineConfig, loadEnv } from "vite";
+import tsconfigPaths from "vite-tsconfig-paths";
 
-export default defineConfig({
-  tanstackStart: {
-    // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
-    server: { entry: "server" },
-  },
-  nitro: {
-    preset: "vercel",
-    output: {
-      dir: ".vercel/output",
-      serverDir: ".vercel/output/functions/__server.func",
-      publicDir: ".vercel/output/static",
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "VITE_");
+  const envDefine = Object.fromEntries(
+    Object.entries(env).map(([key, value]) => [`import.meta.env.${key}`, JSON.stringify(value)]),
+  );
+
+  return {
+    define: envDefine,
+    server: {
+      host: "::",
+      port: 8080,
     },
-  },
+    resolve: {
+      alias: {
+        "@": `${process.cwd()}/src`,
+      },
+      dedupe: [
+        "react",
+        "react-dom",
+        "react/jsx-runtime",
+        "react/jsx-dev-runtime",
+        "@tanstack/react-query",
+        "@tanstack/query-core",
+      ],
+    },
+    plugins: [
+      tailwindcss(),
+      tsconfigPaths({ projects: ["./tsconfig.json"] }),
+      tanstackStart({
+        server: { entry: "server" },
+        importProtection: {
+          behavior: "error",
+          client: {
+            files: ["**/server/**"],
+            specifiers: ["server-only"],
+          },
+        },
+      }),
+      nitro({
+        preset: "vercel",
+        output: {
+          dir: ".vercel/output",
+          serverDir: ".vercel/output/functions/__server.func",
+          publicDir: ".vercel/output/static",
+        },
+      }),
+      react(),
+    ],
+  };
 });

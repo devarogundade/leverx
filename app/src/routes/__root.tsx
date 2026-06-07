@@ -7,13 +7,12 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { Button } from "@/components/ui/button";
 import { APP_NAME } from "../lib/brand";
 import { WalletProvider } from "../context/WalletContext";
-import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
   return (
@@ -39,9 +38,6 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
     console.error("[LeverX]", error);
   }
   const router = useRouter();
-  useEffect(() => {
-    reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
 
   const devMessage =
     import.meta.env.DEV && error?.message ? error.message : null;
