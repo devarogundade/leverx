@@ -1,0 +1,26 @@
+# Frontend / reference / on-chain (not needed for indexer+keeper image)
+app/
+.deepbook-ref/
+contracts/
+docs/
+scripts/
+.cursor/
+
+# Rust build artifacts
+indexer/target/
+
+# Keeper dev artifacts
+keeper/node_modules/
+keeper/dist/
+keeper/coverage/
+keeper/test/
+
+# Git & env secrets
+.git/
+**/.env
+!keeper/.env.example
+!docker/shieldbook-stack/.env.example
+
+# OS / IDE
+**/.DS_Store
+**/*.swp

@@ -1,0 +1,19 @@
+[package]
+name = "leverx"
+edition = "2024.beta"
+version = "0.0.1"
+
+[dependencies]
+deepbook_predict = { git = "https://github.com/MystenLabs/deepbookv3.git", subdir = "packages/predict", rev = "predict-testnet-4-16", published-at = "0xf5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138" }
+deepbook = { git = "https://github.com/MystenLabs/deepbookv3.git", subdir = "packages/deepbook", rev = "predict-testnet-4-16", published-at = "0x22be4cade64bf2d02412c7e8d0e8beea2f78828b948118d46735315409371a3c" }
+Pyth = { git = "https://github.com/pyth-network/pyth-crosschain.git", subdir = "target_chains/sui/contracts", rev = "sui-contract-testnet", published-at = "0x285927888361489671d7428805342205115146d467921405650d37d31a84544c" }
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "61dcfdbe2ddc7ad05d27fc10cd09d4c6cc151acd", override = true }
+MoveStdlib = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/move-stdlib", rev = "61dcfdbe2ddc7ad05d27fc10cd09d4c6cc151acd", override = true }
+SuiSystem = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-system", rev = "61dcfdbe2ddc7ad05d27fc10cd09d4c6cc151acd", override = true }
+Bridge = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/bridge", rev = "61dcfdbe2ddc7ad05d27fc10cd09d4c6cc151acd", override = true }
+token = { git = "https://github.com/MystenLabs/deepbookv3.git", subdir = "packages/token", rev = "e276939f0613b98d8dcfa818ada3612dbbeb386b", override = true }
+
+[addresses]
+leverx = "0x0"
+
+[dev-addresses]

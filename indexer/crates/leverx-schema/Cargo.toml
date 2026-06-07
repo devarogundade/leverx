@@ -1,0 +1,12 @@
+[package]
+name = "leverx-schema"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+diesel = { workspace = true }
+diesel-async = { workspace = true }
+diesel_migrations = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sui-field-count = { workspace = true }

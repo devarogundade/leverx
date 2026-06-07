@@ -1,0 +1,44 @@
+import btcIcon from "@/assets/btc.png";
+import dbusdcIcon from "@/assets/dbusdc.png";
+import suiIcon from "@/assets/sui.png";
+import usdcIcon from "@/assets/usdc.png";
+
+/** Scattered asset tiles on the landing grid — col/row are 1-based on a 12×8 lattice. */
+const TILES = [
+  { src: btcIcon, col: 2, row: 2, size: 52, opacity: 0.14 },
+  { src: suiIcon, col: 10, row: 1, size: 44, opacity: 0.12 },
+  { src: usdcIcon, col: 11, row: 4, size: 40, opacity: 0.1 },
+  { src: dbusdcIcon, col: 1, row: 5, size: 48, opacity: 0.11 },
+  { src: btcIcon, col: 9, row: 6, size: 36, opacity: 0.08 },
+  { src: suiIcon, col: 4, row: 7, size: 42, opacity: 0.09 },
+  { src: usdcIcon, col: 7, row: 2, size: 34, opacity: 0.07 },
+  { src: dbusdcIcon, col: 3, row: 3, size: 38, opacity: 0.08 },
+  { src: btcIcon, col: 6, row: 8, size: 32, opacity: 0.06 },
+  { src: suiIcon, col: 12, row: 7, size: 40, opacity: 0.07 },
+] as const;
+
+export function LandingAssetGrid() {
+  return (
+    <div className="landing-asset-grid" aria-hidden>
+      {TILES.map((tile, i) => (
+        <div
+          key={i}
+          className="landing-asset-tile"
+          style={{
+            gridColumn: tile.col,
+            gridRow: tile.row,
+            opacity: tile.opacity,
+          }}
+        >
+          <img
+            src={tile.src}
+            alt=""
+            className="landing-asset-icon"
+            style={{ width: tile.size, height: tile.size }}
+            draggable={false}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}

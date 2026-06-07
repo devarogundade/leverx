@@ -1,0 +1,525 @@
+import type { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
+import type { WalletWithRequiredFeatures } from "@mysten/wallet-standard";
+import type { WalletAccount } from "@wallet-standard/core";
+import { splitCoinAmount } from "@/lib/leverx/coins";
+import {
+  DEFAULT_PLACEMENT_SLIPPAGE_BPS,
+  DEFAULT_SLIPPAGE_BPS,
+  SUI_CLOCK_OBJECT_ID,
+  TRADE_GAS_BUDGET,
+} from "@/lib/leverx/constants";
+import { addMarketKey, type MarketKeyArgs } from "@/lib/leverx/market-keys";
+import { ensureLeverxAccount } from "@/lib/leverx/onboarding";
+import {
+  appendCancelLimit,
+  appendClearTriggers,
+  appendDepositCollateral,
+  appendDepositQuote,
+  appendLeveragedMint,
+  appendLinkManager,
+  appendRedeem,
+  appendRegisterExecutor,
+  appendDeleverageDebt,
+  appendRevokeExecutor,
+  appendSettleExpired,
+  type MintOrderParams,
+} from "@/lib/leverx/ptb-builder";
+import {
+  lvlpCoinType,
+  resolveCollateralRoute,
+  type CollateralRoute,
+  type LeverxProtocolConfig,
+} from "@/lib/leverx/protocol";
+import {
+  applySlippageBps,
+  borrowQuoteAtoms,
+  centsToPremiumRaw,
+  collateralAtomsFromQuoteValue,
+  collateralQuoteValueForBorrow,
+  leverageToBps,
+  marginUsdToQuoteAtoms,
+  positionQuoteAtoms,
+} from "@/lib/leverx/trade-math";
+import type { LimitMintOrder, LeveragedPosition } from "@/lib/leverx/indexer-client";
+import { executeWalletTransaction } from "@/lib/sui/execute-transaction";
+
+export type LimitExecutionMode = "resting" | "immediate";
+
+export type OpenTradeInput = {
+  key: MarketKeyArgs;
+  collateralCoinType: string;
+  collateralMaxLtvBps?: number;
+  collateralDecimals?: number;
+  collateralSpotUsd?: number;
+  marginUsd: number;
+  leverage: number;
+  orderType: "market" | "limit";
+  limitExecution?: LimitExecutionMode;
+  limitCents?: number;
+  quantity: bigint;
+  marketSlippageBps?: number;
+  placementSlippageBps?: number;
+  orderExpiresMs?: number;
+  tpPremium?: bigint;
+  slPremium?: bigint;
+};
+
+export type ClosePositionInput = {
+  position: LeveragedPosition;
+  redeemMode?: "market" | "limit";
+  minPayout?: bigint;
+  minPremiumPerUnit?: bigint;
+};
+
+function positionToKey(position: LeveragedPosition): MarketKeyArgs {
+  return {
+    oracleId: position.oracle_id,
+    expiryMs: position.expiry_ms,
+    strike: position.strike,
+    higherStrike: position.higher_strike,
+    isUp: position.is_up,
+    isRange: position.is_range,
+  };
+}
+
+function orderToKey(order: LimitMintOrder): MarketKeyArgs {
+  return {
+    oracleId: order.oracle_id,
+    expiryMs: order.expiry_ms,
+    strike: order.strike,
+    higherStrike: order.higher_strike,
+    isUp: order.is_up,
+    isRange: order.is_range,
+  };
+}
+
+function resolveMintOrderKind(input: OpenTradeInput): "market" | "limit" | "place" {
+  if (input.orderType === "market") return "market";
+  return input.limitExecution === "resting" ? "place" : "limit";
+}
+
+function computeCollateralDeposit(
+  route: CollateralRoute,
+  cfg: LeverxProtocolConfig,
+  borrowAtoms: bigint,
+  collateralSpotUsd?: number,
+): bigint {
+  if (borrowAtoms <= 0n) return 0n;
+  const quoteValue = collateralQuoteValueForBorrow(borrowAtoms, route.maxLtvBps);
+  if (route.coinType === cfg.quoteType) {
+    return quoteValue;
+  }
+  if (!collateralSpotUsd || collateralSpotUsd <= 0) {
+    throw new Error("Collateral spot price is required for non-quote collateral.");
+  }
+  return collateralAtomsFromQuoteValue(
+    quoteValue,
+    collateralSpotUsd,
+    route.decimals,
+  );
+}
+
+export async function executeOpenTrade(params: {
+  client: SuiJsonRpcClient;
+  wallet: WalletWithRequiredFeatures;
+  account: WalletAccount;
+  cfg: LeverxProtocolConfig;
+  input: OpenTradeInput;
+}): Promise<{ digest: string }> {
+  const { input, cfg, client, wallet, account } = params;
+
+  const route = resolveCollateralRoute(
+    input.collateralCoinType,
+    input.collateralMaxLtvBps,
+    input.collateralDecimals,
+  );
+  if (!route) {
+    throw new Error("Collateral is missing a Pyth oracle ID in VITE_SUPPORTED_COLLATERALS.");
+  }
+
+  const leverxAccount = await ensureLeverxAccount({
+    client,
+    wallet,
+    account,
+    cfg,
+  });
+
+  if (!leverxAccount.predictManagerId) {
+    throw new Error("Predict manager is not linked to your trading account.");
+  }
+
+  const marginAtoms = marginUsdToQuoteAtoms(input.marginUsd);
+  const leverageBps = leverageToBps(input.leverage);
+  const borrowAtoms = borrowQuoteAtoms(marginAtoms, leverageBps);
+  const quantity = input.quantity > 0n ? input.quantity : 1n;
+  const positionAtoms = positionQuoteAtoms(marginAtoms, leverageBps);
+  const marketSlippageBps = input.marketSlippageBps ?? DEFAULT_SLIPPAGE_BPS;
+  const placementSlippageBps = input.placementSlippageBps ?? DEFAULT_PLACEMENT_SLIPPAGE_BPS;
+  const orderKind = resolveMintOrderKind(input);
+
+  const mintParams: MintOrderParams = {
+    key: input.key,
+    collateral: route,
+    marginQuoteAtoms: marginAtoms,
+    leverageBps,
+    quantity,
+    limitPremiumPerUnit: input.limitCents
+      ? centsToPremiumRaw(input.limitCents)
+      : undefined,
+    placementSlippageBps,
+    maxMintCost: applySlippageBps(positionAtoms, marketSlippageBps),
+    orderExpiresMs: input.orderExpiresMs ?? input.key.expiryMs,
+  };
+
+  const collateralDeposit =
+    borrowAtoms > 0n
+      ? computeCollateralDeposit(route, cfg, borrowAtoms, input.collateralSpotUsd)
+      : 0n;
+  const sameCoin = route.coinType === cfg.quoteType;
+  const totalQuoteNeeded = sameCoin
+    ? marginAtoms + collateralDeposit
+    : marginAtoms;
+
+  return executeWalletTransaction(
+    client,
+    wallet,
+    account,
+    async (tx) => {
+      if (sameCoin) {
+        const fundingCoin = await splitCoinAmount(
+          client,
+          account.address,
+          cfg.quoteType,
+          totalQuoteNeeded,
+          tx,
+        );
+
+        if (collateralDeposit > 0n) {
+          const [collateralCoin] = tx.splitCoins(fundingCoin, [
+            tx.pure.u64(collateralDeposit),
+          ]);
+          appendDepositCollateral(
+            tx,
+            cfg,
+            route,
+            leverxAccount.accountId,
+            input.key,
+            collateralCoin!,
+          );
+        }
+
+        const [marginCoin] = tx.splitCoins(fundingCoin, [tx.pure.u64(marginAtoms)]);
+        appendDepositQuote(tx, cfg, leverxAccount.accountId, input.key, marginCoin!);
+      } else {
+        if (collateralDeposit > 0n) {
+          const collateralCoin = await splitCoinAmount(
+            client,
+            account.address,
+            route.coinType,
+            collateralDeposit,
+            tx,
+          );
+          appendDepositCollateral(
+            tx,
+            cfg,
+            route,
+            leverxAccount.accountId,
+            input.key,
+            collateralCoin,
+          );
+        }
+
+        const quoteCoin = await splitCoinAmount(
+          client,
+          account.address,
+          cfg.quoteType,
+          totalQuoteNeeded,
+          tx,
+        );
+        appendDepositQuote(tx, cfg, leverxAccount.accountId, input.key, quoteCoin);
+      }
+
+      appendLeveragedMint(
+        tx,
+        cfg,
+        route,
+        leverxAccount.accountId,
+        leverxAccount.predictManagerId!,
+        mintParams,
+        orderKind,
+      );
+
+      if (input.tpPremium || input.slPremium) {
+        const marketKey = addMarketKey(tx, input.key);
+        tx.moveCall({
+          target: `${cfg.packageId}::triggers::${
+            input.key.isRange ? "set_range_triggers" : "set_automated_triggers_entry"
+          }`,
+          arguments: [
+            tx.object(leverxAccount.accountId),
+            marketKey,
+            tx.pure.u64(input.tpPremium ?? 0n),
+            tx.pure.u64(input.slPremium ?? 0n),
+          ],
+        });
+      }
+    },
+    { gasBudget: TRADE_GAS_BUDGET },
+  );
+}
+
+export async function executeClosePosition(params: {
+  client: SuiJsonRpcClient;
+  wallet: WalletWithRequiredFeatures;
+  account: WalletAccount;
+  cfg: LeverxProtocolConfig;
+  input: ClosePositionInput;
+}): Promise<{ digest: string }> {
+  const { position } = params.input;
+  if (!position.predict_manager_id) {
+    throw new Error("Position is missing a linked Predict manager.");
+  }
+
+  return executeWalletTransaction(
+    params.client,
+    params.wallet,
+    params.account,
+    (tx) => {
+      appendRedeem(tx, params.cfg, {
+        key: positionToKey(position),
+        accountId: position.account_id,
+        predictManagerId: position.predict_manager_id,
+        quantity: BigInt(position.open_quantity),
+        redeemMode: params.input.redeemMode ?? "market",
+        minPayout: params.input.minPayout ?? 0n,
+        minPremiumPerUnit: params.input.minPremiumPerUnit,
+      });
+    },
+    { gasBudget: TRADE_GAS_BUDGET },
+  );
+}
+
+export async function executeSettleExpired(params: {
+  client: SuiJsonRpcClient;
+  wallet: WalletWithRequiredFeatures;
+  account: WalletAccount;
+  cfg: LeverxProtocolConfig;
+  position: LeveragedPosition;
+}): Promise<{ digest: string }> {
+  if (!params.position.predict_manager_id) {
+    throw new Error("Position is missing a linked Predict manager.");
+  }
+
+  return executeWalletTransaction(
+    params.client,
+    params.wallet,
+    params.account,
+    (tx) => {
+      appendSettleExpired(tx, params.cfg, {
+        key: positionToKey(params.position),
+        accountId: params.position.account_id,
+        predictManagerId: params.position.predict_manager_id,
+        quantity: BigInt(params.position.open_quantity),
+      });
+    },
+    { gasBudget: TRADE_GAS_BUDGET },
+  );
+}
+
+export async function executeRepayDebt(params: {
+  client: SuiJsonRpcClient;
+  wallet: WalletWithRequiredFeatures;
+  account: WalletAccount;
+  cfg: LeverxProtocolConfig;
+  position: LeveragedPosition;
+  amountAtoms: bigint;
+}): Promise<{ digest: string }> {
+  return executeWalletTransaction(
+    params.client,
+    params.wallet,
+    params.account,
+    async (tx) => {
+      const repaymentCoin = await splitCoinAmount(
+        params.client,
+        params.account.address,
+        params.cfg.quoteType,
+        params.amountAtoms,
+        tx,
+      );
+      appendDeleverageDebt(tx, params.cfg, {
+        key: positionToKey(params.position),
+        accountId: params.position.account_id,
+        repaymentCoin,
+      });
+    },
+    { gasBudget: TRADE_GAS_BUDGET },
+  );
+}
+
+export async function executeClearTriggers(params: {
+  client: SuiJsonRpcClient;
+  wallet: WalletWithRequiredFeatures;
+  account: WalletAccount;
+  cfg: LeverxProtocolConfig;
+  accountId: string;
+  key: MarketKeyArgs;
+}): Promise<{ digest: string }> {
+  return executeWalletTransaction(
+    params.client,
+    params.wallet,
+    params.account,
+    (tx) => {
+      appendClearTriggers(tx, params.cfg, params.accountId, params.key);
+    },
+    { gasBudget: TRADE_GAS_BUDGET },
+  );
+}
+
+export async function executeRegisterExecutor(params: {
+  client: SuiJsonRpcClient;
+  wallet: WalletWithRequiredFeatures;
+  account: WalletAccount;
+  cfg: LeverxProtocolConfig;
+  accountId: string;
+  executor: string;
+}): Promise<{ digest: string }> {
+  return executeWalletTransaction(
+    params.client,
+    params.wallet,
+    params.account,
+    (tx) => {
+      appendRegisterExecutor(tx, params.cfg, params.accountId, params.executor);
+    },
+    { gasBudget: TRADE_GAS_BUDGET },
+  );
+}
+
+export async function executeRevokeExecutor(params: {
+  client: SuiJsonRpcClient;
+  wallet: WalletWithRequiredFeatures;
+  account: WalletAccount;
+  cfg: LeverxProtocolConfig;
+  accountId: string;
+  executor: string;
+}): Promise<{ digest: string }> {
+  return executeWalletTransaction(
+    params.client,
+    params.wallet,
+    params.account,
+    (tx) => {
+      appendRevokeExecutor(tx, params.cfg, params.accountId, params.executor);
+    },
+    { gasBudget: TRADE_GAS_BUDGET },
+  );
+}
+
+export async function executeLinkManager(params: {
+  client: SuiJsonRpcClient;
+  wallet: WalletWithRequiredFeatures;
+  account: WalletAccount;
+  cfg: LeverxProtocolConfig;
+  accountId: string;
+  managerId: string;
+}): Promise<{ digest: string }> {
+  return executeWalletTransaction(
+    params.client,
+    params.wallet,
+    params.account,
+    (tx) => {
+      appendLinkManager(tx, params.cfg, params.accountId, params.managerId);
+    },
+    { gasBudget: TRADE_GAS_BUDGET },
+  );
+}
+
+export async function executeCancelLimitOrder(params: {
+  client: SuiJsonRpcClient;
+  wallet: WalletWithRequiredFeatures;
+  account: WalletAccount;
+  cfg: LeverxProtocolConfig;
+  order: LimitMintOrder;
+}): Promise<{ digest: string }> {
+  return executeWalletTransaction(
+    params.client,
+    params.wallet,
+    params.account,
+    (tx) => {
+      appendCancelLimit(tx, params.cfg, {
+        key: orderToKey(params.order),
+        accountId: params.order.account_id,
+        collateralCoinType: params.order.collateral_asset,
+      });
+    },
+    { gasBudget: TRADE_GAS_BUDGET },
+  );
+}
+
+export async function executeVaultSupply(params: {
+  client: SuiJsonRpcClient;
+  wallet: WalletWithRequiredFeatures;
+  account: WalletAccount;
+  cfg: LeverxProtocolConfig;
+  amountAtoms: bigint;
+}): Promise<{ digest: string }> {
+  return executeWalletTransaction(
+    params.client,
+    params.wallet,
+    params.account,
+    async (tx) => {
+      const quoteCoin = await splitCoinAmount(
+        params.client,
+        params.account.address,
+        params.cfg.quoteType,
+        params.amountAtoms,
+        tx,
+      );
+      const [lvlpCoin] = tx.moveCall({
+        target: `${params.cfg.packageId}::leverage_vault::deposit_liquidity`,
+        typeArguments: [params.cfg.quoteType],
+        arguments: [
+          tx.object(params.cfg.vaultId),
+          quoteCoin,
+          tx.object(SUI_CLOCK_OBJECT_ID),
+        ],
+      });
+      tx.transferObjects([lvlpCoin!], params.account.address);
+    },
+    { gasBudget: TRADE_GAS_BUDGET },
+  );
+}
+
+export async function executeVaultWithdraw(params: {
+  client: SuiJsonRpcClient;
+  wallet: WalletWithRequiredFeatures;
+  account: WalletAccount;
+  cfg: LeverxProtocolConfig;
+  lpAmountAtoms: bigint;
+}): Promise<{ digest: string }> {
+  const lvlpType = lvlpCoinType(params.cfg.packageId);
+
+  return executeWalletTransaction(
+    params.client,
+    params.wallet,
+    params.account,
+    async (tx) => {
+      const lpCoin = await splitCoinAmount(
+        params.client,
+        params.account.address,
+        lvlpType,
+        params.lpAmountAtoms,
+        tx,
+      );
+      const [quoteCoin] = tx.moveCall({
+        target: `${params.cfg.packageId}::leverage_vault::withdraw_liquidity`,
+        typeArguments: [params.cfg.quoteType],
+        arguments: [
+          tx.object(params.cfg.vaultId),
+          lpCoin,
+          tx.object(SUI_CLOCK_OBJECT_ID),
+        ],
+      });
+      tx.transferObjects([quoteCoin!], params.account.address);
+    },
+    { gasBudget: TRADE_GAS_BUDGET },
+  );
+}

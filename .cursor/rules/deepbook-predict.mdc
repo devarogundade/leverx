@@ -1,0 +1,33 @@
+---
+description: DeepBook Predict workshop facts — use when working on predict, protection, oracles, or Shieldbook copy
+globs:
+  - app/src/**/*
+  - docs/**/*
+---
+
+# DeepBook Predict (canonical)
+
+Read `docs/DEEPBOOK_PREDICT.md` for full FAQ.
+
+## Do not assume (common mistakes)
+
+- **Not hourly-only:** testnet expirations are **1, 2, 7, 14, 21 days** — not "renews every hour" unless implementing hourly later.
+- **Not Polymarket-style:** shared vault + oracle pricing, not per-strike order books.
+- **Not vanilla options:** binary options only.
+- **Not permissionless oracles** on testnet.
+- **Not sports/politics** as primary use case — asset-price markets.
+- **Full Predict UI** not shipped; testnet is demo/portfolio tier.
+- **Quote / LP:** USDSUI vault at launch (app may label dUSDC/USDC for demo).
+
+## Shieldbook scope
+
+- **DeepBook margin** (indexer + `@mysten/deepbook-v3`) = perp-style pool trades; separate from Predict vault.
+- **Predict protection** = deepbook_predict binary puts/calls minted against margin liquidation risk; fees at mint/redeem via Predict Manager.
+- Testnet margin package may lack SDK v2 names (`place_market_order_v2`, `update_current_price`) — use v1 PTBs documented in code.
+
+## Integration pointers
+
+- Predict server: `VITE_PREDICT_SERVER_URL`, `VITE_PREDICT_ID`
+- Workshop PTBs: `PREDICT_WORKSHOP_SCRIPTS_URL` in `lib/predict/knowledge.ts`
+- Open positions: on-chain `predict` module public functions
+- Builder fees: builder codes on Predict Manager

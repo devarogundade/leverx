@@ -1,0 +1,46 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: shieldbook
+      POSTGRES_PASSWORD: shieldbook
+      POSTGRES_DB: shieldbook_indexer
+    volumes:
+      - shieldbook_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U shieldbook -d shieldbook_indexer']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - '5432:5432'
+
+  shieldbook:
+    build:
+      context: .
+      dockerfile: docker/shieldbook-stack/Dockerfile
+    ports:
+      - '3001:3001'
+      - '9186:9186'
+    env_file:
+      - path: keeper/.env
+        required: false
+    environment:
+      DATABASE_URL: postgres://shieldbook:shieldbook@postgres:5432/shieldbook_indexer
+      INDEXER_DATABASE_URL: postgres://shieldbook:shieldbook@postgres:5432/shieldbook_indexer
+      PGHOST: postgres
+      PGUSER: shieldbook
+      FIRST_CHECKPOINT: '344968552'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://127.0.0.1:3001/health']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 180s
+    restart: unless-stopped
+
+volumes:
+  shieldbook_pg:

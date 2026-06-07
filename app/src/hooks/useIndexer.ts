@@ -1,0 +1,312 @@
+import { useQuery } from "@tanstack/react-query";
+import { appConfig } from "@/lib/config";
+import {
+  fetchAccount,
+  fetchAccounts,
+  fetchCollateralAssets,
+  fetchCollateralBalances,
+  fetchExecutors,
+  fetchGlobalMarketTrades,
+  fetchHealth,
+  fetchLimitOrders,
+  fetchLiquidations,
+  fetchMarketCatalog,
+  fetchOrderBook,
+  fetchPositions,
+  fetchProtocolSettings,
+  fetchTriggers,
+  fetchVaultHistory,
+  fetchVaultSummary,
+} from "@/lib/leverx/indexer-client";
+
+export const indexerKeys = {
+  health: ["indexer-health"] as const,
+  protocol: ["indexer-protocol"] as const,
+  catalog: (oracleId?: string, isRange?: boolean) =>
+    ["indexer-market-catalog", oracleId ?? "all", isRange ?? "any"] as const,
+  orderBook: (
+    oracleId: string,
+    expiryMs: number,
+    strike: number,
+    higherStrike: number,
+    isUp: boolean,
+    isRange: boolean,
+  ) =>
+    [
+      "indexer-orderbook",
+      oracleId,
+      expiryMs,
+      strike,
+      higherStrike,
+      isUp,
+      isRange,
+    ] as const,
+  globalTrades: (oracleId: string) => ["indexer-global-trades", oracleId] as const,
+  positions: (owner?: string, status?: string, oracleId?: string) =>
+    ["indexer-positions", owner ?? "", status ?? "open", oracleId ?? ""] as const,
+  limitOrders: (owner?: string, oracleId?: string) =>
+    ["indexer-limit-orders", owner ?? "", oracleId ?? ""] as const,
+  accounts: (owner?: string) => ["indexer-accounts", owner ?? ""] as const,
+  account: (accountId: string) => ["indexer-account", accountId] as const,
+  vaultSummary: (vaultId: string) => ["indexer-vault-summary", vaultId] as const,
+  vaultHistory: (vaultId: string) => ["indexer-vault-history", vaultId] as const,
+  collateral: ["indexer-collateral-assets"] as const,
+  triggers: (accountId?: string) => ["indexer-triggers", accountId ?? ""] as const,
+  executors: (accountId?: string) => ["indexer-executors", accountId ?? ""] as const,
+  collateralBalances: (accountId?: string) =>
+    ["indexer-collateral-balances", accountId ?? ""] as const,
+  liquidations: (accountId?: string, owner?: string) =>
+    ["indexer-liquidations", accountId ?? "", owner ?? ""] as const,
+};
+
+const enabled = Boolean(appConfig.leverxIndexerUrl);
+
+export function useIndexerHealth() {
+  return useQuery({
+    queryKey: indexerKeys.health,
+    queryFn: fetchHealth,
+    enabled,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+    retry: 1,
+  });
+}
+
+export function useIndexerProtocol() {
+  return useQuery({
+    queryKey: indexerKeys.protocol,
+    queryFn: fetchProtocolSettings,
+    enabled,
+    staleTime: 60_000,
+    retry: 1,
+  });
+}
+
+export function useMarketCatalog(args?: {
+  oracleId?: string;
+  isRange?: boolean;
+  limit?: number;
+}) {
+  return useQuery({
+    queryKey: indexerKeys.catalog(args?.oracleId, args?.isRange),
+    queryFn: async () => {
+      const { items } = await fetchMarketCatalog({
+        oracleId: args?.oracleId,
+        isRange: args?.isRange,
+        limit: args?.limit ?? 500,
+        offset: 0,
+      });
+      return items;
+    },
+    enabled,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+    retry: 1,
+  });
+}
+
+export function useIndexerOrderBook(args: {
+  oracleId: string;
+  expiryMs: number;
+  strike: number;
+  higherStrike?: number;
+  isUp?: boolean;
+  isRange?: boolean;
+  enabled?: boolean;
+}) {
+  const higherStrike = args.higherStrike ?? 0;
+  const isUp = args.isUp ?? true;
+  const isRange = args.isRange ?? false;
+
+  return useQuery({
+    queryKey: indexerKeys.orderBook(
+      args.oracleId,
+      args.expiryMs,
+      args.strike,
+      higherStrike,
+      isUp,
+      isRange,
+    ),
+    queryFn: () =>
+      fetchOrderBook({
+        oracleId: args.oracleId,
+        expiryMs: args.expiryMs,
+        strike: args.strike,
+        higherStrike,
+        isUp,
+        isRange,
+      }),
+    enabled: enabled && (args.enabled ?? true) && args.expiryMs > 0 && args.strike > 0,
+    staleTime: 10_000,
+    refetchInterval: 15_000,
+    retry: 1,
+  });
+}
+
+export function useIndexerGlobalTrades(oracleId: string) {
+  return useQuery({
+    queryKey: indexerKeys.globalTrades(oracleId),
+    queryFn: async () => {
+      const { items } = await fetchGlobalMarketTrades(oracleId, { limit: 200 });
+      return items;
+    },
+    enabled: enabled && Boolean(oracleId),
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+    retry: 1,
+  });
+}
+
+export function useIndexerPositions(
+  owner?: string,
+  args?: { status?: string; oracleId?: string },
+) {
+  return useQuery({
+    queryKey: indexerKeys.positions(owner, args?.status, args?.oracleId),
+    queryFn: async () => {
+      const { items } = await fetchPositions({
+        owner,
+        status: args?.status,
+        oracleId: args?.oracleId,
+        limit: 200,
+      });
+      return items;
+    },
+    enabled: enabled && Boolean(owner),
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+    retry: 1,
+  });
+}
+
+export function useIndexerLimitOrders(owner?: string, oracleId?: string) {
+  return useQuery({
+    queryKey: indexerKeys.limitOrders(owner, oracleId),
+    queryFn: async () => {
+      const { items } = await fetchLimitOrders({
+        owner,
+        oracleId,
+        status: "open",
+        limit: 200,
+      });
+      return items;
+    },
+    enabled: enabled && Boolean(owner),
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+    retry: 1,
+  });
+}
+
+export function useIndexerAccounts(owner?: string) {
+  return useQuery({
+    queryKey: indexerKeys.accounts(owner),
+    queryFn: async () => {
+      const { items } = await fetchAccounts({ owner, limit: 20 });
+      return items;
+    },
+    enabled: enabled && Boolean(owner),
+    staleTime: 30_000,
+    retry: 1,
+  });
+}
+
+export function useIndexerAccount(accountId?: string) {
+  return useQuery({
+    queryKey: indexerKeys.account(accountId ?? ""),
+    queryFn: () => fetchAccount(accountId!),
+    enabled: enabled && Boolean(accountId),
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+    retry: 1,
+  });
+}
+
+export function useIndexerVaultSummary(vaultId?: string) {
+  return useQuery({
+    queryKey: indexerKeys.vaultSummary(vaultId ?? ""),
+    queryFn: () => fetchVaultSummary(vaultId!),
+    enabled: enabled && Boolean(vaultId),
+    staleTime: 60_000,
+    retry: 1,
+  });
+}
+
+export function useIndexerVaultHistory(vaultId?: string, limit = 200) {
+  return useQuery({
+    queryKey: indexerKeys.vaultHistory(vaultId ?? ""),
+    queryFn: async () => {
+      const { items } = await fetchVaultHistory(vaultId!, limit);
+      return items;
+    },
+    enabled: enabled && Boolean(vaultId),
+    staleTime: 60_000,
+    retry: 1,
+  });
+}
+
+export function useIndexerCollateralAssets() {
+  return useQuery({
+    queryKey: indexerKeys.collateral,
+    queryFn: fetchCollateralAssets,
+    enabled,
+    staleTime: 120_000,
+    retry: 1,
+  });
+}
+
+export function useIndexerTriggers(accountId?: string) {
+  return useQuery({
+    queryKey: indexerKeys.triggers(accountId),
+    queryFn: async () => {
+      const { items } = await fetchTriggers({ accountId, limit: 100 });
+      return items;
+    },
+    enabled: enabled && Boolean(accountId),
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+    retry: 1,
+  });
+}
+
+export function useIndexerExecutors(accountId?: string) {
+  return useQuery({
+    queryKey: indexerKeys.executors(accountId),
+    queryFn: async () => {
+      const { items } = await fetchExecutors({ accountId, limit: 100 });
+      return items;
+    },
+    enabled: enabled && Boolean(accountId),
+    staleTime: 30_000,
+    retry: 1,
+  });
+}
+
+export function useIndexerCollateralBalances(accountId?: string) {
+  return useQuery({
+    queryKey: indexerKeys.collateralBalances(accountId),
+    queryFn: async () => {
+      const { items } = await fetchCollateralBalances({ accountId, limit: 200 });
+      return items;
+    },
+    enabled: enabled && Boolean(accountId),
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+    retry: 1,
+  });
+}
+
+export function useIndexerLiquidations(args?: { accountId?: string; owner?: string }) {
+  const accountId = args?.accountId;
+  const owner = args?.owner;
+  return useQuery({
+    queryKey: indexerKeys.liquidations(accountId, owner),
+    queryFn: async () => {
+      const { items } = await fetchLiquidations({ accountId, owner, limit: 50 });
+      return items;
+    },
+    enabled: enabled && Boolean(accountId || owner),
+    staleTime: 30_000,
+    retry: 1,
+  });
+}

@@ -1,0 +1,30 @@
+ALTER TABLE swap_pools DROP CONSTRAINT IF EXISTS fk_swap_pools_asset;
+ALTER TABLE vault_snapshots DROP CONSTRAINT IF EXISTS fk_vault_snapshots_event;
+ALTER TABLE account_timeline DROP CONSTRAINT IF EXISTS fk_timeline_account;
+ALTER TABLE account_timeline DROP CONSTRAINT IF EXISTS fk_timeline_event;
+ALTER TABLE liquidations DROP CONSTRAINT IF EXISTS fk_liquidations_asset;
+ALTER TABLE liquidations DROP CONSTRAINT IF EXISTS fk_liquidations_market;
+ALTER TABLE liquidations DROP CONSTRAINT IF EXISTS fk_liquidations_account;
+ALTER TABLE liquidations DROP CONSTRAINT IF EXISTS fk_liquidations_event;
+ALTER TABLE proxy_executors DROP CONSTRAINT IF EXISTS fk_executors_account;
+ALTER TABLE position_triggers DROP CONSTRAINT IF EXISTS fk_triggers_account;
+ALTER TABLE collateral_balances DROP CONSTRAINT IF EXISTS fk_collateral_balances_asset;
+ALTER TABLE collateral_balances DROP CONSTRAINT IF EXISTS fk_collateral_balances_market;
+ALTER TABLE collateral_balances DROP CONSTRAINT IF EXISTS fk_collateral_balances_account;
+ALTER TABLE global_market_trades DROP CONSTRAINT IF EXISTS fk_global_trades_manager;
+ALTER TABLE global_market_trades DROP CONSTRAINT IF EXISTS fk_global_trades_market;
+ALTER TABLE global_market_trades DROP CONSTRAINT IF EXISTS fk_global_trades_event;
+ALTER TABLE market_trades DROP CONSTRAINT IF EXISTS fk_market_trades_account;
+ALTER TABLE market_trades DROP CONSTRAINT IF EXISTS fk_market_trades_market;
+ALTER TABLE market_trades DROP CONSTRAINT IF EXISTS fk_market_trades_event;
+ALTER TABLE leveraged_positions DROP CONSTRAINT IF EXISTS fk_positions_market;
+ALTER TABLE leveraged_positions DROP CONSTRAINT IF EXISTS fk_positions_account;
+ALTER TABLE limit_mint_orders DROP CONSTRAINT IF EXISTS fk_limit_orders_placed_event;
+ALTER TABLE limit_mint_orders DROP CONSTRAINT IF EXISTS fk_limit_orders_market;
+ALTER TABLE limit_mint_orders DROP CONSTRAINT IF EXISTS fk_limit_orders_account;
+ALTER TABLE predict_managers DROP CONSTRAINT IF EXISTS fk_predict_managers_account;
+
+ALTER TABLE global_market_trades DROP COLUMN IF EXISTS market_key;
+
+DROP TABLE IF EXISTS predict_managers;
+DROP TABLE IF EXISTS markets;

@@ -1,0 +1,14 @@
+DROP TABLE IF EXISTS liquidations;
+DROP TABLE IF EXISTS proxy_executors;
+DROP TABLE IF EXISTS position_triggers;
+DROP TABLE IF EXISTS collateral_balances;
+DROP TABLE IF EXISTS protocol_settings;
+DROP TABLE IF EXISTS swap_pools;
+DROP TABLE IF EXISTS collateral_assets;
+DROP TABLE IF EXISTS account_timeline;
+DROP TABLE IF EXISTS vault_snapshots;
+DROP TABLE IF EXISTS market_trades;
+DROP TABLE IF EXISTS leveraged_positions;
+DROP TABLE IF EXISTS limit_mint_orders;
+DROP TABLE IF EXISTS user_proxies;
+DROP TABLE IF EXISTS leverx_events;
