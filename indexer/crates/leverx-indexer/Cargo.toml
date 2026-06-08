@@ -22,7 +22,6 @@ serde_json = { workspace = true }
 sui-indexer-alt-framework = { workspace = true }
 sui-indexer-alt-metrics = { workspace = true }
 sui-types = { workspace = true }
-telemetry-subscribers = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }

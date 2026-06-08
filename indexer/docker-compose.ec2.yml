@@ -1,0 +1,53 @@
+# Indexer + Postgres for a single EC2 host.
+# From repo root:
+#   docker compose -f indexer/docker-compose.ec2.yml up -d --build
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: leverx
+      POSTGRES_PASSWORD: leverx
+      POSTGRES_DB: leverx_indexer
+    volumes:
+      - leverx_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U leverx -d leverx_indexer"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  indexer:
+    build:
+      context: ..
+      dockerfile: indexer/Dockerfile
+    ports:
+      - "3100:3100"
+      - "9186:9186"
+    environment:
+      DATABASE_URL: postgres://leverx:leverx@postgres:5432/leverx_indexer
+      INDEXER_DATABASE_URL: postgres://leverx:leverx@postgres:5432/leverx_indexer
+      PGHOST: postgres
+      PGUSER: leverx
+      LEVERX_PACKAGE_ID: "0x8780ec7cfae9d333ba11325bb078fa79d5942aa077a739e7ad6683ea8f5ed36d"
+      PREDICT_PACKAGE_ID: "0xf5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138"
+      REMOTE_STORE_URL: "https://checkpoints.testnet.sui.io"
+      STREAMING_URL: "https://fullnode.testnet.sui.io:443"
+      FIRST_CHECKPOINT: "345900000"
+      CORS_ORIGIN: "https://suileverx.xyz"
+      LEVERX_API_PORT: "3100"
+      METRICS_PORT: "9186"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:3100/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 300s
+    restart: unless-stopped
+
+volumes:
+  leverx_pg:

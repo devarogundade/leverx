@@ -76,7 +76,7 @@ async fn handle_socket(socket: WebSocket, state: AppState) {
                                 .await;
                         }
                     }
-                    Err(tokio::sync::broadcast::error::RecvError::Lagged) => continue,
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
                     Err(_) => break,
                 }
             }

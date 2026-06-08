@@ -804,7 +804,7 @@ fn upsert_collateral_balance(
             ev.is_range(),
         ),
         account_id: ev.account_id().to_string(),
-        collateral_asset: ev.asset_name().clone(),
+        collateral_asset: ev.asset_name().to_string(),
         balance_atoms: ev.balance_after() as i64,
         updated_at_ms,
     });

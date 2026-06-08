@@ -25,9 +25,6 @@ use url::Url;
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenvy::dotenv().ok();
-    let _guard = telemetry_subscribers::TelemetryConfig::new()
-        .with_env()
-        .init();
 
     let database_url = std::env::var("DATABASE_URL")
         .expect("DATABASE_URL must be set")

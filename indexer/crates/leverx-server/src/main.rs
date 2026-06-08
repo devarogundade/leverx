@@ -15,7 +15,8 @@ use diesel_async::pooled_connection::{bb8::Pool, AsyncDieselConnectionManager};
 use diesel_async::AsyncPgConnection;
 use routes::AppState;
 use stream::{spawn_poller, StreamHub};
-use tower_http::cors::{Any, CorsLayer};
+use axum::http::{header, HeaderValue, Method};
+use tower_http::cors::{AllowOrigin, Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 
 #[derive(Parser, Debug)]
@@ -39,11 +40,7 @@ async fn main() -> Result<()> {
     let manager = AsyncDieselConnectionManager::<AsyncPgConnection>::new(&args.database_url);
     let pool = Pool::builder().build(manager).await?;
 
-    let cors = if args.cors_origin == "*" {
-        CorsLayer::new().allow_origin(Any).allow_methods(Any).allow_headers(Any)
-    } else {
-        CorsLayer::new()
-    };
+    let cors = cors_layer(&args.cors_origin);
 
     let stream = StreamHub::new();
     spawn_poller(pool.clone(), stream.clone());
@@ -59,4 +56,45 @@ async fn main() -> Result<()> {
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
     Ok(())
+}
+
+fn cors_layer(raw: &str) -> CorsLayer {
+    if raw.trim() == "*" {
+        return CorsLayer::new()
+            .allow_origin(Any)
+            .allow_methods(Any)
+            .allow_headers(Any);
+    }
+
+    let origins: Vec<HeaderValue> = raw
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| s.trim_end_matches('/'))
+        .filter_map(|s| HeaderValue::from_str(s).ok())
+        .collect();
+
+    let mut layer = CorsLayer::new()
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::PATCH,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
+        .allow_headers([
+            header::ACCEPT,
+            header::AUTHORIZATION,
+            header::CONTENT_TYPE,
+            header::ORIGIN,
+        ]);
+
+    if origins.is_empty() {
+        layer.allow_origin(Any)
+    } else if origins.len() == 1 {
+        layer.allow_origin(AllowOrigin::exact(origins[0].clone()))
+    } else {
+        layer.allow_origin(AllowOrigin::list(origins))
+    }
 }
