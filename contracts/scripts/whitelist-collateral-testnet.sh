@@ -2,7 +2,7 @@
 # Whitelist launch collateral on LeverX testnet registry.
 # Requires deploy-testnet.env (or /tmp/leverx-deploy.env) with package + admin IDs.
 set -euo pipefail
-export PATH="/home/devarogundade/.local/bin:${PATH}"
+export PATH="/home/devarogundade/.local/bin:/usr/bin:/bin:${PATH}"
 cd /mnt/c/Users/devar/Documents/leverx/contracts
 
 ENV_FILE="${1:-deploy-testnet.env}"

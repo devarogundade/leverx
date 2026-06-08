@@ -20,10 +20,12 @@ const TESTNET_PREDICT = {
 /** Published LeverX package (testnet). */
 const TESTNET_LEVERX = {
   packageId:
-    "0xa471ec72186fc00723d013fe0067ee829d28421dcf31f47e2413600cdbfb1467",
+    "0x8780ec7cfae9d333ba11325bb078fa79d5942aa077a739e7ad6683ea8f5ed36d",
   feeCollectorId:
-    "0x63815d553d3db63bbbf3337fee23f4875feb1e91a2be2a2c31e22f52238181fa",
-  pythQuoteOracleId: import.meta.env.VITE_PYTH_QUOTE_ORACLE_ID ?? "",
+    "0x4fcd19f16566024cd13ee49b3926f2d3c763a392a5988748d738d545e9f238a8",
+  pythQuoteOracleId:
+    import.meta.env.VITE_PYTH_QUOTE_ORACLE_ID ??
+    "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
 } as const;
 
 export const appConfig = {

@@ -65,10 +65,8 @@ After publish:
 
 | Asset | Max LTV          | Notes                  |
 | ----- | ---------------- | ---------------------- |
-| SUI   | 80% (8000 bps)   | + Pyth feed, spot pool |
 | dUSDC | 90% (9000 bps max) | quote-native margin; liquidation below 95% health |
-| DEEP  | 70% (7000 bps)   | + Pyth feed, spot pool |
 
-All assets: `liquidation_ltv_bps = 9500` (liquidate when health falls below 95%).
+`liquidation_ltv_bps = 9500` (liquidate when health falls below 95%).
 
 IDs from `deploy-testnet.env` and `app/src/lib/config.ts`.

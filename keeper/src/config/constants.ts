@@ -19,19 +19,20 @@ export const TESTNET_PREDICT = {
 /** Published LeverX package + shared objects (testnet). */
 export const TESTNET_LEVERX = {
   packageId:
-    '0xa471ec72186fc00723d013fe0067ee829d28421dcf31f47e2413600cdbfb1467',
+    '0x8780ec7cfae9d333ba11325bb078fa79d5942aa077a739e7ad6683ea8f5ed36d',
   registryId:
-    '0x8d07198915b859fc89dcc62cb40752ba185364a8599cf472f29301e287256857',
-  vaultId: '0x0c577c0de77aea7eaf1891d24476353efd74e85f865a0e02e5da54adde58c966',
+    '0xf6393b143c0c3a03179ff4a3bf3eba5f56831c8582881800e05f226ea239480c',
+  vaultId: '0x62a4b9098943c1133668265721c4b4eb9d174d444e0b797bb1865f31eccded93',
   feeCollectorId:
-    '0x63815d553d3db63bbbf3337fee23f4875feb1e91a2be2a2c31e22f52238181fa',
+    '0x4fcd19f16566024cd13ee49b3926f2d3c763a392a5988748d738d545e9f238a8',
 } as const;
 
 /** Quote / default collateral coin types on testnet. */
 export const TESTNET_ASSETS = {
   quoteType:
     '0xe95040085976bfd54a1a07225cd46c8a2b4e8e2b6732f140a0fc49850ba73e1a::dusdc::DUSDC',
-  defaultCollateralType: '0x2::sui::SUI',
+  defaultCollateralType:
+    '0xe95040085976bfd54a1a07225cd46c8a2b4e8e2b6732f140a0fc49850ba73e1a::dusdc::DUSDC',
 } as const;
 
 /** Quote Pyth oracle + default collateral liquidation wiring (fill after deploy). */
@@ -50,20 +51,9 @@ export const LIQUIDATION_SWAP_SLIPPAGE_BPS = 300;
 
 /**
  * Launch collateral targets — on-chain LTV via `whitelist_collateral_entry`.
- * Canonical max / liquidation bps: dUSDC 9000/9500, SUI 8000/9500, DEEP 7000/9500.
- * Fill `coinType` / oracle / pool IDs after deploy.
+ * Canonical max / liquidation bps: dUSDC 9000/9500.
  */
 export const LAUNCH_COLLATERAL_CATALOG: CollateralCatalogEntry[] = [
-  {
-    symbol: 'SUI',
-    coinType: '0x2::sui::SUI',
-    maxLtvBps: 8000,
-    liquidationLtvBps: 9500,
-    pythOracleId:
-      '0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0',
-    spotPoolId: '', // pending DeepBook SUI/dUSDC pool
-    deepCoinId: '',
-  },
   {
     symbol: 'DUSDC',
     coinType: TESTNET_ASSETS.quoteType,
@@ -72,17 +62,6 @@ export const LAUNCH_COLLATERAL_CATALOG: CollateralCatalogEntry[] = [
     pythOracleId:
       '0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81',
     spotPoolId: '',
-    deepCoinId: '',
-  },
-  {
-    symbol: 'DEEP',
-    coinType:
-      '0x36dbef866a1d62bf7328989a10fb2f07d769f4ee587c0de4a0a256e57e0a58a8::deep::DEEP',
-    maxLtvBps: 7000,
-    liquidationLtvBps: 9500,
-    pythOracleId:
-      '0x3d52fffa2cd9e54b39bb36d282bdda560b15b8b4fdf4766a3c58499ef172bafc',
-    spotPoolId: '', // pending DeepBook DEEP/dUSDC pool
     deepCoinId: '',
   },
 ];
