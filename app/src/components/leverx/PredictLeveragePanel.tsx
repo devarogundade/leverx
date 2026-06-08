@@ -481,13 +481,13 @@ export function PredictLeveragePanel({
               <LabelWithInfo
                 className="mb-3"
                 labelClassName="text-xs text-muted-foreground"
-                label="Vertical range — pays when settlement lands inside the band (lower, upper]."
+                label="Range bet — pays if the final price lands inside your band."
                 info={leverxInfo.rangeMarket}
               />
               <div>
                 <LabelWithInfo
                   className={cn(labelCaps, "mb-2")}
-                  label="Lower strike"
+                  label="Low end"
                   labelClassName={labelCaps}
                   info={leverxInfo.lowerStrike}
                 />
@@ -502,7 +502,7 @@ export function PredictLeveragePanel({
               <div>
                 <LabelWithInfo
                   className={cn(labelCaps, "mb-2")}
-                  label="Upper strike"
+                  label="High end"
                   labelClassName={labelCaps}
                   info={leverxInfo.upperStrike}
                 />
@@ -535,7 +535,7 @@ export function PredictLeveragePanel({
             />
             {strikeRaw ? (
               <p className="mt-2 text-xs text-muted-foreground">
-                Strike key: <span className="font-mono text-foreground">{strikeRaw}</span>
+                Target: <span className="font-mono text-foreground">${(strikeRaw / 1e9).toLocaleString()}</span>
               </p>
             ) : null}
           </div>
@@ -560,7 +560,7 @@ export function PredictLeveragePanel({
           />
           {selectedCatalogEntry ? (
             <p className="mt-1 text-xs text-muted-foreground">
-              Max LTV {formatMaxLtvPercent(selectedCatalogEntry.max_ltv_bps)} (indexed whitelist)
+              Max borrow {formatMaxLtvPercent(selectedCatalogEntry.max_ltv_bps)} of this asset
             </p>
           ) : null}
         </div>
@@ -568,7 +568,7 @@ export function PredictLeveragePanel({
         <div>
           <div className="mb-2 flex items-center justify-between gap-2">
             <LabelWithInfo
-              label="Margin"
+              label="Your deposit"
               labelClassName={labelCaps}
               info={leverxInfo.margin}
             />
@@ -606,7 +606,7 @@ export function PredictLeveragePanel({
         <div>
           <LabelWithInfo
             className={cn(labelCaps, "mb-2")}
-            label="Quantity (contracts)"
+            label="Size (contracts)"
             labelClassName={labelCaps}
             info={leverxInfo.quantity}
           />
@@ -678,15 +678,14 @@ export function PredictLeveragePanel({
       <div className="space-y-2 border-t border-border p-4">
         {protocol?.trading_paused ? (
           <p className="flex items-center gap-1 text-xs text-destructive">
-            Trading is paused on-chain.
+            Trading is temporarily paused.
             <InfoPopover title="Trading paused">{leverxInfo.tradingPaused}</InfoPopover>
           </p>
         ) : null}
         {!isProtocolReady && isWalletConnected ? (
           <p className="flex items-center gap-1 text-xs text-muted-foreground">
-            On-chain protocol IDs are incomplete. Deploy LeverX and set fee collector + Pyth oracle
-            env vars.
-            <InfoPopover title="Protocol config">{leverxInfo.protocolNotConfigured}</InfoPopover>
+            Trading is not available yet. Check back soon.
+            <InfoPopover title="Setup">{leverxInfo.protocolNotConfigured}</InfoPopover>
           </p>
         ) : null}
         {txError ? <p className="text-xs text-destructive">{txError}</p> : null}

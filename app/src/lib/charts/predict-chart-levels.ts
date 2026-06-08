@@ -19,25 +19,25 @@ export function buildPredictChartLevels(input: PredictChartLevelInput): PriceLev
 
   if (strikeRaw && strikeRaw > 0) {
     const strike = scaleSpot(strikeRaw);
-    levels.push({ label: "Strike", price: strike, tone: "strike" });
+    levels.push({ label: "Target", price: strike, tone: "strike" });
 
     const liquidation = estimateLiquidationSpot(activeSide, strike, spot);
     if (liquidation > 0) {
-      levels.push({ label: "Liquidation", price: liquidation, tone: "liquidation" });
+      levels.push({ label: "Risk line", price: liquidation, tone: "liquidation" });
     }
   }
 
   if (activeSide === "range") {
     if (lowerStrikeRaw && lowerStrikeRaw > 0) {
       levels.push({
-        label: "Range low",
+        label: "Range floor",
         price: scaleSpot(lowerStrikeRaw),
         tone: "entry-range",
       });
     }
     if (upperStrikeRaw && upperStrikeRaw > 0) {
       levels.push({
-        label: "Range high",
+        label: "Range ceiling",
         price: scaleSpot(upperStrikeRaw),
         tone: "entry-range",
       });

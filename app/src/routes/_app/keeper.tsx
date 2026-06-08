@@ -23,8 +23,7 @@ export const Route = createFileRoute("/_app/keeper")({
       { title: pageTitle("Keeper") },
       {
         name: "description",
-        content:
-          "Run the LeverX keeper with Docker. Help settle trades and keep the protocol healthy while earning caller rewards.",
+        content: "Trade price predictions with up to 10× leverage on the LeverX demo.",
       },
     ],
   }),

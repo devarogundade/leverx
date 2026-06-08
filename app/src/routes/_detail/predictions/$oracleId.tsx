@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_detail/predictions/$oracleId")({
   head: ({ params }) => ({
     meta: [
       { title: pageTitle("Trade") },
-      { name: "description", content: `Trade indexed market for oracle ${params.oracleId.slice(0, 10)}…` },
+      { name: "description", content: "Open a leveraged trade on a live market." },
     ],
   }),
   component: PredictTradePage,

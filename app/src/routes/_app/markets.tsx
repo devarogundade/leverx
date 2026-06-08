@@ -32,7 +32,7 @@ export const Route = createFileRoute("/_app/markets")({
       { title: pageTitle("Markets") },
       {
         name: "description",
-        content: "Browse DeepBook Predict oracles with leveraged market data from the indexer.",
+        content: "Browse live markets and open leveraged trades on price predictions.",
       },
     ],
   }),
@@ -70,7 +70,7 @@ function MarketsPage() {
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search oracles and strikes"
+              placeholder="Search markets…"
               className="border-border bg-card pl-9"
             />
           </div>

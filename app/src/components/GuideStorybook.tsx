@@ -68,8 +68,8 @@ export function GuideStorybook() {
             </p>
             <h1 className="guide-hero-title">How LeverX works</h1>
             <p className="guide-hero-lead">
-              {ui.appTagline}. Trade DeepBook Predict UP, DOWN, and RANGE with up to 10× leverage
-              on Sui testnet.
+              {ui.appTagline}. Bet on price going up, down, or staying in a range — with up to 10×
+              leverage on the demo network.
             </p>
           </div>
           <Link to="/markets" className="guide-hero-cta">
@@ -84,7 +84,7 @@ export function GuideStorybook() {
           </div>
           <div className="guide-hero-stat">
             <span className="guide-hero-stat-value">3</span>
-            <span className="guide-hero-stat-label">Instrument types</span>
+            <span className="guide-hero-stat-label">Market types</span>
           </div>
           <div className="guide-hero-stat">
             <span className="guide-hero-stat-value">~4 min</span>
@@ -132,19 +132,19 @@ export function GuideStorybook() {
             id="introduction"
             index="01"
             title="What is LeverX?"
-            subtitle="Leverage on DeepBook Predict binary options"
+            subtitle="Leveraged bets on where prices finish"
             first
           >
             <p>
-              DeepBook Predict uses oracle-driven binary and range instruments — not vanilla options
-              or per-strike order books. LeverX adds a margin layer: deposit collateral and trade
-              with up to 10× leverage on those instruments.
+              LeverX lets you bet on where an asset&apos;s price will be at expiry — above a target,
+              below it, or inside a range. Use up to 10× leverage to size a bigger view with less
+              upfront.
             </p>
             <div className="guide-pillar-grid guide-pillar-grid--single">
               <PillarCard
                 icon={<Zap className="h-4 w-4" />}
                 title="Up to 10×"
-                body="Turn $5 of collateral into $50 of conviction on testnet."
+                body="Turn $5 into a $50 view on the demo network."
                 accent="shield"
               />
             </div>
@@ -154,31 +154,31 @@ export function GuideStorybook() {
             id="instruments"
             index="02"
             title="UP, DOWN & RANGE"
-            subtitle="DeepBook Predict instrument types"
+            subtitle="Three ways to take a view"
           >
             <div className="guide-pillar-grid">
               <PillarCard
                 icon={<TrendingUp className="h-4 w-4" />}
                 title="UP"
-                body="Pays when settlement is above the strike at expiry."
+                body="Pays if the final price is above your target."
                 accent="long"
               />
               <PillarCard
                 icon={<TrendingDown className="h-4 w-4" />}
                 title="DOWN"
-                body="Pays when settlement is at or below the strike at expiry."
+                body="Pays if the final price is at or below your target."
                 accent="short"
               />
               <PillarCard
                 icon={<Layers className="h-4 w-4" />}
                 title="RANGE"
-                body="Vertical range — pays when settlement lands inside (lower, upper]."
+                body="Pays if the final price lands inside your chosen band."
                 accent="shield"
               />
             </div>
-            <GuideCallout variant="note" title="Market keys">
-              Binary positions use a MarketKey (oracle, expiry, strike, direction). Vertical ranges
-              use a RangeKey (oracle, expiry, lower strike, higher strike).
+            <GuideCallout variant="note" title="Each market is unique">
+              Every trade is tied to an asset, expiry time, target price, and direction. Pick the
+              combination that matches your view.
             </GuideCallout>
           </GuideChapter>
 
@@ -186,16 +186,16 @@ export function GuideStorybook() {
             id="leverage"
             index="03"
             title="Leveraged trades"
-            subtitle="How margin amplifies your position"
+            subtitle="How leverage amplifies your position"
           >
             <p>
-              When you open a leveraged trade, you deposit collateral (margin) and borrow the rest
-              from the LeverX vault. Your position size = margin × leverage. Higher leverage means
-              bigger potential gains — and bigger risk if the market moves against you.
+              When you open a trade, you put in some of your own money and borrow the rest from the
+              pool. Your position size = your deposit × leverage. Higher leverage means bigger
+              potential gains — and bigger risk if the market moves against you.
             </p>
             <div className="guide-leverage-demo">
               <div className="guide-leverage-row guide-leverage-row-highlight">
-                <span className="guide-leverage-label">$10 margin × 10×</span>
+                <span className="guide-leverage-label">$10 deposit × 10×</span>
                 <span className="guide-leverage-value">$100 position</span>
               </div>
               <div className="guide-leverage-bar" aria-hidden>
@@ -205,17 +205,17 @@ export function GuideStorybook() {
               <div className="guide-leverage-legend">
                 <span>
                   <i className="guide-swatch guide-swatch-you" />
-                  Your margin
+                  Your deposit
                 </span>
                 <span>
                   <i className="guide-swatch guide-swatch-borrow" />
-                  Borrowed from vault
+                  Borrowed from pool
                 </span>
               </div>
             </div>
-            <GuideCallout variant="tip" title="Testnet expirations">
-              Predict oracles on testnet expire in {expirationList} days. Pick a strike and side
-              that match your view before the oracle settles.
+            <GuideCallout variant="tip" title="Market expiry">
+              Demo markets expire in {expirationList} days. Pick a target and direction that match
+              your view before the market closes.
             </GuideCallout>
           </GuideChapter>
 
@@ -223,14 +223,14 @@ export function GuideStorybook() {
             id="risk"
             index="04"
             title="When price moves"
-            subtitle="Liquidation and take-profit / stop-loss"
+            subtitle="Protecting yourself along the way"
           >
             <p>
-              If the market moves against your position, your margin can be depleted. At that point
-              the position may be liquidated automatically. Use take-profit and stop-loss orders to
-              exit at your chosen levels before that happens.
+              If the market moves against you, your deposit can run down. At that point the trade
+              may close automatically. Use take-profit and stop-loss levels to exit on your terms
+              before that happens.
             </p>
-            <GuidePanel label="Risk controls">
+            <GuidePanel label="Tools that help">
               <dl className="guide-risk-grid">
                 <div>
                   <dt>Take profit</dt>
@@ -238,15 +238,15 @@ export function GuideStorybook() {
                 </div>
                 <div>
                   <dt>Stop loss</dt>
-                  <dd>Cap losses by exiting if price moves too far against you.</dd>
+                  <dd>Cap losses if price moves too far against you.</dd>
                 </div>
                 <div>
-                  <dt>Liquidation</dt>
-                  <dd>Automatic close if margin is exhausted — size and leverage matter.</dd>
+                  <dt>Auto-close</dt>
+                  <dd>If your deposit runs too low, the trade may close on its own.</dd>
                 </div>
                 <div>
-                  <dt>Oracle settlement</dt>
-                  <dd>Positions resolve against the oracle spot at expiry.</dd>
+                  <dt>At expiry</dt>
+                  <dd>Trades settle against the final price when the market closes.</dd>
                 </div>
               </dl>
             </GuidePanel>
@@ -274,7 +274,7 @@ export function GuideStorybook() {
                 </span>
                 <span className="guide-step-body">
                   <strong>Pick a market</strong>
-                  <span>Choose an oracle, strike, and UP / DOWN / RANGE side.</span>
+                  <span>Choose an asset, target price, and UP / DOWN / RANGE direction.</span>
                 </span>
               </li>
               <li>
@@ -282,8 +282,8 @@ export function GuideStorybook() {
                   <Sparkles className="h-4 w-4" />
                 </span>
                 <span className="guide-step-body">
-                  <strong>Set trade params</strong>
-                  <span>Margin, leverage, and optional take-profit / stop-loss.</span>
+                  <strong>Set your trade</strong>
+                  <span>Deposit, leverage, and optional take-profit / stop-loss.</span>
                 </span>
               </li>
               <li>
@@ -291,8 +291,8 @@ export function GuideStorybook() {
                   <ArrowRight className="h-4 w-4" />
                 </span>
                 <span className="guide-step-body">
-                  <strong>Sign & confirm</strong>
-                  <span>Your Predict Manager executes the trade on-chain.</span>
+                  <strong>Confirm in your wallet</strong>
+                  <span>Review the details and approve the trade.</span>
                 </span>
               </li>
             </ol>
@@ -300,8 +300,8 @@ export function GuideStorybook() {
 
           <GuideChapter id="start" index="06" title="Your first trade" subtitle="Ready to try it?">
             <p>
-              Open the trade terminal from any market card. Live OracleSVI prices, order book depth,
-              and vault liquidity are pulled from the Predict Server on testnet.
+              Open any market from the list. Live prices, buy/sell levels, and pool size update as
+              activity happens on the demo network.
             </p>
             <div className="guide-cta-row">
               <Link to="/markets" className="btn-connect gap-1.5 text-sm">
@@ -317,22 +317,16 @@ export function GuideStorybook() {
           <GuideChapter id="faq" index="07" title="Good to know" subtitle="Common questions">
             <dl className="guide-faq">
               <div className="guide-faq-item">
-                <dt>Is this mainnet?</dt>
-                <dd>No — LeverX runs on Sui testnet with DeepBook Predict testnet oracles.</dd>
+                <dt>Is this real money?</dt>
+                <dd>No — LeverX runs on a demo network for testing only.</dd>
               </div>
               <div className="guide-faq-item">
-                <dt>Where does price data come from?</dt>
-                <dd>
-                  The Predict Server exposes OracleSVI spot prices, forward curves, and trade history
-                  for each oracle.
-                </dd>
+                <dt>Where do prices come from?</dt>
+                <dd>Live feeds for each asset, updated as markets move.</dd>
               </div>
               <div className="guide-faq-item">
                 <dt>What wallet do I need?</dt>
-                <dd>
-                  Any Sui wallet on testnet — Slush, Sui Wallet, or another Wallet Standard
-                  wallet.
-                </dd>
+                <dd>Any Sui wallet on the demo network — Slush, Sui Wallet, or similar.</dd>
               </div>
             </dl>
           </GuideChapter>

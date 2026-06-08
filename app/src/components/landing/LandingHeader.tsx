@@ -33,14 +33,17 @@ export function LandingHeader() {
         </Link>
 
         <nav className="landing-header-nav" aria-label="Landing navigation">
-          <a href="#traders" className="landing-header-link" onClick={closeMenu}>
+          <a href="#leverage" className="landing-header-link" onClick={closeMenu}>
             Traders
+          </a>
+          <a href="#markets-feature" className="landing-header-link hidden md:inline" onClick={closeMenu}>
+            Markets
           </a>
           <a href="#earners" className="landing-header-link" onClick={closeMenu}>
             Earners
           </a>
           <Link to="/guide" className="landing-header-link" onClick={closeMenu}>
-            Docs
+            Guide
           </Link>
           {earnEntry ? (
             <div className="hidden sm:block">
@@ -84,14 +87,17 @@ export function LandingHeader() {
           />
           <div className="landing-mobile-menu sm:hidden">
             <nav className="flex flex-col gap-1" aria-label="Landing navigation">
-              <a href="#traders" className="landing-mobile-menu-link" onClick={closeMenu}>
+              <a href="#leverage" className="landing-mobile-menu-link" onClick={closeMenu}>
                 Traders
+              </a>
+              <a href="#markets-feature" className="landing-mobile-menu-link" onClick={closeMenu}>
+                Markets
               </a>
               <a href="#earners" className="landing-mobile-menu-link" onClick={closeMenu}>
                 Earners
               </a>
               <Link to="/guide" className="landing-mobile-menu-link" onClick={closeMenu}>
-                Docs
+                Guide
               </Link>
               {earnEntry ? (
                 <SiteNavEarnMenu entry={earnEntry} onNavigate={closeMenu} vertical />

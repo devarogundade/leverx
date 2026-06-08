@@ -134,7 +134,7 @@ export function PredictVaultLiquidityPanel({ vaultNav, vaultId, className }: Pro
 
       <div className="space-y-4 p-3">
         <div className="text-xs text-muted-foreground">
-          Pool NAV{" "}
+          Pool size{" "}
           <span className="font-mono text-foreground">
             {formatUsdcOrPlaceholder(vaultNav ?? null)}
           </span>
@@ -171,8 +171,8 @@ export function PredictVaultLiquidityPanel({ vaultNav, vaultId, className }: Pro
 
         {!isProtocolReady && isWalletConnected ? (
           <p className="flex items-center gap-1 text-xs text-muted-foreground">
-            Vault transactions require deployed registry, vault, fee collector, and Pyth oracle IDs.
-            <InfoPopover title="Protocol config">{leverxInfo.protocolNotConfigured}</InfoPopover>
+            Pool deposits are not available yet. Trading will open once the app is fully connected.
+            <InfoPopover title="Setup">{leverxInfo.protocolNotConfigured}</InfoPopover>
           </p>
         ) : null}
         {txError ? <p className="text-xs text-destructive">{txError}</p> : null}

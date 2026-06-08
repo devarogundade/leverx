@@ -297,7 +297,7 @@ export function PredictTradeTerminal({
   const question =
     activeSide === "range" && rangeLower && rangeUpper
       ? `Will ${asset} settle in ${formatRangeStrikes(rangeLower / 1e9, rangeUpper / 1e9)}?`
-      : (market?.question ?? `Trade oracle ${oracleId.slice(0, 10)}…`);
+      : (market?.question ?? `Trade this market`);
 
   const activePremium = market?.lastAskPremium;
 
@@ -336,14 +336,14 @@ export function PredictTradeTerminal({
     <section className={tradeTerminal}>
       <header className={tradeTerminalHeader}>
         <div className={tradeTerminalHeaderTop}>
-          <div className={tradeOracleNav} aria-label="Oracle navigation">
+          <div className={tradeOracleNav} aria-label="Market navigation">
             {prevOracle ? (
               <Link
                 to="/predictions/$oracleId"
                 params={{ oracleId: prevOracle.oracle_id }}
                 search={oracleNavSearch}
                 className={tradeOracleNavBtn}
-                aria-label="Previous oracle"
+                aria-label="Previous market"
               >
                 <ChevronLeft className="h-4 w-4" />
               </Link>
@@ -361,7 +361,7 @@ export function PredictTradeTerminal({
                 params={{ oracleId: nextOracle.oracle_id }}
                 search={oracleNavSearch}
                 className={tradeOracleNavBtn}
-                aria-label="Next oracle"
+                aria-label="Next market"
               >
                 <ChevronRight className="h-4 w-4" />
               </Link>
@@ -395,7 +395,7 @@ export function PredictTradeTerminal({
               }
             />
             <StatItem
-              label="Premium"
+              label="Contract price"
               info={leverxInfo.premium}
               value={formatPremiumOrPlaceholder(activePremium)}
             />
@@ -407,12 +407,12 @@ export function PredictTradeTerminal({
               )}
             />
             <StatItem
-              label="Vault NAV"
+              label="Pool size"
               info={leverxInfo.vaultNav}
               value={formatUsdcOrPlaceholder(liquidity)}
             />
             <StatItem
-              label="Auto-close"
+              label="Closes"
               info={leverxInfo.autoClose}
               value={expiry ? formatAutoClose(expiry) : DATA_PLACEHOLDER}
             />
@@ -500,10 +500,10 @@ export function PredictTradeTerminal({
                 <div className={tradeSummaryGrid}>
                   <StatItem label="Total trades" value={formatCount(tradeStats.total)} />
                   <StatItem label="24h trades" value={formatCount(tradeStats.last24h)} />
-                  <StatItem label="Mints" value={formatCount(tradeStats.mints)} />
-                  <StatItem label="Redeems" value={formatCount(tradeStats.redeems)} />
+                  <StatItem label="Opens" value={formatCount(tradeStats.mints)} />
+                  <StatItem label="Closes" value={formatCount(tradeStats.redeems)} />
                   <StatItem
-                    label="Vault utilization"
+                    label="Pool in use"
                     value={
                       vaultSummary?.snapshot?.utilization_bps != null
                         ? `${(vaultSummary.snapshot.utilization_bps / 100).toFixed(1)}%`
@@ -528,7 +528,8 @@ export function PredictTradeTerminal({
                             <ArrowDownRight className="h-3 w-3 text-destructive" />
                           )}
                           <span className={t.is_up ? "text-success" : "text-destructive"}>
-                            {t.trade_side.toUpperCase()} {t.is_up ? "UP" : "DOWN"}
+                            {t.trade_side === "mint" ? "OPEN" : "CLOSE"}{" "}
+                            {t.is_up ? "UP" : "DOWN"}
                           </span>
                         </span>
                         <span className="text-muted-foreground">
@@ -552,8 +553,8 @@ export function PredictTradeTerminal({
                 ) : (
                   <EmptyState
                     icon={Inbox}
-                    title="No trades yet"
-                    description="Indexed mint and redeem activity will appear here."
+                    title="No activity yet"
+                    description="Recent trades will show up here."
                     compact
                   />
                 )
@@ -562,7 +563,7 @@ export function PredictTradeTerminal({
                   <EmptyState
                     icon={Inbox}
                     title="Connect wallet"
-                    description="Connect to view your leveraged positions."
+                    description="Connect to see your open trades."
                     compact
                   />
                 ) : positionsLoading ? (
@@ -600,7 +601,7 @@ export function PredictTradeTerminal({
                   <EmptyState
                     icon={Inbox}
                     title="Connect wallet"
-                    description="Connect to view open limit orders."
+                    description="Connect to see your waiting orders."
                     compact
                   />
                 ) : ordersLoading ? (
@@ -627,8 +628,8 @@ export function PredictTradeTerminal({
                 ) : (
                   <EmptyState
                     icon={Inbox}
-                    title="No open orders"
-                    description="Resting limit mint orders will appear here."
+                    title="No waiting orders"
+                    description="Orders waiting for a match will appear here."
                     compact
                   />
                 )

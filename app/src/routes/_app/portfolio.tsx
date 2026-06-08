@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_app/portfolio")({
       { title: pageTitle("Portfolio") },
       {
         name: "description",
-        content: "Your leveraged positions and borrowed quote from the on-chain indexer.",
+        content: "Your open trades, balance, and profit and loss.",
       },
     ],
   }),
@@ -62,7 +62,7 @@ function PortfolioPage() {
       {!isWalletConnected ? (
         <WalletConnectPrompt
           title="Connect for portfolio"
-          description="View your indexed leveraged positions and account debt."
+          description="Connect your wallet to see your trades and balance."
         />
       ) : isLoading && !account && openPositions.length === 0 ? (
         <SurfaceSkeleton lines={4} />
@@ -70,7 +70,7 @@ function PortfolioPage() {
         <>
           <div className="grid gap-3 sm:grid-cols-3">
             <PersonalStat
-              label="Margin (open)"
+              label="In trades"
               info={leverxInfo.marginOpen}
               value={
                 !statsReady && marginTotal == null
@@ -79,14 +79,14 @@ function PortfolioPage() {
               }
             />
             <PersonalStat
-              label="Borrowed quote"
+              label="Borrowed"
               info={leverxInfo.borrowedQuote}
               value={
                 !statsReady && borrowed == null ? "…" : formatUsdcOrPlaceholder(borrowed)
               }
             />
             <PersonalStat
-              label="Open positions"
+              label="Open trades"
               info={leverxInfo.openPositions}
               value={
                 !statsReady

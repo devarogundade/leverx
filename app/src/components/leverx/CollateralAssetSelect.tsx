@@ -31,7 +31,7 @@ export function CollateralAssetSelect({ value, onValueChange, assets, className,
   return (
     <Select value={value} onValueChange={onValueChange} disabled={disabled || assets.length === 0}>
       <SelectTrigger className={cn("collateral-asset-select w-full", className)}>
-        <SelectValue placeholder="Select collateral" />
+        <SelectValue placeholder="Choose asset" />
       </SelectTrigger>
       <SelectContent align="end" className="min-w-[var(--radix-select-trigger-width)]">
         {assets.map((coinType) => (

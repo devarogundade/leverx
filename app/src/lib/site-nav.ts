@@ -54,14 +54,14 @@ export const SITE_NAV_ENTRIES: SiteNavEntry[] = [
       pathname.startsWith("/vault") || pathname.startsWith("/keeper"),
     items: [
       {
-        label: "Vault",
+        label: "Pool",
         to: "/vault",
-        hint: "Supply dUSDC and earn pool yield",
+        hint: "Deposit USDC and earn from trading",
       },
       {
-        label: "Keeper",
+        label: "Helper",
         to: "/keeper",
-        hint: "Run the protocol helper node",
+        hint: "Run a small app that supports the network",
       },
     ],
   },
@@ -74,7 +74,7 @@ export const SITE_NAV_ENTRIES: SiteNavEntry[] = [
   },
   {
     type: "link",
-    label: "Docs",
+    label: "Guide",
     icon: BookOpen,
     to: "/guide",
     isActive: (pathname) => pathname.startsWith("/guide"),

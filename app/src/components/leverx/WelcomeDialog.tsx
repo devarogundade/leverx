@@ -43,9 +43,8 @@ export function WelcomeDialog() {
               Welcome to {APP_NAME}
             </DialogTitle>
             <DialogDescription className="text-sm leading-relaxed">
-              Trade DeepBook Predict binary options with up to 10× leverage. Deposit margin,
-              borrow from the LeverageVault, and manage positions via your proxy PredictManager on
-              Sui testnet.
+              Bet on where prices go with up to 10× leverage. Connect your wallet, pick a market, and
+              open your first trade in minutes — all on the demo network.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-2 sm:flex-row">

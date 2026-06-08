@@ -1,11 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, BookOpen, Coins, Landmark, LineChart, Server } from "lucide-react";
-import { InfoPopover } from "@/components/leverx/InfoPopover";
+import { ArrowRight, BookOpen, Coins, LineChart } from "lucide-react";
+import { LandingFeatureSection } from "@/components/landing/LandingFeatureSection";
 import { LandingAssetGrid } from "@/components/landing/LandingAssetGrid";
 import { LandingHeader } from "@/components/landing/LandingHeader";
+import {
+  LandingChartIllustration,
+  LandingKeeperIllustration,
+  LandingMarketsIllustration,
+  LandingOrderBookIllustration,
+  LandingVaultIllustration,
+} from "@/components/landing/LandingIllustrations";
 import { APP_NAME } from "@/lib/brand";
 import { landingCopy } from "@/lib/landing-copy";
-import { leverxInfo } from "@/lib/leverx/info-copy";
 
 export const Route = createFileRoute("/")({
   component: LandingPage,
@@ -38,7 +44,7 @@ function LandingPage() {
           <p className="landing-hero-lead">{landingCopy.heroLead}</p>
 
           <div className="landing-audience-row">
-            <a href="#traders" className="landing-audience-pill landing-audience-traders">
+            <a href="#leverage" className="landing-audience-pill landing-audience-traders">
               <LineChart className="h-3.5 w-3.5" aria-hidden />
               {landingCopy.audienceTraders}
             </a>
@@ -58,81 +64,85 @@ function LandingPage() {
               {landingCopy.ctaHow}
             </Link>
           </div>
+
+          <div className="landing-hero-visual">
+            <LandingChartIllustration />
+          </div>
         </section>
 
-        <section id="traders" className="landing-section landing-section--traders">
-          <div className="landing-section-head">
-            <span className="landing-section-icon landing-section-icon--trade" aria-hidden>
-              <LineChart className="h-5 w-5" strokeWidth={1.5} />
-            </span>
-            <div>
-              <h2 className="landing-section-title">{landingCopy.tradersTitle}</h2>
-              <p className="landing-section-lead">{landingCopy.tradersLead}</p>
-            </div>
-          </div>
-          <ul className="landing-section-list">
-            <li>{landingCopy.tradersPoint1}</li>
-            <li>{landingCopy.tradersPoint2}</li>
-            <li>
-              <span className="inline-flex items-center gap-1">
-                {landingCopy.tradersPoint3}
-                <InfoPopover title="Position health">{leverxInfo.landingHealth}</InfoPopover>
-              </span>
-            </li>
-          </ul>
-          <Link to="/markets" className="landing-section-cta">
-            {landingCopy.tradersCta}
-            <ArrowRight className="h-4 w-4" aria-hidden />
-          </Link>
-        </section>
+        <div className="landing-features-intro">
+          <p className="landing-feature-eyebrow landing-features-intro-eyebrow">
+            {landingCopy.featuresEyebrow}
+          </p>
+          <h2 className="landing-features-intro-title">{landingCopy.featuresIntroTitle}</h2>
+        </div>
 
-        <section id="earners" className="landing-section landing-section--earners">
-          <div className="landing-section-head landing-section-head--center">
-            <h2 className="landing-section-title">{landingCopy.earnersTitle}</h2>
-            <p className="landing-section-lead">{landingCopy.earnersLead}</p>
+        <LandingFeatureSection
+          id="leverage"
+          eyebrow={landingCopy.leverageEyebrow}
+          title={landingCopy.leverageTitle}
+          lead={landingCopy.leverageLead}
+          bullets={landingCopy.leverageBullets}
+          cta={{ label: landingCopy.leverageCta, to: "/markets" }}
+          illustration={<LandingChartIllustration />}
+        />
+
+        <LandingFeatureSection
+          id="markets-feature"
+          eyebrow={landingCopy.marketsEyebrow}
+          title={landingCopy.marketsTitle}
+          lead={landingCopy.marketsLead}
+          bullets={landingCopy.marketsBullets}
+          cta={{ label: landingCopy.marketsCta, to: "/markets" }}
+          illustration={<LandingMarketsIllustration />}
+          reverse
+        />
+
+        <LandingFeatureSection
+          id="orderbook"
+          eyebrow={landingCopy.orderbookEyebrow}
+          title={landingCopy.orderbookTitle}
+          lead={landingCopy.orderbookLead}
+          bullets={landingCopy.orderbookBullets}
+          cta={{ label: landingCopy.orderbookCta, to: "/markets" }}
+          illustration={<LandingOrderBookIllustration />}
+        />
+
+        <section id="earners" className="landing-earners-block">
+          <div className="landing-earners-head">
+            <p className="landing-feature-eyebrow">{landingCopy.audienceEarners}</p>
+            <h2 className="landing-feature-title">{landingCopy.earnersTitle}</h2>
+            <p className="landing-feature-lead landing-earners-lead">{landingCopy.earnersLead}</p>
           </div>
 
-          <div className="landing-earn-grid">
-            <article className="landing-earn-card">
-              <div className="landing-earn-card-head">
-                <span className="landing-section-icon" aria-hidden>
-                  <Landmark className="h-5 w-5" strokeWidth={1.5} />
-                </span>
-                <h3 className="landing-earn-card-title">
-                  {landingCopy.lendersTitle}
-                  <InfoPopover title="Vault">{leverxInfo.landingVault}</InfoPopover>
-                </h3>
-              </div>
-              <p className="landing-earn-card-lead">{landingCopy.lendersLead}</p>
-              <Link to="/vault" className="landing-section-cta landing-section-cta--inline">
-                {landingCopy.lendersCta}
-                <ArrowRight className="h-4 w-4" aria-hidden />
-              </Link>
-            </article>
+          <LandingFeatureSection
+            id="vault"
+            eyebrow={landingCopy.vaultEyebrow}
+            title={landingCopy.vaultTitle}
+            lead={landingCopy.vaultLead}
+            bullets={landingCopy.vaultBullets}
+            cta={{ label: landingCopy.vaultCta, to: "/vault" }}
+            illustration={<LandingVaultIllustration />}
+            className="landing-feature-block--nested"
+          />
 
-            <article className="landing-earn-card">
-              <div className="landing-earn-card-head">
-                <span className="landing-section-icon" aria-hidden>
-                  <Server className="h-5 w-5" strokeWidth={1.5} />
-                </span>
-                <h3 className="landing-earn-card-title">
-                  {landingCopy.keepersTitle}
-                  <InfoPopover title="Keeper">{leverxInfo.landingKeeper}</InfoPopover>
-                </h3>
-              </div>
-              <p className="landing-earn-card-lead">{landingCopy.keepersLead}</p>
-              <Link to="/keeper" className="landing-section-cta landing-section-cta--inline">
-                {landingCopy.keepersCta}
-                <ArrowRight className="h-4 w-4" aria-hidden />
-              </Link>
-            </article>
-          </div>
+          <LandingFeatureSection
+            id="keeper"
+            eyebrow={landingCopy.keeperEyebrow}
+            title={landingCopy.keeperTitle}
+            lead={landingCopy.keeperLead}
+            bullets={landingCopy.keeperBullets}
+            cta={{ label: landingCopy.keeperCta, to: "/keeper" }}
+            illustration={<LandingKeeperIllustration />}
+            reverse
+            className="landing-feature-block--nested"
+          />
         </section>
 
         <footer className="landing-section landing-section--foot">
           <p className="landing-footnote">{landingCopy.footnote}</p>
           <nav className="landing-links" aria-label="External links">
-            <Link to="/guide">Docs</Link>
+            <Link to="/guide">Guide</Link>
             <span aria-hidden>·</span>
             <a href="https://discord.gg/sui" target="_blank" rel="noreferrer">
               Discord

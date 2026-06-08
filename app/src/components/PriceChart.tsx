@@ -206,8 +206,8 @@ export function PriceChart({
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-card/90 p-4">
           <EmptyState
             icon={LineChart}
-            title="Could not load price data"
-            description="The oracle feed may be temporarily unavailable."
+            title="Could not load chart"
+            description="Price data may be temporarily unavailable. Try again in a moment."
             action={
               <Button type="button" variant="outline" size="sm" onClick={() => refetch()}>
                 Retry

@@ -84,12 +84,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: APP_NAME },
       {
         name: "description",
-        content: "Trade DeepBook Predict UP, DOWN, and RANGE with up to 10× leverage on Sui testnet.",
+        content: "Trade price predictions with up to 10× leverage on the LeverX demo.",
       },
       { property: "og:title", content: APP_NAME },
       {
         property: "og:description",
-        content: "Trade DeepBook Predict UP, DOWN, and RANGE with up to 10× leverage on Sui testnet.",
+        content: "Trade price predictions with up to 10× leverage on the LeverX demo.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

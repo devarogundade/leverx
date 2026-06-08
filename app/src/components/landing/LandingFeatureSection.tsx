@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, type LinkProps } from "@tanstack/react-router";
 import { ArrowRight, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -9,7 +9,7 @@ interface Props {
   title: string;
   lead: string;
   bullets: readonly string[];
-  cta?: { label: string; to: string };
+  cta?: { label: string; to: LinkProps["to"] };
   illustration: ReactNode;
   reverse?: boolean;
   className?: string;
