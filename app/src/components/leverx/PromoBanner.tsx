@@ -17,7 +17,7 @@ export function PromoBanner() {
           Leaderboard
         </h3>
         <p className="mt-2 max-w-[220px] text-sm leading-relaxed text-muted-foreground">
-          Earn points trading leveraged DeepBook Predict positions on testnet.
+          Earn points for trading on the demo leaderboard.
         </p>
         <Link to="/points" className="btn-connect mt-5 inline-flex text-sm">
           View Details

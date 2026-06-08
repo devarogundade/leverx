@@ -65,7 +65,7 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
         />
         <div className="space-y-2">
           <LabelWithInfo
-            label="Predict manager ID"
+            label="Trading account"
             labelClassName="text-xs text-muted-foreground"
             info={leverxInfo.predictManager}
           />
@@ -93,7 +93,7 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
         </div>
         <div className="space-y-2">
           <LabelWithInfo
-            label="Session executor"
+            label="Trusted trader"
             labelClassName="text-xs text-muted-foreground"
             info={leverxInfo.sessionExecutor}
           />
@@ -101,7 +101,7 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
             <Input
               value={executorAddress}
               onChange={(e) => setExecutorAddress(e.target.value)}
-              placeholder="0x executor address"
+              placeholder="Wallet address"
               className="min-w-0 font-mono text-xs"
             />
             <button
@@ -148,18 +148,18 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
             ))}
           </ul>
         ) : (
-          <p className="text-xs text-muted-foreground">No session executors registered.</p>
+          <p className="text-xs text-muted-foreground">No trusted traders added.</p>
         )}
       </section>
 
       <section className={cn(tradeSurface, "space-y-2 p-4")}>
         <LabelWithInfo
-          label="Triggers"
+          label="Auto-exit rules"
           labelClassName={labelCaps}
           info={leverxInfo.triggers}
         />
         {triggers.filter((t) => t.active).length === 0 ? (
-          <p className="text-xs text-muted-foreground">No active TP/SL triggers.</p>
+          <p className="text-xs text-muted-foreground">No active take-profit or stop-loss rules.</p>
         ) : (
           <ul className="space-y-2 text-xs">
             {triggers
@@ -170,7 +170,7 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
                   className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2"
                 >
                   <span>
-                    {t.is_range ? "RANGE" : "BINARY"} · {t.oracle_id.slice(0, 10)}…
+                    {t.is_range ? "RANGE" : "UP/DOWN"} · market
                   </span>
                   <span className="font-mono text-muted-foreground">
                     TP {premiumRawToCents(BigInt(t.take_profit_premium)).toFixed(1)}¢ · SL{" "}
@@ -180,7 +180,7 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
                     const match = positionKeyForTrigger(t, positions);
                     if (!match) {
                       return (
-                        <span className="text-muted-foreground">needs open position</span>
+                        <span className="text-muted-foreground">no open trade</span>
                       );
                     }
                     return (
@@ -217,12 +217,12 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
 
       <section className={cn(tradeSurface, "space-y-2 p-4")}>
         <LabelWithInfo
-          label="Collateral balances"
+          label="Funds in trades"
           labelClassName={labelCaps}
           info={leverxInfo.collateralBalances}
         />
         {collateralBalances.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No indexed per-key collateral.</p>
+          <p className="text-xs text-muted-foreground">No funds locked in open trades.</p>
         ) : (
           <ul className="space-y-1 text-xs">
             {collateralBalances.slice(0, 8).map((b) => (
@@ -242,18 +242,18 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
 
       <section className={cn(tradeSurface, "space-y-2 p-4")}>
         <LabelWithInfo
-          label="Recent liquidations"
+          label="Auto-closed trades"
           labelClassName={labelCaps}
           info={leverxInfo.liquidations}
         />
         {liquidations.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No liquidation events indexed.</p>
+          <p className="text-xs text-muted-foreground">No auto-closed trades yet.</p>
         ) : (
           <ul className="space-y-1 text-xs">
             {liquidations.slice(0, 5).map((l) => (
               <li key={l.event_digest} className="flex justify-between gap-2">
                 <span className="text-muted-foreground">
-                  health {(l.health_bps / 100).toFixed(0)}%
+                  Safety {(l.health_bps / 100).toFixed(0)}%
                 </span>
                 <span className="font-mono">
                   {formatUsdcOrPlaceholder(scaleQuote(l.debt_repaid))} repaid

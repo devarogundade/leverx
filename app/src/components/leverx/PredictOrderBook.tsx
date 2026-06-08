@@ -75,19 +75,19 @@ function OrderBookShell({
     <div className={cn(tradeSurface, "flex h-full min-h-[280px] min-h-0 flex-1 flex-col", muted && "opacity-70")}>
       <div className="flex items-center justify-between border-b border-border px-3 py-2">
         <LabelWithInfo
-          label="Order Book"
+          label="Prices"
           labelClassName={labelCaps}
           info={leverxInfo.orderBook}
         />
         <div className="flex items-center gap-1.5">
-          <div className={pillToggleGroup} role="group" aria-label="Order book side">
+          <div className={pillToggleGroup} role="group" aria-label="Price view">
             <button
               type="button"
               className={cn(pillToggleBtn, bookSide === "long" ? pillToggleActive : pillToggleIdle)}
               onClick={() => onBookSideChange("long")}
               aria-pressed={bookSide === "long"}
             >
-              Long
+              Up
             </button>
             <button
               type="button"
@@ -95,7 +95,7 @@ function OrderBookShell({
               onClick={() => onBookSideChange("short")}
               aria-pressed={bookSide === "short"}
             >
-              Short
+              Down
             </button>
           </div>
           <InfoPopover side="bottom" align="end">
@@ -106,7 +106,7 @@ function OrderBookShell({
 
       <div className={cn(orderbookSideHeader, "border-b border-border px-3 py-1.5")}>
         <span>Price</span>
-        <span className="text-center">Shares</span>
+        <span className="text-center">Size</span>
         <span className="text-right">USD</span>
       </div>
 
@@ -135,11 +135,11 @@ function OrderBookShell({
 
         <div className={cn(orderbookMid, "border-y border-border bg-surface/50")}>
           <span>
-            Last Traded <span className="font-mono text-foreground">{lastTradedLabel}</span>
+            Last price <span className="font-mono text-foreground">{lastTradedLabel}</span>
           </span>
           <span className="text-muted-foreground">·</span>
           <span className="inline-flex items-center gap-1">
-            <LabelWithInfo label="Spread" info={leverxInfo.spread} />
+            <LabelWithInfo label="Gap" info={leverxInfo.spread} />
             <span className="font-mono text-foreground">{spreadLabel}</span>
           </span>
         </div>

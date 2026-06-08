@@ -16,7 +16,7 @@ export function TradeQuoteSummary({ quote, isLoading, className }: Props) {
   if (isLoading) {
     return (
       <div className={cn("rounded-md border border-border/60 bg-card/40 p-3 text-xs text-muted-foreground", className)}>
-        Quoting trade…
+        Calculating cost…
       </div>
     );
   }
@@ -26,18 +26,18 @@ export function TradeQuoteSummary({ quote, isLoading, className }: Props) {
   return (
     <div className={cn("space-y-2 rounded-md border border-border/60 bg-card/40 p-3", className)}>
       <LabelWithInfo
-        label="Pre-trade quote"
+        label="Estimated cost"
         labelClassName={labelCaps}
         info={leverxInfo.preTradeQuote}
       />
       <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-        <LabelWithInfo label="Ask / unit" info={leverxInfo.askPerUnit} />
+        <LabelWithInfo label="Per contract" info={leverxInfo.askPerUnit} />
         <span className="font-mono text-right">
           {formatPremiumCents(Number(quote.marketAskPerUnit))}
         </span>
-        <LabelWithInfo label="Mint cost" info={leverxInfo.mintCost} />
+        <LabelWithInfo label="Total cost" info={leverxInfo.mintCost} />
         <span className="font-mono text-right">{scaleQuote(Number(quote.mintCost)).toFixed(2)} USDC</span>
-        <LabelWithInfo label="Vault borrow" info={leverxInfo.vaultBorrow} />
+        <LabelWithInfo label="Borrowed" info={leverxInfo.vaultBorrow} />
         <span className="font-mono text-right">{scaleQuote(Number(quote.borrowQuote)).toFixed(2)} USDC</span>
       </div>
     </div>

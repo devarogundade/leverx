@@ -20,7 +20,7 @@ const DOCKER_PULL = `docker pull ${KEEPER_IMAGE}`;
 export const Route = createFileRoute("/_app/keeper")({
   head: () => ({
     meta: [
-      { title: pageTitle("Keeper") },
+      { title: pageTitle("Helper") },
       {
         name: "description",
         content: "Trade price predictions with up to 10× leverage on the LeverX demo.",
