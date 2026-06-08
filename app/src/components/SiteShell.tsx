@@ -42,7 +42,7 @@ export function SiteShell({ children, fullWidth }: Props) {
             <span className="hidden text-sm font-bold tracking-wide sm:inline">{APP_NAME}</span>
           </Link>
 
-          <SiteHeaderNav className="hidden min-w-0 flex-1 md:flex" />
+          <SiteHeaderNav className="hidden min-w-0 flex-1 lg:flex" />
           <Link
             to="/guide"
             className="btn-how-it-works hidden lg:inline-flex"
@@ -61,7 +61,7 @@ export function SiteShell({ children, fullWidth }: Props) {
               variant="ghost"
               size="icon"
               onClick={() => setOpen((o) => !o)}
-              className="btn-icon inline-flex md:hidden"
+              className="btn-icon inline-flex lg:hidden"
               aria-label={open ? "Close menu" : "Open menu"}
               aria-expanded={open}
             >
@@ -76,11 +76,11 @@ export function SiteShell({ children, fullWidth }: Props) {
           <Button
             type="button"
             variant="ghost"
-            className="fixed inset-0 z-40 h-auto w-auto rounded-none bg-black/60 hover:bg-black/60 md:hidden"
+            className="fixed inset-0 z-40 h-auto w-auto rounded-none bg-black/60 hover:bg-black/60 lg:hidden"
             aria-label="Close menu"
             onClick={closeMenu}
           />
-          <div className="site-mobile-menu md:hidden">
+          <div className="site-mobile-menu lg:hidden">
             <BalanceBreakdown className="site-mobile-menu-balance mb-3 w-full" />
             <SiteHeaderNav vertical onNavigate={closeMenu} className="mb-3" />
             <Link

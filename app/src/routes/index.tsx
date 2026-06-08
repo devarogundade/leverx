@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, BookOpen, Coins, LineChart } from "lucide-react";
-import { LandingFeatureSection } from "@/components/landing/LandingFeatureSection";
 import { LandingAssetGrid } from "@/components/landing/LandingAssetGrid";
+import { LandingFeatureSection } from "@/components/landing/LandingFeatureSection";
 import { LandingHeader } from "@/components/landing/LandingHeader";
 import {
   LandingChartIllustration,
@@ -21,13 +21,13 @@ function LandingPage() {
   return (
     <div className="landing-page landing-page--scroll">
       <LandingHeader />
-      <div className="landing-grid-bg absolute inset-0" aria-hidden />
-      <LandingAssetGrid />
-      <div className="landing-glow" aria-hidden />
-      <div className="landing-vignette" aria-hidden />
 
       <div className="landing-scroll stagger">
-        <section className="landing-hero">
+        <section className="landing-hero landing-snap-section">
+          <div className="landing-hero-bg" aria-hidden>
+            <div className="landing-grid-bg" />
+            <LandingAssetGrid />
+          </div>
           <div className="landing-brand">
             <div className="landing-logo bg-accent text-accent-foreground">LX</div>
             <span className="landing-brand-name">{APP_NAME}</span>
@@ -70,7 +70,7 @@ function LandingPage() {
           </div>
         </section>
 
-        <div className="landing-features-intro">
+        <div className="landing-features-intro landing-snap-section">
           <p className="landing-feature-eyebrow landing-features-intro-eyebrow">
             {landingCopy.featuresEyebrow}
           </p>
@@ -79,6 +79,8 @@ function LandingPage() {
 
         <LandingFeatureSection
           id="leverage"
+          variant="strip"
+          tone="trade"
           eyebrow={landingCopy.leverageEyebrow}
           title={landingCopy.leverageTitle}
           lead={landingCopy.leverageLead}
@@ -89,6 +91,8 @@ function LandingPage() {
 
         <LandingFeatureSection
           id="markets-feature"
+          variant="card"
+          tone="markets"
           eyebrow={landingCopy.marketsEyebrow}
           title={landingCopy.marketsTitle}
           lead={landingCopy.marketsLead}
@@ -100,6 +104,8 @@ function LandingPage() {
 
         <LandingFeatureSection
           id="orderbook"
+          variant="flat"
+          tone="pricing"
           eyebrow={landingCopy.orderbookEyebrow}
           title={landingCopy.orderbookTitle}
           lead={landingCopy.orderbookLead}
@@ -108,7 +114,7 @@ function LandingPage() {
           illustration={<LandingOrderBookIllustration />}
         />
 
-        <section id="earners" className="landing-earners-block">
+        <section id="earners" className="landing-earners-block landing-snap-section">
           <div className="landing-earners-head">
             <p className="landing-feature-eyebrow">{landingCopy.audienceEarners}</p>
             <h2 className="landing-feature-title">{landingCopy.earnersTitle}</h2>
@@ -117,6 +123,8 @@ function LandingPage() {
 
           <LandingFeatureSection
             id="vault"
+            variant="card"
+            tone="earn"
             eyebrow={landingCopy.vaultEyebrow}
             title={landingCopy.vaultTitle}
             lead={landingCopy.vaultLead}
@@ -128,6 +136,8 @@ function LandingPage() {
 
           <LandingFeatureSection
             id="keeper"
+            variant="strip"
+            tone="earn"
             eyebrow={landingCopy.keeperEyebrow}
             title={landingCopy.keeperTitle}
             lead={landingCopy.keeperLead}

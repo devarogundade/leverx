@@ -36,7 +36,7 @@ export function LandingHeader() {
           <a href="#leverage" className="landing-header-link" onClick={closeMenu}>
             Traders
           </a>
-          <a href="#markets-feature" className="landing-header-link hidden md:inline" onClick={closeMenu}>
+          <a href="#markets-feature" className="landing-header-link" onClick={closeMenu}>
             Markets
           </a>
           <a href="#earners" className="landing-header-link" onClick={closeMenu}>
@@ -46,7 +46,7 @@ export function LandingHeader() {
             Guide
           </Link>
           {earnEntry ? (
-            <div className="hidden sm:block">
+            <div className="hidden lg:block">
               <SiteNavEarnMenu
                 entry={earnEntry}
                 onNavigate={closeMenu}
@@ -67,7 +67,7 @@ export function LandingHeader() {
             variant="ghost"
             size="icon"
             onClick={() => setOpen((o) => !o)}
-            className="btn-icon inline-flex sm:hidden"
+            className="btn-icon inline-flex lg:hidden"
             aria-label={open ? "Close menu" : "Open menu"}
             aria-expanded={open}
           >
@@ -81,11 +81,11 @@ export function LandingHeader() {
           <Button
             type="button"
             variant="ghost"
-            className="fixed inset-0 z-40 h-auto w-auto rounded-none bg-black/60 hover:bg-black/60 sm:hidden"
+            className="fixed inset-0 z-40 h-auto w-auto rounded-none bg-black/60 hover:bg-black/60 lg:hidden"
             aria-label="Close menu"
             onClick={closeMenu}
           />
-          <div className="landing-mobile-menu sm:hidden">
+          <div className="landing-mobile-menu lg:hidden">
             <nav className="flex flex-col gap-1" aria-label="Landing navigation">
               <a href="#leverage" className="landing-mobile-menu-link" onClick={closeMenu}>
                 Traders

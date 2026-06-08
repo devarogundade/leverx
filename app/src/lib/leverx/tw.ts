@@ -230,7 +230,7 @@ export const tradeTerminal = "flex w-full flex-col";
 export const tradeTerminalHeader = "flex flex-col gap-3 pb-3";
 
 export const tradeTerminalHeaderTop =
-  "flex min-w-0 flex-wrap items-start gap-3";
+  "flex min-w-0 w-full items-start justify-between gap-3";
 
 export const tradeTerminalHeaderMetrics = cn(
   "md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-[var(--trade-gap)]",

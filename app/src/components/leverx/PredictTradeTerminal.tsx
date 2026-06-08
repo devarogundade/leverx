@@ -26,6 +26,7 @@ import { useOracleSpotMap } from "@/hooks/useOracleSpotMap";
 import { useOracleNeighbors, usePredictOracleRows } from "@/hooks/usePredictOracles";
 import { usePredictOracleState } from "@/hooks/usePredictOracleState";
 import {
+  buildQuestion,
   catalogToMarketRows,
   formatPremiumCents,
   formatPremiumOrPlaceholder,
@@ -294,10 +295,34 @@ export function PredictTradeTerminal({
     oracleSpot,
   ]);
 
-  const question =
-    activeSide === "range" && rangeLower && rangeUpper
-      ? `Will ${asset} settle in ${formatRangeStrikes(rangeLower / 1e9, rangeUpper / 1e9)}?`
-      : (market?.question ?? `Trade this market`);
+  const question = useMemo(() => {
+    if (activeSide === "range" && rangeLower && rangeUpper) {
+      return `Will ${asset} settle in ${formatRangeStrikes(rangeLower / 1e9, rangeUpper / 1e9)}?`;
+    }
+    if (market?.question) return market.question;
+    const strike = binaryStrikeRaw ?? strikeRaw;
+    if (strike && expiry) {
+      return buildQuestion(
+        asset,
+        strike,
+        expiry,
+        activeSide === "range",
+        rangeUpper ?? 0,
+        activeSide === "up",
+      );
+    }
+    return "Trade this market";
+  }, [
+    activeSide,
+    rangeLower,
+    rangeUpper,
+    asset,
+    market?.question,
+    binaryStrikeRaw,
+    strikeRaw,
+    expiry,
+    rangeUpper,
+  ]);
 
   const activePremium = market?.lastAskPremium;
 
@@ -325,17 +350,21 @@ export function PredictTradeTerminal({
   const chartRangeLower = rangeLower ? scaleSpot(rangeLower) : undefined;
   const chartRangeUpper = rangeUpper ? scaleSpot(rangeUpper) : undefined;
 
-  const oracleNavSearch = {
-    strike: strikeRaw,
-    lowerStrike: lowerStrikeRaw,
-    upperStrike: upperStrikeRaw,
-    side: activeSide,
-  };
+  const oracleNavSearch = { side: activeSide };
 
   return (
     <section className={tradeTerminal}>
       <header className={tradeTerminalHeader}>
         <div className={tradeTerminalHeaderTop}>
+          <div className="flex min-w-0 flex-1 items-start gap-3">
+            <AssetBadge asset={asset} size="md" />
+            <div className="min-w-0 flex-1">
+              <h1 className={tradeTerminalTitle}>{question}</h1>
+              <Link to="/markets" className={tradeTerminalBack}>
+                {ui.backToMarkets}
+              </Link>
+            </div>
+          </div>
           <div className={tradeOracleNav} aria-label="Market navigation">
             {prevOracle ? (
               <Link
@@ -373,13 +402,6 @@ export function PredictTradeTerminal({
                 <ChevronRight className="h-4 w-4" />
               </span>
             )}
-          </div>
-          <AssetBadge asset={asset} size="md" />
-          <div className="min-w-0 flex-1">
-            <h1 className={tradeTerminalTitle}>{question}</h1>
-            <Link to="/markets" className={tradeTerminalBack}>
-              {ui.backToMarkets}
-            </Link>
           </div>
         </div>
 
