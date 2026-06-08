@@ -13,7 +13,7 @@ import {
   lightweightChartOptions,
   lineSeriesAccentColor,
 } from "@/lib/charts/lightweight-shared";
-import { toLineData } from "@/lib/charts/line-data";
+import { flatLineData, toLineData } from "@/lib/charts/line-data";
 import { fetchPredictOraclePriceHistory } from "@/lib/predict/price-history";
 import { cn } from "@/lib/utils";
 import { tradeSurface } from "@/lib/leverx/tw";
@@ -22,15 +22,23 @@ interface Props {
   asset: string;
   pair?: string;
   oracleId: string;
+  spotPrice?: number | null;
   levels?: PriceLevel[];
   height?: number;
   className?: string;
+}
+
+function resolveFlatPrice(spotPrice: number | null | undefined, levels?: PriceLevel[]): number | null {
+  if (spotPrice != null && spotPrice > 0) return spotPrice;
+  const level = levels?.find((l) => l.price > 0);
+  return level?.price ?? null;
 }
 
 export function PriceChart({
   asset,
   pair,
   oracleId,
+  spotPrice,
   levels,
   height,
   className,
@@ -47,10 +55,13 @@ export function PriceChart({
     enabled: Boolean(oracleId),
   });
 
-  const lineData = useMemo(
-    () => (history?.length ? toLineData(history) : []),
-    [history],
-  );
+  const flatPrice = useMemo(() => resolveFlatPrice(spotPrice, levels), [spotPrice, levels]);
+
+  const lineData = useMemo(() => {
+    if (history?.length) return toLineData(history);
+    if (flatPrice != null) return flatLineData(flatPrice);
+    return [];
+  }, [history, flatPrice]);
 
   useEffect(() => {
     setMounted(true);
@@ -125,7 +136,7 @@ export function PriceChart({
   }, [levels, lineData]);
 
   const chartLabel = pair ?? `${asset}/USDT`;
-  const empty = !isLoading && lineData.length === 0;
+  const showChart = mounted && !isLoading && !isError && lineData.length > 0;
 
   return (
     <div
@@ -158,21 +169,11 @@ export function PriceChart({
           />
         </div>
       )}
-      {mounted && empty && !isError && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-card/90 p-4">
-          <EmptyState
-            icon={LineChart}
-            title={ui.emptyChart}
-            description={ui.emptyChartHint}
-            compact
-          />
-        </div>
-      )}
       <div
         ref={containerRef}
-        className={cn("h-full w-full", (isLoading || isError || empty) && "opacity-0")}
+        className={cn("h-full w-full", (isLoading || isError) && "opacity-0")}
       />
-      {mounted && lineData.length > 0 && (
+      {showChart && (
         <a
           href="https://www.tradingview.com"
           target="_blank"

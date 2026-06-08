@@ -1,5 +1,13 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useIndexerChannelSubscription, useIndexerStream } from "@/context/IndexerStreamContext";
 import { appConfig } from "@/lib/config";
+import {
+  globalTradesChannel,
+  limitOrdersChannel,
+  orderbookChannel,
+  positionsChannel,
+} from "@/lib/leverx/indexer-channels";
 import {
   fetchAccount,
   fetchAccounts,
@@ -119,6 +127,22 @@ export function useIndexerOrderBook(args: {
   const higherStrike = args.higherStrike ?? 0;
   const isUp = args.isUp ?? true;
   const isRange = args.isRange ?? false;
+  const { isLive } = useIndexerStream();
+  const queryEnabled =
+    enabled && (args.enabled ?? true) && args.expiryMs > 0 && args.strike > 0;
+  const channel = useMemo(
+    () =>
+      orderbookChannel({
+        oracleId: args.oracleId,
+        expiryMs: args.expiryMs,
+        strike: args.strike,
+        higherStrike,
+        isUp,
+        isRange,
+      }),
+    [args.oracleId, args.expiryMs, args.strike, higherStrike, isUp, isRange],
+  );
+  useIndexerChannelSubscription([channel], queryEnabled);
 
   return useQuery({
     queryKey: indexerKeys.orderBook(
@@ -138,14 +162,18 @@ export function useIndexerOrderBook(args: {
         isUp,
         isRange,
       }),
-    enabled: enabled && (args.enabled ?? true) && args.expiryMs > 0 && args.strike > 0,
+    enabled: queryEnabled,
     staleTime: 10_000,
-    refetchInterval: 15_000,
+    refetchInterval: isLive ? false : 15_000,
     retry: 1,
   });
 }
 
 export function useIndexerGlobalTrades(oracleId: string) {
+  const { isLive } = useIndexerStream();
+  const channel = useMemo(() => globalTradesChannel(oracleId), [oracleId]);
+  useIndexerChannelSubscription([channel], enabled && Boolean(oracleId));
+
   return useQuery({
     queryKey: indexerKeys.globalTrades(oracleId),
     queryFn: async () => {
@@ -154,7 +182,7 @@ export function useIndexerGlobalTrades(oracleId: string) {
     },
     enabled: enabled && Boolean(oracleId),
     staleTime: 15_000,
-    refetchInterval: 30_000,
+    refetchInterval: isLive ? false : 30_000,
     retry: 1,
   });
 }
@@ -163,6 +191,14 @@ export function useIndexerPositions(
   owner?: string,
   args?: { status?: string; oracleId?: string },
 ) {
+  const { isLive } = useIndexerStream();
+  const streamEnabled = enabled && Boolean(owner) && (args?.status ?? "open") === "open";
+  const channel = useMemo(
+    () => (owner ? positionsChannel(owner, args?.oracleId) : ""),
+    [owner, args?.oracleId],
+  );
+  useIndexerChannelSubscription(channel ? [channel] : [], streamEnabled);
+
   return useQuery({
     queryKey: indexerKeys.positions(owner, args?.status, args?.oracleId),
     queryFn: async () => {
@@ -176,12 +212,19 @@ export function useIndexerPositions(
     },
     enabled: enabled && Boolean(owner),
     staleTime: 15_000,
-    refetchInterval: 30_000,
+    refetchInterval: isLive && streamEnabled ? false : 30_000,
     retry: 1,
   });
 }
 
 export function useIndexerLimitOrders(owner?: string, oracleId?: string) {
+  const { isLive } = useIndexerStream();
+  const channel = useMemo(
+    () => (owner ? limitOrdersChannel(owner, oracleId) : ""),
+    [owner, oracleId],
+  );
+  useIndexerChannelSubscription(channel ? [channel] : [], enabled && Boolean(owner));
+
   return useQuery({
     queryKey: indexerKeys.limitOrders(owner, oracleId),
     queryFn: async () => {
@@ -195,7 +238,7 @@ export function useIndexerLimitOrders(owner?: string, oracleId?: string) {
     },
     enabled: enabled && Boolean(owner),
     staleTime: 15_000,
-    refetchInterval: 30_000,
+    refetchInterval: isLive ? false : 30_000,
     retry: 1,
   });
 }

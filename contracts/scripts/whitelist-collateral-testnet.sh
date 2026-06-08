@@ -17,13 +17,9 @@ PKG="${LEVERX_PACKAGE_ID:?LEVERX_PACKAGE_ID missing}"
 REGISTRY="${LEVERX_REGISTRY_ID:?LEVERX_REGISTRY_ID missing}"
 ADMIN="${LEVERX_ADMIN_CAP_ID:?LEVERX_ADMIN_CAP_ID missing}"
 QUOTE="${QUOTE_TYPE:-0xe95040085976bfd54a1a07225cd46c8a2b4e8e2b6732f140a0fc49850ba73e1a::dusdc::DUSDC}"
-SUI="0x2::sui::SUI"
-DEEP="0x36dbef866a1d62bf7328989a10fb2f07d769f4ee587c0de4a0a256e57e0a58a8::deep::DEEP"
 
 # Pyth feed IDs (32 bytes, no 0x) — testnet Hermes catalog
 FEED_USDC="eaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a"
-FEED_SUI="50c67b3fd225db8912a424dd4baed60ffdde625ed2feaaf283724f9608fea266"
-FEED_DEEP="99137a18354efa7fb6840889d059fdb04c46a6ce21be97ab60d9ad93e91ac758"
 
 # DeepBook spot pools for predict dUSDC quote — register after DeepBook creates them.
 # (Testnet only has SUI_DBUSDC / DEEP_DBUSDC today; those are the wrong quote type.)
@@ -69,12 +65,4 @@ echo "Admin:    $ADMIN"
 # dUSDC: 90% max borrow, 95% liquidation health floor (quote-native, ~1:1)
 whitelist "$QUOTE" "$FEED_USDC" 6 9000 9500
 
-# SUI: 80% max borrow, 95% liquidation health floor
-whitelist "$SUI" "$FEED_SUI" 9 8000 9500
-# register_pool "$SUI" "$POOL_SUI"  # after DeepBook creates SUI/dUSDC pool
-
-# DEEP: 70% max borrow, 95% liquidation health floor
-whitelist "$DEEP" "$FEED_DEEP" 6 7000 9500
-# register_pool "$DEEP" "$POOL_DEEP"  # after DeepBook creates DEEP/dUSDC pool
-
-echo "Done (swap pools skipped — waiting on DeepBook dUSDC pools)."
+echo "Done — dUSDC only (quote-native collateral)."

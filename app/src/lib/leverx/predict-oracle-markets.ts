@@ -35,6 +35,106 @@ function oracleAsset(oracle: PredictOracleSummary): string {
   return baseFromUnderlying(oracle.underlying_asset ?? "") || "MKT";
 }
 
+function toStrikeRaw(value: number | undefined | null): number {
+  if (value == null || value <= 0) return 0;
+  // List rows may be 1e9-scaled; detail rows are USD after scaledFromApi.
+  return value < 1_000_000 ? Math.round(value * SCALE) : Math.round(value);
+}
+
+/** Resolve vertical range bounds for an oracle (catalog row, URL params, or ATM ± tick). */
+export function resolveRangeBounds(args: {
+  oracleId: string;
+  catalogRows?: readonly LeverxMarketRow[];
+  oracle?: PredictOracleSummary | null;
+  oracleSpot?: number | null;
+  strikeRaw?: number;
+  lowerStrikeRaw?: number;
+  upperStrikeRaw?: number;
+}): { lower: number; upper: number } | null {
+  const catalogRows = args.catalogRows ?? [];
+
+  if (
+    args.lowerStrikeRaw &&
+    args.upperStrikeRaw &&
+    args.upperStrikeRaw > args.lowerStrikeRaw
+  ) {
+    return { lower: args.lowerStrikeRaw, upper: args.upperStrikeRaw };
+  }
+
+  if (args.lowerStrikeRaw) {
+    const matched = catalogRows.find(
+      (m) =>
+        m.oracleId === args.oracleId &&
+        m.isRange &&
+        m.strikeRaw === args.lowerStrikeRaw &&
+        m.higherStrikeRaw > m.strikeRaw,
+    );
+    if (matched) {
+      return { lower: matched.strikeRaw, upper: matched.higherStrikeRaw };
+    }
+  }
+
+  const catalogRange = catalogRows.find(
+    (m) => m.oracleId === args.oracleId && m.isRange && m.higherStrikeRaw > m.strikeRaw,
+  );
+  if (catalogRange) {
+    return { lower: catalogRange.strikeRaw, upper: catalogRange.higherStrikeRaw };
+  }
+
+  const minStrikeRaw = toStrikeRaw(args.oracle?.min_strike);
+  const tickRaw =
+    toStrikeRaw(args.oracle?.tick_size) || minStrikeRaw || SCALE;
+  const spot =
+    args.oracleSpot ??
+    (args.oracle?.settlement_price
+      ? args.oracle.settlement_price < 1_000_000
+        ? args.oracle.settlement_price
+        : args.oracle.settlement_price / SCALE
+      : 0);
+
+  const atm =
+    args.strikeRaw && args.strikeRaw > 0
+      ? args.strikeRaw
+      : atmStrikeRaw(spot ?? 0, minStrikeRaw, tickRaw);
+
+  if (atm <= 0) return null;
+
+  const lower = Math.max(minStrikeRaw > 0 ? minStrikeRaw : tickRaw, atm - tickRaw);
+  const upper = atm + tickRaw;
+  if (upper <= lower) return null;
+
+  return { lower, upper };
+}
+
+function buildSyntheticRangeRow(
+  oracle: PredictOracleSummary,
+  oracleId: string,
+  lower: number,
+  upper: number,
+  spot?: number,
+): LeverxMarketRow {
+  const asset = oracleAsset(oracle);
+  const expiry = oracle.expiry ?? 0;
+  return {
+    id: `${oracleId}:${expiry}:${lower}:${upper}:1:1`,
+    oracleId,
+    asset,
+    strike: lower / SCALE,
+    strikeRaw: lower,
+    higherStrikeRaw: upper,
+    expiry,
+    isUp: true,
+    isRange: true,
+    question: buildQuestion(asset, lower, expiry, true, upper, true),
+    lastAskPremium: null,
+    volume: 0,
+    status: oracle.status ?? "active",
+    spotPrice: spot != null && spot > 0 ? spot : null,
+    oracleStatus: oracle.status,
+    underlyingAsset: oracle.underlying_asset,
+  };
+}
+
 function groupCatalogByOracle(
   catalog: readonly MarketCatalogEntry[],
 ): Map<string, MarketCatalogEntry[]> {
@@ -219,14 +319,37 @@ export function resolveTradeMarket(args: {
   catalogRows: readonly LeverxMarketRow[];
   strikeRaw?: number;
   lowerStrikeRaw?: number;
+  upperStrikeRaw?: number;
   side?: "up" | "down" | "range";
 }): LeverxMarketRow | undefined {
-  const { oracleId, oracle, oracleSpot, catalogRows, strikeRaw, lowerStrikeRaw, side = "up" } =
-    args;
+  const {
+    oracleId,
+    oracle,
+    oracleSpot,
+    catalogRows,
+    strikeRaw,
+    lowerStrikeRaw,
+    upperStrikeRaw,
+    side = "up",
+  } = args;
 
   const fromCatalog = catalogRows.find((m) => {
     if (side === "range") {
-      return m.isRange && (!lowerStrikeRaw || m.strikeRaw === lowerStrikeRaw);
+      const bounds = resolveRangeBounds({
+        oracleId,
+        catalogRows,
+        oracle,
+        oracleSpot,
+        strikeRaw,
+        lowerStrikeRaw,
+        upperStrikeRaw,
+      });
+      if (!bounds) return m.isRange && (!lowerStrikeRaw || m.strikeRaw === lowerStrikeRaw);
+      return (
+        m.isRange &&
+        m.strikeRaw === bounds.lower &&
+        m.higherStrikeRaw === bounds.upper
+      );
     }
     if (strikeRaw) {
       return !m.isRange && m.isUp === (side === "up") && m.strikeRaw === strikeRaw;
@@ -247,32 +370,24 @@ export function resolveTradeMarket(args: {
 
   if (rawStrike <= 0) return undefined;
 
-  if (side === "range" && lowerStrikeRaw) {
-    const higher = args.catalogRows.find((m) => m.isRange && m.strikeRaw === lowerStrikeRaw)
-      ?.higherStrikeRaw;
-    if (higher) {
-      const asset = oracleAsset(oracle);
-      const expiry = oracle.expiry ?? 0;
-      return {
-        id: `${oracleId}:${expiry}:${lowerStrikeRaw}:${higher}:1:1`,
-        oracleId,
-        asset,
-        strike: lowerStrikeRaw / SCALE,
-        strikeRaw: lowerStrikeRaw,
-        higherStrikeRaw: higher,
-        expiry,
-        isUp: true,
-        isRange: true,
-        question: buildQuestion(asset, lowerStrikeRaw, expiry, true, higher, true),
-        lastAskPremium: null,
-        volume: 0,
-        status: oracle.status ?? "active",
-        spotPrice: spot > 0 ? spot : null,
-        oracleStatus: oracle.status,
-        underlyingAsset: oracle.underlying_asset,
-      };
-    }
-    return undefined;
+  if (side === "range") {
+    const bounds = resolveRangeBounds({
+      oracleId,
+      catalogRows,
+      oracle,
+      oracleSpot,
+      strikeRaw,
+      lowerStrikeRaw,
+      upperStrikeRaw,
+    });
+    if (!bounds || !oracle) return undefined;
+    return buildSyntheticRangeRow(
+      oracle,
+      oracleId,
+      bounds.lower,
+      bounds.upper,
+      spot > 0 ? spot : undefined,
+    );
   }
 
   const row = defaultUpRow(oracle, rawStrike, spot > 0 ? spot : undefined);

@@ -10,7 +10,8 @@ path = "src/main.rs"
 [dependencies]
 leverx-schema = { path = "../leverx-schema" }
 anyhow = { workspace = true }
-axum = { workspace = true }
+axum = { workspace = true, features = ["ws"] }
+futures-util = "0.3.31"
 clap = { workspace = true }
 diesel = { workspace = true }
 diesel-async = { workspace = true }

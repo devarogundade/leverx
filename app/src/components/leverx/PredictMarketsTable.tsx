@@ -13,9 +13,9 @@ import {
 } from "@/components/leverx/MarketCatalogPagination";
 import {
   formatPremiumOrPlaceholder,
-  rangeBoundsForRow,
   type LeverxMarketRow,
 } from "@/lib/leverx/indexer-markets";
+import { resolveRangeBounds } from "@/lib/leverx/predict-oracle-markets";
 import { formatCompactUsdOrPlaceholder } from "@/lib/leverx/placeholders";
 import { ui } from "@/lib/copy";
 import {
@@ -108,14 +108,27 @@ function SortHeader({
   );
 }
 
+function rangeBoundsForMarket(m: LeverxMarketRow, catalogRows: LeverxMarketRow[]) {
+  return resolveRangeBounds({
+    oracleId: m.oracleId,
+    catalogRows,
+    strikeRaw: m.strikeRaw,
+    lowerStrikeRaw: m.isRange ? m.strikeRaw : undefined,
+    upperStrikeRaw: m.isRange ? m.higherStrikeRaw : undefined,
+    oracleSpot: m.spotPrice,
+  });
+}
+
 function MarketMobileCard({
   market: m,
+  catalogRows,
   liquidityLabel,
 }: {
   market: LeverxMarketRow;
+  catalogRows: LeverxMarketRow[];
   liquidityLabel: string;
 }) {
-  const range = rangeBoundsForRow(m);
+  const range = rangeBoundsForMarket(m, catalogRows);
   const side = m.isRange ? ("range" as const) : m.isUp ? ("up" as const) : ("down" as const);
 
   return (
@@ -139,8 +152,8 @@ function MarketMobileCard({
               m.isRange
                 ? {
                     side: "range",
-                    lowerStrike: m.strikeRaw,
-                    upperStrike: m.higherStrikeRaw,
+                    lowerStrike: range?.lower ?? m.strikeRaw,
+                    upperStrike: range?.upper ?? m.higherStrikeRaw,
                   }
                 : { strike: m.strikeRaw, side }
             }
@@ -268,7 +281,12 @@ export function PredictMarketsTable({
     <div className={marketsTableShell}>
       <div className={marketsTableMobileList}>
         {pageMarkets.map((m) => (
-          <MarketMobileCard key={m.id} market={m} liquidityLabel={liquidityLabel} />
+          <MarketMobileCard
+            key={m.id}
+            market={m}
+            catalogRows={markets}
+            liquidityLabel={liquidityLabel}
+          />
         ))}
       </div>
 
@@ -314,7 +332,7 @@ export function PredictMarketsTable({
           </thead>
           <tbody>
             {pageMarkets.map((m) => {
-              const range = rangeBoundsForRow(m);
+              const range = rangeBoundsForMarket(m, markets);
               const side = m.isRange ? ("range" as const) : m.isUp ? ("up" as const) : ("down" as const);
 
               return (
@@ -339,8 +357,8 @@ export function PredictMarketsTable({
                             m.isRange
                               ? {
                                   side: "range",
-                                  lowerStrike: m.strikeRaw,
-                                  upperStrike: m.higherStrikeRaw,
+                                  lowerStrike: range?.lower ?? m.strikeRaw,
+                                  upperStrike: range?.upper ?? m.higherStrikeRaw,
                                 }
                               : { strike: m.strikeRaw, side }
                           }
@@ -375,7 +393,6 @@ export function PredictMarketsTable({
                         strikeRaw={m.strikeRaw}
                         rangeLower={range?.lower}
                         rangeUpper={range?.upper}
-                        hideRangeOnMobile
                       />
                     </div>
                   </td>

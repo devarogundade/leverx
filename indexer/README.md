@@ -78,6 +78,7 @@ Required env: `DATABASE_URL`, `LEVERX_PACKAGE_ID`, `PREDICT_PACKAGE_ID`. Optiona
 | Endpoint | Description |
 |----------|-------------|
 | `GET /health` | Liveness |
+| `WS /v1/ws` | Live stream (orderbook, trades, positions, limits) — see below |
 | `GET /v1/markets/catalog?oracle_id&is_range` | Volume-ranked market catalog (global + LeverX trades) |
 | `GET /v1/points/leaderboard?limit&offset` | Volume-based user leaderboard |
 | `GET /v1/points/:owner` | Single trader rank + stats |
@@ -102,6 +103,37 @@ Required env: `DATABASE_URL`, `LEVERX_PACKAGE_ID`, `PREDICT_PACKAGE_ID`. Optiona
 
 Pagination: `limit` (max 500), `offset` → `{ items, limit, offset, has_more }`.
 
+### WebSocket (`WS /v1/ws`)
+
+Connect from the app at `ws://<host>:3100/v1/ws` (or set `VITE_LEVERX_INDEXER_WS_URL`). The keeper HTTP proxy does not upgrade WebSockets — point the app WS URL at `leverx-server` directly when using docker.
+
+**Client → server**
+
+```json
+{ "op": "subscribe", "channels": ["orderbook:0x…:1735689600000:95000000000:0:1:0"] }
+{ "op": "unsubscribe", "channels": ["orderbook:…"] }
+{ "op": "ping" }
+```
+
+**Channels**
+
+| Channel | Snapshot / updates |
+|---------|-------------------|
+| `orderbook:{oracle}:{expiry}:{strike}:{higher}:{is_up}:{is_range}` | Full orderbook (`orderbook.snapshot`) |
+| `trades:global:{oracle_id}` | Global mint/redeem trades (`trades.global.snapshot`) |
+| `positions:{owner}` or `positions:{owner}:{oracle_id}` | Open positions (`positions.snapshot`) |
+| `limits:{owner}` or `limits:{owner}:{oracle_id}` | Open limit orders (`limits.snapshot`) |
+
+**Server → client**
+
+- `connected` — handshake
+- `subscribed` / `unsubscribed` — ack with `channels` array
+- `orderbook.snapshot`, `trades.global.snapshot`, `positions.snapshot`, `limits.snapshot` — payload matches REST shapes
+- `heartbeat` every 30s
+- `pong` in reply to `ping`
+
+The server polls `leverx_events` (~1s) and pushes fresh snapshots for subscribed channels when matching limit/trade/position events are indexed.
+
 ## Model relations
 
 Parent tables and join keys (enforced with deferred FKs; see `leverx-schema/src/relations.rs`):
@@ -121,9 +153,11 @@ Parent tables and join keys (enforced with deferred FKs; see `leverx-schema/src/
 
 ```env
 VITE_LEVERX_INDEXER_URL=http://localhost:3100
+# optional — defaults to ws://<indexer-host>/v1/ws
+VITE_LEVERX_INDEXER_WS_URL=ws://localhost:3100/v1/ws
 ```
 
-Client: `app/src/lib/leverx/indexer-client.ts`
+Client: `app/src/lib/leverx/indexer-client.ts`, `app/src/lib/leverx/indexer-ws.ts`
 
 ## Layout
 

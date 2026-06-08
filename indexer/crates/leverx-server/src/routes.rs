@@ -28,15 +28,19 @@ use crate::catalog::{catalog_response, fetch_market_catalog, parse_catalog_pagin
 use crate::leaderboard::{fetch_leaderboard, fetch_owner_rank, leaderboard_response, parse_leaderboard_pagination};
 use crate::orderbook;
 use crate::pagination::{paginate, parse_limit_offset};
+use crate::stream::StreamHub;
+use crate::ws::ws_handler;
 
 #[derive(Clone)]
 pub struct AppState {
     pub pool: Pool<AsyncPgConnection>,
+    pub stream: StreamHub,
 }
 
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/health", get(health))
+        .route("/v1/ws", axum::routing::get(ws_handler))
         .route("/v1/orderbook", get(orderbook_handler))
         .route("/v1/limit-orders", get(limit_orders))
         .route("/v1/markets/catalog", get(market_catalog))

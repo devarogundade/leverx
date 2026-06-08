@@ -17,3 +17,15 @@ export function toLineData(points: readonly PricePoint[]): LineData<UTCTimestamp
     .sort(([a], [b]) => a - b)
     .map(([time, value]) => ({ time: time as UTCTimestamp, value }));
 }
+
+/** Flat line when oracle history is empty (constant price over `spanHours`). */
+export function flatLineData(price: number, spanHours = 24): LineData<UTCTimestamp>[] {
+  if (!Number.isFinite(price) || price <= 0) return [];
+
+  const nowSec = Math.floor(Date.now() / 1000);
+  const startSec = nowSec - spanHours * 3600;
+  return [
+    { time: startSec as UTCTimestamp, value: price },
+    { time: nowSec as UTCTimestamp, value: price },
+  ];
+}

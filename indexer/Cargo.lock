@@ -3162,6 +3162,7 @@ dependencies = [
  "diesel",
  "diesel-async",
  "dotenvy",
+ "futures-util",
  "leverx-schema",
  "serde",
  "serde_json",

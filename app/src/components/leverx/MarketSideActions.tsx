@@ -29,7 +29,8 @@ export function MarketSideActions({
   stretch = false,
   hideRangeOnMobile = false,
 }: Props) {
-  const hasRange = rangeLower != null && rangeUpper != null && rangeLower > 0 && rangeUpper > 0;
+  const resolvedLower = rangeLower ?? strikeRaw;
+  const resolvedUpper = rangeUpper ?? strikeRaw;
   return (
     <div
       className={cn(marketSideActions, stretch && marketSideActionsStretch, className)}
@@ -52,24 +53,22 @@ export function MarketSideActions({
       >
         {predictSideLabel.down}
       </Link>
-      {hasRange ? (
-        <Link
-          to="/predictions/$oracleId"
-          params={{ oracleId }}
-          search={{
-            side: "range",
-            lowerStrike: rangeLower,
-            upperStrike: rangeUpper,
-          }}
-          className={cn(
-            marketSideAction,
-            marketSideActionRange,
-            hideRangeOnMobile && "hidden sm:inline-flex",
-          )}
-        >
-          {predictSideLabel.range}
-        </Link>
-      ) : null}
+      <Link
+        to="/predictions/$oracleId"
+        params={{ oracleId }}
+        search={{
+          side: "range",
+          lowerStrike: resolvedLower,
+          upperStrike: resolvedUpper,
+        }}
+        className={cn(
+          marketSideAction,
+          marketSideActionRange,
+          hideRangeOnMobile && "hidden sm:inline-flex",
+        )}
+      >
+        {predictSideLabel.range}
+      </Link>
     </div>
   );
 }

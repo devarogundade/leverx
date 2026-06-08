@@ -30,6 +30,11 @@ fun max_leverage_bps_matches_protocol_cap() {
 }
 
 #[test]
+fun min_leverage_bps_is_one_point_one_x() {
+    assert!(protocol_constants::min_leverage_bps() == 11_000, 0);
+}
+
+#[test]
 fun conversion_scales_collateral_atoms() {
     let config = ltv::test_conversion_config(6, 6, 1_000_000, 8);
     assert!(ltv::test_convert_amount(config, 100_000_000) == 100_000_000, 0);

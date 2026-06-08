@@ -13,7 +13,8 @@ const QUOTE_DECIMALS: u8 = 6;
 // --- Leverage bounds ---
 
 const MAX_LEVERAGE: u64 = 10;
-const MIN_LEVERAGE: u64 = 1;
+/// Minimum leverage in bps (10_000 bps = 1x).
+const MIN_LEVERAGE_BPS: u64 = 11_000;
 
 // --- Default LTV thresholds (bps) ---
 // Per-asset max/liquidation LTV is set at admin whitelist time (see deploy docs).
@@ -92,10 +93,10 @@ public fun quote_decimals(): u8 { QUOTE_DECIMALS }
 /// Maximum allowed leverage multiplier.
 public fun max_leverage(): u64 { MAX_LEVERAGE }
 
-/// Minimum allowed leverage multiplier.
-public fun min_leverage(): u64 { MIN_LEVERAGE }
+/// Minimum allowed leverage in basis points (11_000 = 1.1x).
+public fun min_leverage_bps(): u64 { MIN_LEVERAGE_BPS }
 
-/// `max_leverage()` expressed in basis points for LTV-style comparisons.
+/// `max_leverage()` expressed in basis points (10_000 bps = 1x).
 public fun max_leverage_bps(): u64 {
     MAX_LEVERAGE * BPS
 }

@@ -84,8 +84,6 @@ export const ui = {
   loadingChart: "Loading price history…",
   emptyMarkets: "No active markets",
   emptyMarketsHint: "Active Predict oracles will appear here when the testnet catalog is available.",
-  emptyChart: "No price history yet",
-  emptyChartHint: "Oracle price data will populate once the feed is active.",
   emptyPositions: "No open positions",
   emptyPositionsHint: "Your leveraged Predict positions will show here after your first trade.",
   predictServerDisabled: "Indexer offline",

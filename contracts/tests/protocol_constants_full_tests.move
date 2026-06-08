@@ -5,7 +5,7 @@ use leverx::protocol_constants;
 
 #[test]
 fun leverage_bounds() {
-    assert!(protocol_constants::min_leverage() == 1, 0);
+    assert!(protocol_constants::min_leverage_bps() == 11_000, 0);
     assert!(protocol_constants::max_leverage() == 10, 0);
     assert!(protocol_constants::max_leverage_bps() == 100_000, 0);
 }

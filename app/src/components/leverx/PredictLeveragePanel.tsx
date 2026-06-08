@@ -9,7 +9,13 @@ import { InfoPopover, LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { SlippagePopover } from "@/components/leverx/SlippagePopover";
 import { TradeQuoteSummary } from "@/components/leverx/TradeQuoteSummary";
 import { leverxInfo } from "@/lib/leverx/info-copy";
-import { useIndexerCollateralAssets, useIndexerProtocol } from "@/hooks/useIndexer";
+import {
+  useIndexerAccounts,
+  useIndexerCollateralAssets,
+  useIndexerCollateralBalances,
+  useIndexerProtocol,
+} from "@/hooks/useIndexer";
+import { useLeverxProtocolConfig } from "@/hooks/useLeverxTransactions";
 import { useLeverxMintQuote } from "@/hooks/useLeverxMintQuote";
 import { usePredictOracleState } from "@/hooks/usePredictOracleState";
 import { useWalletCoinBalance } from "@/hooks/useWalletCoinBalance";
@@ -37,7 +43,9 @@ import {
   strikeUsdToRaw,
   tpSlToPremiumRaw,
 } from "@/lib/leverx/trade-math";
-import type { MarketKeyArgs } from "@/lib/leverx/market-keys";
+import { positionKeyFromArgs, type MarketKeyArgs } from "@/lib/leverx/market-keys";
+import { resolveCollateralRoute } from "@/lib/leverx/protocol";
+import { tradeCtaLabel, tradeNeedsDeposit } from "@/lib/leverx/trade-cta";
 import { Loader2 } from "lucide-react";
 import {
   tradeCtaClass,
@@ -124,6 +132,10 @@ export function PredictLeveragePanel({
     useState<LimitOrderExpiryHours>(DEFAULT_LIMIT_ORDER_EXPIRY_HOURS);
   const [limitExecution, setLimitExecution] = useState<LimitExecutionMode>("immediate");
   const { data: protocol } = useIndexerProtocol();
+  const protocolCfg = useLeverxProtocolConfig();
+  const { data: accounts = [] } = useIndexerAccounts(address);
+  const accountId = accounts[0]?.account_id;
+  const { data: collateralBalances = [] } = useIndexerCollateralBalances(accountId);
   const { data: oracleState } = usePredictOracleState(oracleId);
   const { data: collateralAssets = [], isLoading: collateralLoading } =
     useIndexerCollateralAssets();
@@ -145,6 +157,7 @@ export function PredictLeveragePanel({
     collateralAsset || null,
     selectedCatalogEntry?.decimals,
   );
+  const { data: walletQuoteBalance } = useWalletCoinBalance(appConfig.quoteType, 6);
 
   useEffect(() => {
     if (collateralOptions.length === 0) return;
@@ -175,6 +188,10 @@ export function PredictLeveragePanel({
   const ctaClass = tradeCtaClass(side);
   const rangeLower = lowerStrikeRaw;
   const rangeUpper = upperStrikeRaw;
+  const outcomeStrike =
+    strikeRaw ??
+    (rangeLower && rangeUpper ? Math.round((rangeLower + rangeUpper) / 2) : undefined);
+  const canSwitchOutcome = !!(outcomeStrike || (rangeLower && rangeUpper));
   const quantityNum = parseInt(quantity, 10) || 0;
   const collateralSpotUsd =
     oracleState?.spot_price && oracleState.spot_price > 0
@@ -196,7 +213,7 @@ export function PredictLeveragePanel({
       expiryMs,
       strike: isRange ? resolvedLower : resolvedLower,
       higherStrike: isRange ? resolvedUpper : 0,
-      isUp: side === "up",
+      isUp: isRange ? true : side === "up",
       isRange,
     };
   }, [
@@ -220,6 +237,56 @@ export function PredictLeveragePanel({
     }
     return 0n;
   }, [orderType, limitPrice, lastAskPremium]);
+
+  const collateralRoute = useMemo(
+    () =>
+      collateralAsset
+        ? resolveCollateralRoute(
+            collateralAsset,
+            selectedCatalogEntry?.max_ltv_bps,
+            selectedCatalogEntry?.decimals,
+          )
+        : null,
+    [collateralAsset, selectedCatalogEntry],
+  );
+
+  const depositedCollateralAtoms = useMemo(() => {
+    if (!tradeKey || !collateralAsset) return 0n;
+    const positionKey = positionKeyFromArgs(tradeKey);
+    const row = collateralBalances.find(
+      (b) => b.position_key === positionKey && b.collateral_asset === collateralAsset,
+    );
+    return row ? BigInt(row.balance_atoms) : 0n;
+  }, [tradeKey, collateralAsset, collateralBalances]);
+
+  const needsDeposit = useMemo(
+    () =>
+      tradeNeedsDeposit({
+        marginUsd: marginNum,
+        leverage: lev,
+        route: collateralRoute,
+        cfg: protocolCfg,
+        collateralSpotUsd,
+        depositedCollateralAtoms,
+        walletCollateralBalance: walletBalance,
+        walletQuoteBalance,
+      }),
+    [
+      marginNum,
+      lev,
+      collateralRoute,
+      protocolCfg,
+      collateralSpotUsd,
+      depositedCollateralAtoms,
+      walletBalance,
+      walletQuoteBalance,
+    ],
+  );
+
+  const submitLabel = useMemo(
+    () => tradeCtaLabel({ side, orderType, needsDeposit }),
+    [side, orderType, needsDeposit],
+  );
 
   const { data: mintQuote, isLoading: quoteLoading } = useLeverxMintQuote({
     key: tradeKey,
@@ -282,7 +349,7 @@ export function PredictLeveragePanel({
           expiryMs,
           strike: isRange ? resolvedLower : (strikeRaw ?? 0),
           higherStrike: isRange ? resolvedUpper : 0,
-          isUp: side === "up",
+          isUp: isRange ? true : side === "up",
           isRange,
         },
         collateralCoinType: collateralAsset || appConfig.quoteType,
@@ -317,13 +384,13 @@ export function PredictLeveragePanel({
   return (
     <div className={cn(tradeLeveragePanel, "trade-leverage-panel")}>
       <div className="border-b border-border p-3">
-        <div className={segTabsClass("scroll", "outcomes")} role="group" aria-label="Outcome">
-          {strikeRaw ? (
+        <div className={segTabsClass("stretch", "outcomes")} role="group" aria-label="Outcome">
+          {canSwitchOutcome ? (
             <>
               <Link
                 to="/predictions/$oracleId"
                 params={{ oracleId }}
-                search={{ strike: strikeRaw, side: "up" }}
+                search={{ strike: outcomeStrike, side: "up" }}
                 className={cn(
                   segTabOutcome,
                   side === "up" && segTabActive,
@@ -335,7 +402,7 @@ export function PredictLeveragePanel({
               <Link
                 to="/predictions/$oracleId"
                 params={{ oracleId }}
-                search={{ strike: strikeRaw, side: "down" }}
+                search={{ strike: outcomeStrike, side: "down" }}
                 className={cn(
                   segTabOutcome,
                   side === "down" && segTabActive,
@@ -344,24 +411,22 @@ export function PredictLeveragePanel({
               >
                 {predictSideLabel.down}
               </Link>
-              {rangeLower && rangeUpper ? (
-                <Link
-                  to="/predictions/$oracleId"
-                  params={{ oracleId }}
-                  search={{
-                    side: "range",
-                    lowerStrike: rangeLower,
-                    upperStrike: rangeUpper,
-                  }}
-                  className={cn(
-                    segTabOutcome,
-                    side === "range" && segTabActive,
-                    side === "range" && segTabRangeActive,
-                  )}
-                >
-                  {predictSideLabel.range}
-                </Link>
-              ) : null}
+              <Link
+                to="/predictions/$oracleId"
+                params={{ oracleId }}
+                search={{
+                  side: "range",
+                  lowerStrike: rangeLower ?? outcomeStrike,
+                  upperStrike: rangeUpper ?? outcomeStrike,
+                }}
+                className={cn(
+                  segTabOutcome,
+                  side === "range" && segTabActive,
+                  side === "range" && segTabRangeActive,
+                )}
+              >
+                {predictSideLabel.range}
+              </Link>
             </>
           ) : (
             <>
@@ -450,29 +515,29 @@ export function PredictLeveragePanel({
                 />
               </div>
             </div>
-            ) : orderType === "limit" ? (
-            <div>
-              <div className="mb-2 flex justify-between text-xs text-muted-foreground">
-                <LabelWithInfo
-                  label={`Limit price (${predictSideLabel[side]})`}
-                  info={leverxInfo.limitPrice}
-                />
-                <span>
-                  Bal. <span className="font-mono text-foreground">{balanceLabel}</span>
-                </span>
-              </div>
-              <TradeAmountInput
-                large
-                value={limitPrice}
-                onChange={(e) => setLimitPrice(e.target.value)}
-                suffix={<span className="text-sm text-muted-foreground">¢</span>}
+          </div>
+        ) : orderType === "limit" ? (
+          <div>
+            <div className="mb-2 flex justify-between text-xs text-muted-foreground">
+              <LabelWithInfo
+                label={`Limit price (${predictSideLabel[side]})`}
+                info={leverxInfo.limitPrice}
               />
-              {strikeRaw ? (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Strike key: <span className="font-mono text-foreground">{strikeRaw}</span>
-                </p>
-              ) : null}
+              <span>
+                Bal. <span className="font-mono text-foreground">{balanceLabel}</span>
+              </span>
             </div>
+            <TradeAmountInput
+              large
+              value={limitPrice}
+              onChange={(e) => setLimitPrice(e.target.value)}
+              suffix={<span className="text-sm text-muted-foreground">¢</span>}
+            />
+            {strikeRaw ? (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Strike key: <span className="font-mono text-foreground">{strikeRaw}</span>
+              </p>
+            ) : null}
           </div>
         ) : null}
 
@@ -637,10 +702,8 @@ export function PredictLeveragePanel({
                 <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
                 Submitting…
               </>
-            ) : orderType === "market" ? (
-              `Open ${predictSideLabel[side]} market`
             ) : (
-              `Place ${predictSideLabel[side]} limit`
+              submitLabel
             )}
           </button>
         ) : (

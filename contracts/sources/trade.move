@@ -1530,7 +1530,7 @@ fun quote_borrow_for_leverage_binary<Collateral, Quote>(
 ): u64 {
     assert!(margin_quote > 0, errors::zero_amount());
     assert!(
-        leverage_bps >= protocol_constants::min_leverage() * protocol_constants::bps()
+        leverage_bps >= protocol_constants::min_leverage_bps()
             && leverage_bps <= protocol_constants::max_leverage_bps(),
         errors::invalid_leverage(),
     );
@@ -1560,7 +1560,7 @@ fun quote_borrow_for_leverage_range<Collateral, Quote>(
 ): u64 {
     assert!(margin_quote > 0, errors::zero_amount());
     assert!(
-        leverage_bps >= protocol_constants::min_leverage() * protocol_constants::bps()
+        leverage_bps >= protocol_constants::min_leverage_bps()
             && leverage_bps <= protocol_constants::max_leverage_bps(),
         errors::invalid_leverage(),
     );
@@ -1963,7 +1963,7 @@ fun plan_leverage_binary<Collateral, Quote>(
     assert!(object::id(manager) == proxy.predict_manager_id(), errors::invalid_manager());
     assert!(margin_quote > 0, errors::zero_amount());
     assert!(
-        leverage_bps >= protocol_constants::min_leverage() * protocol_constants::bps()
+        leverage_bps >= protocol_constants::min_leverage_bps()
             && leverage_bps <= protocol_constants::max_leverage_bps(),
         errors::invalid_leverage(),
     );
@@ -2008,7 +2008,7 @@ fun plan_leverage_range<Collateral, Quote>(
     assert!(object::id(manager) == proxy.predict_manager_id(), errors::invalid_manager());
     assert!(margin_quote > 0, errors::zero_amount());
     assert!(
-        leverage_bps >= protocol_constants::min_leverage() * protocol_constants::bps()
+        leverage_bps >= protocol_constants::min_leverage_bps()
             && leverage_bps <= protocol_constants::max_leverage_bps(),
         errors::invalid_leverage(),
     );

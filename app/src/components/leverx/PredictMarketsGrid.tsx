@@ -13,9 +13,9 @@ import {
 } from "@/components/leverx/MarketCatalogPagination";
 import {
   formatPremiumOrPlaceholder,
-  rangeBoundsForRow,
   type LeverxMarketRow,
 } from "@/lib/leverx/indexer-markets";
+import { resolveRangeBounds } from "@/lib/leverx/predict-oracle-markets";
 import { ui } from "@/lib/copy";
 import {
   landingCtaSecondary,
@@ -99,7 +99,14 @@ export function PredictMarketsGrid({
     <div className="flex min-h-[var(--markets-catalog-h)] flex-col">
       <div className={cn(marketsGrid, "min-h-0 flex-1")}>
         {pageMarkets.map((m) => {
-          const range = rangeBoundsForRow(m);
+          const range = resolveRangeBounds({
+            oracleId: m.oracleId,
+            catalogRows: markets,
+            strikeRaw: m.strikeRaw,
+            lowerStrikeRaw: m.isRange ? m.strikeRaw : undefined,
+            upperStrikeRaw: m.isRange ? m.higherStrikeRaw : undefined,
+            oracleSpot: m.spotPrice,
+          });
           const side = m.isRange ? ("range" as const) : m.isUp ? ("up" as const) : ("down" as const);
           const marketHref = {
             to: "/predictions/$oracleId" as const,
@@ -107,8 +114,8 @@ export function PredictMarketsGrid({
             search: m.isRange
               ? {
                   side: "range" as const,
-                  lowerStrike: m.strikeRaw,
-                  upperStrike: m.higherStrikeRaw,
+                  lowerStrike: range?.lower ?? m.strikeRaw,
+                  upperStrike: range?.upper ?? m.higherStrikeRaw,
                 }
               : { strike: m.strikeRaw, side },
           };

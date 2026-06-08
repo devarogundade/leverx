@@ -581,12 +581,16 @@ select {
   overflow: hidden;
 }
 
-@media (max-width: 767px) {
-  .trade-terminal-sidebar {
-    order: 1;
+@media (max-width: 1023px) {
+  .trade-terminal-chart {
+    order: 0;
   }
 
   .trade-terminal-orderbook {
+    order: 1;
+  }
+
+  .trade-terminal-sidebar {
     order: 2;
   }
 
@@ -599,26 +603,31 @@ select {
   .trade-terminal-workspace {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(180px, var(--trade-orderbook-w));
-    grid-template-rows: auto auto;
+    grid-template-rows: auto auto auto;
     align-items: start;
   }
 
-  .trade-terminal-sidebar {
+  .trade-terminal-chart {
     grid-column: 1;
     grid-row: 1;
-    order: unset;
-    width: 100%;
   }
 
   .trade-terminal-orderbook {
     grid-column: 2;
     grid-row: 1;
-    min-height: min(var(--trade-chart-h), 70vh);
+    min-height: var(--trade-chart-h);
+  }
+
+  .trade-terminal-sidebar {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    order: unset;
+    width: 100%;
   }
 
   .trade-terminal-positions {
     grid-column: 1 / -1;
-    grid-row: 2;
+    grid-row: 3;
     order: unset;
   }
 }
@@ -626,12 +635,12 @@ select {
 @media (min-width: 1024px) {
   .trade-terminal-workspace {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) var(--trade-sidebar-w);
+    grid-template-columns: minmax(0, 1fr) var(--trade-orderbook-w) var(--trade-sidebar-w);
     grid-template-rows: var(--trade-chart-h) auto;
     align-items: start;
   }
 
-  .trade-terminal-orderbook {
+  .trade-terminal-chart {
     grid-column: 1;
     grid-row: 1;
     height: var(--trade-chart-h);
@@ -639,8 +648,16 @@ select {
     min-height: var(--trade-chart-h);
   }
 
-  .trade-terminal-sidebar {
+  .trade-terminal-orderbook {
     grid-column: 2;
+    grid-row: 1;
+    height: var(--trade-chart-h);
+    max-height: var(--trade-chart-h);
+    min-height: var(--trade-chart-h);
+  }
+
+  .trade-terminal-sidebar {
+    grid-column: 3;
     grid-row: 1 / span 2;
     order: unset;
     width: var(--trade-sidebar-w);
@@ -648,7 +665,7 @@ select {
   }
 
   .trade-terminal-positions {
-    grid-column: 1;
+    grid-column: 1 / 3;
     grid-row: 2;
   }
 }

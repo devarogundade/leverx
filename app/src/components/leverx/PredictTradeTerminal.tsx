@@ -8,7 +8,9 @@ import { PredictLeveragePanel } from "@/components/leverx/PredictLeveragePanel";
 import { LeverxCancelOrderButton } from "@/components/leverx/LeverxPositionActions";
 import { PositionRiskMenu } from "@/components/leverx/PositionRiskMenu";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
+import { PriceChart } from "@/components/PriceChart";
 import { PredictOrderBook } from "@/components/leverx/PredictOrderBook";
+import { buildPredictChartLevels } from "@/lib/charts/predict-chart-levels";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import { AssetBadge } from "@/components/AssetBadge";
 import { useWallet } from "@/context/WalletContext";
@@ -28,7 +30,11 @@ import {
   formatPremiumCents,
   formatPremiumOrPlaceholder,
 } from "@/lib/leverx/indexer-markets";
-import { resolveTradeMarket } from "@/lib/leverx/predict-oracle-markets";
+import {
+  atmStrikeRaw,
+  resolveRangeBounds,
+  resolveTradeMarket,
+} from "@/lib/leverx/predict-oracle-markets";
 import { baseFromUnderlying } from "@/lib/markets";
 import { formatPrice } from "@/lib/copy";
 import {
@@ -54,6 +60,7 @@ import {
   tradeTerminalHeader,
   tradeTerminalHeaderMetrics,
   tradeTerminalHeaderTop,
+  tradeTerminalChart,
   tradeTerminalOrderbook,
   tradeTerminalPositions,
   tradeTerminalPositionsBody,
@@ -181,6 +188,28 @@ export function PredictTradeTerminal({
       ? oracleSummary.settlement_price / 1e9
       : null);
 
+  const rangeBounds = useMemo(
+    () =>
+      resolveRangeBounds({
+        oracleId,
+        catalogRows: marketRows,
+        oracle: oracleSummary,
+        oracleSpot,
+        strikeRaw,
+        lowerStrikeRaw,
+        upperStrikeRaw,
+      }),
+    [
+      oracleId,
+      marketRows,
+      oracleSummary,
+      oracleSpot,
+      strikeRaw,
+      lowerStrikeRaw,
+      upperStrikeRaw,
+    ],
+  );
+
   const market = useMemo(
     () =>
       resolveTradeMarket({
@@ -189,7 +218,8 @@ export function PredictTradeTerminal({
         oracleSpot,
         catalogRows: marketRows,
         strikeRaw,
-        lowerStrikeRaw,
+        lowerStrikeRaw: rangeBounds?.lower ?? lowerStrikeRaw,
+        upperStrikeRaw: rangeBounds?.upper ?? upperStrikeRaw,
         side: activeSide,
       }),
     [
@@ -199,6 +229,8 @@ export function PredictTradeTerminal({
       marketRows,
       strikeRaw,
       lowerStrikeRaw,
+      upperStrikeRaw,
+      rangeBounds,
       activeSide,
     ],
   );
@@ -223,8 +255,40 @@ export function PredictTradeTerminal({
     : null;
   const tradeStats = useMemo(() => summarizeGlobalTrades(trades), [trades]);
 
-  const rangeLower = lowerStrikeRaw ?? market?.strikeRaw;
-  const rangeUpper = upperStrikeRaw ?? market?.higherStrikeRaw;
+  const rangeLower = rangeBounds?.lower ?? market?.strikeRaw;
+  const rangeUpper = rangeBounds?.upper ?? market?.higherStrikeRaw;
+  const binaryStrikeRaw = useMemo(() => {
+    if (activeSide !== "range") {
+      return market?.strikeRaw ?? strikeRaw;
+    }
+    if (strikeRaw) return strikeRaw;
+    const up = marketRows.find((m) => m.oracleId === oracleId && !m.isRange && m.isUp);
+    if (up?.strikeRaw) return up.strikeRaw;
+    if (rangeBounds) {
+      return Math.round((rangeBounds.lower + rangeBounds.upper) / 2);
+    }
+    if (oracleSummary && oracleSpot != null && oracleSpot > 0) {
+      const minRaw =
+        oracleSummary.min_strike != null && oracleSummary.min_strike > 0
+          ? Math.round(oracleSummary.min_strike * 1e9)
+          : 0;
+      const tickRaw =
+        oracleSummary.tick_size != null && oracleSummary.tick_size > 0
+          ? Math.round(oracleSummary.tick_size * 1e9)
+          : minRaw;
+      return atmStrikeRaw(oracleSpot, minRaw, tickRaw);
+    }
+    return undefined;
+  }, [
+    activeSide,
+    market?.strikeRaw,
+    strikeRaw,
+    marketRows,
+    oracleId,
+    rangeBounds,
+    oracleSummary,
+    oracleSpot,
+  ]);
 
   const question =
     activeSide === "range" && rangeLower && rangeUpper
@@ -232,6 +296,18 @@ export function PredictTradeTerminal({
       : (market?.question ?? `Trade oracle ${oracleId.slice(0, 10)}…`);
 
   const activePremium = market?.lastAskPremium;
+
+  const chartLevels = useMemo(
+    () =>
+      buildPredictChartLevels({
+        strikeRaw: market?.strikeRaw,
+        lowerStrikeRaw: rangeLower,
+        upperStrikeRaw: rangeUpper,
+        spot: oracleSpot ?? undefined,
+        activeSide,
+      }),
+    [market?.strikeRaw, rangeLower, rangeUpper, oracleSpot, activeSide],
+  );
 
   return (
     <section className={tradeTerminal}>
@@ -285,6 +361,14 @@ export function PredictTradeTerminal({
 
       <div className={tradeTerminalBody}>
         <div className={tradeTerminalWorkspace}>
+          <div className={tradeTerminalChart}>
+            <PriceChart
+              asset={asset}
+              oracleId={oracleId}
+              spotPrice={oracleSpot}
+              levels={chartLevels}
+            />
+          </div>
           <div className={cn(tradeTerminalOrderbook, "min-h-[280px]")}>
             <PredictOrderBook
               oracleId={oracleId}
@@ -301,7 +385,7 @@ export function PredictTradeTerminal({
               oracleId={oracleId}
               side={activeSide}
               expiryMs={expiry}
-              strikeRaw={market?.strikeRaw}
+              strikeRaw={binaryStrikeRaw}
               lowerStrikeRaw={rangeLower}
               upperStrikeRaw={rangeUpper}
               lastAskPremium={market?.lastAskPremium ?? undefined}

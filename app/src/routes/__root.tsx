@@ -12,6 +12,7 @@ import type { ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { Button } from "@/components/ui/button";
 import { APP_NAME } from "../lib/brand";
+import { IndexerStreamProvider } from "../context/IndexerStreamContext";
 import { WalletProvider } from "../context/WalletContext";
 
 function NotFoundComponent() {
@@ -130,12 +131,14 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <WalletProvider>
-        <div className="flex min-h-dvh flex-col">
-          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-          <Outlet />
-        </div>
-      </WalletProvider>
+      <IndexerStreamProvider>
+        <WalletProvider>
+          <div className="flex min-h-dvh flex-col">
+            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+            <Outlet />
+          </div>
+        </WalletProvider>
+      </IndexerStreamProvider>
     </QueryClientProvider>
   );
 }

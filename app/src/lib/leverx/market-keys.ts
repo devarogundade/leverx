@@ -10,6 +10,13 @@ export type MarketKeyArgs = {
   isRange: boolean;
 };
 
+/** Canonical `position_key` / `market_key` string (matches indexer encoding). */
+export function positionKeyFromArgs(args: MarketKeyArgs): string {
+  const higherStrike = args.isRange ? (args.higherStrike ?? 0) : 0;
+  const isUp = args.isRange ? true : args.isUp;
+  return `${args.oracleId}:${args.expiryMs}:${args.strike}:${higherStrike}:${isUp ? 1 : 0}:${args.isRange ? 1 : 0}`;
+}
+
 export function addMarketKey(
   tx: Transaction,
   args: MarketKeyArgs,
