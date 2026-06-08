@@ -1,5 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { SITE_NAV_LINKS } from "@/lib/site-nav";
+import { isNavDropdown, SITE_NAV_ENTRIES } from "@/lib/site-nav";
+import { SiteNavEarnMenu } from "@/components/SiteNavEarnMenu";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -20,32 +21,43 @@ export function SiteHeaderNav({ className, onNavigate, vertical }: Props) {
       )}
       aria-label="Main navigation"
     >
-      {SITE_NAV_LINKS.map((link) => {
-        const active = link.isActive(pathname);
+      {SITE_NAV_ENTRIES.map((entry) => {
+        if (isNavDropdown(entry)) {
+          return (
+            <SiteNavEarnMenu
+              key={entry.label}
+              entry={entry}
+              onNavigate={onNavigate}
+              vertical={vertical}
+            />
+          );
+        }
+
+        const active = entry.isActive(pathname);
         const cls = cn(
           "nav-tab",
           vertical && "rounded-sm px-3 py-2",
           active && "nav-tab-active",
         );
 
-        if (link.external) {
+        if (entry.external) {
           return (
             <a
-              key={link.label}
-              href={link.to}
+              key={entry.label}
+              href={entry.to}
               target="_blank"
               rel="noreferrer"
               onClick={onNavigate}
               className={cls}
             >
-              {link.label}
+              {entry.label}
             </a>
           );
         }
 
         return (
-          <Link key={link.label} to={link.to} onClick={onNavigate} className={cls}>
-            {link.label}
+          <Link key={entry.label} to={entry.to} onClick={onNavigate} className={cls}>
+            {entry.label}
           </Link>
         );
       })}

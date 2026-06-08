@@ -66,15 +66,15 @@ echo "Package:  $PKG"
 echo "Registry: $REGISTRY"
 echo "Admin:    $ADMIN"
 
-# dUSDC: 100% max LTV, 1:1 with quote (liquidation at 100% — interest pushes below)
-whitelist "$QUOTE" "$FEED_USDC" 6 10000 10000
+# dUSDC: 90% max borrow, 95% liquidation health floor (quote-native, ~1:1)
+whitelist "$QUOTE" "$FEED_USDC" 6 9000 9500
 
-# SUI: 80% max, 85% liquidation
-whitelist "$SUI" "$FEED_SUI" 9 8000 8500
+# SUI: 80% max borrow, 95% liquidation health floor
+whitelist "$SUI" "$FEED_SUI" 9 8000 9500
 # register_pool "$SUI" "$POOL_SUI"  # after DeepBook creates SUI/dUSDC pool
 
-# DEEP: 70% max, 75% liquidation
-whitelist "$DEEP" "$FEED_DEEP" 6 7000 7500
+# DEEP: 70% max borrow, 95% liquidation health floor
+whitelist "$DEEP" "$FEED_DEEP" 6 7000 9500
 # register_pool "$DEEP" "$POOL_DEEP"  # after DeepBook creates DEEP/dUSDC pool
 
 echo "Done (swap pools skipped — waiting on DeepBook dUSDC pools)."

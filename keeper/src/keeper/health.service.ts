@@ -22,8 +22,15 @@ export const KEEPER_CONTRACT_CALLS: Record<KeeperTaskKind, string[]> = {
     'trade::execute_range_limit_mint_order',
   ],
   liquidation: [
+    'trade::is_binary_position_liquidatable',
+    'trade::is_range_position_liquidatable',
     'deepbook_flash::borrow_flash_loan_quote',
+    'vault_flash::borrow_flash_liquidity',
+    'vault_flash::repay_flash_liquidity',
     'liquidation::flash_liquidate_with_spot_swap_and_redeem',
+    'liquidation::flash_liquidate_range_with_spot_swap_and_redeem',
+    'liquidation::flash_liquidate_with_redeem_permissionless',
+    'liquidation::flash_liquidate_range_with_redeem_permissionless',
     'deepbook_flash::return_flash_loan_quote',
   ],
   trigger: [

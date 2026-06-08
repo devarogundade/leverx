@@ -1,5 +1,5 @@
-# Shieldbook indexer (Rust) + keeper (NestJS) in one image.
-# Build from repo root: docker compose build shieldbook
+# leverx indexer (Rust) + keeper (NestJS) in one image.
+# Build from repo root: docker compose build leverx
 
 FROM rust:1.90.0 AS indexer-builder
 
@@ -11,7 +11,7 @@ COPY indexer/crates ./crates/
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        build-essential libssl-dev pkg-config curl cmake clang ca-certificates \
+    build-essential libssl-dev pkg-config curl cmake clang ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 ENV PATH="/root/.cargo/bin:${PATH}"
@@ -38,20 +38,20 @@ FROM debian:trixie-slim AS runtime
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        ca-certificates curl libpq5 postgresql-client \
+    ca-certificates curl libpq5 postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=indexer-builder /work/target/release/leverx-indexer /opt/mysten/bin/leverx-indexer
 COPY --from=indexer-builder /work/target/release/leverx-server /opt/mysten/bin/leverx-server
 COPY --from=keeper-builder /usr/local/bin/node /usr/local/bin/node
-COPY --from=keeper-builder /build/dist /opt/shieldbook/keeper/dist
-COPY --from=keeper-builder /build/node_modules /opt/shieldbook/keeper/node_modules
-COPY --from=keeper-builder /build/package.json /opt/shieldbook/keeper/package.json
-COPY docker/shieldbook-stack/entry.sh /entry.sh
+COPY --from=keeper-builder /build/dist /opt/leverx/keeper/dist
+COPY --from=keeper-builder /build/node_modules /opt/leverx/keeper/node_modules
+COPY --from=keeper-builder /build/package.json /opt/leverx/keeper/package.json
+COPY docker/leverx-stack/entry.sh /entry.sh
 
 RUN chmod +x /opt/mysten/bin/leverx-indexer /opt/mysten/bin/leverx-server /entry.sh
 
-WORKDIR /opt/shieldbook/keeper
+WORKDIR /opt/leverx/keeper
 
 EXPOSE 3001 3100 9186
 

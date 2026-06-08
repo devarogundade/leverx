@@ -1,7 +1,8 @@
 import type { LucideIcon } from "lucide-react";
-import { BookOpen, Landmark, LayoutGrid, Trophy, Wallet } from "lucide-react";
+import { BookOpen, Coins, LayoutGrid, Trophy, Wallet } from "lucide-react";
 
 export interface SiteNavLink {
+  type: "link";
   label: string;
   icon: LucideIcon;
   to: string;
@@ -9,8 +10,29 @@ export interface SiteNavLink {
   external?: boolean;
 }
 
-export const SITE_NAV_LINKS: SiteNavLink[] = [
+export interface SiteNavDropdownItem {
+  label: string;
+  to: string;
+  hint?: string;
+}
+
+export interface SiteNavDropdown {
+  type: "dropdown";
+  label: string;
+  icon: LucideIcon;
+  isActive: (pathname: string) => boolean;
+  items: SiteNavDropdownItem[];
+}
+
+export type SiteNavEntry = SiteNavLink | SiteNavDropdown;
+
+export function isNavDropdown(entry: SiteNavEntry): entry is SiteNavDropdown {
+  return entry.type === "dropdown";
+}
+
+export const SITE_NAV_ENTRIES: SiteNavEntry[] = [
   {
+    type: "link",
     label: "Markets",
     icon: LayoutGrid,
     to: "/markets",
@@ -18,27 +40,48 @@ export const SITE_NAV_LINKS: SiteNavLink[] = [
       pathname.startsWith("/markets") || pathname.startsWith("/predictions"),
   },
   {
+    type: "link",
     label: "Portfolio",
     icon: Wallet,
     to: "/portfolio",
     isActive: (pathname) => pathname.startsWith("/portfolio"),
   },
   {
-    label: "Vault",
-    icon: Landmark,
-    to: "/vault",
-    isActive: (pathname) => pathname.startsWith("/vault"),
+    type: "dropdown",
+    label: "Earn",
+    icon: Coins,
+    isActive: (pathname) =>
+      pathname.startsWith("/vault") || pathname.startsWith("/keeper"),
+    items: [
+      {
+        label: "Vault",
+        to: "/vault",
+        hint: "Supply dUSDC and earn pool yield",
+      },
+      {
+        label: "Keeper",
+        to: "/keeper",
+        hint: "Run the protocol helper node",
+      },
+    ],
   },
   {
+    type: "link",
     label: "Points",
     icon: Trophy,
     to: "/points",
     isActive: (pathname) => pathname.startsWith("/points"),
   },
   {
+    type: "link",
     label: "Docs",
     icon: BookOpen,
     to: "/guide",
     isActive: (pathname) => pathname.startsWith("/guide"),
   },
 ];
+
+/** @deprecated Use SITE_NAV_ENTRIES */
+export const SITE_NAV_LINKS = SITE_NAV_ENTRIES.filter(
+  (e): e is SiteNavLink => e.type === "link",
+);

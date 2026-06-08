@@ -83,7 +83,7 @@ Required env: `DATABASE_URL`, `LEVERX_PACKAGE_ID`, `PREDICT_PACKAGE_ID`. Optiona
 | `GET /v1/points/:owner` | Single trader rank + stats |
 | `GET /v1/orderbook?oracle_id&expiry_ms&strike&is_up&is_range&higher_strike` | Bid depth + synthetic asks |
 | `GET /v1/limit-orders?account_id&status&oracle_id` | Resting / filled limits |
-| `GET /v1/positions?owner&account_id&oracle_id&status` | Leveraged positions |
+| `GET /v1/positions?owner&account_id&oracle_id&status&min_borrow_quote` | Leveraged positions (`status=all` disables default open filter; `min_borrow_quote` for keeper scans) |
 | `GET /v1/accounts?owner&account_id` | All user proxies |
 | `GET /v1/accounts/:id` | Account + open positions/limits |
 | `GET /v1/accounts/:id/timeline` | Account event timeline |

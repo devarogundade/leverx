@@ -5,7 +5,7 @@
 ///
 /// Each whitelisted asset stores its own `max_ltv_bps` / `liquidation_ltv_bps` (not global constants).
 /// Initial launch collateral and LTV targets are configured via admin `whitelist_collateral_entry`
-/// and documented in deploy env files (BTC 80%, SUI 70%, dUSDC 100%, DEEP 60%).
+/// and documented in deploy env files (SUI 80%, dUSDC 90%, DEEP 70%; liq floor 95% for all).
 module leverx::collateral_config;
 
 use std::type_name::TypeName;
@@ -81,7 +81,7 @@ public fun assert_valid(config: &CollateralConfig) {
     let bps = protocol_constants::bps();
     assert!(config.max_ltv_bps > 0 && config.max_ltv_bps <= bps, errors::invalid_collateral_config());
     assert!(
-        config.liquidation_ltv_bps >= config.max_ltv_bps && config.liquidation_ltv_bps <= bps,
+        config.liquidation_ltv_bps > config.max_ltv_bps && config.liquidation_ltv_bps <= bps,
         errors::invalid_collateral_config(),
     );
     assert!(config.max_conf_bps > 0 && config.max_conf_bps <= bps, errors::invalid_collateral_config());

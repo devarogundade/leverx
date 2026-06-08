@@ -1,5 +1,5 @@
 ---
-description: DeepBook Predict workshop facts — use when working on predict, protection, oracles, or Shieldbook copy
+description: DeepBook Predict workshop facts — use when working on predict, protection, oracles, or leverx copy
 globs:
   - app/src/**/*
   - docs/**/*
@@ -19,7 +19,7 @@ Read `docs/DEEPBOOK_PREDICT.md` for full FAQ.
 - **Full Predict UI** not shipped; testnet is demo/portfolio tier.
 - **Quote / LP:** USDSUI vault at launch (app may label dUSDC/USDC for demo).
 
-## Shieldbook scope
+## leverx scope
 
 - **DeepBook margin** (indexer + `@mysten/deepbook-v3`) = perp-style pool trades; separate from Predict vault.
 - **Predict protection** = deepbook_predict binary puts/calls minted against margin liquidation risk; fees at mint/redeem via Predict Manager.

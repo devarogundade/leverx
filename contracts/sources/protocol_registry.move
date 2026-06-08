@@ -137,6 +137,7 @@ public fun register_swap_pool<Collateral>(
     pool_id: ID,
 ) {
     let asset = type_name::with_defining_ids<Collateral>();
+    assert!(registry.collaterals.contains(asset), errors::collateral_not_supported());
     if (registry.swap_pools.contains(asset)) {
         let existing = registry.swap_pools.borrow_mut(asset);
         *existing = pool_id;
@@ -225,6 +226,7 @@ public entry fun withdraw_fee_collector_entry<Quote>(
 }
 
 /// Grant a hot-wallet executor permission to act on a user's `UserProxy`.
+/// Trusted-admin onboarding path — protocol admin only.
 public fun register_executor_cap(
     _admin: &AdminCap,
     proxy: &mut UserProxy,
@@ -357,4 +359,14 @@ public fun create_for_testing(ctx: &mut TxContext): (AdminCap, LeverxRegistry) {
         swap_pools: table::new(ctx),
     };
     (admin, registry)
+}
+
+#[test_only]
+public fun link_vault_for_testing(
+    registry: &mut LeverxRegistry,
+    vault_id: ID,
+    fee_collector_id: ID,
+) {
+    registry.vault_id = vault_id;
+    registry.fee_collector_id = fee_collector_id;
 }

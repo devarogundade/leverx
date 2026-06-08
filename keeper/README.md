@@ -22,32 +22,32 @@ pnpm run start:dev
 
 ## Configuration
 
-| File | Purpose |
-|------|---------|
-| `keeper/.env` | `KEEPER_PRIVATE_KEY` only |
+| File                      | Purpose                                                                               |
+| ------------------------- | ------------------------------------------------------------------------------------- |
+| `keeper/.env`             | `KEEPER_PRIVATE_KEY` only                                                             |
 | `src/config/constants.ts` | Package IDs, registry/vault/fee-collector, Predict, cron, indexer URL, launch catalog |
 
-**Launch collateral** (whitelist on-chain): BTC 80%, SUI 70%, dUSDC 100%, DEEP 60% max LTV — see `LAUNCH_COLLATERAL_CATALOG` in `constants.ts`. Each entry needs `coinType`, `pythOracleId`, `spotPoolId`, and keeper `deepCoinId` for limit fills and liquidations. Quote Pyth oracle lives in `TESTNET_LIQUIDATION.pythQuoteOracleId`.
+**Launch collateral** (whitelist on-chain): SUI 80%, dUSDC 90%, DEEP 70% max LTV; all liquidate below 95% health — see `LAUNCH_COLLATERAL_CATALOG` in `constants.ts`. Each entry needs `coinType` and `pythOracleId`. Non-quote collateral (SUI, DEEP, …) also needs `spotPoolId` and keeper `deepCoinId` for spot-swap liquidations. Quote-native dUSDC uses vault flash loans (no spot pool). Quote Pyth oracle lives in `TESTNET_LIQUIDATION.pythQuoteOracleId`.
 
-Liquidations pre-filter with on-chain `trade::is_binary_position_liquidatable` (no brute devInspect on healthy positions). Flash borrow uses indexed debt + `FLASH_BORROW_BUFFER_BPS`; spot swap uses `LIQUIDATION_SWAP_SLIPPAGE_BPS` min quote-out.
+Liquidations scan indexed keys with `borrow_quote > 0` via `GET /v1/positions?status=all&min_borrow_quote=1` (includes closed predict legs with remaining vault debt), then pre-filter with on-chain `trade::is_binary_position_liquidatable` / `is_range_position_liquidatable` (collateral + key quote balance vs per-asset liquidation LTV). Quote-native dUSDC uses `vault_flash` + `flash_liquidate_*_with_redeem_permissionless`; other collaterals use DeepBook flash + `flash_liquidate_*_with_spot_swap_and_redeem`.
 
 ## HTTP API
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /health` | Process liveness (always 200 when running) |
-| `GET /health/ready` | Readiness — 503 if signer/RPC/indexer/config not ready |
-| `GET /health/status` | Full readiness report (always 200, `ok` in body) |
-| `GET /keeper/status` | Same readiness report + orchestrator state |
+| Endpoint                    | Description                                                                     |
+| --------------------------- | ------------------------------------------------------------------------------- |
+| `GET /health`               | Process liveness (always 200 when running)                                      |
+| `GET /health/ready`         | Readiness — 503 if signer/RPC/indexer/config not ready                          |
+| `GET /health/status`        | Full readiness report (always 200, `ok` in body)                                |
+| `GET /keeper/status`        | Same readiness report + orchestrator state                                      |
 | `POST /keeper/run?task=all` | Run one task kind: `settlement`, `limit_order`, `liquidation`, `trigger`, `all` |
-| `POST /keeper/settle` | Settlement only (legacy alias) |
-| `GET /v1/*` | Proxied to leverx-server (`INDEXER_URL` in constants) |
+| `POST /keeper/settle`       | Settlement only (legacy alias)                                                  |
+| `GET /v1/*`                 | Proxied to leverx-server (`INDEXER_URL` in constants)                           |
 
 ## Docker
 
 ```bash
 cp keeper/.env.example keeper/.env   # KEEPER_PRIVATE_KEY only
-docker compose up --build            # from repo root (shieldbook stack)
+docker compose up --build            # from repo root (leverx stack)
 ```
 
 Tasks simulate every PTB with `devInspect` before signing.

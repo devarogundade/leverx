@@ -12,7 +12,7 @@ use deepbook_predict::{
     predict_manager::PredictManager,
     range_key::RangeKey,
 };
-use leverx::{errors, ltv, protocol_constants};
+use leverx::{errors, ltv, protocol_constants, user_proxy::UserProxy};
 use std::u128;
 use sui::{clock::Clock, coin::Coin};
 
@@ -151,11 +151,6 @@ public fun assert_limit_buy_fill_met(
     assert!(market_ask_per_unit <= max_ask, errors::limit_price_not_met());
 }
 
-/// Limit buy: abort unless current market ask is at or below the user's limit (zero slippage).
-public fun assert_limit_buy_ask_met(market_ask_per_unit: u64, limit_premium_per_unit: u64) {
-    assert_limit_buy_fill_met(market_ask_per_unit, limit_premium_per_unit, 0);
-}
-
 /// Limit sell: abort unless current market bid is at or above the user's floor.
 public fun assert_limit_sell_bid_met(market_bid_per_unit: u64, min_premium_per_unit: u64) {
     assert!(min_premium_per_unit > 0, errors::zero_amount());
@@ -292,4 +287,66 @@ public fun withdraw_quote<Quote>(
 /// Quote balance held in a Predict manager.
 public fun manager_balance<Quote>(manager: &PredictManager): u64 {
     manager.balance<Quote>()
+}
+
+/// Redeem binary contracts and credit only the incremental payout to a market key ledger.
+public fun redeem_binary_and_credit_key<Quote>(
+    predict_obj: &mut Predict,
+    manager: &mut PredictManager,
+    oracle: &OracleSVI,
+    key: MarketKey,
+    quantity: u64,
+    proxy: &mut UserProxy,
+    clock: &Clock,
+    ctx: &mut TxContext,
+): u64 {
+    let balance_before = manager_balance<Quote>(manager);
+    redeem_binary<Quote>(predict_obj, manager, oracle, key, quantity, clock, ctx);
+    credit_manager_delta_to_binary_key<Quote>(manager, key, balance_before, proxy, ctx)
+}
+
+/// Redeem range contracts and credit only the incremental payout to a market key ledger.
+public fun redeem_range_and_credit_key<Quote>(
+    predict_obj: &mut Predict,
+    manager: &mut PredictManager,
+    oracle: &OracleSVI,
+    key: RangeKey,
+    quantity: u64,
+    proxy: &mut UserProxy,
+    clock: &Clock,
+    ctx: &mut TxContext,
+): u64 {
+    let balance_before = manager_balance<Quote>(manager);
+    redeem_range<Quote>(predict_obj, manager, oracle, key, quantity, clock, ctx);
+    credit_manager_delta_to_range_key<Quote>(manager, key, balance_before, proxy, ctx)
+}
+
+fun credit_manager_delta_to_binary_key<Quote>(
+    manager: &mut PredictManager,
+    key: MarketKey,
+    balance_before: u64,
+    proxy: &mut UserProxy,
+    ctx: &mut TxContext,
+): u64 {
+    let payout = manager_balance<Quote>(manager) - balance_before;
+    if (payout > 0) {
+        let coin = withdraw_quote<Quote>(manager, payout, ctx);
+        proxy.credit_quote_for_binary(key, coin, ctx);
+    };
+    payout
+}
+
+fun credit_manager_delta_to_range_key<Quote>(
+    manager: &mut PredictManager,
+    key: RangeKey,
+    balance_before: u64,
+    proxy: &mut UserProxy,
+    ctx: &mut TxContext,
+): u64 {
+    let payout = manager_balance<Quote>(manager) - balance_before;
+    if (payout > 0) {
+        let coin = withdraw_quote<Quote>(manager, payout, ctx);
+        proxy.credit_quote_for_range(key, coin, ctx);
+    };
+    payout
 }

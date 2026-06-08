@@ -110,6 +110,8 @@ pub struct LiquidationPositionPatch {
     pub account_id: String,
     pub closed_at_ms: i64,
     pub had_position_redeem: bool,
+    pub event_digest: String,
+    pub keeper: String,
 }
 
 pub struct BorrowRatePatch {
@@ -688,6 +690,22 @@ impl Handler for LeverxEventsHandler {
                     .execute(conn)
                     .await?;
             }
+
+            // Liquidation prep cancels resting limits on-chain without a separate event.
+            rows += diesel::update(
+                limit_mint_orders::table
+                    .filter(limit_mint_orders::account_id.eq(&liq.account_id))
+                    .filter(limit_mint_orders::position_key.eq(&liq.position_key))
+                    .filter(limit_mint_orders::status.eq("open")),
+            )
+            .set((
+                limit_mint_orders::status.eq("cancelled"),
+                limit_mint_orders::cancelled_event_digest.eq(&liq.event_digest),
+                limit_mint_orders::cancelled_at_ms.eq(liq.closed_at_ms),
+                limit_mint_orders::cancelled_by.eq(&liq.keeper),
+            ))
+            .execute(conn)
+            .await?;
         }
 
         let points_rows = dedupe_points_patches(&batch.points_patches);

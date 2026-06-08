@@ -16,19 +16,19 @@ for (const line of readFileSync(join(root, ".env"), "utf8").split(/\r?\n/)) {
   process.env[trimmed.slice(0, i)] = trimmed.slice(i + 1);
 }
 
-const { buildTradeEntryPosition } = await import("../src/lib/shieldbook/trade-entry-position.ts");
-const { groupProtectionOraclesForTrade } = await import("../src/lib/shieldbook/oracle-ranking.ts");
+const { buildTradeEntryPosition } = await import("../src/lib/leverx/trade-entry-position.ts");
+const { groupProtectionOraclesForTrade } = await import("../src/lib/leverx/oracle-ranking.ts");
 const { fetchJson } = await import("../src/lib/api/fetch-json.ts");
 const { parsePredictOraclesList } = await import("../src/lib/predict/oracles.ts");
 const { appConfig } = await import("../src/lib/config.ts");
-const { resolveOracleById } = await import("../src/lib/shieldbook/oracle.ts");
-const { fetchProtectionQuote } = await import("../src/lib/shieldbook/quote.ts");
-const { marginSnapshotMoveArgs } = await import("../src/lib/shieldbook/snapshot.ts");
+const { resolveOracleById } = await import("../src/lib/leverx/oracle.ts");
+const { fetchProtectionQuote } = await import("../src/lib/leverx/quote.ts");
+const { marginSnapshotMoveArgs } = await import("../src/lib/leverx/snapshot.ts");
 const { suiClient } = await import("../src/lib/sui/client.ts");
 const { DEEPBOOK_READONLY_SENDER } = await import("../src/lib/deepbook/client.ts");
-const { isShieldbookConfigured } = await import("../src/lib/config.ts");
+const { isleverxConfigured } = await import("../src/lib/config.ts");
 
-console.log("shieldbook configured:", isShieldbookConfigured());
+console.log("leverx configured:", isleverxConfigured());
 
 const position = buildTradeEntryPosition({
   marginManagerId: "",
@@ -108,10 +108,10 @@ const quote = await fetchProtectionQuote(
 console.log("\n--- quote ---");
 if (!quote) {
   const { Transaction } = await import("@mysten/sui/transactions");
-  const { marginSnapshotMoveArgs: snapArgs } = await import("../src/lib/shieldbook/snapshot.ts");
+  const { marginSnapshotMoveArgs: snapArgs } = await import("../src/lib/leverx/snapshot.ts");
   const { matchesProtectionBase } = await import("../src/lib/predict/oracles.ts");
-  const { estimateProtectionStrikes } = await import("../src/lib/shieldbook/protection-strike.ts");
-  const { FLOAT_SCALING } = await import("../src/lib/shieldbook/constants.ts");
+  const { estimateProtectionStrikes } = await import("../src/lib/leverx/protection-strike.ts");
+  const { FLOAT_SCALING } = await import("../src/lib/leverx/constants.ts");
 
   const pkg = appConfig.shieldPackageId;
   const predictPkg = appConfig.predictPackageId;

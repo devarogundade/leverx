@@ -229,3 +229,8 @@ public fun balance<Quote>(collector: &FeeCollector<Quote>): u64 {
 public fun total_collected<Quote>(collector: &FeeCollector<Quote>): u64 {
     collector.total_collected
 }
+
+#[test_only]
+public fun new_for_testing<Quote>(vault_id: ID, ctx: &mut TxContext): FeeCollector<Quote> {
+    new(vault_id, ctx)
+}

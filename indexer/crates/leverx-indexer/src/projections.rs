@@ -640,6 +640,8 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     account_id: ev.account_id.to_string(),
                     closed_at_ms: ctx.timestamp_ms,
                     had_position_redeem: ev.had_position_redeem,
+                    event_digest: ctx.event_digest.to_string(),
+                    keeper: ev.keeper.to_string(),
                 });
                 batch.collateral_balances.push(NewCollateralBalance {
                     position_key: position_key(

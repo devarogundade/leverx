@@ -144,13 +144,13 @@ export class SuiService implements OnModuleInit {
     const hasCatalogRoutes = liquidationRoutesReady(cfg);
     if (!hasCatalogRoutes) {
       missing.push(
-        'LAUNCH_COLLATERAL_CATALOG (coinType, spotPoolId, pythOracleId, deepCoinId per asset)',
+        'LAUNCH_COLLATERAL_CATALOG (pythOracleId per asset; spotPoolId + deepCoinId for non-quote collateral)',
       );
     }
 
     const limit_order = core && hasQuoteOracle && hasCatalogRoutes;
 
-    const liquidation = limit_order;
+    const liquidation = core && hasQuoteOracle && hasCatalogRoutes;
 
     const txReady = settlement && Boolean(this.keypair);
 

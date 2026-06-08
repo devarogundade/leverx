@@ -84,4 +84,21 @@ export const leverxInfo = {
   tradingPaused: "Protocol admin has paused new mints on-chain. Closes and vault ops may still work.",
   protocolNotConfigured:
     "Registry, vault, fee collector, or Pyth oracle IDs are missing from env / indexer. Trades cannot be built until configured.",
+
+  landingHealth:
+    "Each position tracks collateral plus margin against borrowed amount. If markets move against you, the position can become eligible for closure.",
+  landingVault:
+    "The vault holds dUSDC that traders borrow. Lenders deposit dUSDC and receive pool shares that earn fees over time.",
+  landingKeeper:
+    "A keeper is a small always-on node you run. It watches the protocol and submits helpful transactions — you can earn fees when yours land first.",
+
+  keeperPull: "Official image published for the LeverX keeper service.",
+  keeperPrivateKey:
+    "Testnet wallet that pays gas and signs keeper transactions. Use a dedicated key with only enough SUI for fees.",
+  keeperKeyHint: "Pass the key as an environment variable — never commit it to git.",
+  keeperRun: "Runs the keeper API on port 3001 inside the container.",
+  keeperRunHint: "Replace the placeholder key before starting. Restart the container if you rotate keys.",
+  keeperHealth: "Returns OK when the process is up. Use /health/ready for full dependency checks.",
+  keeperRewards:
+    "When your keeper closes a risky position or settles an expired trade, part of the protocol fee can go to the transaction sender.",
 } as const;

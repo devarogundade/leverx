@@ -30,7 +30,6 @@ module leverx::user_proxy;
 
 use deepbook::{
     balance_manager::{Self, BalanceManager, DepositCap, TradeCap, WithdrawCap},
-    pool::Pool,
     registry::Registry,
 };
 use deepbook_predict::{market_key::MarketKey, range_key::RangeKey};
@@ -784,43 +783,6 @@ public(package) fun balance_manager_trading_mut(
     &mut proxy.balance_manager
 }
 
-/// Borrow the deposit cap (protocol modules only).
-public(package) fun deposit_cap(proxy: &UserProxy): &DepositCap {
-    &proxy.deposit_cap
-}
-
-/// Borrow the withdraw cap (protocol modules only).
-public(package) fun withdraw_cap(proxy: &UserProxy): &WithdrawCap {
-    &proxy.withdraw_cap
-}
-
-/// Borrow the trade cap (protocol modules only).
-public(package) fun trade_cap(proxy: &UserProxy): &TradeCap {
-    &proxy.trade_cap
-}
-
-/// Spot sell base for quote via this proxy's balance manager and DeepBook caps.
-public(package) fun swap_exact_base_for_quote_with_manager<BaseAsset, QuoteAsset>(
-    proxy: &mut UserProxy,
-    pool: &mut Pool<BaseAsset, QuoteAsset>,
-    base_in: Coin<BaseAsset>,
-    min_quote_out: u64,
-    clock: &Clock,
-    ctx: &mut TxContext,
-): (Coin<BaseAsset>, Coin<QuoteAsset>) {
-    proxy.assert_can_act(ctx);
-    pool.swap_exact_base_for_quote_with_manager(
-        &mut proxy.balance_manager,
-        &proxy.trade_cap,
-        &proxy.deposit_cap,
-        &proxy.withdraw_cap,
-        base_in,
-        min_quote_out,
-        clock,
-        ctx,
-    )
-}
-
 // === Triggers ===
 
 /// Set or update take-profit / stop-loss premiums for a binary market key.
@@ -947,6 +909,40 @@ public(package) fun cancel_range_limit_mint(
 ): PendingLimitMintOrder {
     assert!(proxy.range_limit_mints.contains(key), errors::limit_order_not_found());
     proxy.range_limit_mints.remove(key)
+}
+
+/// Cancel a resting binary limit order and release reserved margin (liquidation prep).
+public(package) fun cancel_binary_limit_mint_for_liquidation(
+    proxy: &mut UserProxy,
+    key: MarketKey,
+    ctx: &mut TxContext,
+) {
+    if (proxy.binary_limit_mints.contains(key)) {
+        let order = proxy.cancel_binary_limit_mint(key);
+        release_binary_quote_reserve(
+            proxy,
+            key,
+            margin_quote(&order),
+            ctx,
+        );
+    };
+}
+
+/// Cancel a resting range limit order and release reserved margin (liquidation prep).
+public(package) fun cancel_range_limit_mint_for_liquidation(
+    proxy: &mut UserProxy,
+    key: RangeKey,
+    ctx: &mut TxContext,
+) {
+    if (proxy.range_limit_mints.contains(key)) {
+        let order = proxy.cancel_range_limit_mint(key);
+        release_range_quote_reserve(
+            proxy,
+            key,
+            margin_quote(&order),
+            ctx,
+        );
+    };
 }
 
 // === PendingLimitMintOrder getters ===

@@ -8,8 +8,8 @@ module leverx::triggers;
 use deepbook_predict::{market_key::MarketKey, range_key::RangeKey};
 use leverx::{events, user_proxy::UserProxy};
 
-/// Entry wrapper for `set_automated_triggers` — wallet-friendly binary market path.
-public entry fun set_automated_triggers_entry(
+/// Wallet-friendly binary market path (call from PTB as a public function).
+public fun set_automated_triggers_entry(
     proxy: &mut UserProxy,
     market_key: MarketKey,
     take_profit_premium: u64,

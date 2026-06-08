@@ -41,6 +41,17 @@ export const ui = {
   vaultChartApr: "APR",
   vaultChartEmpty: "No vault history yet",
   vaultChartEmptyHint: "Performance data will appear once the pool has activity.",
+  keeperPageTitle: "Run a keeper",
+  keeperPageHint:
+    "Keepers are helper nodes that keep the protocol running — settling expired trades, filling limit orders, and closing risky positions. You earn a share of fees when your node submits work.",
+  keeperStepPull: "Pull the Docker image",
+  keeperStepKey: "Set your wallet key",
+  keeperStepRun: "Start the container",
+  keeperHealthLabel: "Check it is running",
+  keeperIndexerHint:
+    "Point the app indexer URL to your node if you self-host (default stack uses port 3001).",
+  keeperRewardsHint: "Successful keeper transactions can earn a caller reward from protocol fees.",
+  keeperVaultLink: "Prefer passive yield? Supply to the vault instead",
   portfolioHint: "Your trading account, PnL, and open leveraged positions.",
   portfolioAccountValue: "Account value",
   balanceTotal: "Total balance",

@@ -18,6 +18,7 @@ import { Route as AppVaultRouteImport } from './routes/_app/vault'
 import { Route as AppPortfolioRouteImport } from './routes/_app/portfolio'
 import { Route as AppPointsRouteImport } from './routes/_app/points'
 import { Route as AppMarketsRouteImport } from './routes/_app/markets'
+import { Route as AppKeeperRouteImport } from './routes/_app/keeper'
 import { Route as AppGuideRouteImport } from './routes/_app/guide'
 import { Route as DetailPredictionsOracleIdRouteImport } from './routes/_detail/predictions/$oracleId'
 import { Route as AppPointsLeaderboardRouteImport } from './routes/_app/points.leaderboard'
@@ -65,6 +66,11 @@ const AppMarketsRoute = AppMarketsRouteImport.update({
   path: '/markets',
   getParentRoute: () => AppRoute,
 } as any)
+const AppKeeperRoute = AppKeeperRouteImport.update({
+  id: '/keeper',
+  path: '/keeper',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppGuideRoute = AppGuideRouteImport.update({
   id: '/guide',
   path: '/guide',
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/guide': typeof AppGuideRoute
+  '/keeper': typeof AppKeeperRoute
   '/markets': typeof AppMarketsRoute
   '/points': typeof AppPointsRouteWithChildren
   '/portfolio': typeof AppPortfolioRoute
@@ -99,6 +106,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/guide': typeof AppGuideRoute
+  '/keeper': typeof AppKeeperRoute
   '/markets': typeof AppMarketsRoute
   '/points': typeof AppPointsRouteWithChildren
   '/portfolio': typeof AppPortfolioRoute
@@ -114,6 +122,7 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/_app/guide': typeof AppGuideRoute
+  '/_app/keeper': typeof AppKeeperRoute
   '/_app/markets': typeof AppMarketsRoute
   '/_app/points': typeof AppPointsRouteWithChildren
   '/_app/portfolio': typeof AppPortfolioRoute
@@ -128,6 +137,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/terms'
     | '/guide'
+    | '/keeper'
     | '/markets'
     | '/points'
     | '/portfolio'
@@ -140,6 +150,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/terms'
     | '/guide'
+    | '/keeper'
     | '/markets'
     | '/points'
     | '/portfolio'
@@ -154,6 +165,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/terms'
     | '/_app/guide'
+    | '/_app/keeper'
     | '/_app/markets'
     | '/_app/points'
     | '/_app/portfolio'
@@ -235,6 +247,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMarketsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/keeper': {
+      id: '/_app/keeper'
+      path: '/keeper'
+      fullPath: '/keeper'
+      preLoaderRoute: typeof AppKeeperRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/guide': {
       id: '/_app/guide'
       path: '/guide'
@@ -273,6 +292,7 @@ const AppPointsRouteWithChildren = AppPointsRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppGuideRoute: typeof AppGuideRoute
+  AppKeeperRoute: typeof AppKeeperRoute
   AppMarketsRoute: typeof AppMarketsRoute
   AppPointsRoute: typeof AppPointsRouteWithChildren
   AppPortfolioRoute: typeof AppPortfolioRoute
@@ -281,6 +301,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppGuideRoute: AppGuideRoute,
+  AppKeeperRoute: AppKeeperRoute,
   AppMarketsRoute: AppMarketsRoute,
   AppPointsRoute: AppPointsRouteWithChildren,
   AppPortfolioRoute: AppPortfolioRoute,

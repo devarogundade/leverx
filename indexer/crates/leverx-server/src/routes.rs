@@ -111,6 +111,8 @@ struct ListQuery {
     status: Option<String>,
     oracle_id: Option<String>,
     event_type: Option<String>,
+    /// When set, only rows with `borrow_quote >= min_borrow_quote` (keeper liquidation scans).
+    min_borrow_quote: Option<i64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -214,10 +216,17 @@ async fn positions(
     if let Some(oracle_id) = &q.oracle_id {
         query = query.filter(leveraged_positions::oracle_id.eq(oracle_id));
     }
-    if let Some(status) = &q.status {
-        query = query.filter(leveraged_positions::status.eq(status));
-    } else {
-        query = query.filter(leveraged_positions::status.eq("open"));
+    match q.status.as_deref() {
+        Some("all") => {}
+        Some(status) => {
+            query = query.filter(leveraged_positions::status.eq(status));
+        }
+        None => {
+            query = query.filter(leveraged_positions::status.eq("open"));
+        }
+    }
+    if let Some(min_borrow) = q.min_borrow_quote {
+        query = query.filter(leveraged_positions::borrow_quote.ge(min_borrow));
     }
 
     let rows = query

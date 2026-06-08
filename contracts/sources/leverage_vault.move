@@ -353,15 +353,10 @@ public(package) fun credit_lp_revenue<Quote>(
     vault.balance.join(revenue.into_balance());
 }
 
-/// Outstanding borrower debt including accrued but un-compounded interest.
-public(package) fun total_debt<Quote>(vault: &LeverageVault<Quote>): u64 {
-    vault.total_borrowed
-}
-
 // === Vault flash loans ===
 
 /// Flash-borrow quote; returns coin and a hot-potato receipt due principal + fee.
-public fun borrow_flash_liquidity<Quote>(
+public(package) fun borrow_flash_liquidity<Quote>(
     vault: &mut LeverageVault<Quote>,
     amount: u64,
     clock: &Clock,
@@ -383,12 +378,9 @@ public(package) fun flash_receipt_amounts(receipt: FlashReceipt): (u64, u64) {
     (amount, fee)
 }
 
-/// Credit quote proceeds to the vault insurance fund (e.g. bad-debt backstop).
-public(package) fun skim_to_insurance<Quote>(
-    vault: &mut LeverageVault<Quote>,
-    coin: Coin<Quote>,
-) {
-    vault.insurance_fund.join(coin.into_balance());
+#[test_only]
+public fun flash_receipt_for_testing(amount: u64, fee: u64): FlashReceipt {
+    FlashReceipt { amount, fee }
 }
 
 // === Read API ===
@@ -408,9 +400,14 @@ public fun total_shares<Quote>(vault: &LeverageVault<Quote>): u64 {
     vault.total_shares
 }
 
-/// Net asset value: idle liquidity plus outstanding borrower debt.
+/// Net asset value: idle liquidity, outstanding borrower debt, and insurance fund.
 public fun nav<Quote>(vault: &LeverageVault<Quote>): u64 {
-    vault.balance.value() + vault.total_borrowed
+    vault.balance.value() + vault.total_borrowed + vault.insurance_fund.value()
+}
+
+/// Quote held in the liquidation insurance / backstop bucket.
+public fun insurance_fund_balance<Quote>(vault: &LeverageVault<Quote>): u64 {
+    vault.insurance_fund.value()
 }
 
 /// Snapshot borrow and LP APR after a state change (for event emission).
@@ -437,4 +434,30 @@ public fun create_for_testing<Quote>(
     ctx: &mut TxContext,
 ): LeverageVault<Quote> {
     new(treasury_cap, ctx)
+}
+
+#[test_only]
+public fun credit_balance_for_testing<Quote>(
+    vault: &mut LeverageVault<Quote>,
+    coin: Coin<Quote>,
+) {
+    vault.balance.join(coin.into_balance());
+}
+
+#[test_only]
+public fun set_debt_for_testing<Quote>(
+    vault: &mut LeverageVault<Quote>,
+    total_borrowed: u64,
+    total_principal_borrowed: u64,
+) {
+    vault.total_borrowed = total_borrowed;
+    vault.total_principal_borrowed = total_principal_borrowed;
+}
+
+#[test_only]
+public fun set_last_accrue_ms_for_testing<Quote>(
+    vault: &mut LeverageVault<Quote>,
+    last_ms: u64,
+) {
+    vault.last_accrue_ms = last_ms;
 }

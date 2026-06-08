@@ -1,13 +1,19 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Menu, X } from "lucide-react";
+import { SiteNavEarnMenu } from "@/components/SiteNavEarnMenu";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { APP_NAME } from "@/lib/brand";
+import { isNavDropdown, SITE_NAV_ENTRIES } from "@/lib/site-nav";
 
 export function LandingHeader() {
   const [open, setOpen] = useState(false);
   const closeMenu = () => setOpen(false);
+  const earnEntry = SITE_NAV_ENTRIES.find(
+    (e): e is Extract<typeof e, { type: "dropdown" }> =>
+      isNavDropdown(e) && e.label === "Earn",
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -27,12 +33,24 @@ export function LandingHeader() {
         </Link>
 
         <nav className="landing-header-nav" aria-label="Landing navigation">
+          <a href="#traders" className="landing-header-link" onClick={closeMenu}>
+            Traders
+          </a>
+          <a href="#earners" className="landing-header-link" onClick={closeMenu}>
+            Earners
+          </a>
           <Link to="/guide" className="landing-header-link" onClick={closeMenu}>
             Docs
           </Link>
-          <Link to="/markets" className="landing-header-link" onClick={closeMenu}>
-            Markets
-          </Link>
+          {earnEntry ? (
+            <div className="hidden md:block">
+              <SiteNavEarnMenu
+                entry={earnEntry}
+                onNavigate={closeMenu}
+                triggerClassName="landing-header-link"
+              />
+            </div>
+          ) : null}
         </nav>
 
         <div className="landing-header-actions">
@@ -66,20 +84,18 @@ export function LandingHeader() {
           />
           <div className="landing-mobile-menu sm:hidden">
             <nav className="flex flex-col gap-1" aria-label="Landing navigation">
-              <Link
-                to="/guide"
-                className="landing-mobile-menu-link"
-                onClick={closeMenu}
-              >
+              <a href="#traders" className="landing-mobile-menu-link" onClick={closeMenu}>
+                Traders
+              </a>
+              <a href="#earners" className="landing-mobile-menu-link" onClick={closeMenu}>
+                Earners
+              </a>
+              <Link to="/guide" className="landing-mobile-menu-link" onClick={closeMenu}>
                 Docs
               </Link>
-              <Link
-                to="/markets"
-                className="landing-mobile-menu-link"
-                onClick={closeMenu}
-              >
-                Markets
-              </Link>
+              {earnEntry ? (
+                <SiteNavEarnMenu entry={earnEntry} onNavigate={closeMenu} vertical />
+              ) : null}
             </nav>
             <Link
               to="/markets"

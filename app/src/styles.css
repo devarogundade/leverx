@@ -273,7 +273,7 @@
   --palette-chart-bullish: var(--palette-green-300);
   --palette-chart-bearish: var(--palette-red-400);
 
-  /* LeverX tokens — aligned with Shieldbook (sand accent, neutral dark) */
+  /* LeverX tokens — aligned with leverx (sand accent, neutral dark) */
   --background: #191919;
   --elevated: #1f1f1f;
   --surface: #232323;
@@ -841,6 +841,10 @@ select {
       align-items: center;
       justify-content: space-between;
     }
+  }
+
+  .page-simple-title-wrap {
+    margin-bottom: 0.25rem;
   }
 
   .page-simple-title {
@@ -3698,7 +3702,7 @@ select {
 }
 
 /* ════════════════════════════════════════════════════════════════
-   SHIELDBOOK ALIGNMENT — sand accent · neutral dark (see shieldbook.vercel.app)
+   leverx ALIGNMENT — sand accent · neutral dark (see leverx.vercel.app)
    ════════════════════════════════════════════════════════════════ */
 
 :root,
@@ -4529,6 +4533,240 @@ button:disabled {
   font-size: 0.6875rem;
   line-height: 1.4;
   color: var(--color-muted-foreground);
+}
+
+/* Multi-section landing */
+.landing-page--scroll {
+  display: block;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  align-items: stretch;
+  justify-content: flex-start;
+  scroll-behavior: smooth;
+}
+.landing-scroll {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: var(--page-max);
+  margin-inline: auto;
+  padding-inline: var(--page-px);
+  padding-top: var(--site-header-h);
+  padding-bottom: 4rem;
+}
+.landing-section[id] {
+  scroll-margin-top: calc(var(--site-header-h) + 1rem);
+}
+.landing-hero {
+  padding-block: clamp(2.5rem, 7vh, 4.5rem);
+  text-align: center;
+}
+.landing-audience-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  margin-top: 1.75rem;
+}
+.landing-audience-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: color-mix(in oklab, var(--color-card) 70%, transparent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-muted-foreground);
+  transition:
+    border-color 160ms ease,
+    color 160ms ease,
+    background-color 160ms ease;
+}
+.landing-audience-pill:hover {
+  border-color: color-mix(in oklab, var(--color-accent) 35%, var(--color-border));
+  color: var(--color-foreground);
+}
+.landing-section {
+  margin-top: clamp(2.5rem, 6vh, 4rem);
+  padding: clamp(1.5rem, 4vw, 2.25rem);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border);
+  background: color-mix(in oklab, var(--color-card) 78%, transparent);
+  backdrop-filter: blur(8px);
+}
+.landing-section--foot {
+  margin-top: 3rem;
+  text-align: center;
+  border: none;
+  background: transparent;
+  backdrop-filter: none;
+  padding-block: 0;
+}
+.landing-section-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+.landing-section-head--center {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 1.75rem;
+}
+.landing-section-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in oklab, var(--color-accent) 25%, transparent);
+  background: color-mix(in oklab, var(--color-accent) 10%, transparent);
+  color: var(--color-accent);
+}
+.landing-section-icon--trade {
+  color: var(--brand-300);
+}
+.landing-section-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 3vw, 1.75rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-foreground);
+}
+.landing-section-lead {
+  margin-top: 0.5rem;
+  max-width: 38rem;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--color-muted-foreground);
+}
+.landing-section-head--center .landing-section-lead {
+  margin-inline: auto;
+}
+.landing-section-list {
+  margin: 0 0 1.5rem;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--color-muted-foreground);
+}
+.landing-section-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  transition: opacity 160ms ease;
+}
+.landing-section-cta:hover {
+  opacity: 0.85;
+}
+.landing-section-cta--inline {
+  margin-top: 1rem;
+}
+.landing-earn-grid {
+  display: grid;
+  gap: 1rem;
+}
+@media (min-width: 768px) {
+  .landing-earn-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.landing-earn-card {
+  padding: 1.25rem 1.35rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: color-mix(in oklab, var(--color-background) 55%, transparent);
+}
+.landing-earn-card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.landing-earn-card-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+.landing-earn-card-lead {
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--color-muted-foreground);
+}
+
+/* Keeper setup page */
+.keeper-steps {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+.keeper-step-card {
+  display: flex;
+  gap: 1rem;
+  padding: 1.25rem 1.35rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+}
+.keeper-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-accent) 14%, transparent);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-accent);
+}
+.keeper-code-block {
+  overflow-x: auto;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: color-mix(in oklab, var(--color-muted) 35%, transparent);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--color-foreground);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.keeper-after-run {
+  margin-top: 1.5rem;
+  display: grid;
+  gap: 0.75rem;
+}
+.keeper-vault-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-muted-foreground);
+  transition: color 160ms ease;
+}
+.keeper-vault-link:hover {
+  color: var(--color-foreground);
 }
 
 /* ── Shared loading state ───────────────────────────────────────── */

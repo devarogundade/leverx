@@ -50,6 +50,7 @@ export const LIQUIDATION_SWAP_SLIPPAGE_BPS = 300;
 
 /**
  * Launch collateral targets — on-chain LTV via `whitelist_collateral_entry`.
+ * Canonical max / liquidation bps: dUSDC 9000/9500, SUI 8000/9500, DEEP 7000/9500.
  * Fill `coinType` / oracle / pool IDs after deploy.
  */
 export const LAUNCH_COLLATERAL_CATALOG: CollateralCatalogEntry[] = [
@@ -57,7 +58,7 @@ export const LAUNCH_COLLATERAL_CATALOG: CollateralCatalogEntry[] = [
     symbol: 'SUI',
     coinType: '0x2::sui::SUI',
     maxLtvBps: 8000,
-    liquidationLtvBps: 8500,
+    liquidationLtvBps: 9500,
     pythOracleId:
       '0x1ebb295c789cc42b3b2a1606482cd1c7124076a0f5676718501fda8c7fd075a0',
     spotPoolId: '', // pending DeepBook SUI/dUSDC pool
@@ -66,8 +67,8 @@ export const LAUNCH_COLLATERAL_CATALOG: CollateralCatalogEntry[] = [
   {
     symbol: 'DUSDC',
     coinType: TESTNET_ASSETS.quoteType,
-    maxLtvBps: 10000,
-    liquidationLtvBps: 10000,
+    maxLtvBps: 9000,
+    liquidationLtvBps: 9500,
     pythOracleId:
       '0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81',
     spotPoolId: '',
@@ -78,7 +79,7 @@ export const LAUNCH_COLLATERAL_CATALOG: CollateralCatalogEntry[] = [
     coinType:
       '0x36dbef866a1d62bf7328989a10fb2f07d769f4ee587c0de4a0a256e57e0a58a8::deep::DEEP',
     maxLtvBps: 7000,
-    liquidationLtvBps: 7500,
+    liquidationLtvBps: 9500,
     pythOracleId:
       '0x3d52fffa2cd9e54b39bb36d282bdda560b15b8b4fdf4766a3c58499ef172bafc',
     spotPoolId: '', // pending DeepBook DEEP/dUSDC pool
@@ -91,12 +92,10 @@ export const KEEPER_ENABLED = true;
 export const DEFAULT_SUI_NETWORK = 'testnet' as const;
 
 export const SUI_RPC_URLS: Record<string, string> = {
-  mainnet: 'https://fullnode.mainnet.sui.io:443',
   testnet: 'https://fullnode.testnet.sui.io:443',
-  devnet: 'https://fullnode.devnet.sui.io:443',
 };
 
-/** leverx-server URL (same host when running shieldbook stack). */
+/** leverx-server URL (same host when running leverx stack). */
 export const INDEXER_URL = 'http://127.0.0.1:3100';
 
 export const DEFAULT_PORT = 3001;

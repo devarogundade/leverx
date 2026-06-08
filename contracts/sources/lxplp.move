@@ -23,3 +23,18 @@ fun init(otw: LXPLP, ctx: &mut TxContext) {
     transfer::public_transfer(treasury_cap, ctx.sender());
     transfer::public_transfer(metadata_cap, ctx.sender());
 }
+
+#[test_only]
+public fun treasury_cap_for_testing(ctx: &mut TxContext): TreasuryCap<LXPLP> {
+    let (initializer, treasury_cap) = coin_registry::new_currency_with_otw(
+        LXPLP {},
+        9,
+        b"TlxPLP".to_string(),
+        b"Test lxPLP".to_string(),
+        b"".to_string(),
+        b"".to_string(),
+        ctx,
+    );
+    let _metadata_cap = coin_registry::finalize(initializer, ctx);
+    treasury_cap
+}

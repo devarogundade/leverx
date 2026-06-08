@@ -9,7 +9,6 @@ use leverx::{
     protocol_constants,
     errors,
     protocol_registry::LeverxRegistry,
-    user_proxy::UserProxy,
 };
 use pyth::{price_info::PriceInfoObject, pyth};
 use std::{type_name::{Self, TypeName}, u128};
@@ -165,10 +164,11 @@ public fun mul_bps(amount: u64, bps: u64): u64 {
     protocol_constants::mul_bps(amount, bps)
 }
 
-/// Health factor in bps: `(collateral_value * BPS) / debt`. Below liquidation threshold = underwater.
+/// Health factor in bps: `((collateral_value + quote_balance) * BPS) / debt`.
 public fun evaluate_account_health<Collateral, Quote>(
     registry: &LeverxRegistry,
     collateral_amount: u64,
+    quote_balance: u64,
     borrowed_quote: u64,
     collateral_oracle: &PriceInfoObject,
     quote_oracle: &PriceInfoObject,
@@ -177,6 +177,7 @@ public fun evaluate_account_health<Collateral, Quote>(
     evaluate_account_health_with_max_age<Collateral, Quote>(
         registry,
         collateral_amount,
+        quote_balance,
         borrowed_quote,
         collateral_oracle,
         quote_oracle,
@@ -189,6 +190,7 @@ public fun evaluate_account_health<Collateral, Quote>(
 public fun evaluate_account_health_with_max_age<Collateral, Quote>(
     registry: &LeverxRegistry,
     collateral_amount: u64,
+    quote_balance: u64,
     borrowed_quote: u64,
     collateral_oracle: &PriceInfoObject,
     quote_oracle: &PriceInfoObject,
@@ -204,34 +206,16 @@ public fun evaluate_account_health_with_max_age<Collateral, Quote>(
         max_age_secs,
         clock,
     );
-    if (collateral_quote == 0) return 0;
-    collateral_quote * protocol_constants::bps() / borrowed_quote
-}
-
-/// True when account health is below the asset's liquidation LTV threshold.
-public fun is_liquidatable<Collateral, Quote>(
-    registry: &LeverxRegistry,
-    collateral_amount: u64,
-    borrowed_quote: u64,
-    collateral_oracle: &PriceInfoObject,
-    quote_oracle: &PriceInfoObject,
-    clock: &Clock,
-): bool {
-    is_liquidatable_with_max_age<Collateral, Quote>(
-        registry,
-        collateral_amount,
-        borrowed_quote,
-        collateral_oracle,
-        quote_oracle,
-        registry.pyth_max_age_secs(),
-        clock,
-    )
+    let backing = collateral_quote + quote_balance;
+    if (backing == 0) return 0;
+    backing * protocol_constants::bps() / borrowed_quote
 }
 
 /// Liquidation health check with an explicit Pyth staleness bound (wider during oracle stalls).
 public fun is_liquidatable_with_max_age<Collateral, Quote>(
     registry: &LeverxRegistry,
     collateral_amount: u64,
+    quote_balance: u64,
     borrowed_quote: u64,
     collateral_oracle: &PriceInfoObject,
     quote_oracle: &PriceInfoObject,
@@ -241,6 +225,7 @@ public fun is_liquidatable_with_max_age<Collateral, Quote>(
     let health = evaluate_account_health_with_max_age<Collateral, Quote>(
         registry,
         collateral_amount,
+        quote_balance,
         borrowed_quote,
         collateral_oracle,
         quote_oracle,
@@ -251,15 +236,11 @@ public fun is_liquidatable_with_max_age<Collateral, Quote>(
     health < collateral_config::liquidation_ltv_bps(&config)
 }
 
-/// Liquidation LTV threshold in bps for `Collateral` from registry config.
-public fun liquidation_threshold_bps<Collateral>(registry: &LeverxRegistry): u64 {
-    collateral_config::liquidation_ltv_bps(&registry.collateral_config<Collateral>())
-}
-
 /// Assert collateral withdrawal leaves health at or above liquidation LTV.
 public fun assert_withdraw_allowed<Collateral, Quote>(
     registry: &LeverxRegistry,
     collateral_amount: u64,
+    quote_balance: u64,
     withdraw_amount: u64,
     borrowed_quote: u64,
     collateral_oracle: &PriceInfoObject,
@@ -270,6 +251,7 @@ public fun assert_withdraw_allowed<Collateral, Quote>(
     let health = evaluate_account_health<Collateral, Quote>(
         registry,
         remaining,
+        quote_balance,
         borrowed_quote,
         collateral_oracle,
         quote_oracle,
@@ -280,16 +262,6 @@ public fun assert_withdraw_allowed<Collateral, Quote>(
         health >= collateral_config::liquidation_ltv_bps(&config),
         errors::withdraw_exceeds_maintenance(),
     );
-}
-
-/// Convert `amount` of `Asset` atoms to USD atoms via Pyth price.
-fun usd_value<Asset>(
-    registry: &LeverxRegistry,
-    price_info: &PriceInfoObject,
-    amount: u64,
-    clock: &Clock,
-): u64 {
-    usd_value_with_max_age<Asset>(registry, price_info, amount, registry.pyth_max_age_secs(), clock)
 }
 
 fun usd_value_with_max_age<Asset>(
@@ -309,22 +281,6 @@ fun usd_value_with_max_age<Asset>(
     convert_amount(config, amount)
 }
 
-/// Convert USD atoms to `Quote` atoms using the quote asset's Pyth feed.
-fun quote_amount_from_usd<Quote>(
-    registry: &LeverxRegistry,
-    quote_oracle: &PriceInfoObject,
-    usd_amount: u64,
-    clock: &Clock,
-): u64 {
-    quote_amount_from_usd_with_max_age<Quote>(
-        registry,
-        quote_oracle,
-        usd_amount,
-        registry.pyth_max_age_secs(),
-        clock,
-    )
-}
-
 fun quote_amount_from_usd_with_max_age<Quote>(
     registry: &LeverxRegistry,
     quote_oracle: &PriceInfoObject,
@@ -340,22 +296,6 @@ fun quote_amount_from_usd_with_max_age<Quote>(
         clock,
     );
     convert_amount_inverse(config, usd_amount)
-}
-
-/// Build a `ConversionConfig` from registry collateral config and a validated Pyth feed.
-fun conversion_config<Asset>(
-    registry: &LeverxRegistry,
-    price_info: &PriceInfoObject,
-    to_usd: bool,
-    clock: &Clock,
-): ConversionConfig {
-    conversion_config_with_max_age<Asset>(
-        registry,
-        price_info,
-        to_usd,
-        registry.pyth_max_age_secs(),
-        clock,
-    )
 }
 
 fun conversion_config_with_max_age<Asset>(
@@ -491,6 +431,11 @@ public fun test_conversion_config(
 #[test_only]
 public fun test_convert_amount(config: ConversionConfig, amount: u64): u64 {
     convert_amount(config, amount)
+}
+
+#[test_only]
+public fun test_convert_amount_inverse(config: ConversionConfig, amount: u64): u64 {
+    convert_amount_inverse(config, amount)
 }
 
 #[test_only]

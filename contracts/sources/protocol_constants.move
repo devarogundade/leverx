@@ -17,7 +17,7 @@ const MIN_LEVERAGE: u64 = 1;
 
 // --- Default LTV thresholds (bps) ---
 // Per-asset max/liquidation LTV is set at admin whitelist time (see deploy docs).
-// Launch targets (env / ops, not hardcoded here): BTC 80%, SUI 70%, dUSDC 100%, DEEP 60%.
+// Launch targets (env / ops, not hardcoded here): SUI 80%, dUSDC 90%, DEEP 70%; liq floor 95% for all.
 
 const DEFAULT_MAX_LTV_BPS: u64 = 8_000;
 const DEFAULT_LIQUIDATION_LTV_BPS: u64 = 8_500;

@@ -5,11 +5,13 @@ import {
 } from '../config/constants';
 import {
   flashBorrowAmount,
+  hasSpotLiquidationRoute,
   liquidationMinQuoteOut,
   resolveCollateralRoute,
 } from '../config/collateral-routing';
 import { IndexerService } from '../indexer/indexer.service';
 import type { LeveragedPosition } from '../indexer/indexer.types';
+import type { CollateralRoute } from '../config/collateral-routing';
 import type { TaskResult } from '../keeper/keeper.types';
 import { PtbBuilderService } from '../sui/ptb-builder.service';
 import { SuiService } from '../sui/sui.service';
@@ -44,13 +46,13 @@ export class LiquidationService {
       return [{ kind: 'liquidation', target: '-', success: false, error: 'missing_signer' }];
     }
 
-    const { items } = await this.indexer.fetchPositions({ status: 'open', limit: 500 });
+    const { items } = await this.indexer.fetchLiquidationCandidates(500);
     const candidates = items.filter(
       (p) =>
-        !p.is_range &&
         p.borrow_quote > 0 &&
         p.predict_manager_id &&
-        p.collateral_asset,
+        p.collateral_asset &&
+        p.status !== 'liquidated',
     );
 
     const results: TaskResult[] = [];
@@ -60,7 +62,14 @@ export class LiquidationService {
       const target = `${position.account_id}:${position.position_key}`;
       const route = resolveCollateralRoute(cfg, position.collateral_asset);
       if (!route) {
-        this.logger.debug(`liquidation skip ${target}: no collateral route`);
+        this.logger.debug(`liquidation skip ${target}: missing Pyth oracle route`);
+        continue;
+      }
+
+      if (!route.quoteNative && !hasSpotLiquidationRoute(route)) {
+        this.logger.debug(
+          `liquidation skip ${target}: no spot pool for ${route.coinType}`,
+        );
         continue;
       }
 
@@ -73,10 +82,10 @@ export class LiquidationService {
           position.borrow_quote,
           FLASH_BORROW_BUFFER_BPS,
         );
-        const minQuoteOut = liquidationMinQuoteOut(
-          borrowAmount,
-          LIQUIDATION_SWAP_SLIPPAGE_BPS,
-        );
+        const minQuoteOut = route.quoteNative
+          ? 0n
+          : liquidationMinQuoteOut(borrowAmount, LIQUIDATION_SWAP_SLIPPAGE_BPS);
+
         const tx = this.ptb.buildLiquidation(
           cfg,
           position,
@@ -102,11 +111,10 @@ export class LiquidationService {
 
   private async isLiquidatable(
     position: LeveragedPosition,
-    route: ReturnType<typeof resolveCollateralRoute>,
+    route: CollateralRoute,
   ): Promise<boolean> {
-    if (!route) return false;
     const cfg = this.sui.getConfig();
-    const tx = this.ptb.buildIsBinaryLiquidatable(cfg, position, route);
+    const tx = this.ptb.buildIsLiquidatable(cfg, position, route);
     const liquidatable = await this.sui.devInspectBool(tx);
     return liquidatable === true;
   }

@@ -19,7 +19,7 @@ trap cleanup EXIT INT TERM
 export RUST_BACKTRACE="${RUST_BACKTRACE:-1}"
 export RUST_LOG="${RUST_LOG:-info}"
 
-export DATABASE_URL="${DATABASE_URL:-postgres://shieldbook:shieldbook@postgres:5432/shieldbook_indexer}"
+export DATABASE_URL="${DATABASE_URL:-postgres://leverx:leverx@postgres:5432/leverx_indexer}"
 export INDEXER_DATABASE_URL="${INDEXER_DATABASE_URL:-${DATABASE_URL}}"
 
 if [[ -z "${LEVERX_PACKAGE_ID:-}" && -n "${SHIELD_PACKAGE_ID:-}" ]]; then
@@ -29,7 +29,7 @@ fi
 if command -v pg_isready >/dev/null 2>&1; then
   PGHOST="${PGHOST:-postgres}"
   PGPORT="${PGPORT:-5432}"
-  PGUSER="${PGUSER:-shieldbook}"
+  PGUSER="${PGUSER:-leverx}"
   echo "waiting for postgres at ${PGHOST}:${PGPORT}..."
   until pg_isready -h "${PGHOST}" -p "${PGPORT}" -U "${PGUSER}" -q; do
     sleep 2
@@ -71,5 +71,5 @@ echo "starting leverx-server on port ${LEVERX_API_PORT}..."
 SERVER_PID=$!
 
 echo "starting keeper on port ${PORT:-3001}..."
-cd /opt/shieldbook/keeper
+cd /opt/leverx/keeper
 node dist/main.js

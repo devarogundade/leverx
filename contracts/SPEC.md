@@ -284,7 +284,7 @@ All events live in `leverx::events`. Index by `account_id`, `vault_id`, `registr
 | `RegistryInitialized`   | `registry_id`, `vault_id`, `fee_collector_id`, `predict_id`                              | `protocol_registry::initialize` |
 | `CollateralWhitelisted` | `registry_id`, `asset`, `decimals`, `max_ltv_bps`, `liquidation_ltv_bps`, `max_conf_bps` | Collateral registered/updated   |
 
-**Launch collateral** (per-asset via `whitelist_collateral_entry`, documented in env — not protocol constants): BTC 80%, SUI 70%, dUSDC 100%, DEEP 60% max LTV.
+**Launch collateral** (per-asset via `whitelist_collateral_entry`, documented in env — not protocol constants): SUI 80%, dUSDC 90%, DEEP 70% max LTV; all liquidate below 95% health (`liquidation_ltv_bps = 9500`).
 | `SwapPoolRegistered` | `registry_id`, `asset`, `pool_id` | Swap pool mapped |
 | `TradingPausedChanged` | `registry_id`, `paused` | Pause toggled |
 | `PythMaxAgeUpdated` | `registry_id`, `max_age_secs` | Oracle staleness updated |

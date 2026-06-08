@@ -2,42 +2,42 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: shieldbook
-      POSTGRES_PASSWORD: shieldbook
-      POSTGRES_DB: shieldbook_indexer
+      POSTGRES_USER: leverx
+      POSTGRES_PASSWORD: leverx
+      POSTGRES_DB: leverx_indexer
     volumes:
-      - shieldbook_pg:/var/lib/postgresql/data
+      - leverx_pg:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U shieldbook -d shieldbook_indexer']
+      test: ["CMD-SHELL", "pg_isready -U leverx -d leverx_indexer"]
       interval: 5s
       timeout: 5s
       retries: 10
     ports:
-      - '5432:5432'
+      - "5432:5432"
 
-  shieldbook:
+  leverx:
     build:
       context: .
-      dockerfile: docker/shieldbook-stack/Dockerfile
+      dockerfile: docker/leverx-stack/Dockerfile
     ports:
-      - '3001:3001'
-      - '9186:9186'
+      - "3001:3001"
+      - "9186:9186"
     env_file:
       - path: keeper/.env
         required: false
     environment:
-      DATABASE_URL: postgres://shieldbook:shieldbook@postgres:5432/shieldbook_indexer
-      INDEXER_DATABASE_URL: postgres://shieldbook:shieldbook@postgres:5432/shieldbook_indexer
-      LEVERX_PACKAGE_ID: '0xa471ec72186fc00723d013fe0067ee829d28421dcf31f47e2413600cdbfb1467'
-      PREDICT_PACKAGE_ID: '0xf5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138'
+      DATABASE_URL: postgres://leverx:leverx@postgres:5432/leverx_indexer
+      INDEXER_DATABASE_URL: postgres://leverx:leverx@postgres:5432/leverx_indexer
+      LEVERX_PACKAGE_ID: "0xa471ec72186fc00723d013fe0067ee829d28421dcf31f47e2413600cdbfb1467"
+      PREDICT_PACKAGE_ID: "0xf5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138"
       PGHOST: postgres
-      PGUSER: shieldbook
-      FIRST_CHECKPOINT: '344968552'
+      PGUSER: leverx
+      FIRST_CHECKPOINT: "344968552"
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://127.0.0.1:3001/health']
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:3001/health"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -45,4 +45,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  shieldbook_pg:
+  leverx_pg:

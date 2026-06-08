@@ -191,6 +191,7 @@ public fun withdraw_collateral_for_binary<Collateral, Quote>(
     ltv::assert_withdraw_allowed<Collateral, Quote>(
         registry,
         proxy.binary_collateral_balance<Collateral>(key),
+        proxy.binary_quote_balance(key),
         amount,
         debt,
         collateral_oracle,
@@ -233,6 +234,7 @@ public fun withdraw_collateral_for_range<Collateral, Quote>(
     ltv::assert_withdraw_allowed<Collateral, Quote>(
         registry,
         proxy.range_collateral_balance<Collateral>(key),
+        proxy.range_quote_balance(key),
         amount,
         debt,
         collateral_oracle,
@@ -269,6 +271,7 @@ public fun swap_collateral_to_quote_for_binary<BaseAsset, QuoteAsset>(
     clock: &Clock,
     ctx: &mut TxContext,
 ): u64 {
+    spot_swap::assert_distinct_swap_assets<BaseAsset, QuoteAsset>();
     let base_coin = proxy.withdraw_collateral_from_binary<BaseAsset>(key, base_amount, ctx);
     proxy.deposit_physical(base_coin, ctx);
     let quote_received = spot_swap::swap_to_quote(
@@ -313,6 +316,7 @@ public fun swap_collateral_to_quote_for_range<BaseAsset, QuoteAsset>(
     clock: &Clock,
     ctx: &mut TxContext,
 ): u64 {
+    spot_swap::assert_distinct_swap_assets<BaseAsset, QuoteAsset>();
     let base_coin = proxy.withdraw_collateral_from_range<BaseAsset>(key, base_amount, ctx);
     proxy.deposit_physical(base_coin, ctx);
     let quote_received = spot_swap::swap_to_quote(
@@ -358,6 +362,7 @@ public fun swap_collateral_to_quote_via_swaps_for_binary<BaseAsset, QuoteAsset>(
     clock: &Clock,
     ctx: &mut TxContext,
 ): (Coin<BaseAsset>, Coin<QuoteAsset>, Coin<DEEP>) {
+    spot_swap::assert_distinct_swap_assets<BaseAsset, QuoteAsset>();
     let base_amount = base_in.value();
     let (base_left, quote_out, deep_left) = spot_swap::swap_collateral_coin(
         pool,
@@ -401,6 +406,7 @@ public fun swap_collateral_to_quote_via_swaps_for_range<BaseAsset, QuoteAsset>(
     clock: &Clock,
     ctx: &mut TxContext,
 ): (Coin<BaseAsset>, Coin<QuoteAsset>, Coin<DEEP>) {
+    spot_swap::assert_distinct_swap_assets<BaseAsset, QuoteAsset>();
     let base_amount = base_in.value();
     let (base_left, quote_out, deep_left) = spot_swap::swap_collateral_coin(
         pool,
@@ -1430,6 +1436,7 @@ public fun is_binary_position_liquidatable<Collateral, Quote>(
     ltv::is_liquidatable_with_max_age<Collateral, Quote>(
         registry,
         proxy.binary_collateral_balance<Collateral>(key),
+        proxy.binary_quote_balance(key),
         debt,
         collateral_oracle,
         quote_oracle,
@@ -1454,6 +1461,7 @@ public fun is_range_position_liquidatable<Collateral, Quote>(
     ltv::is_liquidatable_with_max_age<Collateral, Quote>(
         registry,
         proxy.range_collateral_balance<Collateral>(key),
+        proxy.range_quote_balance(key),
         debt,
         collateral_oracle,
         quote_oracle,
@@ -1477,6 +1485,7 @@ public fun evaluate_binary_position_health<Collateral, Quote>(
     ltv::evaluate_account_health<Collateral, Quote>(
         registry,
         proxy.binary_collateral_balance<Collateral>(key),
+        proxy.binary_quote_balance(key),
         debt,
         collateral_oracle,
         quote_oracle,
@@ -1499,6 +1508,7 @@ public fun evaluate_range_position_health<Collateral, Quote>(
     ltv::evaluate_account_health<Collateral, Quote>(
         registry,
         proxy.range_collateral_balance<Collateral>(key),
+        proxy.range_quote_balance(key),
         debt,
         collateral_oracle,
         quote_oracle,
@@ -1507,28 +1517,6 @@ public fun evaluate_range_position_health<Collateral, Quote>(
 }
 
 // === Internal ===
-
-fun quote_max_mint_cost_binary<Collateral, Quote>(
-    registry: &LeverxRegistry,
-    proxy: &UserProxy,
-    key: MarketKey,
-    margin_quote: u64,
-    leverage_bps: u64,
-    collateral_oracle: &PriceInfoObject,
-    quote_oracle: &PriceInfoObject,
-    clock: &Clock,
-): u64 {
-    margin_quote + quote_borrow_for_leverage_binary<Collateral, Quote>(
-        registry,
-        proxy,
-        key,
-        margin_quote,
-        leverage_bps,
-        collateral_oracle,
-        quote_oracle,
-        clock,
-    )
-}
 
 fun quote_borrow_for_leverage_binary<Collateral, Quote>(
     registry: &LeverxRegistry,
@@ -1824,6 +1812,14 @@ fun execute_leveraged_mint_range<Collateral, Quote>(
     );
 }
 
+fun assert_valid_order_type(order_type: u8) {
+    assert!(
+        order_type == protocol_constants::order_type_limit()
+            || order_type == protocol_constants::order_type_market(),
+        errors::invalid_order_type(),
+    );
+}
+
 fun validate_mint_order(
     predict_global: &Predict,
     oracle_id: ID,
@@ -1835,17 +1831,16 @@ fun validate_mint_order(
     mint_cost: u64,
     quantity: u64,
 ) {
+    assert_valid_order_type(order_type);
     if (order_type == protocol_constants::order_type_limit()) {
         predict_client::assert_premium_within_bounds(predict_global, oracle_id, limit_premium_per_unit);
         predict_client::assert_limit_buy_fill_met(market_ask, limit_premium_per_unit, slippage_bps);
         let max_ask = predict_client::max_acceptable_buy_ask(limit_premium_per_unit, slippage_bps);
         let max_total = predict_client::cost_from_premium_per_unit(max_ask, quantity);
         assert!(mint_cost <= max_total, errors::limit_price_not_met());
-    } else if (order_type == protocol_constants::order_type_market()) {
+    } else {
         predict_client::assert_market_slippage(max_mint_cost, mint_cost);
         predict_client::assert_premium_within_bounds(predict_global, oracle_id, market_ask);
-    } else {
-        abort errors::invalid_order_type()
     };
 }
 
@@ -1937,15 +1932,14 @@ fun validate_redeem_order(
     expected_payout: u64,
     quantity: u64,
 ) {
+    assert_valid_order_type(order_type);
     if (order_type == protocol_constants::order_type_limit()) {
         predict_client::assert_limit_sell_bid_met(market_bid, limit_premium_per_unit);
         let floor_total =
             predict_client::cost_from_premium_per_unit(limit_premium_per_unit, quantity);
         assert!(expected_payout >= floor_total, errors::limit_price_not_met());
-    } else if (order_type == protocol_constants::order_type_market()) {
-        predict_client::assert_redeem_slippage(min_payout, expected_payout);
     } else {
-        abort errors::invalid_order_type()
+        predict_client::assert_redeem_slippage(min_payout, expected_payout);
     };
 }
 
@@ -2337,4 +2331,30 @@ fun emit_open_range<Collateral>(
         market_ask_at_fill,
         max_mint_cost,
     );
+}
+
+// === Test hooks ===
+
+#[test_only]
+public fun test_validate_redeem_order(
+    order_type: u8,
+    limit_premium_per_unit: u64,
+    min_payout: u64,
+    market_bid: u64,
+    expected_payout: u64,
+    quantity: u64,
+) {
+    validate_redeem_order(
+        order_type,
+        limit_premium_per_unit,
+        min_payout,
+        market_bid,
+        expected_payout,
+        quantity,
+    );
+}
+
+#[test_only]
+public fun test_assert_mint_order_type(order_type: u8) {
+    assert_valid_order_type(order_type);
 }

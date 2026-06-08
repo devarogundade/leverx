@@ -54,16 +54,27 @@ export class IndexerService {
 
   fetchPositions(args?: {
     status?: string;
+    minBorrowQuote?: number;
     limit?: number;
     offset?: number;
   }): Promise<Paginated<LeveragedPosition>> {
     return this.get(
       `/v1/positions${this.buildQuery({
         status: args?.status ?? 'open',
+        min_borrow_quote: args?.minBorrowQuote,
         limit: args?.limit ?? 500,
         offset: args?.offset ?? 0,
       })}`,
     );
+  }
+
+  /** Keys with outstanding per-position debt (open or closed predict leg). */
+  fetchLiquidationCandidates(limit = 500): Promise<Paginated<LeveragedPosition>> {
+    return this.fetchPositions({
+      status: 'all',
+      minBorrowQuote: 1,
+      limit,
+    });
   }
 
   fetchLimitOrders(args?: {
