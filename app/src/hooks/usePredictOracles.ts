@@ -1,12 +1,19 @@
-import { useQuery } from "@tanstack/react-query";
-import { getPredictOracleRows, PREDICT_ORACLES_QUERY_KEY } from "@/lib/predict/oracle-cache";
+import { usePredictOracleContext } from "@/context/PredictOracleContext";
 
-/** Predict-server oracle catalog — primary market list source. */
+/** Predict-server oracle catalog — loaded once via PredictOracleProvider. */
 export function usePredictOracleRows() {
-  return useQuery({
-    queryKey: PREDICT_ORACLES_QUERY_KEY,
-    queryFn: getPredictOracleRows,
-    staleTime: 300_000,
-    retry: 2,
-  });
+  const ctx = usePredictOracleContext();
+  return {
+    data: ctx.oracles,
+    isLoading: ctx.isLoading,
+    isError: ctx.isError,
+    isFetched: ctx.isFetched,
+    error: ctx.error,
+    refetch: ctx.refetch,
+  };
+}
+
+export function useOracleNeighbors(oracleId: string) {
+  const ctx = usePredictOracleContext();
+  return ctx.getNeighbors(oracleId);
 }

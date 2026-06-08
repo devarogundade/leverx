@@ -111,3 +111,11 @@ export function lightweightChartOptions(
 export function lineSeriesAccentColor(): string {
   return readCssVar("--accent", "#d4c5b0");
 }
+
+export function lineSeriesWinColor(): string {
+  return readCssVar("--long-text", "#38ef7d");
+}
+
+export function lineSeriesLossColor(): string {
+  return readCssVar("--short-text", "#ef5350");
+}

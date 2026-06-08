@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowDownRight, ArrowUpRight, Inbox } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, Inbox } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { UnderlineTabs } from "@/components/leverx/UnderlineTabs";
@@ -23,7 +23,7 @@ import {
   useMarketCatalog,
 } from "@/hooks/useIndexer";
 import { useOracleSpotMap } from "@/hooks/useOracleSpotMap";
-import { usePredictOracleRows } from "@/hooks/usePredictOracles";
+import { useOracleNeighbors, usePredictOracleRows } from "@/hooks/usePredictOracles";
 import { usePredictOracleState } from "@/hooks/usePredictOracleState";
 import {
   catalogToMarketRows,
@@ -45,7 +45,7 @@ import {
 import { summarizeGlobalTrades } from "@/lib/leverx/trade-stats";
 import { formatCount, ui } from "@/lib/copy";
 import { formatRangeStrikes, type PredictSide } from "@/lib/predict/instruments";
-import { scaleQuote } from "@/lib/predict/scaling";
+import { scaleQuote, scaleSpot } from "@/lib/predict/scaling";
 import {
   textFilterActive,
   textFilterBtn,
@@ -67,6 +67,9 @@ import {
   tradeTerminalSidebar,
   tradeTerminalTabsRow,
   tradeTerminalTitle,
+  tradeOracleNav,
+  tradeOracleNavBtn,
+  tradeOracleNavBtnDisabled,
   tradeTerminalWorkspace,
   tradeStatRow,
 } from "@/lib/leverx/tw";
@@ -170,6 +173,7 @@ export function PredictTradeTerminal({
   const { data: vaultSummary } = useIndexerVaultSummary(vaultId);
   const { data: catalog = [] } = useMarketCatalog({ oracleId, limit: 200 });
   const { data: oracles = [] } = usePredictOracleRows();
+  const { prev: prevOracle, next: nextOracle } = useOracleNeighbors(oracleId);
   const { data: oracleState } = usePredictOracleState(oracleId);
   const { data: spotMap } = useOracleSpotMap([oracleId]);
 
@@ -309,10 +313,67 @@ export function PredictTradeTerminal({
     [market?.strikeRaw, rangeLower, rangeUpper, oracleSpot, activeSide],
   );
 
+  const chartStrikePrice = useMemo(() => {
+    if (activeSide === "range" && rangeLower && rangeUpper) {
+      return scaleSpot(Math.round((rangeLower + rangeUpper) / 2));
+    }
+    if (market?.strikeRaw && market.strikeRaw > 0) return scaleSpot(market.strikeRaw);
+    if (binaryStrikeRaw && binaryStrikeRaw > 0) return scaleSpot(binaryStrikeRaw);
+    return undefined;
+  }, [activeSide, rangeLower, rangeUpper, market?.strikeRaw, binaryStrikeRaw]);
+
+  const chartRangeLower = rangeLower ? scaleSpot(rangeLower) : undefined;
+  const chartRangeUpper = rangeUpper ? scaleSpot(rangeUpper) : undefined;
+
+  const oracleNavSearch = {
+    strike: strikeRaw,
+    lowerStrike: lowerStrikeRaw,
+    upperStrike: upperStrikeRaw,
+    side: activeSide,
+  };
+
   return (
     <section className={tradeTerminal}>
       <header className={tradeTerminalHeader}>
         <div className={tradeTerminalHeaderTop}>
+          <div className={tradeOracleNav} aria-label="Oracle navigation">
+            {prevOracle ? (
+              <Link
+                to="/predictions/$oracleId"
+                params={{ oracleId: prevOracle.oracle_id }}
+                search={oracleNavSearch}
+                className={tradeOracleNavBtn}
+                aria-label="Previous oracle"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Link>
+            ) : (
+              <span
+                className={cn(tradeOracleNavBtn, tradeOracleNavBtnDisabled)}
+                aria-hidden
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </span>
+            )}
+            {nextOracle ? (
+              <Link
+                to="/predictions/$oracleId"
+                params={{ oracleId: nextOracle.oracle_id }}
+                search={oracleNavSearch}
+                className={tradeOracleNavBtn}
+                aria-label="Next oracle"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Link>
+            ) : (
+              <span
+                className={cn(tradeOracleNavBtn, tradeOracleNavBtnDisabled)}
+                aria-hidden
+              >
+                <ChevronRight className="h-4 w-4" />
+              </span>
+            )}
+          </div>
           <AssetBadge asset={asset} size="md" />
           <div className="min-w-0 flex-1">
             <h1 className={tradeTerminalTitle}>{question}</h1>
@@ -367,6 +428,10 @@ export function PredictTradeTerminal({
               oracleId={oracleId}
               spotPrice={oracleSpot}
               levels={chartLevels}
+              strikePrice={chartStrikePrice}
+              activeSide={activeSide}
+              rangeLower={chartRangeLower}
+              rangeUpper={chartRangeUpper}
             />
           </div>
           <div className={cn(tradeTerminalOrderbook, "min-h-[280px]")}>

@@ -8,12 +8,18 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ui } from "@/lib/copy";
 import type { PriceLevel } from "@/lib/charts/price-level";
 import {
+  buildOptionsLineSegments,
+  strikeCenteredVisibleRange,
+} from "@/lib/charts/options-line-segments";
+import {
   levelLineColor,
   levelLineStyle,
+  lineSeriesLossColor,
+  lineSeriesWinColor,
   lightweightChartOptions,
-  lineSeriesAccentColor,
 } from "@/lib/charts/lightweight-shared";
 import { flatLineData, toLineData } from "@/lib/charts/line-data";
+import type { PredictSide } from "@/lib/predict/instruments";
 import { fetchPredictOraclePriceHistory } from "@/lib/predict/price-history";
 import { cn } from "@/lib/utils";
 import { tradeSurface } from "@/lib/leverx/tw";
@@ -24,6 +30,11 @@ interface Props {
   oracleId: string;
   spotPrice?: number | null;
   levels?: PriceLevel[];
+  /** Scaled strike for options-style chart (centers strike line, win/loss coloring). */
+  strikePrice?: number;
+  activeSide?: PredictSide;
+  rangeLower?: number;
+  rangeUpper?: number;
   height?: number;
   className?: string;
 }
@@ -40,13 +51,19 @@ export function PriceChart({
   oracleId,
   spotPrice,
   levels,
+  strikePrice,
+  activeSide = "up",
+  rangeLower,
+  rangeUpper,
   height,
   className,
 }: Props) {
   const [mounted, setMounted] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const lineRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const segmentRefs = useRef<ISeriesApi<"Line">[]>([]);
+
+  const optionsMode = strikePrice != null && strikePrice > 0;
 
   const { data: history, isLoading, isError, refetch } = useQuery({
     queryKey: ["predict-oracle-prices", oracleId],
@@ -63,6 +80,15 @@ export function PriceChart({
     return [];
   }, [history, flatPrice]);
 
+  const coloredSegments = useMemo(() => {
+    if (!optionsMode || lineData.length === 0) return null;
+    const range =
+      activeSide === "range" && rangeLower != null && rangeUpper != null
+        ? { lower: rangeLower, upper: rangeUpper }
+        : undefined;
+    return buildOptionsLineSegments(lineData, activeSide, strikePrice!, range);
+  }, [optionsMode, lineData, activeSide, strikePrice, rangeLower, rangeUpper]);
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -73,15 +99,7 @@ export function PriceChart({
     const el = containerRef.current;
     const chart = createChart(el, lightweightChartOptions(el.clientWidth, el.clientHeight));
     chartRef.current = chart;
-
-    const lineSeries = chart.addSeries(LineSeries, {
-      color: lineSeriesAccentColor(),
-      lineWidth: 2,
-      crosshairMarkerVisible: true,
-      lastValueVisible: true,
-      priceLineVisible: false,
-    });
-    lineRef.current = lineSeries;
+    segmentRefs.current = [];
 
     const ro = new ResizeObserver((entries) => {
       const entry = entries[0];
@@ -95,33 +113,63 @@ export function PriceChart({
       ro.disconnect();
       chart.remove();
       chartRef.current = null;
-      lineRef.current = null;
+      segmentRefs.current = [];
     };
   }, [mounted, oracleId]);
 
   useEffect(() => {
-    const lineSeries = lineRef.current;
-    if (!lineSeries) return;
+    const chart = chartRef.current;
+    if (!chart) return;
 
-    if (lineData.length === 0) {
-      lineSeries.setData([]);
-      return;
+    for (const series of segmentRefs.current) {
+      chart.removeSeries(series);
+    }
+    segmentRefs.current = [];
+
+    if (lineData.length === 0) return;
+
+    const addSeries = (color: string, data: typeof lineData) => {
+      const series = chart.addSeries(LineSeries, {
+        color,
+        lineWidth: 2,
+        crosshairMarkerVisible: true,
+        lastValueVisible: true,
+        priceLineVisible: false,
+      });
+      series.setData(data);
+      segmentRefs.current.push(series);
+      return series;
+    };
+
+    if (optionsMode && coloredSegments && coloredSegments.length > 0) {
+      for (const segment of coloredSegments) {
+        const color = segment.tone === "win" ? lineSeriesWinColor() : lineSeriesLossColor();
+        addSeries(color, segment.data);
+      }
+    } else {
+      addSeries(lineSeriesWinColor(), lineData);
     }
 
-    lineSeries.setData(lineData);
-    chartRef.current?.timeScale().fitContent();
-  }, [lineData]);
+    chart.timeScale().fitContent();
+
+    if (optionsMode && strikePrice != null && strikePrice > 0) {
+      const prices = lineData.map((point) => point.value);
+      const { from, to } = strikeCenteredVisibleRange(prices, strikePrice);
+      chart.priceScale("right").setVisibleRange({ from, to });
+    }
+  }, [lineData, coloredSegments, optionsMode, strikePrice]);
 
   useEffect(() => {
-    const lineSeries = lineRef.current;
-    if (!lineSeries) return;
+    const chart = chartRef.current;
+    const primarySeries = segmentRefs.current[0];
+    if (!chart || !primarySeries) return;
 
     const priceLines =
       levels?.map((level) =>
-        lineSeries.createPriceLine({
+        primarySeries.createPriceLine({
           price: level.price,
           color: levelLineColor(level.tone),
-          lineWidth: 2,
+          lineWidth: level.tone === "strike" ? 2 : 1,
           lineStyle: levelLineStyle(level.tone),
           axisLabelVisible: true,
           title: level.label,
@@ -130,10 +178,10 @@ export function PriceChart({
 
     return () => {
       for (const line of priceLines) {
-        lineSeries.removePriceLine(line);
+        primarySeries.removePriceLine(line);
       }
     };
-  }, [levels, lineData]);
+  }, [levels, lineData, coloredSegments]);
 
   const chartLabel = pair ?? `${asset}/USDT`;
   const showChart = mounted && !isLoading && !isError && lineData.length > 0;

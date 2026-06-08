@@ -244,6 +244,18 @@ export const tradeTerminalBack = cn(
   "hover:text-accent",
 );
 
+export const tradeOracleNav = "flex shrink-0 items-center gap-0.5";
+
+export const tradeOracleNavBtn = cn(
+  "inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface",
+  "text-muted-foreground transition-colors duration-150",
+  "hover:bg-hover hover:text-foreground",
+);
+
+export const tradeOracleNavBtnDisabled = cn(
+  "pointer-events-none opacity-35 hover:bg-surface hover:text-muted-foreground",
+);
+
 export const tradeStatRow = cn(
   "grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 sm:gap-x-6",
   "lg:col-start-1 lg:grid-cols-5 lg:gap-x-4",
