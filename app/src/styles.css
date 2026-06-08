@@ -440,8 +440,6 @@ select {
   min-height: var(--site-header-h);
   min-width: 0;
   width: 100%;
-  max-width: var(--page-max);
-  margin-inline: auto;
   align-items: center;
   gap: var(--space-2);
   padding-inline: var(--page-px);
@@ -4362,9 +4360,7 @@ button:disabled {
   gap: var(--space-2);
   min-width: 0;
   width: 100%;
-  max-width: var(--page-max);
   height: var(--site-header-h);
-  margin-inline: auto;
   padding-inline: var(--page-px);
 }
 
