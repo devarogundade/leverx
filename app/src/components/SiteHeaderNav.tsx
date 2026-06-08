@@ -16,7 +16,9 @@ export function SiteHeaderNav({ className, onNavigate, vertical }: Props) {
   return (
     <nav
       className={cn(
-        vertical ? "flex flex-col gap-1" : "flex items-center gap-4 xl:gap-8",
+        vertical
+          ? "flex flex-col gap-1"
+          : "flex min-w-0 flex-wrap items-center gap-2 md:gap-3 lg:gap-5 xl:gap-8",
         className,
       )}
       aria-label="Main navigation"

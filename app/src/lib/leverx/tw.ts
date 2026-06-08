@@ -106,7 +106,8 @@ export const pageSimple = "flex w-full flex-col gap-4";
 export const pageSimpleToolbar =
   "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between";
 
-export const pageSimpleTitle = "min-w-0 text-lg font-semibold tracking-tight sm:text-xl";
+export const pageSimpleTitle =
+  "min-w-0 text-lg font-semibold tracking-tight sm:text-xl [overflow-wrap:anywhere]";
 
 export const pageSimpleActions = "flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2";
 
@@ -228,11 +229,12 @@ export const tradeTerminal = "flex w-full flex-col";
 
 export const tradeTerminalHeader = "flex flex-col gap-3 pb-3";
 
-export const tradeTerminalHeaderTop = "flex items-start gap-3";
+export const tradeTerminalHeaderTop =
+  "flex min-w-0 flex-wrap items-start gap-3";
 
 export const tradeTerminalHeaderMetrics = cn(
   "md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-[var(--trade-gap)]",
-  "lg:grid-cols-[minmax(0,1fr)_var(--trade-orderbook-w)_var(--trade-sidebar-w)]",
+  "lg:grid-cols-[minmax(0,1fr)_var(--trade-sidebar-w)]",
 );
 
 export const tradeTerminalTitle = "text-sm font-semibold leading-snug sm:text-base md:text-lg";
@@ -258,9 +260,6 @@ export const tradeTerminalBody = "flex flex-col gap-[var(--trade-gap)]";
 
 export const tradeTerminalWorkspace = cn(
   "trade-terminal-workspace flex min-w-0 flex-col gap-[var(--trade-gap)]",
-  "md:grid md:grid-cols-2 md:items-start",
-  "lg:grid-cols-[minmax(0,1fr)_var(--trade-orderbook-w)_var(--trade-sidebar-w)]",
-  "lg:grid-rows-[var(--trade-chart-h)_auto]",
 );
 
 export const tradeTerminalChart = cn(
@@ -270,21 +269,15 @@ export const tradeTerminalChart = cn(
 );
 
 export const tradeTerminalOrderbook = cn(
-  "trade-terminal-orderbook order-1 min-w-0 min-h-[240px] sm:min-h-[280px]",
-  "md:col-start-2 md:row-start-1 md:min-h-[var(--trade-chart-h)]",
-  "lg:h-[var(--trade-chart-h)] lg:max-h-[var(--trade-chart-h)]",
+  "trade-terminal-orderbook min-w-0 min-h-[240px] sm:min-h-[280px]",
 );
 
 export const tradeTerminalSidebar = cn(
-  "trade-terminal-sidebar order-2 flex min-w-0 w-full flex-col gap-3",
-  "md:col-span-2 md:row-start-2",
-  "lg:order-none lg:col-span-1 lg:col-start-3 lg:row-span-2 lg:row-start-1 lg:w-[var(--trade-sidebar-w)] lg:self-start",
+  "trade-terminal-sidebar flex min-w-0 w-full flex-col gap-3",
 );
 
 export const tradeTerminalPositions = cn(
-  "trade-terminal-positions order-3 min-w-0 overflow-hidden rounded-lg border border-border bg-card",
-  "md:col-span-2 md:row-start-3",
-  "lg:col-span-2 lg:col-start-1 lg:row-start-2",
+  "trade-terminal-positions min-w-0 overflow-hidden rounded-lg border border-border bg-card",
 );
 
 export const tradeTerminalTabsRow = cn(

@@ -339,8 +339,8 @@
 @media (max-width: 639px) {
   :root {
     --site-header-h: calc(var(--spacing) * 12);
-    --markets-catalog-h: 18rem;
-    --trade-positions-body-h: 10rem;
+    --markets-catalog-h: min(22rem, 52vh);
+    --trade-positions-body-h: 14rem;
     --trade-orderbook-w: 100%;
   }
 }
@@ -438,6 +438,7 @@ select {
 .site-header-inner {
   display: flex;
   min-height: var(--site-header-h);
+  min-width: 0;
   width: 100%;
   align-items: center;
   gap: var(--space-2);
@@ -503,8 +504,10 @@ select {
 
 .trade-terminal-header-top {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--space-3);
+  min-width: 0;
 }
 
 .trade-terminal-title {
@@ -578,17 +581,13 @@ select {
   overflow: hidden;
 }
 
-@media (max-width: 1023px) {
+@media (max-width: 767px) {
   .trade-terminal-sidebar {
-    order: 2;
-  }
-
-  .trade-terminal-chart {
-    order: 0;
+    order: 1;
   }
 
   .trade-terminal-orderbook {
-    order: 1;
+    order: 2;
   }
 
   .trade-terminal-positions {
@@ -600,31 +599,26 @@ select {
   .trade-terminal-workspace {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(180px, var(--trade-orderbook-w));
-    grid-template-rows: auto auto auto;
+    grid-template-rows: auto auto;
     align-items: start;
   }
 
-  .trade-terminal-chart {
+  .trade-terminal-sidebar {
     grid-column: 1;
     grid-row: 1;
+    order: unset;
+    width: 100%;
   }
 
   .trade-terminal-orderbook {
     grid-column: 2;
     grid-row: 1;
-    min-height: var(--trade-chart-h);
-  }
-
-  .trade-terminal-sidebar {
-    grid-column: 1 / -1;
-    grid-row: 2;
-    order: unset;
-    width: 100%;
+    min-height: min(var(--trade-chart-h), 70vh);
   }
 
   .trade-terminal-positions {
     grid-column: 1 / -1;
-    grid-row: 3;
+    grid-row: 2;
     order: unset;
   }
 }
@@ -632,12 +626,12 @@ select {
 @media (min-width: 1024px) {
   .trade-terminal-workspace {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) var(--trade-orderbook-w) var(--trade-sidebar-w);
+    grid-template-columns: minmax(0, 1fr) var(--trade-sidebar-w);
     grid-template-rows: var(--trade-chart-h) auto;
     align-items: start;
   }
 
-  .trade-terminal-chart {
+  .trade-terminal-orderbook {
     grid-column: 1;
     grid-row: 1;
     height: var(--trade-chart-h);
@@ -645,16 +639,8 @@ select {
     min-height: var(--trade-chart-h);
   }
 
-  .trade-terminal-orderbook {
-    grid-column: 2;
-    grid-row: 1;
-    height: var(--trade-chart-h);
-    max-height: var(--trade-chart-h);
-    min-height: var(--trade-chart-h);
-  }
-
   .trade-terminal-sidebar {
-    grid-column: 3;
+    grid-column: 2;
     grid-row: 1 / span 2;
     order: unset;
     width: var(--trade-sidebar-w);
@@ -662,7 +648,7 @@ select {
   }
 
   .trade-terminal-positions {
-    grid-column: 1 / 3;
+    grid-column: 1;
     grid-row: 2;
   }
 }
@@ -851,7 +837,8 @@ select {
     font-size: 1.25rem;
     font-weight: 600;
     letter-spacing: -0.02em;
-    white-space: nowrap;
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .page-simple-actions {
@@ -4349,6 +4336,7 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
+  min-width: 0;
   width: 100%;
   height: var(--site-header-h);
   padding-inline: var(--page-px);
@@ -4371,8 +4359,12 @@ button:disabled {
 }
 .landing-header-nav {
   display: none;
+  flex: 1;
   align-items: center;
-  gap: var(--space-5);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2) var(--space-4);
+  min-width: 0;
 }
 @media (min-width: 640px) {
   .landing-header-nav {
@@ -4390,6 +4382,7 @@ button:disabled {
 }
 .landing-header-actions {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   gap: var(--space-2);
 }
@@ -4462,8 +4455,8 @@ button:disabled {
   max-width: none;
 }
 
-/* Landing page with fixed header */
-.landing-page {
+/* Landing page with fixed header (scroll layout uses .landing-scroll padding) */
+.landing-page:not(.landing-page--scroll) {
   padding-top: var(--site-header-h);
 }
 .landing-content {
@@ -4717,6 +4710,7 @@ button:disabled {
 }
 .keeper-step-card {
   display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
   padding: 1.25rem 1.35rem;
   border-radius: var(--radius-lg);

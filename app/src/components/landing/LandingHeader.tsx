@@ -43,7 +43,7 @@ export function LandingHeader() {
             Docs
           </Link>
           {earnEntry ? (
-            <div className="hidden md:block">
+            <div className="hidden sm:block">
               <SiteNavEarnMenu
                 entry={earnEntry}
                 onNavigate={closeMenu}

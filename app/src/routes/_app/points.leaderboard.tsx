@@ -1,8 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, Trophy } from "lucide-react";
+import { DataTable, type Column } from "@/components/DataTable";
 import { EmptyState } from "@/components/ui/empty-state";
 import { usePointsLeaderboard } from "@/hooks/useIndexer";
 import { pageTitle } from "@/lib/brand";
+import type { LeaderboardEntry } from "@/lib/leverx/indexer-client";
 import { formatCompactUsdOrPlaceholder } from "@/lib/leverx/placeholders";
 import { scaleQuote } from "@/lib/predict/scaling";
 
@@ -17,6 +19,54 @@ function shortOwner(owner: string): string {
   if (owner.length <= 12) return owner;
   return `${owner.slice(0, 6)}…${owner.slice(-4)}`;
 }
+
+const columns: Column<LeaderboardEntry>[] = [
+  {
+    key: "rank",
+    header: "Rank",
+    mobileLabel: "Rank",
+    mobileEmphasis: true,
+    cell: (entry) => <span className="font-mono font-semibold">#{entry.rank}</span>,
+  },
+  {
+    key: "owner",
+    header: "Trader",
+    mobileEmphasis: true,
+    cell: (entry) => (
+      <span className="font-mono" title={entry.owner}>
+        {shortOwner(entry.owner)}
+      </span>
+    ),
+  },
+  {
+    key: "volume",
+    header: "Volume",
+    align: "right",
+    cell: (entry) => (
+      <span className="font-mono">
+        {formatCompactUsdOrPlaceholder(
+          entry.volume_quote > 0 ? scaleQuote(entry.volume_quote) : null,
+        )}
+      </span>
+    ),
+  },
+  {
+    key: "trades",
+    header: "Trades",
+    align: "right",
+    cell: (entry) => <span className="font-mono">{entry.trade_count}</span>,
+  },
+  {
+    key: "points",
+    header: "Points",
+    align: "right",
+    cell: (entry) => (
+      <span className="font-mono font-medium">
+        {Math.round(scaleQuote(entry.points)).toLocaleString()}
+      </span>
+    ),
+  },
+];
 
 function LeaderboardPage() {
   const { data: entries = [], isLoading, isError } = usePointsLeaderboard(100);
@@ -47,37 +97,8 @@ function LeaderboardPage() {
           description="Trade leveraged Predict positions to appear on the volume leaderboard."
         />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full min-w-[640px] text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/40 text-left text-muted-foreground">
-                <th className="px-4 py-3 font-medium">Rank</th>
-                <th className="px-4 py-3 font-medium">Trader</th>
-                <th className="px-4 py-3 font-medium text-right">Volume</th>
-                <th className="px-4 py-3 font-medium text-right">Trades</th>
-                <th className="px-4 py-3 font-medium text-right">Points</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map((entry) => (
-                <tr key={entry.owner} className="border-b border-border/60 last:border-0">
-                  <td className="px-4 py-3 font-mono">{entry.rank}</td>
-                  <td className="px-4 py-3 font-mono" title={entry.owner}>
-                    {shortOwner(entry.owner)}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono">
-                    {formatCompactUsdOrPlaceholder(
-                      entry.volume_quote > 0 ? scaleQuote(entry.volume_quote) : null,
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right font-mono">{entry.trade_count}</td>
-                  <td className="px-4 py-3 text-right font-mono">
-                    {Math.round(scaleQuote(entry.points)).toLocaleString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="rounded-lg border border-border">
+          <DataTable columns={columns} rows={entries} rowKey={(entry) => entry.owner} />
         </div>
       )}
     </section>

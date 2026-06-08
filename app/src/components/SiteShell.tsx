@@ -42,10 +42,10 @@ export function SiteShell({ children, fullWidth }: Props) {
             <span className="hidden text-sm font-bold tracking-wide sm:inline">{APP_NAME}</span>
           </Link>
 
-          <SiteHeaderNav className="hidden min-w-0 flex-1 lg:flex" />
+          <SiteHeaderNav className="hidden min-w-0 flex-1 md:flex" />
           <Link
             to="/guide"
-            className="btn-how-it-works hidden xl:inline-flex"
+            className="btn-how-it-works hidden lg:inline-flex"
             onClick={closeMenu}
           >
             <HelpCircle className="h-3.5 w-3.5" />
@@ -53,15 +53,15 @@ export function SiteShell({ children, fullWidth }: Props) {
           </Link>
 
           <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
-            <BalanceBreakdown className="hidden lg:inline-flex" />
+            <BalanceBreakdown className="hidden md:inline-flex" />
             <ThemeToggle />
-            <WalletConnectButton className="hidden lg:inline-flex" />
+            <WalletConnectButton className="hidden md:inline-flex" />
             <Button
               type="button"
               variant="ghost"
               size="icon"
               onClick={() => setOpen((o) => !o)}
-              className="btn-icon inline-flex lg:hidden"
+              className="btn-icon inline-flex md:hidden"
               aria-label={open ? "Close menu" : "Open menu"}
               aria-expanded={open}
             >
@@ -76,11 +76,11 @@ export function SiteShell({ children, fullWidth }: Props) {
           <Button
             type="button"
             variant="ghost"
-            className="fixed inset-0 z-40 h-auto w-auto rounded-none bg-black/60 hover:bg-black/60 lg:hidden"
+            className="fixed inset-0 z-40 h-auto w-auto rounded-none bg-black/60 hover:bg-black/60 md:hidden"
             aria-label="Close menu"
             onClick={closeMenu}
           />
-          <div className="site-mobile-menu lg:hidden">
+          <div className="site-mobile-menu md:hidden">
             <BalanceBreakdown className="site-mobile-menu-balance mb-3 w-full" />
             <SiteHeaderNav vertical onNavigate={closeMenu} className="mb-3" />
             <Link

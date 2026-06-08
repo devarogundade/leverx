@@ -317,7 +317,7 @@ export function PredictLeveragePanel({
   return (
     <div className={cn(tradeLeveragePanel, "trade-leverage-panel")}>
       <div className="border-b border-border p-3">
-        <div className={segTabsClass("stretch", "outcomes")} role="group" aria-label="Outcome">
+        <div className={segTabsClass("scroll", "outcomes")} role="group" aria-label="Outcome">
           {strikeRaw ? (
             <>
               <Link
@@ -373,13 +373,13 @@ export function PredictLeveragePanel({
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
+      <div className="flex flex-col gap-3 border-b border-border px-4 py-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <LabelWithInfo
           label="Order type"
           labelClassName={labelCaps}
           info={leverxInfo.orderType}
         />
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <div className={pillToggleGroup} role="group" aria-label="Order type">
             {ORDER_TYPES.map((type) => (
               <button
