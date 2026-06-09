@@ -1,13 +1,20 @@
 import { MarketSparkline } from "@/components/leverx/MarketSparkline";
 import { changePercentEndpoints } from "@/lib/charts/sparkline-path";
 import { formatPremiumOrPlaceholder } from "@/lib/leverx/indexer-markets";
-import { marketCardSparkline, marketsPriceCell, marketsPriceValue } from "@/lib/leverx/tw";
+import {
+  marketCardSparkline,
+  marketCardSparklineFooter,
+  marketsPriceCell,
+  marketsPriceValue,
+} from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
 
 interface Props {
   series: readonly number[];
   lastAskPremium: number | null;
   variant?: "inline" | "band";
+  /** Band at card footer — full width, no background tint */
+  footer?: boolean;
   className?: string;
 }
 
@@ -15,6 +22,7 @@ export function MarketPremiumQuote({
   series,
   lastAskPremium,
   variant = "inline",
+  footer = false,
   className,
 }: Props) {
   const change = changePercentEndpoints(series);
@@ -23,7 +31,12 @@ export function MarketPremiumQuote({
 
   if (variant === "band") {
     return (
-      <div className={cn(marketCardSparkline, className)}>
+      <div
+        className={cn(
+          footer ? marketCardSparklineFooter : marketCardSparkline,
+          className,
+        )}
+      >
         <MarketSparkline series={series} height={32} width="100%" positive={positive} />
       </div>
     );

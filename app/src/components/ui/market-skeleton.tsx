@@ -1,10 +1,9 @@
 import { cn } from "@/lib/utils";
 import {
   marketCard,
-  marketCardActionsFooter,
   marketCardBody,
   marketCardHeader,
-  marketCardSparkline,
+  marketCardSparklineFooter,
   marketsGrid,
   marketsRow,
   marketsTable,
@@ -55,7 +54,7 @@ function SkeletonActionsRow({ plain = false }: { plain?: boolean }) {
 
 function SkeletonPremiumQuote({ band = false }: { band?: boolean }) {
   if (band) {
-    return <div className={cn(marketCardSparkline, "lx-skeleton")} />;
+    return <div className={cn(marketCardSparklineFooter, "lx-skeleton")} />;
   }
 
   return (
@@ -80,17 +79,15 @@ export function MarketCardSkeleton() {
           <SkeletonBar className="h-5 w-10 shrink-0" />
         </div>
 
-        <SkeletonPremiumQuote band />
+        <SkeletonActionsRow />
 
         <div className="flex items-center justify-between gap-2">
           <SkeletonBar className="h-2.5 w-24" />
           <SkeletonBar className="h-2.5 w-16" />
         </div>
-
-        <div className={marketCardActionsFooter}>
-          <SkeletonActionsRow plain />
-        </div>
       </div>
+
+      <SkeletonPremiumQuote band />
     </article>
   );
 }

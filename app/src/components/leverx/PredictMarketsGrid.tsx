@@ -23,7 +23,7 @@ import {
   landingCtaSecondary,
   leverageBadge,
   marketCard,
-  marketCardActionsFooter,
+  marketCardActions,
   marketCardBody,
   marketCardHeader,
   marketCardInteractive,
@@ -153,11 +153,16 @@ export function PredictMarketsGrid({
                   </Link>
                 </div>
 
-                <MarketPremiumQuote
-                  variant="band"
-                  series={seriesByMarketId.get(m.id) ?? []}
-                  lastAskPremium={m.lastAskPremium}
-                />
+                <div className={marketCardActions}>
+                  <MarketSideActions
+                    oracleId={m.oracleId}
+                    strikeRaw={m.strikeRaw}
+                    rangeLower={range?.lower}
+                    rangeUpper={range?.upper}
+                    stretch
+                    className="w-full"
+                  />
+                </div>
 
                 <div className={marketCardMeta}>
                   <span>
@@ -176,19 +181,14 @@ export function PredictMarketsGrid({
                     </Button>
                   </div>
                 </div>
-
-                <div className={marketCardActionsFooter}>
-                  <MarketSideActions
-                    oracleId={m.oracleId}
-                    strikeRaw={m.strikeRaw}
-                    rangeLower={range?.lower}
-                    rangeUpper={range?.upper}
-                    stretch
-                    plain
-                    className="w-full"
-                  />
-                </div>
               </div>
+
+              <MarketPremiumQuote
+                variant="band"
+                footer
+                series={seriesByMarketId.get(m.id) ?? []}
+                lastAskPremium={m.lastAskPremium}
+              />
             </article>
           );
         })}

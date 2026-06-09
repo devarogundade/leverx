@@ -235,6 +235,9 @@ export const marketCardMeta =
 export const marketCardSparkline =
   "pointer-events-none relative z-0 h-8 bg-[color-mix(in_oklab,var(--color-surface)_50%,transparent)]";
 
+export const marketCardSparklineFooter =
+  "pointer-events-none relative z-0 mt-auto h-8 w-full shrink-0 bg-transparent";
+
 /** Trade terminal layout */
 export const tradeTerminal = "flex w-full flex-col";
 
