@@ -35,11 +35,15 @@ export const TESTNET_ASSETS = {
     '0xe95040085976bfd54a1a07225cd46c8a2b4e8e2b6732f140a0fc49850ba73e1a::dusdc::DUSDC',
 } as const;
 
+/** dUSDC / USD Pyth price feed on testnet (same as app `pythQuoteOracleId`). */
+export const TESTNET_PYTH_QUOTE_ORACLE_ID =
+  '0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81';
+
 /** Quote Pyth oracle + default collateral liquidation wiring (fill after deploy). */
 export const TESTNET_LIQUIDATION = {
   spotPoolId: '',
-  pythCollateralOracleId: '',
-  pythQuoteOracleId: '',
+  pythCollateralOracleId: TESTNET_PYTH_QUOTE_ORACLE_ID,
+  pythQuoteOracleId: TESTNET_PYTH_QUOTE_ORACLE_ID,
   deepCoinId: '',
 } as const;
 
@@ -48,6 +52,12 @@ export const FLASH_BORROW_BUFFER_BPS = 500;
 
 /** Min quote-out slippage guard on liquidation spot swaps. */
 export const LIQUIDATION_SWAP_SLIPPAGE_BPS = 300;
+
+/** Slippage floor on keeper trigger redeems (matches app `DEFAULT_SLIPPAGE_BPS`). */
+export const TRIGGER_REDEEM_SLIPPAGE_BPS = 500;
+
+/** Predict per-contract premium scale (1e9). */
+export const PREDICT_PRICE_SCALE = 1_000_000_000n;
 
 /**
  * Launch collateral targets — on-chain LTV via `whitelist_collateral_entry`.
@@ -59,8 +69,7 @@ export const LAUNCH_COLLATERAL_CATALOG: CollateralCatalogEntry[] = [
     coinType: TESTNET_ASSETS.quoteType,
     maxLtvBps: 9000,
     liquidationLtvBps: 9500,
-    pythOracleId:
-      '0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81',
+    pythOracleId: TESTNET_PYTH_QUOTE_ORACLE_ID,
     spotPoolId: '',
     deepCoinId: '',
   },

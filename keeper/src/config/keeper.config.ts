@@ -72,7 +72,7 @@ export default registerAs(
     pythQuoteOracleId: TESTNET_LIQUIDATION.pythQuoteOracleId,
     deepCoinId: TESTNET_LIQUIDATION.deepCoinId,
     supportedCollaterals: LAUNCH_COLLATERAL_CATALOG,
-    indexerUrl: INDEXER_URL,
+    indexerUrl: (process.env.INDEXER_URL ?? INDEXER_URL).trim(),
     cron: { ...KEEPER_CRON_DEFAULTS },
     limits: { ...KEEPER_LIMIT_DEFAULTS },
   }),

@@ -3,7 +3,10 @@ import { ConfigService } from '@nestjs/config';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 import { Transaction } from '@mysten/sui/transactions';
-import { liquidationRoutesReady } from '../config/collateral-routing';
+import {
+  liquidationRoutesReady,
+  resolveQuoteOracleId,
+} from '../config/collateral-routing';
 import type { KeeperConfig } from '../config/keeper.config';
 
 type ProtocolSettingsResponse = {
@@ -98,7 +101,12 @@ export class SuiService implements OnModuleInit {
   }
 
   getConfig(): KeeperConfig {
-    return { ...this.cfg, ...this.runtimeOverrides };
+    const merged = { ...this.cfg, ...this.runtimeOverrides };
+    const pythQuoteOracleId = resolveQuoteOracleId(merged);
+    if (pythQuoteOracleId && pythQuoteOracleId !== merged.pythQuoteOracleId) {
+      return { ...merged, pythQuoteOracleId };
+    }
+    return merged;
   }
 
   isReadyForTx(): boolean {
@@ -140,7 +148,11 @@ export class SuiService implements OnModuleInit {
     const settlement = core;
     const trigger = core;
 
-    const hasQuoteOracle = require('pythQuoteOracleId', 'PYTH_QUOTE_ORACLE_ID');
+    const quoteOracleId = resolveQuoteOracleId(cfg);
+    if (!quoteOracleId) {
+      missing.push('PYTH_QUOTE_ORACLE_ID');
+    }
+    const hasQuoteOracle = Boolean(quoteOracleId);
     const hasCatalogRoutes = liquidationRoutesReady(cfg);
     if (!hasCatalogRoutes) {
       missing.push(

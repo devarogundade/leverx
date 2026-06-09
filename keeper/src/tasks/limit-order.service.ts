@@ -32,7 +32,9 @@ export class LimitOrderService {
     }
 
     const now = Date.now();
-    const { items } = await this.indexer.fetchLimitOrders({ status: 'open' });
+    const items = await this.indexer.fetchAllPages((offset, pageSize) =>
+      this.indexer.fetchLimitOrders({ status: 'open', limit: pageSize, offset }),
+    );
     const fillable = items.filter(
       (o) => o.order_expires_ms > now && o.collateral_asset,
     );
@@ -67,6 +69,12 @@ export class LimitOrderService {
 
         const tx = this.ptb.buildExecuteLimitMint(cfg, order, managerId, route);
         if (!(await this.sui.devInspect(tx))) {
+          results.push({
+            kind: 'limit_order',
+            target,
+            success: false,
+            error: 'simulation_failed',
+          });
           continue;
         }
 

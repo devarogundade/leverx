@@ -43,6 +43,25 @@ export class IndexerService {
     return res.json() as Promise<T>;
   }
 
+  /** Walk paginated indexer lists until `has_more` is false or `maxItems` is reached. */
+  async fetchAllPages<T>(
+    fetchPage: (offset: number, limit: number) => Promise<Paginated<T>>,
+    pageSize = 500,
+    maxItems = 5_000,
+  ): Promise<T[]> {
+    const items: T[] = [];
+    let offset = 0;
+
+    while (items.length < maxItems) {
+      const page = await fetchPage(offset, pageSize);
+      items.push(...page.items);
+      if (!page.has_more || page.items.length === 0) break;
+      offset += page.limit;
+    }
+
+    return items.slice(0, maxItems);
+  }
+
   async health(): Promise<{ ok: boolean; service?: string }> {
     try {
       return await this.get('/health');
@@ -80,12 +99,13 @@ export class IndexerService {
   fetchLimitOrders(args?: {
     status?: string;
     limit?: number;
+    offset?: number;
   }): Promise<Paginated<LimitMintOrder>> {
     return this.get(
       `/v1/limit-orders${this.buildQuery({
         status: args?.status ?? 'open',
         limit: args?.limit ?? 500,
-        offset: 0,
+        offset: args?.offset ?? 0,
       })}`,
     );
   }

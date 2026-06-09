@@ -1,4 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
+import {
+  PREDICT_PRICE_SCALE,
+  TRIGGER_REDEEM_SLIPPAGE_BPS,
+} from '../config/constants';
+import {
+  minPayoutAfterSlippage,
+  redeemPayoutFromBid,
+} from '../config/collateral-routing';
 import { IndexerService } from '../indexer/indexer.service';
 import type { LeveragedPosition } from '../indexer/indexer.types';
 import type { TaskResult } from '../keeper/keeper.types';
@@ -30,13 +38,14 @@ export class TriggerService {
     }
 
     const cfg = this.sui.getConfig();
-    const { items: triggers } = await this.indexer.fetchActiveTriggers();
+    const triggers = await this.indexer.fetchAllPages((offset, pageSize) =>
+      this.indexer.fetchActiveTriggers({ limit: pageSize, offset }),
+    );
     if (triggers.length === 0) return [];
 
-    const { items: positions } = await this.indexer.fetchPositions({
-      status: 'open',
-      limit: 500,
-    });
+    const positions = await this.indexer.fetchAllPages((offset, pageSize) =>
+      this.indexer.fetchPositions({ status: 'open', limit: pageSize, offset }),
+    );
 
     const results: TaskResult[] = [];
     for (const trigger of triggers) {
@@ -57,20 +66,41 @@ export class TriggerService {
           const action = await this.resolveTriggerAction(position, trigger);
           if (!action) continue;
 
-          const tx = this.ptb.buildTriggerRedeem(cfg, position, 0n);
+          const minPayout = this.computeTriggerMinPayout(position, action.bid);
+          const tx = this.ptb.buildTriggerRedeem(cfg, position, minPayout);
           if (!(await this.sui.devInspect(tx))) {
+            results.push({
+              kind: 'trigger',
+              target,
+              success: false,
+              error: 'simulation_failed',
+            });
             continue;
           }
 
           const digest = await this.sui.execute(tx);
-          this.logger.log(`trigger ${action} ${target} digest=${digest}`);
+          this.logger.log(`trigger ${action.kind} ${target} digest=${digest}`);
           results.push({ kind: 'trigger', target, success: true, digest });
         } catch (err) {
-          this.logger.debug(`trigger skip ${target}: ${String(err)}`);
+          const error = String(err);
+          this.logger.warn(`trigger ${target}: ${error}`);
+          results.push({ kind: 'trigger', target, success: false, error });
         }
       }
     }
     return results;
+  }
+
+  private computeTriggerMinPayout(
+    position: LeveragedPosition,
+    bidPerUnit: number,
+  ): bigint {
+    const expected = redeemPayoutFromBid(
+      bidPerUnit,
+      position.open_quantity,
+      PREDICT_PRICE_SCALE,
+    );
+    return minPayoutAfterSlippage(expected, TRIGGER_REDEEM_SLIPPAGE_BPS);
   }
 
   private async resolveTriggerAction(
@@ -79,7 +109,7 @@ export class TriggerService {
       take_profit_premium: number;
       stop_loss_premium: number;
     },
-  ): Promise<'take_profit' | 'stop_loss' | null> {
+  ): Promise<{ kind: 'take_profit' | 'stop_loss'; bid: number } | null> {
     const book = await this.indexer.fetchOrderBook({
       oracleId: position.oracle_id,
       expiryMs: position.expiry_ms,
@@ -96,10 +126,10 @@ export class TriggerService {
       trigger.take_profit_premium > 0 &&
       bid >= trigger.take_profit_premium
     ) {
-      return 'take_profit';
+      return { kind: 'take_profit', bid };
     }
     if (trigger.stop_loss_premium > 0 && bid <= trigger.stop_loss_premium) {
-      return 'stop_loss';
+      return { kind: 'stop_loss', bid };
     }
     return null;
   }

@@ -63,7 +63,7 @@ export class KeeperOrchestratorService {
             {
               kind,
               target: '-',
-              success: true,
+              success: false,
               error: 'trading_paused',
             },
           ],

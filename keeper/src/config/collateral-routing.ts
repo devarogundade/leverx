@@ -1,6 +1,17 @@
 import type { CollateralCatalogEntry } from './collateral-catalog';
 import type { KeeperConfig } from './keeper.config';
 
+/** Quote Pyth feed used in every limit/liquidation PTB. */
+export function resolveQuoteOracleId(cfg: KeeperConfig): string {
+  if (cfg.pythQuoteOracleId.trim()) {
+    return cfg.pythQuoteOracleId.trim();
+  }
+  const quoteEntry = cfg.supportedCollaterals.find((c) =>
+    isQuoteNativeCollateral(c.coinType, cfg.quoteType),
+  );
+  return quoteEntry?.pythOracleId?.trim() ?? '';
+}
+
 export type CollateralRoute = {
   coinType: string;
   pythOracleId: string;
@@ -109,4 +120,22 @@ export function liquidationMinQuoteOut(
   slippageBps: number,
 ): bigint {
   return (borrowAmount * BigInt(10_000 - slippageBps)) / 10_000n;
+}
+
+/** Total redeem payout from a 1e9-scaled per-unit bid and contract quantity. */
+export function redeemPayoutFromBid(
+  bidPerUnit: number,
+  quantity: number,
+  priceScale: bigint,
+): bigint {
+  return (BigInt(bidPerUnit) * BigInt(quantity)) / priceScale;
+}
+
+/** Lower-bound payout after market-order slippage (for `min_payout` on redeems). */
+export function minPayoutAfterSlippage(
+  expectedPayout: bigint,
+  slippageBps: number,
+): bigint {
+  if (expectedPayout <= 0n || slippageBps <= 0) return 0n;
+  return (expectedPayout * BigInt(10_000 - slippageBps)) / 10_000n;
 }

@@ -5,5 +5,10 @@
   "testRegex": ".e2e-spec.ts$",
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "moduleNameMapper": {
+    "^@mysten/sui/transactions$": "<rootDir>/mocks/mysten-sui.ts",
+    "^@mysten/sui/jsonRpc$": "<rootDir>/mocks/mysten-sui.ts",
+    "^@mysten/sui/keypairs/ed25519$": "<rootDir>/mocks/mysten-sui.ts"
   }
 }

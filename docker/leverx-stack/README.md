@@ -19,7 +19,7 @@ docker compose up --build
 App:
 
 ```env
-VITE_SHIELD_INDEXER_URL=http://localhost:3001
+VITE_LEVERX_INDEXER_URL=http://localhost:3001
 ```
 
 ## Ports

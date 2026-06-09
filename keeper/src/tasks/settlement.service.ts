@@ -36,7 +36,9 @@ export class SettlementService {
 
     const cfg = this.sui.getConfig();
     const now = Date.now();
-    const { items } = await this.indexer.fetchPositions({ status: 'open', limit: 500 });
+    const items = await this.indexer.fetchAllPages((offset, pageSize) =>
+      this.indexer.fetchPositions({ status: 'open', limit: pageSize, offset }),
+    );
     const expired = items.filter(
       (p) => p.expiry_ms <= now && p.open_quantity > 0 && p.predict_manager_id,
     );
@@ -46,6 +48,15 @@ export class SettlementService {
       const target = `${position.account_id}:${position.position_key}`;
       try {
         const settled = await this.isOracleSettled(position.oracle_id);
+        if (settled === 'unreachable') {
+          results.push({
+            kind: 'settlement',
+            target,
+            success: false,
+            error: 'oracle_state_unreachable',
+          });
+          continue;
+        }
         if (!settled) {
           results.push({
             kind: 'settlement',
@@ -82,12 +93,19 @@ export class SettlementService {
     return results;
   }
 
-  private async isOracleSettled(oracleId: string): Promise<boolean> {
+  private async isOracleSettled(
+    oracleId: string,
+  ): Promise<boolean | 'unreachable'> {
     const url = `${this.sui.getConfig().predictServerUrl}/oracles/${oracleId}/state`;
-    const res = await fetch(url);
-    if (!res.ok) return false;
-    const state = (await res.json()) as OracleState;
-    if (state.is_settled === true) return true;
-    return String(state.status ?? '').toLowerCase() === 'settled';
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return false;
+      const state = (await res.json()) as OracleState;
+      if (state.is_settled === true) return true;
+      return String(state.status ?? '').toLowerCase() === 'settled';
+    } catch (err) {
+      this.logger.warn(`oracle state fetch failed for ${oracleId}: ${String(err)}`);
+      return 'unreachable';
+    }
   }
 }

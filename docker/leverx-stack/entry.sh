@@ -22,10 +22,6 @@ export RUST_LOG="${RUST_LOG:-info}"
 export DATABASE_URL="${DATABASE_URL:-postgres://leverx:leverx@postgres:5432/leverx_indexer}"
 export INDEXER_DATABASE_URL="${INDEXER_DATABASE_URL:-${DATABASE_URL}}"
 
-if [[ -z "${LEVERX_PACKAGE_ID:-}" && -n "${SHIELD_PACKAGE_ID:-}" ]]; then
-  export LEVERX_PACKAGE_ID="${SHIELD_PACKAGE_ID}"
-fi
-
 if command -v pg_isready >/dev/null 2>&1; then
   PGHOST="${PGHOST:-postgres}"
   PGPORT="${PGPORT:-5432}"
@@ -70,6 +66,7 @@ echo "starting leverx-server on port ${LEVERX_API_PORT}..."
 /opt/mysten/bin/leverx-server --port "${LEVERX_API_PORT}" &
 SERVER_PID=$!
 
-echo "starting keeper on port ${PORT:-3001}..."
+export INDEXER_URL="${INDEXER_URL:-http://127.0.0.1:${LEVERX_API_PORT:-3100}}"
+echo "starting keeper on port ${PORT:-3001} (indexer ${INDEXER_URL})..."
 cd /opt/leverx/keeper
 node dist/main.js

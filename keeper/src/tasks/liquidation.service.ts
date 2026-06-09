@@ -46,7 +46,14 @@ export class LiquidationService {
       return [{ kind: 'liquidation', target: '-', success: false, error: 'missing_signer' }];
     }
 
-    const { items } = await this.indexer.fetchLiquidationCandidates(500);
+    const items = await this.indexer.fetchAllPages((offset, pageSize) =>
+      this.indexer.fetchPositions({
+        status: 'all',
+        minBorrowQuote: 1,
+        limit: pageSize,
+        offset,
+      }),
+    );
     const candidates = items.filter(
       (p) =>
         p.borrow_quote > 0 &&
@@ -95,6 +102,12 @@ export class LiquidationService {
           keeper,
         );
         if (!(await this.sui.devInspect(tx))) {
+          results.push({
+            kind: 'liquidation',
+            target,
+            success: false,
+            error: 'simulation_failed',
+          });
           continue;
         }
 
@@ -103,7 +116,8 @@ export class LiquidationService {
         results.push({ kind: 'liquidation', target, success: true, digest });
       } catch (err) {
         const error = String(err);
-        this.logger.debug(`liquidation skip ${target}: ${error}`);
+        this.logger.warn(`liquidation ${target}: ${error}`);
+        results.push({ kind: 'liquidation', target, success: false, error });
       }
     }
     return results;
