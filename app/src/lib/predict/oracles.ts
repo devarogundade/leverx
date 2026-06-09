@@ -83,6 +83,22 @@ export function isOracleActiveStatus(status: string | undefined): boolean {
   return status?.toLowerCase() === "active";
 }
 
+export function isOracleSettledStatus(status: string | undefined): boolean {
+  return status?.toLowerCase() === "settled";
+}
+
+/** Oracle has completed settlement (markets catalog "Closed" tab). */
+export function isSettledOracleRow(row: PredictOracleSummary): boolean {
+  if (!row.oracle_id) return false;
+  if (isOracleSettledStatus(row.status)) return true;
+  return row.settled_at != null && row.settled_at > 0;
+}
+
+/** Oracle not yet settled (markets catalog "Live" tab). */
+export function isLiveOracleRow(row: PredictOracleSummary): boolean {
+  return Boolean(row.oracle_id) && !isSettledOracleRow(row);
+}
+
 /** Predict list row is active, non-expired, and has an oracle id. */
 export function isActiveOracleRow(row: PredictOracleSummary, now = Date.now()): boolean {
   if (!row.oracle_id) return false;
@@ -91,9 +107,9 @@ export function isActiveOracleRow(row: PredictOracleSummary, now = Date.now()): 
   return expiryMs > now;
 }
 
-/** Settled, expired, or otherwise non-tradeable oracle row. */
-export function isClosedOracleRow(row: PredictOracleSummary, now = Date.now()): boolean {
-  return Boolean(row.oracle_id) && !isActiveOracleRow(row, now);
+/** @deprecated Use isSettledOracleRow for catalog tabs. */
+export function isClosedOracleRow(row: PredictOracleSummary): boolean {
+  return isSettledOracleRow(row);
 }
 
 /** Active Predict oracle that settles protection for a margin base asset. */

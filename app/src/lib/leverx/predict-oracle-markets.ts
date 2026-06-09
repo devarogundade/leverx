@@ -6,7 +6,7 @@ import {
   type LeverxMarketRow,
 } from "@/lib/leverx/indexer-markets";
 import { FLOAT_SCALING } from "@/lib/predict/constants";
-import { isActiveOracleRow, isClosedOracleRow } from "@/lib/predict/oracles";
+import { isActiveOracleRow, isLiveOracleRow, isSettledOracleRow } from "@/lib/predict/oracles";
 import type { PredictOracleSummary } from "@/lib/predict/types";
 
 const SCALE = Number(FLOAT_SCALING);
@@ -208,11 +208,11 @@ function oraclesForCategory(
   category: MarketCategory,
 ): PredictOracleSummary[] {
   if (category === "Live") {
-    return oracles.filter((o) => isActiveOracleRow(o));
+    return oracles.filter((o) => isLiveOracleRow(o));
   }
 
   if (category === "Closed") {
-    return oracles.filter((o) => isClosedOracleRow(o));
+    return oracles.filter((o) => isSettledOracleRow(o));
   }
 
   return oracles.filter((o) => Boolean(o.oracle_id));
@@ -264,7 +264,7 @@ export function mergeOracleMarkets(args: {
       continue;
     }
 
-    if (category !== "Live" || !isActiveOracleRow(oracle)) continue;
+    if (isSettledOracleRow(oracle)) continue;
 
     const spot =
       spotByOracle?.get(oracle.oracle_id) ??

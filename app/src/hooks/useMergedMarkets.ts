@@ -7,7 +7,7 @@ import {
   mergeOracleMarkets,
   type MarketCategory,
 } from "@/lib/leverx/predict-oracle-markets";
-import { isActiveOracleRow, isClosedOracleRow } from "@/lib/predict/oracles";
+import { isLiveOracleRow, isSettledOracleRow } from "@/lib/predict/oracles";
 
 export function useMergedMarkets(args: {
   category: MarketCategory;
@@ -26,12 +26,12 @@ export function useMergedMarkets(args: {
 
   const spotOracleIds = useMemo(() => {
     if (args.category === "Closed") {
-      return oracles.filter((o) => isClosedOracleRow(o)).map((o) => o.oracle_id);
+      return oracles.filter((o) => isSettledOracleRow(o)).map((o) => o.oracle_id);
     }
     if (args.category === "All") {
       return oracles.filter((o) => o.oracle_id).map((o) => o.oracle_id);
     }
-    return oracles.filter((o) => isActiveOracleRow(o)).map((o) => o.oracle_id);
+    return oracles.filter((o) => isLiveOracleRow(o)).map((o) => o.oracle_id);
   }, [oracles, args.category]);
 
   const { data: spotMap } = useOracleSpotMap(spotOracleIds);
