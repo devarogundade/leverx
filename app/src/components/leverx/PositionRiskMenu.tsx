@@ -15,7 +15,7 @@ import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { centsToPremiumRaw, marginUsdToQuoteAtoms } from "@/lib/leverx/trade-math";
 import { scaleQuote } from "@/lib/predict/scaling";
 import { cn } from "@/lib/utils";
-import { pillToggleBtn, pillToggleIdle } from "@/lib/leverx/tw";
+import { inputInField, pillToggleBtn, pillToggleIdle } from "@/lib/leverx/tw";
 
 interface Props {
   position: LeveragedPosition;
@@ -38,6 +38,9 @@ export function PositionRiskMenu({ position, owner, className }: Props) {
     closePosition.isPending || settleExpired.isPending || repayDebt.isPending;
   const expired = position.expiry_ms > 0 && position.expiry_ms < Date.now();
   const hasDebt = position.borrow_quote > 0;
+  const borrowedUsd = scaleQuote(position.borrow_quote);
+  const repayNum = parseFloat(repayUsd) || 0;
+  const repayExceedsDebt = repayNum > borrowedUsd + 1e-6;
 
   const onError = (err: unknown) => window.alert(formatTxError(err));
 
@@ -82,10 +85,13 @@ export function PositionRiskMenu({ position, owner, className }: Props) {
             </p>
             <Input
               type="number"
+              inputMode="decimal"
+              min={0.1}
+              step={0.1}
               placeholder="Min bid (¢)"
               value={limitCents}
               onChange={(e) => setLimitCents(e.target.value)}
-              className="font-mono text-sm"
+              className={cn(inputInField, "h-9 rounded-md border border-border px-3 font-mono text-sm")}
             />
             <button
               type="button"
@@ -120,21 +126,28 @@ export function PositionRiskMenu({ position, owner, className }: Props) {
                 <InfoPopover side="left">{leverxInfo.repayDebt}</InfoPopover>
               </p>
               <p className="text-xs text-muted-foreground">
-                Borrowed {scaleQuote(position.borrow_quote).toFixed(2)} USDC
+                Borrowed {borrowedUsd.toFixed(2)} USDC
               </p>
               <Input
                 type="number"
+                inputMode="decimal"
+                min={0}
+                step={0.01}
                 placeholder="Repay USDC"
                 value={repayUsd}
                 onChange={(e) => setRepayUsd(e.target.value)}
-                className="font-mono text-sm"
+                className={cn(inputInField, "h-9 rounded-md border border-border px-3 font-mono text-sm")}
               />
+              {repayExceedsDebt ? (
+                <p className="text-xs text-destructive">Amount exceeds borrowed balance.</p>
+              ) : null}
               <button
                 type="button"
                 className={cn(pillToggleBtn, pillToggleIdle, "w-full")}
+                disabled={repayExceedsDebt}
                 onClick={() => {
                   const usd = parseFloat(repayUsd);
-                  if (!Number.isFinite(usd) || usd <= 0) return;
+                  if (!Number.isFinite(usd) || usd <= 0 || usd > borrowedUsd + 1e-6) return;
                   repayDebt.mutate(
                     { position, amountAtoms: marginUsdToQuoteAtoms(usd) },
                     { onError },

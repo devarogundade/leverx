@@ -34,11 +34,11 @@ RUN chmod +x /opt/leverx/bin/leverx-indexer /opt/leverx/bin/leverx-server /entry
 
 WORKDIR /opt/leverx
 
-EXPOSE 3100 9186
+EXPOSE 3100 9184
 
 ENV RUST_BACKTRACE=1
 ENV RUST_LOG=info
 ENV LEVERX_API_PORT=3100
-ENV METRICS_PORT=9186
+ENV METRICS_PORT=9184
 
 ENTRYPOINT ["/entry.sh"]

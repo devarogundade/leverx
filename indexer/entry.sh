@@ -45,7 +45,7 @@ fi
 /opt/leverx/bin/leverx-indexer "${indexer_args[@]}" &
 INDEXER_PID=$!
 
-METRICS_PORT="${METRICS_PORT:-9186}"
+METRICS_PORT="${METRICS_PORT:-9184}"
 echo "waiting for indexer metrics on :${METRICS_PORT}..."
 indexer_ready=false
 for _ in $(seq 1 90); do

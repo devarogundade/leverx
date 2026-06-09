@@ -8,7 +8,7 @@ import {
 } from "@/lib/leverx/constants";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import { cn } from "@/lib/utils";
-import { labelCaps, pillToggleActive, pillToggleBtn, pillToggleGroup, pillToggleIdle } from "@/lib/leverx/tw";
+import { inputInField, labelCaps, pillToggleActive, pillToggleBtn, pillToggleGroup, pillToggleIdle } from "@/lib/leverx/tw";
 import type { LimitExecutionMode } from "@/lib/leverx/transactions";
 
 interface Props {
@@ -96,8 +96,11 @@ export function SlippagePopover({
             min={0.1}
             step={0.1}
             value={placementSlippagePct}
-            onChange={(e) => onPlacementSlippageChange(parseFloat(e.target.value) || 0)}
-            className="mt-2 font-mono"
+            onChange={(e) => {
+              const next = parseFloat(e.target.value);
+              onPlacementSlippageChange(Number.isFinite(next) && next >= 0.1 ? next : 0.1);
+            }}
+            className={cn(inputInField, "mt-2 h-9 rounded-md border border-border px-3 font-mono")}
           />
         </div>
         <div>

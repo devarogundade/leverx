@@ -12,6 +12,7 @@ import { appConfig } from "@/lib/config";
 import { lxplpCoinType } from "@/lib/leverx/protocol";
 import { formatCollateralAmount } from "@/lib/predict/quote-assets";
 import { QUOTE_UNIT } from "@/lib/predict/constants";
+import { buildQuickAmounts } from "@/lib/leverx/form-helpers";
 import { ui } from "@/lib/copy";
 import { formatUsdcOrPlaceholder } from "@/lib/leverx/placeholders";
 import {
@@ -25,14 +26,6 @@ import {
 } from "@/lib/leverx/tw";
 
 type VaultAction = "supply" | "withdraw";
-
-const QUICK_AMOUNTS = [
-  { label: "10%", value: "100" },
-  { label: "25%", value: "250" },
-  { label: "50%", value: "500" },
-  { label: "75%", value: "750" },
-  { label: "MAX", value: "1000" },
-] as const;
 
 interface Props {
   vaultNav?: number | null;
@@ -83,7 +76,12 @@ export function PredictVaultLiquidityPanel({ vaultNav, vaultId, className }: Pro
     lxplpType,
   ]);
 
+  const walletBalance = action === "supply" ? quoteBalance : lxplpBalance;
+  const quickAmounts = useMemo(() => buildQuickAmounts(walletBalance), [walletBalance]);
+
   const amountNum = parseFloat(amount) || 0;
+  const exceedsBalance =
+    walletBalance != null && amountNum > 0 && amountNum > walletBalance + 1e-6;
   const pending = vaultSupply.isPending || vaultWithdraw.isPending;
 
   const handleSubmit = () => {
@@ -158,15 +156,21 @@ export function PredictVaultLiquidityPanel({ vaultNav, vaultId, className }: Pro
             </span>
           </div>
           <TradeAmountInput
+            type="number"
+            inputMode="decimal"
+            min={0}
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             suffix={<span className="text-sm text-muted-foreground">{symbol}</span>}
           />
           <TradeQuickAmounts
             className="mt-2"
-            amounts={QUICK_AMOUNTS}
+            amounts={quickAmounts}
             onPick={(v) => setAmount(v)}
           />
+          {exceedsBalance ? (
+            <p className="mt-2 text-xs text-destructive">Amount exceeds wallet balance.</p>
+          ) : null}
         </div>
 
         {!isProtocolReady && isWalletConnected ? (
@@ -181,7 +185,7 @@ export function PredictVaultLiquidityPanel({ vaultNav, vaultId, className }: Pro
           <button
             type="button"
             className={btnTradeSignin}
-            disabled={!isProtocolReady || amountNum <= 0 || pending}
+            disabled={!isProtocolReady || amountNum <= 0 || exceedsBalance || pending}
             onClick={handleSubmit}
           >
             {pending ? (

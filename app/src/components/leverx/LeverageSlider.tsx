@@ -28,8 +28,6 @@ function formatLeverage(value: number): string {
 interface Props {
   value: number;
   onChange: (value: number) => void;
-  margin?: number;
-  collateralSymbol?: string;
   className?: string;
 }
 

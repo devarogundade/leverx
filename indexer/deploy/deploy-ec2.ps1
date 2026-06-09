@@ -77,7 +77,7 @@ function Ensure-SecurityGroup {
     }
 
     $sg = aws ec2 create-security-group --group-name $SgName --description "LeverX indexer API + SSH" --vpc-id $VpcId --query GroupId --output text
-    foreach ($port in @(22, 80, 443, 3100, 9186)) {
+    foreach ($port in @(22, 80, 443, 3100, 9184)) {
         aws ec2 authorize-security-group-ingress --group-id $sg --protocol tcp --port $port --cidr 0.0.0.0/0 | Out-Null
     }
     Write-Host "Created security group: $sg"

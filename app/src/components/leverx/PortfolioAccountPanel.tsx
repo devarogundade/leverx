@@ -14,7 +14,8 @@ import type { LeveragedPosition, UserProxy } from "@/lib/leverx/indexer-client";
 import { premiumRawToCents } from "@/lib/leverx/trade-math";
 import { formatUsdcOrPlaceholder } from "@/lib/leverx/placeholders";
 import { scaleAtoms, scaleQuote } from "@/lib/predict/scaling";
-import { labelCaps, pillToggleBtn, pillToggleIdle, tradeSurface } from "@/lib/leverx/tw";
+import { isValidSuiAddress } from "@/lib/leverx/form-helpers";
+import { inputInField, labelCaps, pillToggleBtn, pillToggleIdle, tradeSurface } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -54,6 +55,8 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
 
   const [executorAddress, setExecutorAddress] = useState("");
   const [managerId, setManagerId] = useState(account.predict_manager_id ?? "");
+  const managerValid = !managerId || isValidSuiAddress(managerId);
+  const executorValid = !executorAddress || isValidSuiAddress(executorAddress);
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -74,12 +77,15 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
               value={managerId}
               onChange={(e) => setManagerId(e.target.value)}
               placeholder="0x…"
-              className="min-w-0 font-mono text-xs"
+              className={cn(inputInField, "min-w-0 h-9 rounded-md border border-border px-3 font-mono text-xs")}
             />
+            {!managerValid ? (
+              <p className="text-xs text-destructive">Enter a valid Sui address (0x + 64 hex chars).</p>
+            ) : null}
             <button
               type="button"
               className={cn(pillToggleBtn, pillToggleIdle, "shrink-0 px-3 sm:self-start")}
-              disabled={!isProtocolReady || !managerId || linkManager.isPending}
+              disabled={!isProtocolReady || !managerId || !managerValid || linkManager.isPending}
               onClick={() =>
                 linkManager.mutate(
                   { accountId, managerId },
@@ -102,12 +108,15 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
               value={executorAddress}
               onChange={(e) => setExecutorAddress(e.target.value)}
               placeholder="Wallet address"
-              className="min-w-0 font-mono text-xs"
+              className={cn(inputInField, "min-w-0 h-9 rounded-md border border-border px-3 font-mono text-xs")}
             />
+            {!executorValid ? (
+              <p className="text-xs text-destructive">Enter a valid Sui address (0x + 64 hex chars).</p>
+            ) : null}
             <button
               type="button"
               className={cn(pillToggleBtn, pillToggleIdle, "shrink-0 px-3 sm:self-start")}
-              disabled={!isProtocolReady || !executorAddress || registerExecutor.isPending}
+              disabled={!isProtocolReady || !executorAddress || !executorValid || registerExecutor.isPending}
               onClick={() =>
                 registerExecutor.mutate(
                   { accountId, executor: executorAddress },

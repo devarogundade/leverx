@@ -3764,6 +3764,12 @@ select {
   border-radius: 6px;
 }
 
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  box-shadow: none;
+}
+
 /* ── Premium reveal animations ──────────────────────────────────── */
 @keyframes lx-fade-up {
   from {
@@ -4130,10 +4136,6 @@ select,
   background: var(--color-input);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-}
-.trade-input-card:focus-within {
-  border-color: color-mix(in oklab, var(--brand-500) 60%, var(--color-border));
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand-500) 22%, transparent);
 }
 
 /* ── Buttons — global shadcn polish ─────────────────────────────── */

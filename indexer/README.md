@@ -71,7 +71,7 @@ docker build -f indexer/Dockerfile -t devarogundade/leverx-indexer:latest .
 docker push devarogundade/leverx-indexer:latest
 ```
 
-Required env: `DATABASE_URL`, `LEVERX_PACKAGE_ID`, `PREDICT_PACKAGE_ID`. Optional: `FIRST_CHECKPOINT`, `LEVERX_API_PORT` (default 3100), `METRICS_PORT` (default 9186).
+Required env: `DATABASE_URL`, `LEVERX_PACKAGE_ID`, `PREDICT_PACKAGE_ID`. Optional: `FIRST_CHECKPOINT`, `LEVERX_API_PORT` (default 3100), `METRICS_PORT` (default 9184, Sui framework default).
 
 ## HTTP API (`leverx-server`)
 

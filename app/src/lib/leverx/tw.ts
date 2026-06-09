@@ -24,6 +24,7 @@ export const tradeLeveragePanel = cn(
 /** Amount / limit price input wrapper */
 export const tradeInputCard = cn(
   "rounded-lg border border-border bg-card px-5 py-4",
+  "outline-none ring-0 focus-within:outline-none focus-within:ring-0 focus-within:shadow-none",
   "[&_input]:border-0 [&_input]:bg-transparent [&_input]:shadow-none",
   "[&_input]:outline-none [&_input]:ring-0 [&_input]:focus-visible:outline-none [&_input]:focus-visible:ring-0",
 );

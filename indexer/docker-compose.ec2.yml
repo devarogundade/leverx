@@ -24,7 +24,7 @@ services:
       dockerfile: indexer/Dockerfile
     ports:
       - "3100:3100"
-      - "9186:9186"
+      - "9184:9184"
     environment:
       DATABASE_URL: postgres://leverx:leverx@postgres:5432/leverx_indexer
       INDEXER_DATABASE_URL: postgres://leverx:leverx@postgres:5432/leverx_indexer
@@ -37,7 +37,7 @@ services:
       FIRST_CHECKPOINT: "345900000"
       CORS_ORIGIN: "https://suileverx.xyz"
       LEVERX_API_PORT: "3100"
-      METRICS_PORT: "9186"
+      METRICS_PORT: "9184"
     depends_on:
       postgres:
         condition: service_healthy

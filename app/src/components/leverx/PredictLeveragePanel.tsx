@@ -45,7 +45,9 @@ import {
 } from "@/lib/leverx/trade-math";
 import { positionKeyFromArgs, type MarketKeyArgs } from "@/lib/leverx/market-keys";
 import { resolveCollateralRoute } from "@/lib/leverx/protocol";
+import { buildQuickAmounts } from "@/lib/leverx/form-helpers";
 import { tradeCtaLabel, tradeNeedsDeposit } from "@/lib/leverx/trade-cta";
+import { ui } from "@/lib/copy";
 import { Loader2 } from "lucide-react";
 import {
   tradeCtaClass,
@@ -88,14 +90,6 @@ function coinTypeSymbol(coinType: string): string {
   return parts[parts.length - 1]?.toUpperCase() ?? "COIN";
 }
 
-const QUICK_AMOUNTS = [
-  { label: "10%", value: "1" },
-  { label: "25%", value: "2.5" },
-  { label: "50%", value: "5" },
-  { label: "75%", value: "7.5" },
-  { label: "MAX", value: "10" },
-] as const;
-
 const UNIT_OPTIONS = [
   { value: "pct", label: "%" },
   { value: "cents", label: "¢" },
@@ -125,7 +119,6 @@ export function PredictLeveragePanel({
   );
   const [collateralAsset, setCollateralAsset] = useState("");
   const [margin, setMargin] = useState("");
-  const [quantity, setQuantity] = useState("1");
   const [leverage, setLeverage] = useState(1.1);
   const [placementSlippagePct, setPlacementSlippagePct] = useState(5);
   const [orderExpiresHours, setOrderExpiresHours] =
@@ -149,10 +142,11 @@ export function PredictLeveragePanel({
   );
 
   useEffect(() => {
+    if (orderType !== "limit") return;
     if (lastAskPremium && lastAskPremium > 0) {
       setLimitPrice(premiumToCents(lastAskPremium).toFixed(1));
     }
-  }, [lastAskPremium]);
+  }, [lastAskPremium, orderType]);
   const { data: walletBalance, isLoading: balanceLoading } = useWalletCoinBalance(
     collateralAsset || null,
     selectedCatalogEntry?.decimals,
@@ -192,7 +186,8 @@ export function PredictLeveragePanel({
     strikeRaw ??
     (rangeLower && rangeUpper ? Math.round((rangeLower + rangeUpper) / 2) : undefined);
   const canSwitchOutcome = !!(outcomeStrike || (rangeLower && rangeUpper));
-  const quantityNum = parseInt(quantity, 10) || 0;
+  const quantityNum = 1;
+  const rangeFromChart = isRange && lowerStrikeRaw != null && upperStrikeRaw != null;
   const collateralSpotUsd =
     oracleState?.spot_price && oracleState.spot_price > 0
       ? oracleState.spot_price / 1e9
@@ -288,6 +283,50 @@ export function PredictLeveragePanel({
     [side, orderType, needsDeposit],
   );
 
+  const quoteBalanceLabel = useMemo(() => {
+    if (walletQuoteBalance == null) return "—";
+    return formatCollateralAmount(appConfig.quoteType, walletQuoteBalance);
+  }, [walletQuoteBalance]);
+
+  const quickAmounts = useMemo(
+    () => buildQuickAmounts(walletQuoteBalance),
+    [walletQuoteBalance],
+  );
+
+  const validationErrors = useMemo(() => {
+    const errors: string[] = [];
+    if (marginNum > 0 && walletQuoteBalance != null && marginNum > walletQuoteBalance + 1e-6) {
+      errors.push("Deposit exceeds available USDC balance.");
+    }
+    if (orderType === "limit") {
+      const cents = parseFloat(limitPrice);
+      if (!Number.isFinite(cents) || cents <= 0) {
+        errors.push("Enter a limit price above 0¢.");
+      }
+      if (placementSlippagePct < 0.1) {
+        errors.push("Slippage must be at least 0.1%.");
+      }
+    }
+    if (isRange && !rangeFromChart) {
+      const lower = parseFloat(lowerStrike);
+      const upper = parseFloat(upperStrike);
+      if (Number.isFinite(lower) && Number.isFinite(upper) && lower >= upper) {
+        errors.push("Range low must be below high end.");
+      }
+    }
+    return errors;
+  }, [
+    marginNum,
+    walletQuoteBalance,
+    orderType,
+    limitPrice,
+    placementSlippagePct,
+    isRange,
+    rangeFromChart,
+    lowerStrike,
+    upperStrike,
+  ]);
+
   const { data: mintQuote, isLoading: quoteLoading } = useLeverxMintQuote({
     key: tradeKey,
     collateralCoinType: collateralAsset || appConfig.quoteType,
@@ -305,9 +344,9 @@ export function PredictLeveragePanel({
     isProtocolReady &&
     !protocol?.trading_paused &&
     marginNum > 0 &&
-    quantityNum > 0 &&
     expiryMs &&
     expiryMs > 0 &&
+    validationErrors.length === 0 &&
     (isRange
       ? (lowerStrike || lowerStrikeRaw) && (upperStrike || upperStrikeRaw)
       : strikeRaw && strikeRaw > 0);
@@ -477,58 +516,72 @@ export function PredictLeveragePanel({
       <div className="flex flex-col space-y-5 p-4">
         {isRange ? (
           <div>
-            <div className="space-y-3">
-              <LabelWithInfo
-                className="mb-3"
-                labelClassName="text-xs text-muted-foreground"
-                label="Range bet — pays if the final price lands inside your band."
-                info={leverxInfo.rangeMarket}
-              />
-              <div>
-                <LabelWithInfo
-                  className={cn(labelCaps, "mb-2")}
-                  label="Low end"
-                  labelClassName={labelCaps}
-                  info={leverxInfo.lowerStrike}
-                />
-                <TradeAmountInput
-                  prefix="$"
-                  large
-                  value={lowerStrike}
-                  onChange={(e) => setLowerStrike(e.target.value)}
-                  placeholder="0"
-                />
+            <LabelWithInfo
+              className="mb-2"
+              labelClassName="text-xs text-muted-foreground"
+              label="Range bet — pays if the final price lands inside your band."
+              info={leverxInfo.rangeMarket}
+            />
+            {rangeFromChart ? (
+              <p className="font-mono text-sm text-foreground">
+                ${(lowerStrikeRaw! / 1e9).toLocaleString()} – ${(upperStrikeRaw! / 1e9).toLocaleString()}
+              </p>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <LabelWithInfo
+                    className={cn(labelCaps, "mb-2")}
+                    label="Low end"
+                    labelClassName={labelCaps}
+                    info={leverxInfo.lowerStrike}
+                  />
+                  <TradeAmountInput
+                    prefix="$"
+                    large
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    value={lowerStrike}
+                    onChange={(e) => setLowerStrike(e.target.value)}
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <LabelWithInfo
+                    className={cn(labelCaps, "mb-2")}
+                    label="High end"
+                    labelClassName={labelCaps}
+                    info={leverxInfo.upperStrike}
+                  />
+                  <TradeAmountInput
+                    prefix="$"
+                    large
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    value={upperStrike}
+                    onChange={(e) => setUpperStrike(e.target.value)}
+                    placeholder="0"
+                  />
+                </div>
               </div>
-              <div>
-                <LabelWithInfo
-                  className={cn(labelCaps, "mb-2")}
-                  label="High end"
-                  labelClassName={labelCaps}
-                  info={leverxInfo.upperStrike}
-                />
-                <TradeAmountInput
-                  prefix="$"
-                  large
-                  value={upperStrike}
-                  onChange={(e) => setUpperStrike(e.target.value)}
-                  placeholder="0"
-                />
-              </div>
-            </div>
+            )}
           </div>
         ) : orderType === "limit" ? (
           <div>
-            <div className="mb-2 flex justify-between text-xs text-muted-foreground">
+            <div className="mb-2">
               <LabelWithInfo
                 label={`Limit price (${predictSideLabel[side]})`}
+                labelClassName={labelCaps}
                 info={leverxInfo.limitPrice}
               />
-              <span>
-                Bal. <span className="font-mono text-foreground">{balanceLabel}</span>
-              </span>
             </div>
             <TradeAmountInput
               large
+              type="number"
+              inputMode="decimal"
+              min={0.1}
+              step={0.1}
               value={limitPrice}
               onChange={(e) => setLimitPrice(e.target.value)}
               suffix={<span className="text-sm text-muted-foreground">¢</span>}
@@ -572,9 +625,10 @@ export function PredictLeveragePanel({
               labelClassName={labelCaps}
               info={leverxInfo.margin}
             />
-            {collateralSymbol ? (
-              <span className="text-xs font-mono text-muted-foreground">{collateralSymbol}</span>
-            ) : null}
+            <span className="text-xs text-muted-foreground">
+              {ui.balanceAvailable}{" "}
+              <span className="font-mono text-foreground">{quoteBalanceLabel}</span>
+            </span>
           </div>
           <TradeAmountInput
             prefix={<span className="font-mono text-sm">$</span>}
@@ -591,7 +645,7 @@ export function PredictLeveragePanel({
             }
           />
           <div className="mt-2">
-            <TradeQuickAmounts amounts={QUICK_AMOUNTS} onPick={setMargin} />
+            <TradeQuickAmounts amounts={quickAmounts} onPick={setMargin} />
           </div>
           {marginNum > 0 && collateralSymbol ? (
             <p className="mt-2 text-xs text-muted-foreground">
@@ -603,29 +657,7 @@ export function PredictLeveragePanel({
           ) : null}
         </div>
 
-        <div>
-          <LabelWithInfo
-            className={cn(labelCaps, "mb-2")}
-            label="Size (contracts)"
-            labelClassName={labelCaps}
-            info={leverxInfo.quantity}
-          />
-          <TradeAmountInput
-            type="number"
-            inputMode="numeric"
-            min={1}
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            placeholder="1"
-          />
-        </div>
-
-        <LeverageSlider
-          value={leverage}
-          onChange={setLeverage}
-          margin={marginNum > 0 ? marginNum : undefined}
-          collateralSymbol={collateralSymbol || undefined}
-        />
+        <LeverageSlider value={leverage} onChange={setLeverage} />
 
         <TradeQuoteSummary quote={mintQuote} isLoading={quoteLoading} />
 
@@ -688,6 +720,11 @@ export function PredictLeveragePanel({
             <InfoPopover title="Setup">{leverxInfo.protocolNotConfigured}</InfoPopover>
           </p>
         ) : null}
+        {validationErrors.map((err) => (
+          <p key={err} className="text-xs text-destructive">
+            {err}
+          </p>
+        ))}
         {txError ? <p className="text-xs text-destructive">{txError}</p> : null}
         {isWalletConnected ? (
           <button
