@@ -10,6 +10,7 @@ import {
 import type { ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import "@/lib/chunk-reload";
 import { Button } from "@/components/ui/button";
 import { APP_NAME } from "../lib/brand";
 import { IndexerStreamProvider } from "../context/IndexerStreamContext";

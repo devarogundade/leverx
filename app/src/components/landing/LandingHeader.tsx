@@ -33,15 +33,6 @@ export function LandingHeader() {
         </Link>
 
         <nav className="landing-header-nav" aria-label="Landing navigation">
-          <a href="#leverage" className="landing-header-link" onClick={closeMenu}>
-            Traders
-          </a>
-          <a href="#markets-feature" className="landing-header-link" onClick={closeMenu}>
-            Markets
-          </a>
-          <a href="#earners" className="landing-header-link" onClick={closeMenu}>
-            Earners
-          </a>
           <Link to="/guide" className="landing-header-link" onClick={closeMenu}>
             Guide
           </Link>
@@ -87,15 +78,6 @@ export function LandingHeader() {
           />
           <div className="landing-mobile-menu lg:hidden">
             <nav className="flex flex-col gap-1" aria-label="Landing navigation">
-              <a href="#leverage" className="landing-mobile-menu-link" onClick={closeMenu}>
-                Traders
-              </a>
-              <a href="#markets-feature" className="landing-mobile-menu-link" onClick={closeMenu}>
-                Markets
-              </a>
-              <a href="#earners" className="landing-mobile-menu-link" onClick={closeMenu}>
-                Earners
-              </a>
               <Link to="/guide" className="landing-mobile-menu-link" onClick={closeMenu}>
                 Guide
               </Link>
