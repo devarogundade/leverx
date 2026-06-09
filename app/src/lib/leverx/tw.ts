@@ -347,7 +347,7 @@ export const tradeMobileDockTabActive = "bg-hover font-semibold text-foreground"
 
 export const tradeTerminalMobileBody = "max-md:pb-[calc(2.75rem+env(safe-area-inset-bottom,0px))]";
 
-export const tradeTerminalMobileChartPanel = "trade-terminal-mobile-chart flex min-h-0 flex-1 flex-col";
+export const tradeTerminalMobileChartPanel = "trade-terminal-mobile-chart flex flex-col";
 
 export const tradeSummaryGrid = "grid w-full grid-cols-2 gap-3 sm:grid-cols-4";
 
