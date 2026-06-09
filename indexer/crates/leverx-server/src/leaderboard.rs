@@ -1,3 +1,5 @@
+//! LeverX leveraged-trade volume leaderboard (`user_points` from `market_trades` open/close).
+
 use axum::http::StatusCode;
 use diesel::prelude::*;
 use diesel::sql_query;

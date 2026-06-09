@@ -86,7 +86,7 @@ function PointsPage() {
       <div>
         <h1 className={pageSimpleTitle}>Points</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Leaderboard ranked by indexed trading volume (LVX points = quote notional).
+          Leaderboard ranked by LeverX leveraged trading volume (LVX points = quote notional).
         </p>
       </div>
 
@@ -96,7 +96,7 @@ function PointsPage() {
         <EmptyState
           icon={Trophy}
           title="No rankings yet"
-          description="Trade leveraged Predict positions to appear on the volume leaderboard."
+          description="Open or close leveraged positions on LeverX to appear on the volume leaderboard."
         />
       ) : (
         <div className="rounded-lg border border-border">

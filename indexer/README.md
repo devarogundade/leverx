@@ -60,7 +60,7 @@ Production checkpoint sources: [Sui custom indexer build guide](https://docs.sui
 | `position_triggers` | `TriggersUpdated/Cleared` |
 | `proxy_executors` | `ExecutorRegistered/Revoked` |
 | `liquidations` | `PositionLiquidated` |
-| `user_points` | Volume leaderboard (`LeveragedPositionOpened/Closed`, Predict mint/redeem) |
+| `user_points` | LeverX volume leaderboard (`LeveragedPositionOpened` / `LeveragedPositionClosed` only) |
 
 ## Docker
 
@@ -80,7 +80,7 @@ Required env: `DATABASE_URL`, `LEVERX_PACKAGE_ID`, `PREDICT_PACKAGE_ID`. Optiona
 | `GET /health` | Liveness |
 | `WS /v1/ws` | Live stream (orderbook, trades, positions, limits) — see below |
 | `GET /v1/markets/catalog?oracle_id&is_range` | Volume-ranked market catalog (global + LeverX trades) |
-| `GET /v1/points/leaderboard?limit&offset` | Volume-based user leaderboard |
+| `GET /v1/points/leaderboard?limit&offset` | LeverX volume leaderboard (leveraged open/close only) |
 | `GET /v1/points/:owner` | Single trader rank + stats |
 | `GET /v1/orderbook?oracle_id&expiry_ms&strike&is_up&is_range&higher_strike` | Bid depth + synthetic asks |
 | `GET /v1/limit-orders?account_id&status&oracle_id` | Resting / filled limits |

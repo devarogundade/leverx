@@ -1,4 +1,5 @@
-//! Incremental volume → points updates for the user leaderboard.
+//! Incremental volume → points updates for the LeverX leaderboard.
+//! Only leveraged open/close trades (`market_trades`) count — not standalone Predict mint/redeem.
 
 use crate::handlers::{LeverxBatch, UserPointsPatch};
 
