@@ -44,7 +44,7 @@ export function useLeverxTransactions() {
     }
     if (!cfg) {
       throw new Error(
-        "LeverX protocol is not fully configured. Set registry, vault, fee collector, and Pyth oracle IDs.",
+        "LeverX protocol is not fully configured. Set registry, vault, and fee collector IDs.",
       );
     }
     return { wallet, account, cfg };

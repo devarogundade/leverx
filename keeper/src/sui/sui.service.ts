@@ -2,16 +2,8 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
-import {
-  Transaction,
-  type TransactionObjectArgument,
-} from '@mysten/sui/transactions';
-import {
-  liquidationRoutesReady,
-  resolveQuoteOracleId,
-} from '../config/collateral-routing';
+import { Transaction } from '@mysten/sui/transactions';
 import type { KeeperConfig } from '../config/keeper.config';
-import { addKeeperDeepFeeCoin } from './keeper-coins';
 
 type ProtocolSettingsResponse = {
   registry_id?: string;
@@ -105,12 +97,7 @@ export class SuiService implements OnModuleInit {
   }
 
   getConfig(): KeeperConfig {
-    const merged = { ...this.cfg, ...this.runtimeOverrides };
-    const pythQuoteOracleId = resolveQuoteOracleId(merged);
-    if (pythQuoteOracleId && pythQuoteOracleId !== merged.pythQuoteOracleId) {
-      return { ...merged, pythQuoteOracleId };
-    }
-    return merged;
+    return { ...this.cfg, ...this.runtimeOverrides };
   }
 
   isReadyForTx(): boolean {
@@ -152,21 +139,8 @@ export class SuiService implements OnModuleInit {
     const settlement = core;
     const trigger = core;
 
-    const quoteOracleId = resolveQuoteOracleId(cfg);
-    if (!quoteOracleId) {
-      missing.push('PYTH_QUOTE_ORACLE_ID');
-    }
-    const hasQuoteOracle = Boolean(quoteOracleId);
-    const hasCatalogRoutes = liquidationRoutesReady(cfg);
-    if (!hasCatalogRoutes) {
-      missing.push(
-        'LAUNCH_COLLATERAL_CATALOG (pythOracleId per asset; spotPoolId for non-quote collateral)',
-      );
-    }
-
-    const limit_order = core && hasQuoteOracle && hasCatalogRoutes;
-
-    const liquidation = core && hasQuoteOracle && hasCatalogRoutes;
+    const limit_order = core;
+    const liquidation = core;
 
     const txReady = settlement && Boolean(this.keypair);
 
@@ -220,14 +194,6 @@ export class SuiService implements OnModuleInit {
       return false;
     }
     return true;
-  }
-
-  async addDeepFeeCoin(tx: Transaction): Promise<TransactionObjectArgument> {
-    const address = this.keypair?.getPublicKey().toSuiAddress();
-    if (!address) {
-      throw new Error('keeper signer not configured');
-    }
-    return addKeeperDeepFeeCoin(this.client, address, tx);
   }
 
   async execute(tx: Transaction): Promise<string> {

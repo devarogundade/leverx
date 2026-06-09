@@ -63,7 +63,7 @@ fun get_binary_limit_mint_order_delegates_to_proxy() {
         100,
         400_000_000,
         500,
-        20_000,
+        10_000,
         3,
         9_999_999_999,
         1,
@@ -90,7 +90,7 @@ fun get_range_limit_mint_order_delegates_to_proxy() {
         50,
         300_000_000,
         250,
-        20_000,
+        10_000,
         2,
         9_999_999_999,
         1,
@@ -124,7 +124,7 @@ fun cancel_binary_limit_mint_order_releases_reserved_margin() {
         100,
         500_000_000,
         400,
-        20_000,
+        10_000,
         5,
         9_999_999_999,
         1,
@@ -133,7 +133,7 @@ fun cancel_binary_limit_mint_order_releases_reserved_margin() {
     user_proxy::reserve_binary_quote(&mut proxy, key, 400, ctx);
     user_proxy::place_binary_limit_mint(&mut proxy, key, order);
 
-    trade::cancel_binary_limit_mint_order<test_fixtures::TestCollateral>(&mut proxy, key, ctx);
+    trade::cancel_binary_limit_mint_order(&mut proxy, key, ctx);
 
     assert!(trade::get_binary_limit_mint_order(&proxy, key).is_none(), 0);
     assert!(user_proxy::binary_quote_balance(&proxy, key) == 1_000, 0);
@@ -163,7 +163,7 @@ fun cancel_range_limit_mint_order_releases_reserved_margin() {
         200,
         600_000_000,
         300,
-        20_000,
+        10_000,
         4,
         9_999_999_999,
         1,
@@ -172,7 +172,7 @@ fun cancel_range_limit_mint_order_releases_reserved_margin() {
     user_proxy::reserve_range_quote(&mut proxy, key, 300, ctx);
     user_proxy::place_range_limit_mint(&mut proxy, key, order);
 
-    trade::cancel_range_limit_mint_order<test_fixtures::TestCollateral>(&mut proxy, key, ctx);
+    trade::cancel_range_limit_mint_order(&mut proxy, key, ctx);
 
     assert!(trade::get_range_limit_mint_order(&proxy, key).is_none(), 0);
     assert!(user_proxy::range_quote_balance(&proxy, key) == 800, 0);
@@ -538,7 +538,7 @@ fun cancel_binary_limit_requires_owner_or_executor() {
     user_proxy::place_binary_limit_mint(&mut proxy, key, order);
 
     test_scenario::next_tx(&mut scenario, stranger);
-    trade::cancel_binary_limit_mint_order<test_fixtures::TestCollateral>(
+    trade::cancel_binary_limit_mint_order(
         &mut proxy,
         key,
         scenario.ctx(),

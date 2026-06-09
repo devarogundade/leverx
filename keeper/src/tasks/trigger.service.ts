@@ -1,12 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import {
-  PREDICT_PRICE_SCALE,
-  TRIGGER_REDEEM_SLIPPAGE_BPS,
-} from '../config/constants';
+import { TRIGGER_REDEEM_SLIPPAGE_BPS } from '../config/constants';
 import {
   minPayoutAfterSlippage,
   redeemPayoutFromBid,
-} from '../config/collateral-routing';
+} from '../config/trade-math';
 import { IndexerService } from '../indexer/indexer.service';
 import type { LeveragedPosition } from '../indexer/indexer.types';
 import type { TaskResult } from '../keeper/keeper.types';
@@ -100,9 +97,8 @@ export class TriggerService {
     bidPerUnit: number,
   ): bigint {
     const expected = redeemPayoutFromBid(
-      bidPerUnit,
-      position.open_quantity,
-      PREDICT_PRICE_SCALE,
+      BigInt(bidPerUnit),
+      BigInt(position.open_quantity),
     );
     return minPayoutAfterSlippage(expected, TRIGGER_REDEEM_SLIPPAGE_BPS);
   }

@@ -4,19 +4,11 @@ import { useIndexerAccounts } from "@/hooks/useIndexer";
 import { useLeverxProtocolConfig } from "@/hooks/useLeverxTransactions";
 import type { MarketKeyArgs } from "@/lib/leverx/market-keys";
 import { fetchMintQuote } from "@/lib/leverx/quotes";
-import { resolveCollateralRoute } from "@/lib/leverx/protocol";
-import {
-  leverageToBps,
-  marginUsdToQuoteAtoms,
-} from "@/lib/leverx/trade-math";
+import { leverageToBps, marginUsdToQuoteAtoms } from "@/lib/leverx/trade-math";
 
 export function useLeverxMintQuote(args: {
   key?: MarketKeyArgs;
-  collateralCoinType?: string;
-  collateralMaxLtvBps?: number;
-  collateralDecimals?: number;
   marginUsd?: number;
-  leverage?: number;
   quantity?: bigint;
   owner?: string;
   enabled?: boolean;
@@ -27,7 +19,7 @@ export function useLeverxMintQuote(args: {
   const accountId = accounts[0]?.account_id;
 
   const marginAtoms = marginUsdToQuoteAtoms(args.marginUsd ?? 0);
-  const leverageBps = leverageToBps(args.leverage ?? 1);
+  const leverageBps = leverageToBps();
   const quantity = args.quantity && args.quantity > 0n ? args.quantity : 1n;
 
   return useQuery({
@@ -35,24 +27,16 @@ export function useLeverxMintQuote(args: {
       "leverx-mint-quote",
       args.key?.oracleId,
       args.key?.strike,
-      args.collateralCoinType,
       marginAtoms.toString(),
       leverageBps.toString(),
       quantity.toString(),
       accountId,
     ],
     queryFn: async () => {
-      if (!cfg || !args.key || !args.collateralCoinType) return null;
-      const route = resolveCollateralRoute(
-        args.collateralCoinType,
-        args.collateralMaxLtvBps,
-        args.collateralDecimals,
-      );
-      if (!route) return null;
+      if (!cfg || !args.key) return null;
       return fetchMintQuote({
         client,
         cfg,
-        route,
         accountId,
         key: args.key,
         marginQuoteAtoms: marginAtoms,

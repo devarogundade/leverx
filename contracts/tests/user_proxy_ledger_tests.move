@@ -5,31 +5,24 @@ use leverx::{errors, protocol_registry, test_fixtures, triggers, user_proxy};
 use sui::{coin, test_scenario};
 
 #[test]
-fun binary_collateral_and_quote_ledgers() {
+fun binary_quote_ledger_deposit() {
     let owner = @0xA11CE;
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
 
     let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_binary_key();
-    let mut collateral_treasury = test_fixtures::collateral_treasury(ctx);
     let mut quote_treasury = test_fixtures::quote_treasury(ctx);
 
-    user_proxy::deposit_collateral_for_binary(
-        &mut proxy,
-        key,
-        coin::mint(&mut collateral_treasury, 500, ctx),
-        ctx,
-    );
     user_proxy::deposit_quote_for_binary(
         &mut proxy,
         key,
-        coin::mint(&mut quote_treasury, 200, ctx),
+        coin::mint(&mut quote_treasury, 500, ctx),
         ctx,
     );
 
-    assert!(user_proxy::binary_collateral_balance<test_fixtures::TestCollateral>(&proxy, key) == 500, 0);
-    assert!(user_proxy::binary_quote_balance(&proxy, key) == 200, 0);
+    assert!(user_proxy::binary_quote_balance(&proxy, key) == 500, 0);
+    assert!(user_proxy::binary_margin_debt(&proxy, key) == 0, 0);
 
     scenario.end();
 }
@@ -62,18 +55,37 @@ fun range_ledgers_mirror_binary_behavior() {
 
     let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_range_key();
-    let mut collateral_treasury = test_fixtures::collateral_treasury(ctx);
+    let mut quote_treasury = test_fixtures::quote_treasury(ctx);
 
-    user_proxy::deposit_collateral_for_range(
+    user_proxy::deposit_quote_for_range(
         &mut proxy,
         key,
-        coin::mint(&mut collateral_treasury, 777, ctx),
+        coin::mint(&mut quote_treasury, 777, ctx),
         ctx,
     );
     user_proxy::record_borrow_for_range(&mut proxy, key, 111, ctx);
+    user_proxy::set_range_margin_debt(&mut proxy, key, 400, ctx);
 
-    assert!(user_proxy::range_collateral_balance<test_fixtures::TestCollateral>(&proxy, key) == 777, 0);
+    assert!(user_proxy::range_quote_balance(&proxy, key) == 777, 0);
     assert!(user_proxy::range_borrowed_quote(&proxy, key) == 111, 0);
+    assert!(user_proxy::range_margin_debt(&proxy, key) == 400, 0);
+
+    scenario.end();
+}
+
+#[test]
+fun margin_debt_clear() {
+    let owner = @0xA11CE;
+    let mut scenario = test_scenario::begin(owner);
+    let ctx = scenario.ctx();
+
+    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
+    let key = test_fixtures::sample_binary_key();
+
+    user_proxy::set_binary_margin_debt(&mut proxy, key, 1_000, ctx);
+    assert!(user_proxy::binary_margin_debt(&proxy, key) == 1_000, 0);
+    user_proxy::clear_binary_margin_debt(&mut proxy, key);
+    assert!(user_proxy::binary_margin_debt(&proxy, key) == 0, 0);
 
     scenario.end();
 }
@@ -100,7 +112,7 @@ fun limit_order_reserve_release_and_cancel() {
         100,
         500_000_000,
         400,
-        20_000,
+        10_000,
         5,
         9_999_999_999,
         1,
@@ -120,31 +132,6 @@ fun limit_order_reserve_release_and_cancel() {
 }
 
 #[test]
-fun seize_binary_collateral_returns_full_balance() {
-    let owner = @0xA11CE;
-    let mut scenario = test_scenario::begin(owner);
-    let ctx = scenario.ctx();
-
-    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
-    let key = test_fixtures::sample_binary_key();
-    let mut collateral_treasury = test_fixtures::collateral_treasury(ctx);
-
-    user_proxy::deposit_collateral_for_binary(
-        &mut proxy,
-        key,
-        coin::mint(&mut collateral_treasury, 250, ctx),
-        ctx,
-    );
-
-    let seized = user_proxy::seize_binary_collateral<test_fixtures::TestCollateral>(&mut proxy, key, ctx);
-    assert!(seized.value() == 250, 0);
-    assert!(user_proxy::binary_collateral_balance<test_fixtures::TestCollateral>(&proxy, key) == 0, 0);
-    coin::burn_for_testing(seized);
-
-    scenario.end();
-}
-
-#[test]
 #[expected_failure(abort_code = errors::E_LIMIT_ORDER_EXISTS)]
 fun duplicate_limit_order_aborts() {
     let owner = @0xA11CE;
@@ -154,7 +141,7 @@ fun duplicate_limit_order_aborts() {
     let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_binary_key();
     let order = user_proxy::new_pending_limit_mint_order(
-        1, 0, 1, 1, 20_000, 1, 9, 1, owner,
+        1, 0, 1, 1, 10_000, 1, 9, 1, owner,
     );
 
     user_proxy::place_binary_limit_mint(&mut proxy, key, order);
@@ -176,7 +163,7 @@ fun limit_order_getters_expose_fields() {
         250,
         510_000_000,
         1_000,
-        15_000,
+        10_000,
         7,
         123_456,
         99,

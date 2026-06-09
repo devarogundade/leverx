@@ -4,7 +4,6 @@
 /// On-chain event surface for indexers, analytics, and the LeverX frontend.
 module leverx::events;
 
-use std::type_name::TypeName;
 use sui::event;
 
 // === Protocol / governance ===
@@ -35,46 +34,12 @@ public struct RegistryInitialized has copy, drop {
     predict_id: ID,
 }
 
-/// Emitted when a collateral asset is whitelisted for borrowing.
-public struct CollateralWhitelisted has copy, drop {
-    /// `LeverxRegistry` object ID.
-    registry_id: ID,
-    /// Collateral coin type.
-    asset: TypeName,
-    /// Token decimals for oracle normalization.
-    decimals: u8,
-    /// Maximum borrow LTV in basis points (10_000 = 100%).
-    max_ltv_bps: u64,
-    /// Liquidation LTV threshold in basis points.
-    liquidation_ltv_bps: u64,
-    /// Maximum Pyth confidence width in basis points.
-    max_conf_bps: u64,
-}
-
-/// Emitted when a DeepBook spot pool is registered for collateral swaps.
-public struct SwapPoolRegistered has copy, drop {
-    /// `LeverxRegistry` object ID.
-    registry_id: ID,
-    /// Base (collateral) asset type.
-    asset: TypeName,
-    /// DeepBook `Pool` object ID.
-    pool_id: ID,
-}
-
 /// Emitted when global trading pause state changes.
 public struct TradingPausedChanged has copy, drop {
     /// `LeverxRegistry` object ID.
     registry_id: ID,
     /// `true` when new trades are blocked.
     paused: bool,
-}
-
-/// Emitted when the maximum Pyth price age is updated.
-public struct PythMaxAgeUpdated has copy, drop {
-    /// `LeverxRegistry` object ID.
-    registry_id: ID,
-    /// Maximum oracle staleness in seconds.
-    max_age_secs: u64,
 }
 
 /// Emitted when vault borrow-rate curve parameters change.
@@ -113,7 +78,7 @@ public struct VaultSupplied has copy, drop {
     total_borrowed: u64,
     /// Current borrow APR in basis points (kinked utilization curve).
     borrow_rate_bps: u64,
-    /// Current LP supply APR in basis points (`borrow_rate × utilization × vault share`).
+    /// Current LP supply APR in basis points (`borrow_rate ├ù utilization ├ù vault share`).
     lp_apr_bps: u64,
 }
 
@@ -285,94 +250,6 @@ public struct PredictManagerLinked has copy, drop {
     predict_manager_id: ID,
 }
 
-/// Emitted when collateral is deposited into a market key.
-public struct CollateralDeposited has copy, drop {
-    /// `UserProxy` object ID.
-    account_id: ID,
-    /// Proxy owner address.
-    owner: address,
-    /// DeepBook Predict oracle object ID.
-    oracle_id: ID,
-    /// Contract expiry timestamp in milliseconds.
-    expiry_ms: u64,
-    /// Lower/or sole strike in 1e9 USD scale.
-    strike: u64,
-    /// Upper strike in 1e9 USD scale (`0` for binary positions).
-    higher_strike: u64,
-    /// `true` for up/out binary; ignored for range.
-    is_up: bool,
-    /// `true` for range positions; `false` for binary.
-    is_range: bool,
-    /// Collateral coin type.
-    asset: TypeName,
-    /// Collateral atoms deposited.
-    amount: u64,
-    /// Oracle-valued deposit in quote atoms.
-    collateral_value_quote: u64,
-    /// Per-key collateral balance after deposit, in collateral atoms.
-    balance_after: u64,
-}
-
-/// Emitted when collateral is withdrawn from a market key.
-public struct CollateralWithdrawn has copy, drop {
-    /// `UserProxy` object ID.
-    account_id: ID,
-    /// Proxy owner address.
-    owner: address,
-    /// DeepBook Predict oracle object ID.
-    oracle_id: ID,
-    /// Contract expiry timestamp in milliseconds.
-    expiry_ms: u64,
-    /// Lower/or sole strike in 1e9 USD scale.
-    strike: u64,
-    /// Upper strike in 1e9 USD scale (`0` for binary positions).
-    higher_strike: u64,
-    /// `true` for up/out binary; ignored for range.
-    is_up: bool,
-    /// `true` for range positions; `false` for binary.
-    is_range: bool,
-    /// Collateral coin type.
-    asset: TypeName,
-    /// Collateral atoms withdrawn.
-    amount: u64,
-    /// Per-key collateral balance after withdrawal, in collateral atoms.
-    balance_after: u64,
-}
-
-/// Emitted when collateral is swapped to quote via DeepBook spot.
-public struct CollateralSwapped has copy, drop {
-    /// `UserProxy` object ID.
-    account_id: ID,
-    /// Proxy owner address.
-    owner: address,
-    /// DeepBook Predict oracle object ID.
-    oracle_id: ID,
-    /// Contract expiry timestamp in milliseconds.
-    expiry_ms: u64,
-    /// Lower/or sole strike in 1e9 USD scale.
-    strike: u64,
-    /// Upper strike in 1e9 USD scale (`0` for binary positions).
-    higher_strike: u64,
-    /// `true` for up/out binary; ignored for range.
-    is_up: bool,
-    /// `true` for range positions; `false` for binary.
-    is_range: bool,
-    /// Base (collateral) asset type.
-    base_asset: TypeName,
-    /// Quote asset type.
-    quote_asset: TypeName,
-    /// Base atoms sold.
-    base_amount: u64,
-    /// Quote atoms received.
-    quote_received: u64,
-    /// DeepBook `Pool` object ID used for the swap.
-    pool_id: ID,
-    /// Per-key collateral balance after swap, in base atoms.
-    collateral_balance_after: u64,
-    /// Market-key quote balance after swap, in quote atoms.
-    quote_balance_after: u64,
-}
-
 /// Emitted when vault debt is recorded on the proxy (proxy-wide aggregate).
 public struct DebtBorrowed has copy, drop {
     /// `UserProxy` object ID.
@@ -427,8 +304,6 @@ public struct LeveragedPositionOpened has copy, drop {
     is_up: bool,
     /// `true` for range positions; `false` for binary.
     is_range: bool,
-    /// Collateral coin type backing the market key.
-    collateral_asset: TypeName,
     /// Contracts minted.
     quantity: u64,
     /// User margin contributed in quote atoms.
@@ -507,14 +382,8 @@ public struct PositionLiquidated has copy, drop {
     is_up: bool,
     /// `true` for range positions; `false` for binary.
     is_range: bool,
-    /// Seized collateral coin type.
-    collateral_asset: TypeName,
     /// Key debt repaid to vault in quote atoms.
     debt_repaid: u64,
-    /// Collateral atoms seized from the market key.
-    collateral_seized: u64,
-    /// Quote atoms received from collateral swap (if any).
-    quote_from_swap: u64,
     /// Surplus quote after debt repay, in quote atoms.
     surplus_quote: u64,
     /// Account health (LTV) in basis points at liquidation.
@@ -585,8 +454,6 @@ public struct LimitMintOrderPlaced has copy, drop {
     is_range: bool,
     /// `true` for up/out binary; ignored for range.
     is_up: bool,
-    /// Collateral coin type the keeper must pass on fill.
-    collateral_asset: TypeName,
     /// Limit premium per unit in 1e9 scale.
     limit_premium_per_unit: u64,
     /// Placement slippage tolerance in basis points (frozen at fill).
@@ -625,8 +492,6 @@ public struct LimitMintOrderExecuted has copy, drop {
     is_range: bool,
     /// `true` for up/out binary; ignored for range.
     is_up: bool,
-    /// Collateral coin type used on fill.
-    collateral_asset: TypeName,
     /// Limit premium per unit in 1e9 scale.
     limit_premium_per_unit: u64,
     /// Placement slippage tolerance in basis points.
@@ -659,8 +524,6 @@ public struct LimitMintOrderCancelled has copy, drop {
     is_range: bool,
     /// `true` for up/out binary; ignored for range.
     is_up: bool,
-    /// Collateral coin type declared at placement.
-    collateral_asset: TypeName,
     /// Cancelled order expiry timestamp in milliseconds.
     order_expires_ms: u64,
     /// Address that cancelled the order (owner or executor).
@@ -708,38 +571,9 @@ public(package) fun emit_registry_initialized(
     });
 }
 
-/// Emit `CollateralWhitelisted`.
-public(package) fun emit_collateral_whitelisted(
-    registry_id: ID,
-    asset: TypeName,
-    decimals: u8,
-    max_ltv_bps: u64,
-    liquidation_ltv_bps: u64,
-    max_conf_bps: u64,
-) {
-    event::emit(CollateralWhitelisted {
-        registry_id,
-        asset,
-        decimals,
-        max_ltv_bps,
-        liquidation_ltv_bps,
-        max_conf_bps,
-    });
-}
-
-/// Emit `SwapPoolRegistered`.
-public(package) fun emit_swap_pool_registered(registry_id: ID, asset: TypeName, pool_id: ID) {
-    event::emit(SwapPoolRegistered { registry_id, asset, pool_id });
-}
-
 /// Emit `TradingPausedChanged`.
 public(package) fun emit_trading_paused_changed(registry_id: ID, paused: bool) {
     event::emit(TradingPausedChanged { registry_id, paused });
-}
-
-/// Emit `PythMaxAgeUpdated`.
-public(package) fun emit_pyth_max_age_updated(registry_id: ID, max_age_secs: u64) {
-    event::emit(PythMaxAgeUpdated { registry_id, max_age_secs });
 }
 
 /// Emit `BorrowRateParamsUpdated`.
@@ -871,103 +705,6 @@ public(package) fun emit_predict_manager_linked(
     event::emit(PredictManagerLinked { account_id, owner, predict_manager_id });
 }
 
-/// Emit `CollateralDeposited`.
-public(package) fun emit_collateral_deposited(
-    account_id: ID,
-    owner: address,
-    oracle_id: ID,
-    expiry_ms: u64,
-    strike: u64,
-    higher_strike: u64,
-    is_up: bool,
-    is_range: bool,
-    asset: TypeName,
-    amount: u64,
-    collateral_value_quote: u64,
-    balance_after: u64,
-) {
-    event::emit(CollateralDeposited {
-        account_id,
-        owner,
-        oracle_id,
-        expiry_ms,
-        strike,
-        higher_strike,
-        is_up,
-        is_range,
-        asset,
-        amount,
-        collateral_value_quote,
-        balance_after,
-    });
-}
-
-/// Emit `CollateralWithdrawn`.
-public(package) fun emit_collateral_withdrawn(
-    account_id: ID,
-    owner: address,
-    oracle_id: ID,
-    expiry_ms: u64,
-    strike: u64,
-    higher_strike: u64,
-    is_up: bool,
-    is_range: bool,
-    asset: TypeName,
-    amount: u64,
-    balance_after: u64,
-) {
-    event::emit(CollateralWithdrawn {
-        account_id,
-        owner,
-        oracle_id,
-        expiry_ms,
-        strike,
-        higher_strike,
-        is_up,
-        is_range,
-        asset,
-        amount,
-        balance_after,
-    });
-}
-
-/// Emit `CollateralSwapped`.
-public(package) fun emit_collateral_swapped(
-    account_id: ID,
-    owner: address,
-    oracle_id: ID,
-    expiry_ms: u64,
-    strike: u64,
-    higher_strike: u64,
-    is_up: bool,
-    is_range: bool,
-    base_asset: TypeName,
-    quote_asset: TypeName,
-    base_amount: u64,
-    quote_received: u64,
-    pool_id: ID,
-    collateral_balance_after: u64,
-    quote_balance_after: u64,
-) {
-    event::emit(CollateralSwapped {
-        account_id,
-        owner,
-        oracle_id,
-        expiry_ms,
-        strike,
-        higher_strike,
-        is_up,
-        is_range,
-        base_asset,
-        quote_asset,
-        base_amount,
-        quote_received,
-        pool_id,
-        collateral_balance_after,
-        quote_balance_after,
-    });
-}
-
 /// Emit `DebtBorrowed`.
 public(package) fun emit_debt_borrowed(
     account_id: ID,
@@ -999,7 +736,6 @@ public(package) fun emit_leveraged_position_opened(
     higher_strike: u64,
     is_up: bool,
     is_range: bool,
-    collateral_asset: TypeName,
     quantity: u64,
     margin_quote: u64,
     borrow_quote: u64,
@@ -1021,7 +757,6 @@ public(package) fun emit_leveraged_position_opened(
         higher_strike,
         is_up,
         is_range,
-        collateral_asset,
         quantity,
         margin_quote,
         borrow_quote,
@@ -1162,10 +897,7 @@ public(package) fun emit_position_liquidated(
     higher_strike: u64,
     is_up: bool,
     is_range: bool,
-    collateral_asset: TypeName,
     debt_repaid: u64,
-    collateral_seized: u64,
-    quote_from_swap: u64,
     surplus_quote: u64,
     health_bps: u64,
     had_position_redeem: bool,
@@ -1180,10 +912,7 @@ public(package) fun emit_position_liquidated(
         higher_strike,
         is_up,
         is_range,
-        collateral_asset,
         debt_repaid,
-        collateral_seized,
-        quote_from_swap,
         surplus_quote,
         health_bps,
         had_position_redeem,
@@ -1232,7 +961,6 @@ public(package) fun emit_limit_mint_order_placed(
     higher_strike: u64,
     is_range: bool,
     is_up: bool,
-    collateral_asset: TypeName,
     limit_premium_per_unit: u64,
     slippage_bps: u64,
     market_ask_at_place: u64,
@@ -1251,7 +979,6 @@ public(package) fun emit_limit_mint_order_placed(
         higher_strike,
         is_range,
         is_up,
-        collateral_asset,
         limit_premium_per_unit,
         slippage_bps,
         market_ask_at_place,
@@ -1274,7 +1001,6 @@ public(package) fun emit_limit_mint_order_executed(
     higher_strike: u64,
     is_range: bool,
     is_up: bool,
-    collateral_asset: TypeName,
     limit_premium_per_unit: u64,
     slippage_bps: u64,
     market_ask_at_fill: u64,
@@ -1292,7 +1018,6 @@ public(package) fun emit_limit_mint_order_executed(
         higher_strike,
         is_range,
         is_up,
-        collateral_asset,
         limit_premium_per_unit,
         slippage_bps,
         market_ask_at_fill,
@@ -1312,7 +1037,6 @@ public(package) fun emit_limit_mint_order_cancelled(
     higher_strike: u64,
     is_range: bool,
     is_up: bool,
-    collateral_asset: TypeName,
     order_expires_ms: u64,
     cancelled_by: address,
 ) {
@@ -1325,7 +1049,6 @@ public(package) fun emit_limit_mint_order_cancelled(
         higher_strike,
         is_range,
         is_up,
-        collateral_asset,
         order_expires_ms,
         cancelled_by,
     });

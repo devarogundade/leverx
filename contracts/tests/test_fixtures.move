@@ -11,32 +11,12 @@ use leverx::{
 use sui::{clock::{Self, Clock}, coin::{Self, Coin, TreasuryCap}, test_scenario};
 
 public struct TestQuote has drop {}
-public struct TestCollateral has drop {}
-
-const FEED_ID: vector<u8> =
-    x"0011223344556677889900112233445566778899001122334455667788990011";
-
-public fun feed_id(): vector<u8> {
-    FEED_ID
-}
 
 public fun quote_treasury(ctx: &mut TxContext): TreasuryCap<TestQuote> {
     coin::create_treasury_cap_for_testing(ctx)
 }
 
-public fun collateral_treasury(ctx: &mut TxContext): TreasuryCap<TestCollateral> {
-    coin::create_treasury_cap_for_testing(ctx)
-}
-
 public fun mint_quote(amount: u64, treasury: &mut TreasuryCap<TestQuote>, ctx: &mut TxContext): Coin<TestQuote> {
-    coin::mint(treasury, amount, ctx)
-}
-
-public fun mint_collateral(
-    amount: u64,
-    treasury: &mut TreasuryCap<TestCollateral>,
-    ctx: &mut TxContext,
-): Coin<TestCollateral> {
     coin::mint(treasury, amount, ctx)
 }
 
@@ -78,15 +58,6 @@ public fun setup_protocol<Quote: drop>(
 
     let (admin, mut registry) = protocol_registry::create_for_testing(ctx);
     protocol_registry::link_vault_for_testing(&mut registry, vault_id, collector_id);
-    protocol_registry::whitelist_collateral_asset<TestCollateral>(
-        &admin,
-        &mut registry,
-        FEED_ID,
-        6,
-        8_000,
-        8_500,
-        1_000,
-    );
 
     let mut quote_treasury = coin::create_treasury_cap_for_testing<Quote>(ctx);
     leverage_vault::credit_balance_for_testing(

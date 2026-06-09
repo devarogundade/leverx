@@ -20,8 +20,10 @@ const E_ZERO_AMOUNT: u64 = 3;
 const E_ZERO_QUANTITY: u64 = 4;
 const E_INVALID_LEVERAGE: u64 = 5;
 
-// --- Collateral & margin ---
+// --- Margin ---
 
+const E_INSUFFICIENT_MARGIN: u64 = 6;
+/// Deprecated alias — same code as `E_INSUFFICIENT_MARGIN` (indexer / client compat).
 const E_INSUFFICIENT_COLLATERAL: u64 = 6;
 const E_COLLATERAL_NOT_SUPPORTED: u64 = 8;
 const E_WITHDRAW_EXCEEDS_MAINTENANCE: u64 = 24;
@@ -107,8 +109,11 @@ public fun invalid_leverage(): u64 { E_INVALID_LEVERAGE }
 
 // --- Collateral & margin ---
 
-/// User does not hold enough quote margin or collateral for the operation.
-public fun insufficient_collateral(): u64 { E_INSUFFICIENT_COLLATERAL }
+/// User does not hold enough quote margin for the operation.
+public fun insufficient_margin(): u64 { E_INSUFFICIENT_MARGIN }
+
+/// Deprecated alias — use `insufficient_margin`.
+public fun insufficient_collateral(): u64 { E_INSUFFICIENT_MARGIN }
 
 /// Collateral type is not whitelisted in the protocol registry.
 public fun collateral_not_supported(): u64 { E_COLLATERAL_NOT_SUPPORTED }

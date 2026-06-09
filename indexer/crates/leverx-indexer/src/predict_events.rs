@@ -3,7 +3,13 @@
 use serde::{Deserialize, Serialize};
 use sui_types::base_types::{ObjectID, SuiAddress};
 
-use crate::move_events::{try_parse, TypeNameWire};
+use crate::move_events::try_parse;
+
+/// `std::type_name::TypeName` on-chain (DeepBook Predict quote asset).
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct TypeNameWire {
+    pub name: String,
+}
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PositionMinted {

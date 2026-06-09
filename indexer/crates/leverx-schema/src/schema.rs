@@ -60,7 +60,6 @@ diesel::table! {
         higher_strike -> Int8,
         is_range -> Bool,
         is_up -> Bool,
-        collateral_asset -> Text,
         limit_premium_per_unit -> Int8,
         slippage_bps -> Int8,
         market_ask_at_place -> Nullable<Int8>,
@@ -94,7 +93,6 @@ diesel::table! {
         higher_strike -> Int8,
         is_up -> Bool,
         is_range -> Bool,
-        collateral_asset -> Text,
         open_quantity -> Int8,
         margin_quote -> Int8,
         borrow_quote -> Int8,
@@ -144,51 +142,17 @@ diesel::table! {
 }
 
 diesel::table! {
-    collateral_assets (coin_type) {
-        coin_type -> Text,
-        registry_id -> Text,
-        decimals -> Int2,
-        max_ltv_bps -> Int8,
-        liquidation_ltv_bps -> Int8,
-        max_conf_bps -> Int8,
-        updated_at_ms -> Int8,
-        event_digest -> Text,
-    }
-}
-
-diesel::table! {
-    swap_pools (collateral_asset) {
-        collateral_asset -> Text,
-        pool_id -> Text,
-        registry_id -> Text,
-        updated_at_ms -> Int8,
-        event_digest -> Text,
-    }
-}
-
-diesel::table! {
     protocol_settings (registry_id) {
         registry_id -> Text,
         vault_id -> Nullable<Text>,
         predict_id -> Nullable<Text>,
         fee_collector_id -> Nullable<Text>,
         trading_paused -> Bool,
-        pyth_max_age_secs -> Nullable<Int8>,
         base_rate_bps -> Nullable<Int8>,
         kink_utilization_bps -> Nullable<Int8>,
         slope1_bps -> Nullable<Int8>,
         slope2_bps -> Nullable<Int8>,
         flash_fee_bps -> Nullable<Int8>,
-        updated_at_ms -> Int8,
-    }
-}
-
-diesel::table! {
-    collateral_balances (position_key, account_id, collateral_asset) {
-        position_key -> Text,
-        account_id -> Text,
-        collateral_asset -> Text,
-        balance_atoms -> Int8,
         updated_at_ms -> Int8,
     }
 }
@@ -222,10 +186,7 @@ diesel::table! {
         account_id -> Text,
         owner -> Text,
         keeper -> Text,
-        collateral_asset -> Text,
         debt_repaid -> Int8,
-        collateral_seized -> Int8,
-        quote_from_swap -> Int8,
         surplus_quote -> Int8,
         health_bps -> Int8,
         had_position_redeem -> Bool,

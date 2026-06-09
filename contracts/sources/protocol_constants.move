@@ -10,27 +10,10 @@ const BPS: u64 = 10_000;
 const USD_DECIMALS: u8 = 9;
 const QUOTE_DECIMALS: u8 = 6;
 
-// --- Leverage bounds ---
+// --- Fixed leverage (1:1) & margin call ---
 
-const MAX_LEVERAGE: u64 = 10;
-/// Minimum leverage in bps (10_000 bps = 1x).
-const MIN_LEVERAGE_BPS: u64 = 11_000;
-
-// --- Default LTV thresholds (bps) ---
-// Per-asset max/liquidation LTV is set at admin whitelist time (see deploy docs).
-// Launch targets (env / ops, not hardcoded here): SUI 80%, dUSDC 90%, DEEP 70%; liq floor 95% for all.
-
-const DEFAULT_MAX_LTV_BPS: u64 = 8_000;
-const DEFAULT_LIQUIDATION_LTV_BPS: u64 = 8_500;
-
-// --- Pyth oracle defaults ---
-
-const DEFAULT_PYTH_MAX_AGE_SECS: u64 = 60;
-/// Wider staleness window for liquidation-only Pyth reads (trading stays at `DEFAULT_PYTH_MAX_AGE_SECS`).
-const LIQUIDATION_PYTH_MAX_AGE_SECS: u64 = 300;
-/// Admin cannot set trading staleness above this bound.
-const MAX_PYTH_MAX_AGE_SECS: u64 = 300;
-const PYTH_EXPONENT_BUFFER: u8 = 10;
+const LEVERAGE_BPS: u64 = 10_000;
+const MARGIN_CALL_BPS: u64 = 9_500;
 
 // --- Interest rate model defaults (two-slope kink) ---
 
@@ -39,10 +22,9 @@ const DEFAULT_KINK_UTIL_BPS: u64 = 8_000;
 const DEFAULT_SLOPE1_BPS: u64 = 1_000;
 const DEFAULT_SLOPE2_BPS: u64 = 5_000;
 
-// --- Flash loan & liquidation fees ---
+// --- Flash loan fees ---
 
 const DEFAULT_FLASH_FEE_BPS: u64 = 5;
-const DEFAULT_LIQUIDATION_INSURANCE_BPS: u64 = 100;
 
 // --- Protocol revenue split (must sum to BPS) ---
 
@@ -88,40 +70,13 @@ public fun usd_decimals(): u8 { USD_DECIMALS }
 /// Decimal places for the quote token (e.g. dUSDC).
 public fun quote_decimals(): u8 { QUOTE_DECIMALS }
 
-// --- Public getters: leverage ---
+// --- Public getters: leverage & margin call ---
 
-/// Maximum allowed leverage multiplier.
-public fun max_leverage(): u64 { MAX_LEVERAGE }
+/// Fixed leverage in basis points (10_000 = 1x).
+public fun leverage_bps(): u64 { LEVERAGE_BPS }
 
-/// Minimum allowed leverage in basis points (11_000 = 1.1x).
-public fun min_leverage_bps(): u64 { MIN_LEVERAGE_BPS }
-
-/// `max_leverage()` expressed in basis points (10_000 bps = 1x).
-public fun max_leverage_bps(): u64 {
-    MAX_LEVERAGE * BPS
-}
-
-// --- Public getters: LTV ---
-
-/// Default max borrow LTV before new positions are rejected (80%).
-public fun default_max_ltv_bps(): u64 { DEFAULT_MAX_LTV_BPS }
-
-/// Default LTV at which a position becomes liquidatable (85%).
-public fun default_liquidation_ltv_bps(): u64 { DEFAULT_LIQUIDATION_LTV_BPS }
-
-// --- Public getters: oracle ---
-
-/// Maximum Pyth price age in seconds before a feed is considered stale.
-public fun default_pyth_max_age_secs(): u64 { DEFAULT_PYTH_MAX_AGE_SECS }
-
-/// Staleness bound for liquidation health checks (wider than trading to reduce oracle-stall bad debt).
-public fun liquidation_pyth_max_age_secs(): u64 { LIQUIDATION_PYTH_MAX_AGE_SECS }
-
-/// Upper cap admin may set for trading-time Pyth staleness.
-public fun max_pyth_max_age_secs(): u64 { MAX_PYTH_MAX_AGE_SECS }
-
-/// Extra exponent headroom when normalizing Pyth prices to internal decimals.
-public fun pyth_exponent_buffer(): u8 { PYTH_EXPONENT_BUFFER }
+/// Margin-call health threshold in basis points (liquidate when health < this).
+public fun margin_call_bps(): u64 { MARGIN_CALL_BPS }
 
 // --- Public getters: interest rate model ---
 
@@ -139,11 +94,8 @@ public fun default_slope2_bps(): u64 { DEFAULT_SLOPE2_BPS }
 
 // --- Public getters: fees ---
 
-/// Default DeepBook flash-loan fee in basis points.
+/// Default vault flash-loan fee in basis points.
 public fun default_flash_fee_bps(): u64 { DEFAULT_FLASH_FEE_BPS }
-
-/// Insurance fund share of liquidation bonus in basis points.
-public fun default_liquidation_insurance_bps(): u64 { DEFAULT_LIQUIDATION_INSURANCE_BPS }
 
 /// LP vault share of protocol fee revenue (80%).
 public fun vault_fee_share_bps(): u64 { VAULT_FEE_SHARE_BPS }
@@ -160,7 +112,7 @@ public fun fee_source_interest(): u8 { FEE_SOURCE_INTEREST }
 /// Fee source tag: vault flash-loan fee.
 public fun fee_source_flash_loan(): u8 { FEE_SOURCE_FLASH_LOAN }
 
-/// Fee source tag: liquidation swap skim / protocol bonus.
+/// Fee source tag: liquidation surplus skim.
 public fun fee_source_liquidation(): u8 { FEE_SOURCE_LIQUIDATION }
 
 // --- Public getters: time ---

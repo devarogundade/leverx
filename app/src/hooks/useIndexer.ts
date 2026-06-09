@@ -11,8 +11,6 @@ import {
 import {
   fetchAccount,
   fetchAccounts,
-  fetchCollateralAssets,
-  fetchCollateralBalances,
   fetchExecutors,
   fetchGlobalMarketTrades,
   fetchHealth,
@@ -59,11 +57,8 @@ export const indexerKeys = {
   account: (accountId: string) => ["indexer-account", accountId] as const,
   vaultSummary: (vaultId: string) => ["indexer-vault-summary", vaultId] as const,
   vaultHistory: (vaultId: string) => ["indexer-vault-history", vaultId] as const,
-  collateral: ["indexer-collateral-assets"] as const,
   triggers: (accountId?: string) => ["indexer-triggers", accountId ?? ""] as const,
   executors: (accountId?: string) => ["indexer-executors", accountId ?? ""] as const,
-  collateralBalances: (accountId?: string) =>
-    ["indexer-collateral-balances", accountId ?? ""] as const,
   liquidations: (accountId?: string, owner?: string) =>
     ["indexer-liquidations", accountId ?? "", owner ?? ""] as const,
   leaderboard: (limit?: number) => ["indexer-leaderboard", limit ?? 100] as const,
@@ -290,16 +285,6 @@ export function useIndexerVaultHistory(vaultId?: string, limit = 200) {
   });
 }
 
-export function useIndexerCollateralAssets() {
-  return useQuery({
-    queryKey: indexerKeys.collateral,
-    queryFn: fetchCollateralAssets,
-    enabled,
-    staleTime: 120_000,
-    retry: 1,
-  });
-}
-
 export function useIndexerTriggers(accountId?: string) {
   return useQuery({
     queryKey: indexerKeys.triggers(accountId),
@@ -323,20 +308,6 @@ export function useIndexerExecutors(accountId?: string) {
     },
     enabled: enabled && Boolean(accountId),
     staleTime: 30_000,
-    retry: 1,
-  });
-}
-
-export function useIndexerCollateralBalances(accountId?: string) {
-  return useQuery({
-    queryKey: indexerKeys.collateralBalances(accountId),
-    queryFn: async () => {
-      const { items } = await fetchCollateralBalances({ accountId, limit: 200 });
-      return items;
-    },
-    enabled: enabled && Boolean(accountId),
-    staleTime: 15_000,
-    refetchInterval: 30_000,
     retry: 1,
   });
 }

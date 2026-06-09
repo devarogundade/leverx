@@ -12,19 +12,11 @@ fun fee_shares_sum_to_one_hundred_percent() {
 }
 
 #[test]
-fun liquidation_ltv_defaults_above_max_ltv() {
-    assert!(
-        protocol_constants::default_liquidation_ltv_bps()
-            > protocol_constants::default_max_ltv_bps(),
-        0,
-    );
+fun fixed_one_x_leverage() {
+    assert!(protocol_constants::leverage_bps() == 10_000, 0);
 }
 
 #[test]
-fun liquidation_pyth_age_wider_than_trading_age() {
-    assert!(
-        protocol_constants::liquidation_pyth_max_age_secs()
-            >= protocol_constants::default_pyth_max_age_secs(),
-        0,
-    );
+fun margin_call_below_full_health() {
+    assert!(protocol_constants::margin_call_bps() < protocol_constants::bps(), 0);
 }

@@ -10,16 +10,14 @@ use diesel_async::pooled_connection::bb8::Pool;
 use diesel_async::RunQueryDsl;
 use diesel_async::AsyncPgConnection;
 use leverx_schema::models::{
-    AccountTimelineRow, CollateralAssetRow, CollateralBalanceRow, GlobalMarketTradeRow,
-    LeveragedPositionRow, LeverxEventRow, LimitMintOrderRow, LiquidationRow, MarketTradeRow,
-    PositionTriggerRow, ProtocolSettingsRow, ProxyExecutorRow, SwapPoolRow, UserProxyRow,
-    VaultSnapshotRow,
+    AccountTimelineRow, GlobalMarketTradeRow, LeveragedPositionRow, LeverxEventRow,
+    LimitMintOrderRow, LiquidationRow, MarketTradeRow, PositionTriggerRow, ProtocolSettingsRow,
+    ProxyExecutorRow, UserProxyRow, VaultSnapshotRow,
 };
 use leverx_schema::schema::{
-    account_timeline, collateral_assets, collateral_balances, global_market_trades,
-    leveraged_positions, leverx_events, limit_mint_orders, liquidations, market_trades,
-    position_triggers, protocol_settings, proxy_executors, swap_pools, user_proxies,
-    vault_snapshots,
+    account_timeline, global_market_trades, leveraged_positions, leverx_events, limit_mint_orders,
+    liquidations, market_trades, position_triggers, protocol_settings, proxy_executors,
+    user_proxies, vault_snapshots,
 };
 use serde::Deserialize;
 use serde_json::json;
@@ -56,10 +54,7 @@ pub fn router() -> Router<AppState> {
         .route("/v1/markets/{oracle_id}/trades", get(market_trades))
         .route("/v1/global-markets/{oracle_id}/trades", get(global_market_trades))
         .route("/v1/events", get(events))
-        .route("/v1/collateral-assets", get(collateral_assets_list))
-        .route("/v1/swap-pools", get(swap_pools_list))
         .route("/v1/protocol", get(protocol_settings_handler))
-        .route("/v1/collateral-balances", get(collateral_balances_list))
         .route("/v1/triggers", get(triggers_list))
         .route("/v1/executors", get(executors_list))
         .route("/v1/liquidations", get(liquidations_list))
@@ -124,8 +119,8 @@ struct ListQuery {
     max_expiry_ms: Option<i64>,
     /// When true, only rows with a linked predict manager.
     has_predict_manager: Option<bool>,
-    /// When true, only rows with non-empty `collateral_asset`.
-    has_collateral: Option<bool>,
+    /// When true, only rows with `margin_quote > 0`.
+    has_margin: Option<bool>,
     /// Comma-separated statuses to exclude (e.g. `liquidated`).
     exclude_status: Option<String>,
     /// When set, only limit orders with `order_expires_ms > min_order_expires_ms`.
@@ -206,8 +201,8 @@ async fn limit_orders(
     if let Some(min_expires) = q.min_order_expires_ms {
         query = query.filter(limit_mint_orders::order_expires_ms.gt(min_expires));
     }
-    if q.has_collateral == Some(true) {
-        query = query.filter(limit_mint_orders::collateral_asset.ne(""));
+    if q.has_margin == Some(true) {
+        query = query.filter(limit_mint_orders::margin_quote.gt(0));
     }
 
     let rows = query
@@ -260,8 +255,8 @@ async fn positions(
     if q.has_predict_manager == Some(true) {
         query = query.filter(leveraged_positions::predict_manager_id.is_not_null());
     }
-    if q.has_collateral == Some(true) {
-        query = query.filter(leveraged_positions::collateral_asset.ne(""));
+    if q.has_margin == Some(true) {
+        query = query.filter(leveraged_positions::margin_quote.gt(0));
     }
     if let Some(exclude) = &q.exclude_status {
         for status in exclude.split(',') {
@@ -498,31 +493,6 @@ async fn events(
     Ok(Json(serde_json::to_value(paginate(rows, limit, offset)).unwrap()))
 }
 
-async fn collateral_assets_list(
-    State(state): State<AppState>,
-) -> Result<Json<Vec<CollateralAssetRow>>, StatusCode> {
-    let mut conn = state.pool.get().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let rows = collateral_assets::table
-        .order(collateral_assets::coin_type.asc())
-        .select(CollateralAssetRow::as_select())
-        .load::<CollateralAssetRow>(&mut conn)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    Ok(Json(rows))
-}
-
-async fn swap_pools_list(
-    State(state): State<AppState>,
-) -> Result<Json<Vec<SwapPoolRow>>, StatusCode> {
-    let mut conn = state.pool.get().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let rows = swap_pools::table
-        .select(SwapPoolRow::as_select())
-        .load::<SwapPoolRow>(&mut conn)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    Ok(Json(rows))
-}
-
 async fn protocol_settings_handler(
     State(state): State<AppState>,
 ) -> Result<Json<Option<ProtocolSettingsRow>>, StatusCode> {
@@ -535,43 +505,6 @@ async fn protocol_settings_handler(
         .optional()
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(Json(row))
-}
-
-#[derive(Debug, Deserialize)]
-struct CollateralBalanceQuery {
-    account_id: Option<String>,
-    position_key: Option<String>,
-    #[serde(default)]
-    limit: Option<i64>,
-    #[serde(default)]
-    offset: Option<i64>,
-}
-
-async fn collateral_balances_list(
-    State(state): State<AppState>,
-    Query(q): Query<CollateralBalanceQuery>,
-) -> Result<Json<serde_json::Value>, StatusCode> {
-    let (limit, offset) = parse_limit_offset(q.limit, q.offset);
-    let mut conn = state.pool.get().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    let mut query = collateral_balances::table.into_boxed();
-    if let Some(account_id) = &q.account_id {
-        query = query.filter(collateral_balances::account_id.eq(account_id));
-    }
-    if let Some(position_key) = &q.position_key {
-        query = query.filter(collateral_balances::position_key.eq(position_key));
-    }
-
-    let rows = query
-        .order(collateral_balances::updated_at_ms.desc())
-        .limit(limit + 1)
-        .offset(offset)
-        .select(CollateralBalanceRow::as_select())
-        .load::<CollateralBalanceRow>(&mut conn)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    Ok(Json(serde_json::to_value(paginate(rows, limit, offset)).unwrap()))
 }
 
 async fn triggers_list(

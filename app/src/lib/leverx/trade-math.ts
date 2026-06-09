@@ -1,5 +1,6 @@
 import { FLOAT_SCALING, QUOTE_UNIT } from "@/lib/predict/constants";
 import { PREDICT_PRICE_SCALE } from "@/lib/leverx/constants";
+import { LEVERAGE_BPS } from "@/lib/leverx/protocol";
 
 /** USD margin → quote atoms (6-decimal dUSDC). */
 export function marginUsdToQuoteAtoms(marginUsd: number): bigint {
@@ -7,16 +8,9 @@ export function marginUsdToQuoteAtoms(marginUsd: number): bigint {
   return BigInt(Math.round(marginUsd * Number(QUOTE_UNIT)));
 }
 
-/** Human token amount → coin atoms. */
-export function tokenAmountToAtoms(amount: number, decimals: number): bigint {
-  if (!Number.isFinite(amount) || amount <= 0) return 0n;
-  const scale = 10 ** decimals;
-  return BigInt(Math.round(amount * scale));
-}
-
-/** Leverage multiplier → basis points (2x → 20000). */
-export function leverageToBps(leverage: number): bigint {
-  return BigInt(Math.round(leverage * 10_000));
+/** Fixed 1:1 leverage — always 10_000 bps. */
+export function leverageToBps(_leverage?: number): bigint {
+  return LEVERAGE_BPS;
 }
 
 /** Percent → basis points. */
@@ -41,39 +35,17 @@ export function strikeUsdToRaw(strikeUsd: number): number {
   return Math.round(strikeUsd * Number(FLOAT_SCALING));
 }
 
-export function positionQuoteAtoms(marginAtoms: bigint, leverageBps: bigint): bigint {
-  return (marginAtoms * leverageBps) / 10_000n;
+/** At 1:1 leverage, position notional equals margin. */
+export function positionQuoteAtoms(marginAtoms: bigint, _leverageBps?: bigint): bigint {
+  return marginAtoms;
 }
 
-export function borrowQuoteAtoms(marginAtoms: bigint, leverageBps: bigint): bigint {
-  const position = positionQuoteAtoms(marginAtoms, leverageBps);
-  return position > marginAtoms ? position - marginAtoms : 0n;
+/** No vault borrow on open at fixed 1x. */
+export function borrowQuoteAtoms(_marginAtoms: bigint, _leverageBps?: bigint): bigint {
+  return 0n;
 }
 
-/** Quote value of collateral needed to back `borrow` at `maxLtvBps`. */
-export function collateralQuoteValueForBorrow(
-  borrowAtoms: bigint,
-  maxLtvBps: number,
-): bigint {
-  if (borrowAtoms <= 0n || maxLtvBps <= 0) return 0n;
-  return (borrowAtoms * 10_000n + BigInt(maxLtvBps) - 1n) / BigInt(maxLtvBps);
-}
-
-/** Collateral coin atoms from required quote value and USD spot. */
-export function collateralAtomsFromQuoteValue(
-  quoteValueAtoms: bigint,
-  collateralSpotUsd: number,
-  collateralDecimals: number,
-  headroomBps = 500,
-): bigint {
-  if (quoteValueAtoms <= 0n || collateralSpotUsd <= 0) return 0n;
-  const quoteUsd =
-    (Number(quoteValueAtoms) / Number(QUOTE_UNIT)) * (1 + headroomBps / 10_000);
-  const tokenAmount = quoteUsd / collateralSpotUsd;
-  return tokenAmountToAtoms(tokenAmount, collateralDecimals);
-}
-
-/** Estimate contract quantity from position notional and per-unit premium. */
+/** Estimate contract quantity from margin and per-unit premium. */
 export function estimateQuantity(
   marginAtoms: bigint,
   leverageBps: bigint,

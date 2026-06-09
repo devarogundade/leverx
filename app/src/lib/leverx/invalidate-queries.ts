@@ -13,10 +13,8 @@ const LEVERX_MUTATION_QUERY_PREFIXES = [
   "indexer-account",
   "indexer-vault-summary",
   "indexer-vault-history",
-  "indexer-collateral",
   "indexer-triggers",
   "indexer-executors",
-  "indexer-collateral-balances",
   "indexer-liquidations",
   "indexer-leaderboard",
   // Wallet balances & on-chain quote simulation

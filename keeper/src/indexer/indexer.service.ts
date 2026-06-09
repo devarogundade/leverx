@@ -77,7 +77,6 @@ export class IndexerService {
     minOpenQuantity?: number;
     maxExpiryMs?: number;
     hasPredictManager?: boolean;
-    hasCollateral?: boolean;
     excludeStatus?: string;
     limit?: number;
     offset?: number;
@@ -89,7 +88,6 @@ export class IndexerService {
         min_open_quantity: args?.minOpenQuantity,
         max_expiry_ms: args?.maxExpiryMs,
         has_predict_manager: args?.hasPredictManager,
-        has_collateral: args?.hasCollateral,
         exclude_status: args?.excludeStatus,
         limit: args?.limit ?? 500,
         offset: args?.offset ?? 0,
@@ -103,7 +101,6 @@ export class IndexerService {
       status: 'all',
       minBorrowQuote: 1,
       hasPredictManager: true,
-      hasCollateral: true,
       excludeStatus: 'liquidated',
       limit,
     });
@@ -112,7 +109,6 @@ export class IndexerService {
   fetchLimitOrders(args?: {
     status?: string;
     minOrderExpiresMs?: number;
-    hasCollateral?: boolean;
     limit?: number;
     offset?: number;
   }): Promise<Paginated<LimitMintOrder>> {
@@ -120,7 +116,6 @@ export class IndexerService {
       `/v1/limit-orders${this.buildQuery({
         status: args?.status ?? 'open',
         min_order_expires_ms: args?.minOrderExpiresMs,
-        has_collateral: args?.hasCollateral,
         limit: args?.limit ?? 500,
         offset: args?.offset ?? 0,
       })}`,

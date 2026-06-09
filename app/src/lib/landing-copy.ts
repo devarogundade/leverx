@@ -4,7 +4,7 @@ export const landingCopy = {
   heroTitle: "Trade with leverage.",
   heroTitleAccent: "Earn by supporting the pool.",
   heroLead:
-    "Bet on where prices go — with up to 10× leverage. Or earn by adding funds to the pool or running a small helper that keeps markets running smoothly.",
+    "Bet on where prices go with dUSDC margin at fixed 1× leverage. Or earn by adding funds to the pool or running a small helper that keeps markets running smoothly.",
   ctaTrade: "Start trading",
   ctaHow: "How it works",
 
@@ -19,7 +19,7 @@ export const landingCopy = {
   leverageLead:
     "Your target price sits in the middle of the chart. When the live price crosses above or below it, the line turns green or red so you always know where you stand.",
   leverageBullets: [
-    "Up to 10× leverage on price-up, price-down, and range bets",
+    "Fixed 1× dUSDC margin on price-up, price-down, and range bets",
     "Target price always centered on the chart",
     "Clear signals when a position is ahead or behind",
   ] as const,
@@ -49,14 +49,14 @@ export const landingCopy = {
 
   earnersTitle: "Earn without trading",
   earnersLead:
-    "Add USDC to the shared pool and earn from trading activity, or run a small helper app that keeps markets fair — both paths pay you back.",
+    "Add dUSDC to the shared pool and earn from trading activity, or run a small helper app that keeps markets fair — both paths pay you back.",
 
   vaultEyebrow: "Pool",
   vaultTitle: "Add funds, earn from traders",
   vaultLead:
-    "Traders borrow from the pool when they use leverage. Your deposit earns a share of those fees as more people trade.",
+    "The pool backs settlement and future borrow demand. Your dUSDC deposit earns a share of trading fees as activity grows.",
   vaultBullets: [
-    "Deposit and withdraw USDC anytime",
+    "Deposit and withdraw dUSDC anytime",
     "Track pool size and your earnings live",
     "Fees add up as trading activity grows",
   ] as const,

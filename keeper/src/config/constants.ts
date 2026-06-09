@@ -1,7 +1,5 @@
-import type { CollateralCatalogEntry } from './collateral-catalog';
-
 /**
- * Keeper configuration — edit this file for testnet deploy IDs, liquidation wiring, etc.
+ * Keeper configuration — edit this file for testnet deploy IDs, etc.
  * The only value in `keeper/.env` is `KEEPER_PRIVATE_KEY`.
  */
 
@@ -19,63 +17,34 @@ export const TESTNET_PREDICT = {
 /** Published LeverX package + shared objects (testnet). */
 export const TESTNET_LEVERX = {
   packageId:
-    '0x8780ec7cfae9d333ba11325bb078fa79d5942aa077a739e7ad6683ea8f5ed36d',
+    '0x4275c1990b8182c59a638abdc4922303f9e77bae92fcb1cc519f25a97fc8c7cb',
   registryId:
-    '0xf6393b143c0c3a03179ff4a3bf3eba5f56831c8582881800e05f226ea239480c',
-  vaultId: '0x62a4b9098943c1133668265721c4b4eb9d174d444e0b797bb1865f31eccded93',
+    '0x00235fa4d1ca972353e8bafa51bb1e0450d7f3467d96e066a86e42263f8462d8',
+  vaultId: '0x011dece1b6c222fc352e7979d7c5c97d215db522821377a85208d2ec4e788fab',
   feeCollectorId:
-    '0x4fcd19f16566024cd13ee49b3926f2d3c763a392a5988748d738d545e9f238a8',
+    '0xdfb7203456a4061d860f7051a97d981063531167b74a2f4897c0a472c2477d22',
 } as const;
 
-/** Quote / default collateral coin types on testnet. */
+/** dUSDC quote type on testnet. */
 export const TESTNET_ASSETS = {
   quoteType:
     '0xe95040085976bfd54a1a07225cd46c8a2b4e8e2b6732f140a0fc49850ba73e1a::dusdc::DUSDC',
-  defaultCollateralType:
-    '0xe95040085976bfd54a1a07225cd46c8a2b4e8e2b6732f140a0fc49850ba73e1a::dusdc::DUSDC',
 } as const;
 
-/** dUSDC / USD Pyth price feed on testnet (same as app `pythQuoteOracleId`). */
-export const TESTNET_PYTH_QUOTE_ORACLE_ID =
-  '0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81';
+/** Fixed 1:1 leverage (10_000 bps). */
+export const LEVERAGE_BPS = 10_000;
 
-/** DeepBook DEEP token type (testnet) — fee coins come from the keeper wallet. */
-export const DEEP_COIN_TYPE =
-  '0xdeeb7a4662eec9f2f3def03fb937a663dddaa2e215b8078a284d026b7946c270::deep::DEEP';
-
-/** Quote Pyth oracle + default collateral liquidation wiring (fill after deploy). */
-export const TESTNET_LIQUIDATION = {
-  spotPoolId: '',
-  pythCollateralOracleId: TESTNET_PYTH_QUOTE_ORACLE_ID,
-  pythQuoteOracleId: TESTNET_PYTH_QUOTE_ORACLE_ID,
-} as const;
+/** Margin-call threshold (95%). */
+export const MARGIN_CALL_BPS = 9_500;
 
 /** Extra quote borrowed on flash loans to cover accrued vault interest. */
 export const FLASH_BORROW_BUFFER_BPS = 500;
-
-/** Min quote-out slippage guard on liquidation spot swaps. */
-export const LIQUIDATION_SWAP_SLIPPAGE_BPS = 300;
 
 /** Slippage floor on keeper trigger redeems (matches app `DEFAULT_SLIPPAGE_BPS`). */
 export const TRIGGER_REDEEM_SLIPPAGE_BPS = 500;
 
 /** Predict per-contract premium scale (1e9). */
 export const PREDICT_PRICE_SCALE = 1_000_000_000n;
-
-/**
- * Launch collateral targets — on-chain LTV via `whitelist_collateral_entry`.
- * Canonical max / liquidation bps: dUSDC 9000/9500.
- */
-export const LAUNCH_COLLATERAL_CATALOG: CollateralCatalogEntry[] = [
-  {
-    symbol: 'DUSDC',
-    coinType: TESTNET_ASSETS.quoteType,
-    maxLtvBps: 9000,
-    liquidationLtvBps: 9500,
-    pythOracleId: TESTNET_PYTH_QUOTE_ORACLE_ID,
-    spotPoolId: '',
-  },
-];
 
 export const KEEPER_ENABLED = true;
 

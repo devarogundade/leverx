@@ -16,7 +16,6 @@ export type LeveragedPosition = {
   higher_strike: number;
   is_up: boolean;
   is_range: boolean;
-  collateral_asset: string;
   open_quantity: number;
   margin_quote: number;
   borrow_quote: number;
@@ -38,7 +37,6 @@ export type LimitMintOrder = {
   higher_strike: number;
   is_range: boolean;
   is_up: boolean;
-  collateral_asset: string;
   limit_premium_per_unit: number;
   slippage_bps: number;
   market_ask_at_place: number | null;

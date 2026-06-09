@@ -43,7 +43,7 @@ export function WelcomeDialog() {
               Welcome to {APP_NAME}
             </DialogTitle>
             <DialogDescription className="text-sm leading-relaxed">
-              Bet on where prices go with up to 10× leverage. Connect your wallet, pick a market, and
+              Bet on where prices go with dUSDC at fixed 1× leverage. Connect your wallet, pick a market, and
               open your first trade in minutes — all on the demo network.
             </DialogDescription>
           </DialogHeader>

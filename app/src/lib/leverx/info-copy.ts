@@ -8,15 +8,14 @@ export const leverxInfo = {
     "Fill now tries to open immediately at your price. Resting leaves your order waiting until someone matches it.",
   placementSlippage: "How far the price can move from your target when your order fills.",
   orderExpires: "How long a waiting order stays open before it is cancelled.",
-  collateral: "What you put up to open a trade. The app values it at the current market price.",
-  margin: "Your own money in the trade. Leverage lets you control a larger position with less upfront.",
+  collateral: "dUSDC margin posted for a trade (1:1 — position size equals your deposit).",
+  margin: "dUSDC you deposit per market key. At 1× leverage there is no vault borrow on open.",
   quantity: "How many contracts you are opening. Each one pays out based on the final price at expiry.",
-  leverage:
-    "Multiplies your position size (1.1×–10×). Higher leverage means bigger gains — and bigger losses if you are wrong.",
+  leverage: "Fixed at 1× on testnet — position size matches your dUSDC margin.",
   preTradeQuote: "Estimated cost before you confirm. Connect your wallet for the most accurate number.",
   askPerUnit: "Best available price per contract right now.",
   mintCost: "Total cost to open, including your deposit and any fees.",
-  vaultBorrow: "Extra USDC borrowed from the pool to fund the leveraged part of your trade.",
+  vaultBorrow: "Vault borrow on open (zero at fixed 1×; may accrue if you add leverage later).",
   tpSl:
     "Optional auto-exit when the contract price hits your profit target or loss limit.",
   tpSlUnits: "% is relative to your entry price; ¢ is an absolute price per contract.",
@@ -35,12 +34,13 @@ export const leverxInfo = {
   predictManager: "Your on-chain trading account that holds positions.",
   sessionExecutor: "A trusted address allowed to trade for you without your main wallet key.",
   triggers: "Active profit-target and stop-loss rules. Clear them when you close the matching trade.",
-  collateralBalances: "Funds held for each of your open trades.",
+  collateralBalances: "dUSDC margin allocated to each open market key.",
+  marginInTrades: "dUSDC margin allocated to each open market key.",
   liquidations: "Times the pool stepped in to close a trade because margin ran too low.",
 
-  vaultSupply: "Add USDC to the pool and receive shares that earn from trading fees.",
-  vaultWithdraw: "Cash out your shares back to USDC, including any earnings.",
-  vaultAmount: "USDC to deposit, or shares to redeem when withdrawing.",
+  vaultSupply: "Add dUSDC to the pool and receive shares that earn from trading fees.",
+  vaultWithdraw: "Cash out your shares back to dUSDC, including any earnings.",
+  vaultAmount: "dUSDC to deposit, or shares to redeem when withdrawing.",
   vaultTvl: "Total value currently in the pool.",
   vaultApr: "Estimated yearly return from trading fees and borrow demand.",
   vaultUtil: "Share of pool funds currently lent to traders.",
@@ -62,7 +62,7 @@ export const leverxInfo = {
 
   closeMarket: "Close now at the best available price.",
   closeLimit: "Close only if the price meets your minimum.",
-  repayDebt: "Pay back borrowed USDC without fully closing the trade.",
+  repayDebt: "Pay back borrowed dUSDC without fully closing the trade.",
   settleExpired: "Finalize a trade after the market has expired.",
   tradingPaused: "New trades are temporarily paused. You may still be able to close positions.",
   protocolNotConfigured:
@@ -71,7 +71,7 @@ export const leverxInfo = {
   landingHealth:
     "Each trade tracks whether you are ahead or behind. If the market moves too far against you, the position may be closed automatically.",
   landingVault:
-    "The pool holds USDC that traders borrow. Add funds and earn a share of fees over time.",
+    "The pool holds dUSDC for settlement and borrow. Add funds and earn a share of fees over time.",
   landingKeeper:
     "A helper is a small app you run in the background. It keeps markets fair and you can earn fees when yours completes work first.",
 

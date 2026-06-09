@@ -28,11 +28,11 @@ services:
     environment:
       DATABASE_URL: postgres://leverx:leverx@postgres:5432/leverx_indexer
       INDEXER_DATABASE_URL: postgres://leverx:leverx@postgres:5432/leverx_indexer
-      LEVERX_PACKAGE_ID: "0x8780ec7cfae9d333ba11325bb078fa79d5942aa077a739e7ad6683ea8f5ed36d"
+      LEVERX_PACKAGE_ID: "0x4275c1990b8182c59a638abdc4922303f9e77bae92fcb1cc519f25a97fc8c7cb"
       PREDICT_PACKAGE_ID: "0xf5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138"
       PGHOST: postgres
       PGUSER: leverx
-      FIRST_CHECKPOINT: "344968552"
+      FIRST_CHECKPOINT: "346394798"
     depends_on:
       postgres:
         condition: service_healthy

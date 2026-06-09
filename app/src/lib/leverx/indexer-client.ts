@@ -2,8 +2,6 @@
  * LeverX indexer HTTP client — structured on-chain projections.
  */
 
-import { normalizeQuoteAssetType } from "@/lib/predict/quote-assets";
-
 const INDEXER_URL =
   import.meta.env.VITE_LEVERX_INDEXER_URL ?? "http://localhost:3100";
 
@@ -73,7 +71,6 @@ export type LimitMintOrder = {
   higher_strike: number;
   is_range: boolean;
   is_up: boolean;
-  collateral_asset: string;
   limit_premium_per_unit: number;
   slippage_bps: number;
   market_ask_at_place: number | null;
@@ -105,7 +102,6 @@ export type LeveragedPosition = {
   higher_strike: number;
   is_up: boolean;
   is_range: boolean;
-  collateral_asset: string;
   open_quantity: number;
   margin_quote: number;
   borrow_quote: number;
@@ -184,45 +180,17 @@ export type VaultSnapshot = {
   payload: Record<string, unknown>;
 };
 
-export type CollateralAsset = {
-  coin_type: string;
-  registry_id: string;
-  decimals: number;
-  max_ltv_bps: number;
-  liquidation_ltv_bps: number;
-  max_conf_bps: number;
-  updated_at_ms: number;
-  event_digest: string;
-};
-
-export type SwapPool = {
-  collateral_asset: string;
-  pool_id: string;
-  registry_id: string;
-  updated_at_ms: number;
-  event_digest: string;
-};
-
 export type ProtocolSettings = {
   registry_id: string;
   vault_id: string | null;
   predict_id: string | null;
   fee_collector_id: string | null;
   trading_paused: boolean;
-  pyth_max_age_secs: number | null;
   base_rate_bps: number | null;
   kink_utilization_bps: number | null;
   slope1_bps: number | null;
   slope2_bps: number | null;
   flash_fee_bps: number | null;
-  updated_at_ms: number;
-};
-
-export type CollateralBalance = {
-  position_key: string;
-  account_id: string;
-  collateral_asset: string;
-  balance_atoms: number;
   updated_at_ms: number;
 };
 
@@ -250,10 +218,7 @@ export type Liquidation = {
   account_id: string;
   owner: string;
   keeper: string;
-  collateral_asset: string;
   debt_repaid: number;
-  collateral_seized: number;
-  quote_from_swap: number;
   surplus_quote: number;
   health_bps: number;
   had_position_redeem: boolean;
@@ -471,37 +436,8 @@ export function fetchHealth() {
   return get<{ ok: boolean; service: string }>("/health");
 }
 
-export function fetchCollateralAssets(): Promise<CollateralAsset[]> {
-  return get<CollateralAsset[]>("/v1/collateral-assets").then((rows) =>
-    rows.map((row) => ({
-      ...row,
-      coin_type: normalizeQuoteAssetType(row.coin_type),
-    })),
-  );
-}
-
-export function fetchSwapPools(): Promise<SwapPool[]> {
-  return get("/v1/swap-pools");
-}
-
 export function fetchProtocolSettings(): Promise<ProtocolSettings | null> {
   return get("/v1/protocol");
-}
-
-export function fetchCollateralBalances(args?: {
-  accountId?: string;
-  positionKey?: string;
-  limit?: number;
-  offset?: number;
-}): Promise<Paginated<CollateralBalance>> {
-  return get(
-    `/v1/collateral-balances${buildQuery({
-      account_id: args?.accountId,
-      position_key: args?.positionKey,
-      limit: args?.limit,
-      offset: args?.offset,
-    })}`,
-  );
 }
 
 export function fetchTriggers(args?: {

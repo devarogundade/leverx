@@ -1,30 +1,29 @@
 //! Maps deserialized `leverx::events` into Postgres row batches.
 
 use leverx_schema::models::{
-    NewAccountTimeline, NewCollateralAsset, NewCollateralBalance, NewLeverxEvent, NewLimitMintOrder,
-    NewLeveragedPosition, NewLiquidation, NewMarketTrade, NewPositionTrigger, NewProtocolSettings,
-    NewProxyExecutor, NewSwapPool, NewUserProxy, NewVaultSnapshot,
+    NewAccountTimeline, NewLeverxEvent, NewLimitMintOrder, NewLeveragedPosition, NewLiquidation,
+    NewMarketTrade, NewPositionTrigger, NewProtocolSettings, NewProxyExecutor, NewUserProxy,
+    NewVaultSnapshot,
 };
 use serde_json::Value as JsonValue;
 use sui_types::event::Event;
 
 use crate::handlers::{
     BorrowRatePatch, DebtRepaidPatch, LeverxBatch, LimitCancelPatch, LimitExecutePatch,
-    LiquidationPositionPatch, PositionClosePatch, PythMaxAgePatch, TradingPausedPatch,
+    LiquidationPositionPatch, PositionClosePatch, TradingPausedPatch,
 };
-use crate::keys::{limit_order_key, normalize_type_name, position_key};
+use crate::keys::{limit_order_key, position_key};
 use crate::points::record_volume;
 use crate::relation_upserts::{ensure_market, ensure_predict_manager};
 use crate::move_events::{
-    parse_event_json, try_parse, AccountCreated, CollateralDeposited, CollateralSwapped,
-    CollateralWithdrawn, DebtBorrowed, DebtRepaid, ExecutorRegistered, ExecutorRevoked,
-    BorrowRateParamsUpdated, CollateralWhitelisted, FeeCollectorWithdrawn, FlashLoanBorrowed,
+    parse_event_json, try_parse, AccountCreated, DebtBorrowed, DebtRepaid, ExecutorRegistered,
+    ExecutorRevoked, BorrowRateParamsUpdated, FeeCollectorWithdrawn, FlashLoanBorrowed,
     FlashLoanRepaid, InsuranceFundSkimmed, InterestAccrued, ProtocolFeeDistributed,
     LeveragedPositionClosed, LeveragedPositionOpened, LimitMintOrderCancelled,
     LimitMintOrderExecuted, LimitMintOrderPlaced, PositionLiquidated, PredictManagerLinked,
-    ProtocolDeployed, ProxyAccountingSynced, PythMaxAgeUpdated, RegistryInitialized,
-    SwapPoolRegistered, TradingPausedChanged, TriggersCleared, TriggersUpdated,
-    VaultBorrowed, VaultRepaid, VaultSupplied, VaultWithdrawn,
+    ProtocolDeployed, ProxyAccountingSynced, RegistryInitialized,
+    TradingPausedChanged, TriggersCleared, TriggersUpdated, VaultBorrowed, VaultRepaid,
+    VaultSupplied, VaultWithdrawn,
 };
 
 pub struct EventContext<'a> {
@@ -105,7 +104,6 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     higher_strike: ev.higher_strike as i64,
                     is_range: ev.is_range,
                     is_up: ev.is_up,
-                    collateral_asset: normalize_type_name(&ev.collateral_asset.name),
                     limit_premium_per_unit: ev.limit_premium_per_unit as i64,
                     slippage_bps: ev.slippage_bps as i64,
                     market_ask_at_place: Some(ev.market_ask_at_place as i64),
@@ -218,7 +216,6 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     higher_strike: ev.higher_strike as i64,
                     is_up: ev.is_up,
                     is_range: ev.is_range,
-                    collateral_asset: normalize_type_name(&ev.collateral_asset.name),
                     open_quantity: ev.quantity as i64,
                     margin_quote: ev.margin_quote as i64,
                     borrow_quote: ev.borrow_quote as i64,
@@ -320,7 +317,6 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     predict_id: Some(ev.predict_id.to_string()),
                     fee_collector_id: Some(ev.fee_collector_id.to_string()),
                     trading_paused: false,
-                    pyth_max_age_secs: None,
                     base_rate_bps: None,
                     kink_utilization_bps: None,
                     slope1_bps: None,
@@ -353,7 +349,6 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     predict_id: Some(ev.predict_id.to_string()),
                     fee_collector_id: Some(ev.fee_collector_id.to_string()),
                     trading_paused: false,
-                    pyth_max_age_secs: None,
                     base_rate_bps: None,
                     kink_utilization_bps: None,
                     slope1_bps: None,
@@ -378,45 +373,11 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                 });
             }
         }
-        "CollateralWhitelisted" => {
-            if let Some(ev) = try_parse::<CollateralWhitelisted>(ctx.event.contents.as_slice()) {
-                batch.collateral_assets.push(NewCollateralAsset {
-                    coin_type: normalize_type_name(&ev.asset.name),
-                    registry_id: ev.registry_id.to_string(),
-                    decimals: ev.decimals as i16,
-                    max_ltv_bps: ev.max_ltv_bps as i64,
-                    liquidation_ltv_bps: ev.liquidation_ltv_bps as i64,
-                    max_conf_bps: ev.max_conf_bps as i64,
-                    updated_at_ms: ctx.timestamp_ms,
-                    event_digest: ctx.event_digest.to_string(),
-                });
-            }
-        }
-        "SwapPoolRegistered" => {
-            if let Some(ev) = try_parse::<SwapPoolRegistered>(ctx.event.contents.as_slice()) {
-                batch.swap_pools.push(NewSwapPool {
-                    collateral_asset: normalize_type_name(&ev.asset.name),
-                    pool_id: ev.pool_id.to_string(),
-                    registry_id: ev.registry_id.to_string(),
-                    updated_at_ms: ctx.timestamp_ms,
-                    event_digest: ctx.event_digest.to_string(),
-                });
-            }
-        }
         "TradingPausedChanged" => {
             if let Some(ev) = try_parse::<TradingPausedChanged>(ctx.event.contents.as_slice()) {
                 batch.trading_paused_patches.push(TradingPausedPatch {
                     registry_id: ev.registry_id.to_string(),
                     paused: ev.paused,
-                    updated_at_ms: ctx.timestamp_ms,
-                });
-            }
-        }
-        "PythMaxAgeUpdated" => {
-            if let Some(ev) = try_parse::<PythMaxAgeUpdated>(ctx.event.contents.as_slice()) {
-                batch.pyth_max_age_patches.push(PythMaxAgePatch {
-                    registry_id: ev.registry_id.to_string(),
-                    max_age_secs: ev.max_age_secs as i64,
                     updated_at_ms: ctx.timestamp_ms,
                 });
             }
@@ -627,10 +588,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     account_id: ev.account_id.to_string(),
                     owner: ev.owner.to_string(),
                     keeper: ev.keeper.to_string(),
-                    collateral_asset: normalize_type_name(&ev.collateral_asset.name),
                     debt_repaid: ev.debt_repaid as i64,
-                    collateral_seized: ev.collateral_seized as i64,
-                    quote_from_swap: ev.quote_from_swap as i64,
                     surplus_quote: ev.surplus_quote as i64,
                     health_bps: ev.health_bps as i64,
                     had_position_redeem: ev.had_position_redeem,
@@ -643,59 +601,6 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     had_position_redeem: ev.had_position_redeem,
                     event_digest: ctx.event_digest.to_string(),
                     keeper: ev.keeper.to_string(),
-                });
-                batch.collateral_balances.push(NewCollateralBalance {
-                    position_key: position_key(
-                        &ev.oracle_id.to_string(),
-                        ev.expiry_ms as i64,
-                        ev.strike as i64,
-                        ev.higher_strike as i64,
-                        ev.is_up,
-                        ev.is_range,
-                    ),
-                    account_id: ev.account_id.to_string(),
-                    collateral_asset: normalize_type_name(&ev.collateral_asset.name),
-                    balance_atoms: 0,
-                    updated_at_ms: ctx.timestamp_ms,
-                });
-                timeline(batch, ctx, ev.account_id.to_string(), Some(ev.owner.to_string()));
-            }
-        }
-        "CollateralDeposited" => {
-            if let Some(ev) = try_parse::<CollateralDeposited>(ctx.event.contents.as_slice()) {
-                upsert_collateral_balance(batch, &ev, ctx.timestamp_ms);
-                timeline(batch, ctx, ev.account_id.to_string(), Some(ev.owner.to_string()));
-            }
-        }
-        "CollateralWithdrawn" => {
-            if let Some(ev) = try_parse::<CollateralWithdrawn>(ctx.event.contents.as_slice()) {
-                upsert_collateral_balance(batch, &ev, ctx.timestamp_ms);
-                timeline(batch, ctx, ev.account_id.to_string(), Some(ev.owner.to_string()));
-            }
-        }
-        "CollateralSwapped" => {
-            if let Some(ev) = try_parse::<CollateralSwapped>(ctx.event.contents.as_slice()) {
-                let pk = position_key(
-                    &ev.oracle_id.to_string(),
-                    ev.expiry_ms as i64,
-                    ev.strike as i64,
-                    ev.higher_strike as i64,
-                    ev.is_up,
-                    ev.is_range,
-                );
-                batch.collateral_balances.push(NewCollateralBalance {
-                    position_key: pk.clone(),
-                    account_id: ev.account_id.to_string(),
-                    collateral_asset: normalize_type_name(&ev.base_asset.name),
-                    balance_atoms: ev.collateral_balance_after as i64,
-                    updated_at_ms: ctx.timestamp_ms,
-                });
-                batch.collateral_balances.push(NewCollateralBalance {
-                    position_key: pk,
-                    account_id: ev.account_id.to_string(),
-                    collateral_asset: normalize_type_name(&ev.quote_asset.name),
-                    balance_atoms: ev.quote_balance_after as i64,
-                    updated_at_ms: ctx.timestamp_ms,
                 });
                 timeline(batch, ctx, ev.account_id.to_string(), Some(ev.owner.to_string()));
             }
@@ -785,109 +690,6 @@ fn timeline(batch: &mut LeverxBatch, ctx: EventContext<'_>, account_id: String, 
         timestamp_ms: ctx.timestamp_ms,
         payload: ctx.parsed_json.clone(),
     });
-}
-
-fn upsert_collateral_balance(
-    batch: &mut LeverxBatch,
-    ev: &impl CollateralBalanceEvent,
-    updated_at_ms: i64,
-) {
-    ensure_market(
-        batch,
-        &ev.oracle_id().to_string(),
-        ev.expiry_ms() as i64,
-        ev.strike() as i64,
-        ev.higher_strike() as i64,
-        ev.is_up(),
-        ev.is_range(),
-        updated_at_ms,
-    );
-    batch.collateral_balances.push(NewCollateralBalance {
-        position_key: position_key(
-            &ev.oracle_id().to_string(),
-            ev.expiry_ms() as i64,
-            ev.strike() as i64,
-            ev.higher_strike() as i64,
-            ev.is_up(),
-            ev.is_range(),
-        ),
-        account_id: ev.account_id().to_string(),
-        collateral_asset: normalize_type_name(ev.asset_name()),
-        balance_atoms: ev.balance_after() as i64,
-        updated_at_ms,
-    });
-}
-
-trait CollateralBalanceEvent {
-    fn account_id(&self) -> &sui_types::base_types::ObjectID;
-    fn oracle_id(&self) -> &sui_types::base_types::ObjectID;
-    fn expiry_ms(&self) -> u64;
-    fn strike(&self) -> u64;
-    fn higher_strike(&self) -> u64;
-    fn is_up(&self) -> bool;
-    fn is_range(&self) -> bool;
-    fn asset_name(&self) -> &str;
-    fn balance_after(&self) -> u64;
-}
-
-impl CollateralBalanceEvent for CollateralDeposited {
-    fn account_id(&self) -> &sui_types::base_types::ObjectID {
-        &self.account_id
-    }
-    fn oracle_id(&self) -> &sui_types::base_types::ObjectID {
-        &self.oracle_id
-    }
-    fn expiry_ms(&self) -> u64 {
-        self.expiry_ms
-    }
-    fn strike(&self) -> u64 {
-        self.strike
-    }
-    fn higher_strike(&self) -> u64 {
-        self.higher_strike
-    }
-    fn is_up(&self) -> bool {
-        self.is_up
-    }
-    fn is_range(&self) -> bool {
-        self.is_range
-    }
-    fn asset_name(&self) -> &str {
-        &self.asset.name
-    }
-    fn balance_after(&self) -> u64 {
-        self.balance_after
-    }
-}
-
-impl CollateralBalanceEvent for CollateralWithdrawn {
-    fn account_id(&self) -> &sui_types::base_types::ObjectID {
-        &self.account_id
-    }
-    fn oracle_id(&self) -> &sui_types::base_types::ObjectID {
-        &self.oracle_id
-    }
-    fn expiry_ms(&self) -> u64 {
-        self.expiry_ms
-    }
-    fn strike(&self) -> u64 {
-        self.strike
-    }
-    fn higher_strike(&self) -> u64 {
-        self.higher_strike
-    }
-    fn is_up(&self) -> bool {
-        self.is_up
-    }
-    fn is_range(&self) -> bool {
-        self.is_range
-    }
-    fn asset_name(&self) -> &str {
-        &self.asset.name
-    }
-    fn balance_after(&self) -> u64 {
-        self.balance_after
-    }
 }
 
 fn vault_from<T: serde::de::DeserializeOwned>(

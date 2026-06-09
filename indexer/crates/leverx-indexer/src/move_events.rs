@@ -4,12 +4,6 @@
 use serde::{Deserialize, Serialize};
 use sui_types::base_types::{ObjectID, SuiAddress};
 
-/// `std::type_name::TypeName` on-chain.
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct TypeNameWire {
-    pub name: String,
-}
-
 // === Protocol ===
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -30,32 +24,9 @@ pub struct RegistryInitialized {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct CollateralWhitelisted {
-    pub registry_id: ObjectID,
-    pub asset: TypeNameWire,
-    pub decimals: u8,
-    pub max_ltv_bps: u64,
-    pub liquidation_ltv_bps: u64,
-    pub max_conf_bps: u64,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct SwapPoolRegistered {
-    pub registry_id: ObjectID,
-    pub asset: TypeNameWire,
-    pub pool_id: ObjectID,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
 pub struct TradingPausedChanged {
     pub registry_id: ObjectID,
     pub paused: bool,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct PythMaxAgeUpdated {
-    pub registry_id: ObjectID,
-    pub max_age_secs: u64,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -191,56 +162,6 @@ pub struct PredictManagerLinked {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct CollateralDeposited {
-    pub account_id: ObjectID,
-    pub owner: SuiAddress,
-    pub oracle_id: ObjectID,
-    pub expiry_ms: u64,
-    pub strike: u64,
-    pub higher_strike: u64,
-    pub is_up: bool,
-    pub is_range: bool,
-    pub asset: TypeNameWire,
-    pub amount: u64,
-    pub collateral_value_quote: u64,
-    pub balance_after: u64,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct CollateralWithdrawn {
-    pub account_id: ObjectID,
-    pub owner: SuiAddress,
-    pub oracle_id: ObjectID,
-    pub expiry_ms: u64,
-    pub strike: u64,
-    pub higher_strike: u64,
-    pub is_up: bool,
-    pub is_range: bool,
-    pub asset: TypeNameWire,
-    pub amount: u64,
-    pub balance_after: u64,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct CollateralSwapped {
-    pub account_id: ObjectID,
-    pub owner: SuiAddress,
-    pub oracle_id: ObjectID,
-    pub expiry_ms: u64,
-    pub strike: u64,
-    pub higher_strike: u64,
-    pub is_up: bool,
-    pub is_range: bool,
-    pub base_asset: TypeNameWire,
-    pub quote_asset: TypeNameWire,
-    pub base_amount: u64,
-    pub quote_received: u64,
-    pub pool_id: ObjectID,
-    pub collateral_balance_after: u64,
-    pub quote_balance_after: u64,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
 pub struct DebtBorrowed {
     pub account_id: ObjectID,
     pub owner: SuiAddress,
@@ -275,7 +196,6 @@ pub struct LeveragedPositionOpened {
     pub higher_strike: u64,
     pub is_up: bool,
     pub is_range: bool,
-    pub collateral_asset: TypeNameWire,
     pub quantity: u64,
     pub margin_quote: u64,
     pub borrow_quote: u64,
@@ -318,10 +238,7 @@ pub struct PositionLiquidated {
     pub higher_strike: u64,
     pub is_up: bool,
     pub is_range: bool,
-    pub collateral_asset: TypeNameWire,
     pub debt_repaid: u64,
-    pub collateral_seized: u64,
-    pub quote_from_swap: u64,
     pub surplus_quote: u64,
     pub health_bps: u64,
     pub had_position_redeem: bool,
@@ -369,7 +286,6 @@ pub struct LimitMintOrderPlaced {
     pub higher_strike: u64,
     pub is_range: bool,
     pub is_up: bool,
-    pub collateral_asset: TypeNameWire,
     pub limit_premium_per_unit: u64,
     pub slippage_bps: u64,
     pub market_ask_at_place: u64,
@@ -391,7 +307,6 @@ pub struct LimitMintOrderExecuted {
     pub higher_strike: u64,
     pub is_range: bool,
     pub is_up: bool,
-    pub collateral_asset: TypeNameWire,
     pub limit_premium_per_unit: u64,
     pub slippage_bps: u64,
     pub market_ask_at_fill: u64,
@@ -410,7 +325,6 @@ pub struct LimitMintOrderCancelled {
     pub higher_strike: u64,
     pub is_range: bool,
     pub is_up: bool,
-    pub collateral_asset: TypeNameWire,
     pub order_expires_ms: u64,
     pub cancelled_by: SuiAddress,
 }
@@ -433,10 +347,7 @@ pub fn parse_event_json(event_name: &str, bytes: &[u8]) -> serde_json::Value {
     match event_name {
         "ProtocolDeployed" => parse_as!(ProtocolDeployed),
         "RegistryInitialized" => parse_as!(RegistryInitialized),
-        "CollateralWhitelisted" => parse_as!(CollateralWhitelisted),
-        "SwapPoolRegistered" => parse_as!(SwapPoolRegistered),
         "TradingPausedChanged" => parse_as!(TradingPausedChanged),
-        "PythMaxAgeUpdated" => parse_as!(PythMaxAgeUpdated),
         "BorrowRateParamsUpdated" => parse_as!(BorrowRateParamsUpdated),
         "VaultSupplied" => parse_as!(VaultSupplied),
         "VaultWithdrawn" => parse_as!(VaultWithdrawn),
@@ -450,9 +361,6 @@ pub fn parse_event_json(event_name: &str, bytes: &[u8]) -> serde_json::Value {
         "InsuranceFundSkimmed" => parse_as!(InsuranceFundSkimmed),
         "AccountCreated" => parse_as!(AccountCreated),
         "PredictManagerLinked" => parse_as!(PredictManagerLinked),
-        "CollateralDeposited" => parse_as!(CollateralDeposited),
-        "CollateralWithdrawn" => parse_as!(CollateralWithdrawn),
-        "CollateralSwapped" => parse_as!(CollateralSwapped),
         "DebtBorrowed" => parse_as!(DebtBorrowed),
         "DebtRepaid" => parse_as!(DebtRepaid),
         "ProxyAccountingSynced" => parse_as!(ProxyAccountingSynced),

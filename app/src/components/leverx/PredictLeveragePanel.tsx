@@ -3,23 +3,13 @@ import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { CollateralAssetSelect } from "@/components/leverx/CollateralAssetSelect";
-import { LeverageSlider } from "@/components/leverx/LeverageSlider";
 import { InfoPopover, LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { SlippagePopover } from "@/components/leverx/SlippagePopover";
 import { TradeQuoteSummary } from "@/components/leverx/TradeQuoteSummary";
 import { leverxInfo } from "@/lib/leverx/info-copy";
-import {
-  useIndexerAccounts,
-  useIndexerCollateralAssets,
-  useIndexerCollateralBalances,
-  useIndexerProtocol,
-} from "@/hooks/useIndexer";
-import { useLeverxProtocolConfig } from "@/hooks/useLeverxTransactions";
+import { useIndexerProtocol } from "@/hooks/useIndexer";
 import { useLeverxMintQuote } from "@/hooks/useLeverxMintQuote";
-import { usePredictOracleState } from "@/hooks/usePredictOracleState";
 import { useWalletCoinBalance } from "@/hooks/useWalletCoinBalance";
-import { formatMaxLtvPercent } from "@/lib/leverx/collateral-catalog";
 import { premiumToCents } from "@/lib/leverx/indexer-markets";
 import { formatCollateralAmount } from "@/lib/predict/quote-assets";
 import { appConfig } from "@/lib/config";
@@ -43,8 +33,8 @@ import {
   strikeUsdToRaw,
   tpSlToPremiumRaw,
 } from "@/lib/leverx/trade-math";
-import { positionKeyFromArgs, type MarketKeyArgs } from "@/lib/leverx/market-keys";
-import { resolveCollateralRoute } from "@/lib/leverx/protocol";
+import { type MarketKeyArgs } from "@/lib/leverx/market-keys";
+import { MARGIN_CALL_BPS } from "@/lib/leverx/protocol";
 import { buildQuickAmounts } from "@/lib/leverx/form-helpers";
 import { tradeCtaLabel, tradeNeedsDeposit } from "@/lib/leverx/trade-cta";
 import { ui } from "@/lib/copy";
@@ -87,11 +77,6 @@ interface Props {
   disabled?: boolean;
 }
 
-function coinTypeSymbol(coinType: string): string {
-  const parts = coinType.split("::");
-  return parts[parts.length - 1]?.toUpperCase() ?? "COIN";
-}
-
 const UNIT_OPTIONS = [
   { value: "pct", label: "%" },
   { value: "cents", label: "¢" },
@@ -120,30 +105,12 @@ export function PredictLeveragePanel({
   const [upperStrike, setUpperStrike] = useState(
     upperStrikeRaw ? String(upperStrikeRaw / 1e9) : "",
   );
-  const [collateralAsset, setCollateralAsset] = useState("");
   const [margin, setMargin] = useState("");
-  const [leverage, setLeverage] = useState(1.1);
   const [placementSlippagePct, setPlacementSlippagePct] = useState(5);
   const [orderExpiresHours, setOrderExpiresHours] =
     useState<LimitOrderExpiryHours>(DEFAULT_LIMIT_ORDER_EXPIRY_HOURS);
   const [limitExecution, setLimitExecution] = useState<LimitExecutionMode>("immediate");
   const { data: protocol } = useIndexerProtocol();
-  const protocolCfg = useLeverxProtocolConfig();
-  const { data: accounts = [] } = useIndexerAccounts(address);
-  const accountId = accounts[0]?.account_id;
-  const { data: collateralBalances = [] } = useIndexerCollateralBalances(accountId);
-  const { data: oracleState } = usePredictOracleState(oracleId);
-  const { data: collateralAssets = [], isLoading: collateralLoading } =
-    useIndexerCollateralAssets();
-  const collateralOptions = useMemo(
-    () => collateralAssets.map((c) => c.coin_type),
-    [collateralAssets],
-  );
-  const selectedCatalogEntry = useMemo(
-    () => collateralAssets.find((c) => c.coin_type === collateralAsset),
-    [collateralAssets, collateralAsset],
-  );
-
   useEffect(() => {
     setTxError(null);
     setOrderType("market");
@@ -151,7 +118,6 @@ export function PredictLeveragePanel({
     setLowerStrike(lowerStrikeRaw ? String(lowerStrikeRaw / 1e9) : "");
     setUpperStrike(upperStrikeRaw ? String(upperStrikeRaw / 1e9) : "");
     setMargin("");
-    setLeverage(1.1);
     setPlacementSlippagePct(5);
     setOrderExpiresHours(DEFAULT_LIMIT_ORDER_EXPIRY_HOURS);
     setLimitExecution("immediate");
@@ -168,36 +134,13 @@ export function PredictLeveragePanel({
       setLimitPrice(premiumToCents(lastAskPremium).toFixed(1));
     }
   }, [lastAskPremium, orderType]);
-  const { data: walletBalance, isLoading: balanceLoading } = useWalletCoinBalance(
-    collateralAsset || null,
-    selectedCatalogEntry?.decimals,
-  );
   const { data: walletQuoteBalance } = useWalletCoinBalance(appConfig.quoteType, 6);
-
-  useEffect(() => {
-    if (collateralOptions.length === 0) return;
-    if (!collateralAsset || !collateralOptions.includes(collateralAsset)) {
-      setCollateralAsset(collateralOptions[0]!);
-    }
-  }, [collateralOptions, collateralAsset]);
-
-  const collateralSymbol = useMemo(
-    () => (collateralAsset ? coinTypeSymbol(collateralAsset) : coinTypeSymbol(appConfig.quoteType)),
-    [collateralAsset],
-  );
-  const balanceLabel = useMemo(() => {
-    if (!collateralAsset) return "—";
-    if (balanceLoading) return "…";
-    if (walletBalance == null) return "—";
-    return formatCollateralAmount(collateralAsset, walletBalance);
-  }, [balanceLoading, walletBalance, collateralAsset]);
   const [tpSl, setTpSl] = useState(false);
   const [tp, setTp] = useState("");
   const [sl, setSl] = useState("");
   const [tpUnit, setTpUnit] = useState("pct");
   const [slUnit, setSlUnit] = useState("pct");
 
-  const lev = leverage;
   const marginNum = parseFloat(margin) || 0;
   const isRange = side === "range";
   const ctaClass = tradeCtaClass(side);
@@ -209,11 +152,6 @@ export function PredictLeveragePanel({
   const canSwitchOutcome = !!(outcomeStrike || (rangeLower && rangeUpper));
   const quantityNum = 1;
   const rangeFromChart = isRange && lowerStrikeRaw != null && upperStrikeRaw != null;
-  const collateralSpotUsd =
-    oracleState?.spot_price && oracleState.spot_price > 0
-      ? oracleState.spot_price / 1e9
-      : undefined;
-
   const tradeKey: MarketKeyArgs | undefined = useMemo(() => {
     if (!expiryMs) return undefined;
     const resolvedLower = isRange
@@ -254,49 +192,14 @@ export function PredictLeveragePanel({
     return 0n;
   }, [orderType, limitPrice, lastAskPremium]);
 
-  const collateralRoute = useMemo(
-    () =>
-      collateralAsset
-        ? resolveCollateralRoute(
-            collateralAsset,
-            selectedCatalogEntry?.max_ltv_bps,
-            selectedCatalogEntry?.decimals,
-          )
-        : null,
-    [collateralAsset, selectedCatalogEntry],
-  );
-
-  const depositedCollateralAtoms = useMemo(() => {
-    if (!tradeKey || !collateralAsset) return 0n;
-    const positionKey = positionKeyFromArgs(tradeKey);
-    const row = collateralBalances.find(
-      (b) => b.position_key === positionKey && b.collateral_asset === collateralAsset,
-    );
-    return row ? BigInt(row.balance_atoms) : 0n;
-  }, [tradeKey, collateralAsset, collateralBalances]);
-
   const needsDeposit = useMemo(
     () =>
       tradeNeedsDeposit({
         marginUsd: marginNum,
-        leverage: lev,
-        route: collateralRoute,
-        cfg: protocolCfg,
-        collateralSpotUsd,
-        depositedCollateralAtoms,
-        walletCollateralBalance: walletBalance,
+        depositedQuoteAtoms: 0n,
         walletQuoteBalance,
       }),
-    [
-      marginNum,
-      lev,
-      collateralRoute,
-      protocolCfg,
-      collateralSpotUsd,
-      depositedCollateralAtoms,
-      walletBalance,
-      walletQuoteBalance,
-    ],
+    [marginNum, walletQuoteBalance],
   );
 
   const submitLabel = useMemo(
@@ -350,11 +253,7 @@ export function PredictLeveragePanel({
 
   const { data: mintQuote, isLoading: quoteLoading } = useLeverxMintQuote({
     key: tradeKey,
-    collateralCoinType: collateralAsset || appConfig.quoteType,
-    collateralMaxLtvBps: selectedCatalogEntry?.max_ltv_bps,
-    collateralDecimals: selectedCatalogEntry?.decimals,
     marginUsd: marginNum,
-    leverage: lev,
     quantity: BigInt(Math.max(1, quantityNum)),
     owner: address ?? undefined,
     enabled: marginNum > 0 && quantityNum > 0,
@@ -413,12 +312,7 @@ export function PredictLeveragePanel({
           isUp: isRange ? true : side === "up",
           isRange,
         },
-        collateralCoinType: collateralAsset || appConfig.quoteType,
-        collateralMaxLtvBps: selectedCatalogEntry?.max_ltv_bps,
-        collateralDecimals: selectedCatalogEntry?.decimals,
-        collateralSpotUsd,
         marginUsd: marginNum,
-        leverage: lev,
         orderType,
         limitExecution,
         limitCents: orderType === "limit" ? parseFloat(limitPrice) || undefined : undefined,
@@ -628,30 +522,6 @@ export function PredictLeveragePanel({
         <div>
           <div className="mb-2 flex items-center justify-between gap-2">
             <LabelWithInfo
-              label="Collateral"
-              labelClassName={labelCaps}
-              info={leverxInfo.collateral}
-            />
-            <span className="text-xs text-muted-foreground">
-              Bal. <span className="font-mono text-foreground">{balanceLabel}</span>
-            </span>
-          </div>
-          <CollateralAssetSelect
-            value={collateralAsset}
-            onValueChange={setCollateralAsset}
-            assets={collateralOptions}
-            disabled={collateralLoading && collateralOptions.length === 0}
-          />
-          {selectedCatalogEntry ? (
-            <p className="mt-1 text-xs text-muted-foreground">
-              Max borrow {formatMaxLtvPercent(selectedCatalogEntry.max_ltv_bps)} of this asset
-            </p>
-          ) : null}
-        </div>
-
-        <div>
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <LabelWithInfo
               label="Your deposit"
               labelClassName={labelCaps}
               info={leverxInfo.margin}
@@ -669,26 +539,22 @@ export function PredictLeveragePanel({
             value={margin}
             onChange={(e) => setMargin(e.target.value)}
             placeholder="0.00"
-            suffix={
-              <span className={leverageBadge}>
-                {Number.isInteger(lev) ? `${lev}X` : `${lev.toFixed(1)}X`}
-              </span>
-            }
+            suffix={<span className={leverageBadge}>1X dUSDC</span>}
           />
           <div className="mt-2">
             <TradeQuickAmounts amounts={quickAmounts} onPick={setMargin} />
           </div>
-          {marginNum > 0 && collateralSymbol ? (
+          {marginNum > 0 ? (
             <p className="mt-2 text-xs text-muted-foreground">
               Position size:{" "}
               <span className="font-mono text-foreground">
-                {formatCollateralAmount(collateralAsset, marginNum * lev)}
+                {formatCollateralAmount(appConfig.quoteType, marginNum)}
               </span>
+              {" · "}
+              Margin call at {(MARGIN_CALL_BPS / 100).toFixed(0)}%
             </p>
           ) : null}
         </div>
-
-        <LeverageSlider value={leverage} onChange={setLeverage} />
 
         <TradeQuoteSummary quote={mintQuote} isLoading={quoteLoading} />
 

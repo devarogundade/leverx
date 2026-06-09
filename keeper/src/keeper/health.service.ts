@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { CollateralCatalogEntry } from '../config/collateral-catalog';
 import type { KeeperConfig } from '../config/keeper.config';
 import { IndexerService } from '../indexer/indexer.service';
 import { KeeperOrchestratorService } from '../tasks/keeper-orchestrator.service';
@@ -24,14 +23,10 @@ export const KEEPER_CONTRACT_CALLS: Record<KeeperTaskKind, string[]> = {
   liquidation: [
     'trade::is_binary_position_liquidatable',
     'trade::is_range_position_liquidatable',
-    'deepbook_flash::borrow_flash_loan_quote',
     'vault_flash::borrow_flash_liquidity',
     'vault_flash::repay_flash_liquidity',
-    'liquidation::flash_liquidate_with_spot_swap_and_redeem',
-    'liquidation::flash_liquidate_range_with_spot_swap_and_redeem',
     'liquidation::flash_liquidate_with_redeem_permissionless',
     'liquidation::flash_liquidate_range_with_redeem_permissionless',
-    'deepbook_flash::return_flash_loan_quote',
   ],
   trigger: [
     'trade::leveraged_redeem_binary_market',
@@ -51,7 +46,7 @@ export type HealthReport = {
   indexer: { ok: boolean; service?: string };
   tasks: Record<KeeperTaskKind, boolean>;
   missing: string[];
-  supportedCollaterals: CollateralCatalogEntry[];
+  quoteType: string;
   contractCalls: typeof KEEPER_CONTRACT_CALLS;
 };
 
@@ -106,7 +101,7 @@ export class HealthService {
       indexer,
       tasks: taskReadiness.tasks,
       missing: taskReadiness.missing,
-      supportedCollaterals: cfg.supportedCollaterals,
+      quoteType: cfg.quoteType,
       contractCalls: KEEPER_CONTRACT_CALLS,
     };
   }

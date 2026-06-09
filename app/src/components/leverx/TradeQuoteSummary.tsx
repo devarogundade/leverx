@@ -36,9 +36,15 @@ export function TradeQuoteSummary({ quote, isLoading, className }: Props) {
           {formatPremiumCents(Number(quote.marketAskPerUnit))}
         </span>
         <LabelWithInfo label="Total cost" info={leverxInfo.mintCost} />
-        <span className="font-mono text-right">{scaleQuote(Number(quote.mintCost)).toFixed(2)} USDC</span>
-        <LabelWithInfo label="Borrowed" info={leverxInfo.vaultBorrow} />
-        <span className="font-mono text-right">{scaleQuote(Number(quote.borrowQuote)).toFixed(2)} USDC</span>
+        <span className="font-mono text-right">{scaleQuote(Number(quote.mintCost)).toFixed(2)} dUSDC</span>
+        {Number(quote.borrowQuote) > 0 ? (
+          <>
+            <LabelWithInfo label="Borrowed" info={leverxInfo.vaultBorrow} />
+            <span className="font-mono text-right">
+              {scaleQuote(Number(quote.borrowQuote)).toFixed(2)} dUSDC
+            </span>
+          </>
+        ) : null}
       </div>
     </div>
   );

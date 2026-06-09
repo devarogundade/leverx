@@ -13,7 +13,6 @@ import { ensureLeverxAccount } from "@/lib/leverx/onboarding";
 import {
   appendCancelLimit,
   appendClearTriggers,
-  appendDepositCollateral,
   appendDepositQuote,
   appendLeveragedMint,
   appendLinkManager,
@@ -24,18 +23,10 @@ import {
   appendSettleExpired,
   type MintOrderParams,
 } from "@/lib/leverx/ptb-builder";
-import {
-  lxplpCoinType,
-  resolveCollateralRoute,
-  type CollateralRoute,
-  type LeverxProtocolConfig,
-} from "@/lib/leverx/protocol";
+import { lxplpCoinType, type LeverxProtocolConfig } from "@/lib/leverx/protocol";
 import {
   applySlippageBps,
-  borrowQuoteAtoms,
   centsToPremiumRaw,
-  collateralAtomsFromQuoteValue,
-  collateralQuoteValueForBorrow,
   leverageToBps,
   marginUsdToQuoteAtoms,
   positionQuoteAtoms,
@@ -47,12 +38,7 @@ export type LimitExecutionMode = "resting" | "immediate";
 
 export type OpenTradeInput = {
   key: MarketKeyArgs;
-  collateralCoinType: string;
-  collateralMaxLtvBps?: number;
-  collateralDecimals?: number;
-  collateralSpotUsd?: number;
   marginUsd: number;
-  leverage: number;
   orderType: "market" | "limit";
   limitExecution?: LimitExecutionMode;
   limitCents?: number;
@@ -98,23 +84,6 @@ function resolveMintOrderKind(input: OpenTradeInput): "market" | "limit" | "plac
   return input.limitExecution === "resting" ? "place" : "limit";
 }
 
-function computeCollateralDeposit(
-  route: CollateralRoute,
-  cfg: LeverxProtocolConfig,
-  borrowAtoms: bigint,
-  collateralSpotUsd?: number,
-): bigint {
-  if (borrowAtoms <= 0n) return 0n;
-  const quoteValue = collateralQuoteValueForBorrow(borrowAtoms, route.maxLtvBps);
-  if (route.coinType === cfg.quoteType) {
-    return quoteValue;
-  }
-  if (!collateralSpotUsd || collateralSpotUsd <= 0) {
-    throw new Error("Collateral spot price is required for non-quote collateral.");
-  }
-  return collateralAtomsFromQuoteValue(quoteValue, collateralSpotUsd, route.decimals);
-}
-
 export async function executeOpenTrade(params: {
   client: SuiJsonRpcClient;
   wallet: WalletWithRequiredFeatures;
@@ -123,15 +92,6 @@ export async function executeOpenTrade(params: {
   input: OpenTradeInput;
 }): Promise<{ digest: string }> {
   const { input, cfg, client, wallet, account } = params;
-
-  const route = resolveCollateralRoute(
-    input.collateralCoinType,
-    input.collateralMaxLtvBps,
-    input.collateralDecimals,
-  );
-  if (!route) {
-    throw new Error("Collateral is missing a Pyth oracle ID in VITE_SUPPORTED_COLLATERALS.");
-  }
 
   const leverxAccount = await ensureLeverxAccount({
     client,
@@ -145,8 +105,7 @@ export async function executeOpenTrade(params: {
   }
 
   const marginAtoms = marginUsdToQuoteAtoms(input.marginUsd);
-  const leverageBps = leverageToBps(input.leverage);
-  const borrowAtoms = borrowQuoteAtoms(marginAtoms, leverageBps);
+  const leverageBps = leverageToBps();
   const quantity = input.quantity > 0n ? input.quantity : 1n;
   const positionAtoms = positionQuoteAtoms(marginAtoms, leverageBps);
   const marketSlippageBps = input.marketSlippageBps ?? DEFAULT_SLIPPAGE_BPS;
@@ -155,7 +114,6 @@ export async function executeOpenTrade(params: {
 
   const mintParams: MintOrderParams = {
     key: input.key,
-    collateral: route,
     marginQuoteAtoms: marginAtoms,
     leverageBps,
     quantity,
@@ -165,74 +123,23 @@ export async function executeOpenTrade(params: {
     orderExpiresMs: input.orderExpiresMs ?? input.key.expiryMs,
   };
 
-  const collateralDeposit =
-    borrowAtoms > 0n
-      ? computeCollateralDeposit(route, cfg, borrowAtoms, input.collateralSpotUsd)
-      : 0n;
-  const sameCoin = route.coinType === cfg.quoteType;
-  const totalQuoteNeeded = sameCoin ? marginAtoms + collateralDeposit : marginAtoms;
-
   return executeWalletTransaction(
     client,
     wallet,
     account,
     async (tx) => {
-      if (sameCoin) {
-        const fundingCoin = await splitCoinAmount(
-          client,
-          account.address,
-          cfg.quoteType,
-          totalQuoteNeeded,
-          tx,
-        );
-
-        if (collateralDeposit > 0n) {
-          const [collateralCoin] = tx.splitCoins(fundingCoin, [tx.pure.u64(collateralDeposit)]);
-          appendDepositCollateral(
-            tx,
-            cfg,
-            route,
-            leverxAccount.accountId,
-            input.key,
-            collateralCoin!,
-          );
-        }
-
-        const [marginCoin] = tx.splitCoins(fundingCoin, [tx.pure.u64(marginAtoms)]);
-        appendDepositQuote(tx, cfg, leverxAccount.accountId, input.key, marginCoin!);
-      } else {
-        if (collateralDeposit > 0n) {
-          const collateralCoin = await splitCoinAmount(
-            client,
-            account.address,
-            route.coinType,
-            collateralDeposit,
-            tx,
-          );
-          appendDepositCollateral(
-            tx,
-            cfg,
-            route,
-            leverxAccount.accountId,
-            input.key,
-            collateralCoin,
-          );
-        }
-
-        const quoteCoin = await splitCoinAmount(
-          client,
-          account.address,
-          cfg.quoteType,
-          totalQuoteNeeded,
-          tx,
-        );
-        appendDepositQuote(tx, cfg, leverxAccount.accountId, input.key, quoteCoin);
-      }
+      const quoteCoin = await splitCoinAmount(
+        client,
+        account.address,
+        cfg.quoteType,
+        marginAtoms,
+        tx,
+      );
+      appendDepositQuote(tx, cfg, leverxAccount.accountId, input.key, quoteCoin);
 
       appendLeveragedMint(
         tx,
         cfg,
-        route,
         leverxAccount.accountId,
         leverxAccount.predictManagerId!,
         mintParams,
@@ -437,7 +344,6 @@ export async function executeCancelLimitOrder(params: {
       appendCancelLimit(tx, params.cfg, {
         key: orderToKey(params.order),
         accountId: params.order.account_id,
-        collateralCoinType: params.order.collateral_asset,
       });
     },
     { gasBudget: TRADE_GAS_BUDGET },

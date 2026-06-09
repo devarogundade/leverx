@@ -10,10 +10,9 @@
 /// on behalf of the owner or registered executors; end users never hold raw DeepBook caps.
 ///
 /// # Per-market-key ledgers
-/// Collateral and quote margin are **not** fungible across markets. For every binary
+/// Quote margin is **not** fungible across markets. For every binary
 /// `MarketKey` or range `RangeKey`, the proxy maintains:
-/// - A `PositionLedger` (`quote_balance`, `borrowed_quote`)
-/// - A nested `Table<TypeName, u64>` of collateral balances by asset type
+/// - A `PositionLedger` (`quote_balance`, `borrowed_quote`, `margin_debt`)
 /// - Optional `TriggerConfig` (take-profit / stop-loss premiums)
 /// - At most one resting `PendingLimitMintOrder`
 ///
@@ -34,7 +33,6 @@ use deepbook::{
 };
 use deepbook_predict::{market_key::MarketKey, range_key::RangeKey};
 use leverx::{errors, events};
-use std::type_name::{Self, TypeName};
 use sui::{clock::Clock, coin::{Self, Coin}, table::{Self, Table}, vec_set::{Self, VecSet}};
 
 /// Marker type passed to DeepBook when minting a balance manager for LeverX proxies.
@@ -51,12 +49,14 @@ public struct TriggerConfig has copy, drop, store {
     stop_loss_premium: u64,
 }
 
-/// Per-market-key quote margin and vault debt — collateral is not shared across keys.
+/// Per-market-key quote margin and vault debt — not shared across keys.
 public struct PositionLedger has store {
     /// Quote tokens allocated to this market key (margin, proceeds, reserved limit margin).
     quote_balance: u64,
     /// Quote borrowed from the protocol vault for this market key (subset of proxy total).
     borrowed_quote: u64,
+    /// Posted margin requirement for 1x health checks (vault borrow may be zero).
+    margin_debt: u64,
 }
 
 /// Resting leveraged mint limit order — slippage is frozen at placement for keeper fills.
@@ -69,7 +69,7 @@ public struct PendingLimitMintOrder has copy, drop, store {
     market_ask_at_place: u64,
     /// Quote margin locked for this order.
     margin_quote: u64,
-    /// Desired leverage in basis points (e.g. 50000 = 5×).
+    /// Desired leverage in basis points (10_000 = 1×).
     leverage_bps: u64,
     /// Number of outcome units to mint on fill.
     quantity: u64,
@@ -108,10 +108,6 @@ public struct UserProxy has key {
     binary_ledgers: Table<MarketKey, PositionLedger>,
     /// Quote/debt ledgers indexed by range market key.
     range_ledgers: Table<RangeKey, PositionLedger>,
-    /// Per-asset collateral balances for binary markets (market key → asset → amount).
-    binary_collateral: Table<MarketKey, Table<TypeName, u64>>,
-    /// Per-asset collateral balances for range markets (range key → asset → amount).
-    range_collateral: Table<RangeKey, Table<TypeName, u64>>,
     /// Take-profit / stop-loss config for binary markets.
     binary_triggers: Table<MarketKey, TriggerConfig>,
     /// Take-profit / stop-loss config for range markets.
@@ -159,8 +155,6 @@ public fun create(
         executors: vec_set::empty(),
         binary_ledgers: table::new(ctx),
         range_ledgers: table::new(ctx),
-        binary_collateral: table::new(ctx),
-        range_collateral: table::new(ctx),
         binary_triggers: table::new(ctx),
         range_triggers: table::new(ctx),
         binary_limit_mints: table::new(ctx),
@@ -262,31 +256,19 @@ public fun range_borrowed_quote(proxy: &UserProxy, key: RangeKey): u64 {
     }
 }
 
-/// Return collateral of type `Collateral` allocated to a binary market key.
-public fun binary_collateral_balance<Collateral>(proxy: &UserProxy, key: MarketKey): u64 {
-    let asset = type_name::with_defining_ids<Collateral>();
-    if (proxy.binary_collateral.contains(key)) {
-        let amounts = proxy.binary_collateral.borrow(key);
-        if (amounts.contains(asset)) {
-            *amounts.borrow(asset)
-        } else {
-            0
-        }
+/// Return posted margin debt for a binary market key (1x margin-call denominator).
+public fun binary_margin_debt(proxy: &UserProxy, key: MarketKey): u64 {
+    if (proxy.binary_ledgers.contains(key)) {
+        proxy.binary_ledgers.borrow(key).margin_debt
     } else {
         0
     }
 }
 
-/// Return collateral of type `Collateral` allocated to a range market key.
-public fun range_collateral_balance<Collateral>(proxy: &UserProxy, key: RangeKey): u64 {
-    let asset = type_name::with_defining_ids<Collateral>();
-    if (proxy.range_collateral.contains(key)) {
-        let amounts = proxy.range_collateral.borrow(key);
-        if (amounts.contains(asset)) {
-            *amounts.borrow(asset)
-        } else {
-            0
-        }
+/// Return posted margin debt for a range market key (1x margin-call denominator).
+public fun range_margin_debt(proxy: &UserProxy, key: RangeKey): u64 {
+    if (proxy.range_ledgers.contains(key)) {
+        proxy.range_ledgers.borrow(key).margin_debt
     } else {
         0
     }
@@ -314,34 +296,6 @@ public fun get_range_triggers(proxy: &UserProxy, key: RangeKey): (u64, u64) {
 
 // === User deposits ===
 
-/// Deposit collateral for a binary market: physical deposit + ledger credit. Owner or executor.
-public fun deposit_collateral_for_binary<Collateral>(
-    proxy: &mut UserProxy,
-    key: MarketKey,
-    coin: Coin<Collateral>,
-    ctx: &mut TxContext,
-) {
-    proxy.assert_can_act(ctx);
-    let amount = coin.value();
-    assert!(amount > 0, errors::zero_amount());
-    proxy.balance_manager.deposit_with_cap(&proxy.deposit_cap, coin, ctx);
-    credit_binary_collateral_amount(proxy, key, type_name::with_defining_ids<Collateral>(), amount, ctx);
-}
-
-/// Deposit collateral for a range market: physical deposit + ledger credit. Owner or executor.
-public fun deposit_collateral_for_range<Collateral>(
-    proxy: &mut UserProxy,
-    key: RangeKey,
-    coin: Coin<Collateral>,
-    ctx: &mut TxContext,
-) {
-    proxy.assert_can_act(ctx);
-    let amount = coin.value();
-    assert!(amount > 0, errors::zero_amount());
-    proxy.balance_manager.deposit_with_cap(&proxy.deposit_cap, coin, ctx);
-    credit_range_collateral_amount(proxy, key, type_name::with_defining_ids<Collateral>(), amount, ctx);
-}
-
 /// Deposit quote for a binary market: physical deposit + ledger credit. Owner or executor.
 public fun deposit_quote_for_binary<Quote>(
     proxy: &mut UserProxy,
@@ -368,39 +322,6 @@ public fun deposit_quote_for_range<Quote>(
     assert!(amount > 0, errors::zero_amount());
     proxy.balance_manager.deposit_with_cap(&proxy.deposit_cap, coin, ctx);
     credit_range_quote(proxy, key, amount, ctx);
-}
-
-// === Physical balance manager ops ===
-
-/// Physical withdraw from the shared balance manager (no market-key allocation).
-public(package) fun withdraw_physical<Asset>(
-    proxy: &mut UserProxy,
-    amount: u64,
-    ctx: &mut TxContext,
-): Coin<Asset> {
-    proxy.balance_manager.withdraw_with_cap(&proxy.withdraw_cap, amount, ctx)
-}
-
-/// Physical deposit into the shared balance manager (no market-key allocation).
-public(package) fun deposit_physical<Asset>(
-    proxy: &mut UserProxy,
-    coin: Coin<Asset>,
-    ctx: &TxContext,
-) {
-    proxy.balance_manager.deposit_with_cap(&proxy.deposit_cap, coin, ctx);
-}
-
-/// Withdraw the entire physical balance of `Asset` (liquidation / migration helper).
-public(package) fun seize_all_collateral<Asset>(
-    proxy: &mut UserProxy,
-    ctx: &mut TxContext,
-): Coin<Asset> {
-    let amount = proxy.balance<Asset>();
-    if (amount == 0) {
-        coin::zero(ctx)
-    } else {
-        proxy.balance_manager.withdraw_with_cap(&proxy.withdraw_cap, amount, ctx)
-    }
 }
 
 // === Protocol quote credit ===
@@ -461,38 +382,6 @@ public(package) fun withdraw_quote_from_range<Quote>(
     proxy.balance_manager.withdraw_with_cap(&proxy.withdraw_cap, amount, ctx)
 }
 
-/// Debit binary collateral ledger and withdraw matching coins from the balance manager.
-public(package) fun withdraw_collateral_from_binary<Collateral>(
-    proxy: &mut UserProxy,
-    key: MarketKey,
-    amount: u64,
-    ctx: &mut TxContext,
-): Coin<Collateral> {
-    debit_binary_collateral_amount(
-        proxy,
-        key,
-        type_name::with_defining_ids<Collateral>(),
-        amount,
-    );
-    proxy.balance_manager.withdraw_with_cap(&proxy.withdraw_cap, amount, ctx)
-}
-
-/// Debit range collateral ledger and withdraw matching coins from the balance manager.
-public(package) fun withdraw_collateral_from_range<Collateral>(
-    proxy: &mut UserProxy,
-    key: RangeKey,
-    amount: u64,
-    ctx: &mut TxContext,
-): Coin<Collateral> {
-    debit_range_collateral_amount(
-        proxy,
-        key,
-        type_name::with_defining_ids<Collateral>(),
-        amount,
-    );
-    proxy.balance_manager.withdraw_with_cap(&proxy.withdraw_cap, amount, ctx)
-}
-
 // === Quote reserve (limit orders) ===
 
 /// Lock quote margin for a resting limit order on this binary market key.
@@ -500,10 +389,9 @@ public(package) fun reserve_binary_quote(
     proxy: &mut UserProxy,
     key: MarketKey,
     amount: u64,
-    ctx: &mut TxContext,
+    _ctx: &mut TxContext,
 ) {
     debit_binary_quote(proxy, key, amount);
-    ensure_binary_ledger(proxy, key, ctx);
 }
 
 /// Lock quote margin for a resting limit order on this range market key.
@@ -511,10 +399,9 @@ public(package) fun reserve_range_quote(
     proxy: &mut UserProxy,
     key: RangeKey,
     amount: u64,
-    ctx: &mut TxContext,
+    _ctx: &mut TxContext,
 ) {
     debit_range_quote(proxy, key, amount);
-    ensure_range_ledger(proxy, key, ctx);
 }
 
 /// Return reserved quote to the binary ledger (cancel / expire path).
@@ -583,41 +470,73 @@ public(package) fun record_repay_for_range(proxy: &mut UserProxy, key: RangeKey,
     proxy.borrowed_quote = proxy.borrowed_quote - amount;
 }
 
-// === Liquidation seizure ===
-
-/// Seize all collateral of `Collateral` allocated to a binary key (liquidation).
-public(package) fun seize_binary_collateral<Collateral>(
+/// Record posted margin for margin-call health on a binary key.
+public(package) fun set_binary_margin_debt(
     proxy: &mut UserProxy,
     key: MarketKey,
+    amount: u64,
     ctx: &mut TxContext,
-): Coin<Collateral> {
-    let asset = type_name::with_defining_ids<Collateral>();
-    let amount = proxy.binary_collateral_balance<Collateral>(key);
-    if (amount == 0) {
-        coin::zero(ctx)
-    } else {
-        debit_binary_collateral_amount(proxy, key, asset, amount);
-        proxy.balance_manager.withdraw_with_cap(&proxy.withdraw_cap, amount, ctx)
-    }
+) {
+    let ledger = ensure_binary_ledger(proxy, key, ctx);
+    ledger.margin_debt = amount;
 }
 
-/// Seize all collateral of `Collateral` allocated to a range key (liquidation).
-public(package) fun seize_range_collateral<Collateral>(
+/// Record posted margin for margin-call health on a range key.
+public(package) fun set_range_margin_debt(
     proxy: &mut UserProxy,
     key: RangeKey,
+    amount: u64,
     ctx: &mut TxContext,
-): Coin<Collateral> {
-    let asset = type_name::with_defining_ids<Collateral>();
-    let amount = proxy.range_collateral_balance<Collateral>(key);
-    if (amount == 0) {
-        coin::zero(ctx)
-    } else {
-        debit_range_collateral_amount(proxy, key, asset, amount);
-        proxy.balance_manager.withdraw_with_cap(&proxy.withdraw_cap, amount, ctx)
-    }
+) {
+    let ledger = ensure_range_ledger(proxy, key, ctx);
+    ledger.margin_debt = amount;
+}
+
+/// Clear posted margin debt on a binary key after the position is closed.
+public(package) fun clear_binary_margin_debt(proxy: &mut UserProxy, key: MarketKey) {
+    if (proxy.binary_ledgers.contains(key)) {
+        proxy.binary_ledgers.borrow_mut(key).margin_debt = 0;
+    };
+}
+
+/// Clear posted margin debt on a range key after the position is closed.
+public(package) fun clear_range_margin_debt(proxy: &mut UserProxy, key: RangeKey) {
+    if (proxy.range_ledgers.contains(key)) {
+        proxy.range_ledgers.borrow_mut(key).margin_debt = 0;
+    };
 }
 
 // === Ledger ops (internal) ===
+
+fun ensure_binary_ledger(
+    proxy: &mut UserProxy,
+    key: MarketKey,
+    _ctx: &mut TxContext,
+): &mut PositionLedger {
+    if (!proxy.binary_ledgers.contains(key)) {
+        proxy.binary_ledgers.add(key, PositionLedger {
+            quote_balance: 0,
+            borrowed_quote: 0,
+            margin_debt: 0,
+        });
+    };
+    proxy.binary_ledgers.borrow_mut(key)
+}
+
+fun ensure_range_ledger(
+    proxy: &mut UserProxy,
+    key: RangeKey,
+    _ctx: &mut TxContext,
+): &mut PositionLedger {
+    if (!proxy.range_ledgers.contains(key)) {
+        proxy.range_ledgers.add(key, PositionLedger {
+            quote_balance: 0,
+            borrowed_quote: 0,
+            margin_debt: 0,
+        });
+    };
+    proxy.range_ledgers.borrow_mut(key)
+}
 
 /// Increase binary quote ledger balance; creates the ledger if missing.
 fun credit_binary_quote(proxy: &mut UserProxy, key: MarketKey, amount: u64, ctx: &mut TxContext) {
@@ -633,138 +552,18 @@ fun credit_range_quote(proxy: &mut UserProxy, key: RangeKey, amount: u64, ctx: &
 
 /// Decrease binary quote ledger balance; aborts if insufficient or ledger missing.
 fun debit_binary_quote(proxy: &mut UserProxy, key: MarketKey, amount: u64) {
-    assert!(proxy.binary_ledgers.contains(key), errors::insufficient_collateral());
+    assert!(proxy.binary_ledgers.contains(key), errors::insufficient_margin());
     let ledger = proxy.binary_ledgers.borrow_mut(key);
-    assert!(ledger.quote_balance >= amount, errors::insufficient_collateral());
+    assert!(ledger.quote_balance >= amount, errors::insufficient_margin());
     ledger.quote_balance = ledger.quote_balance - amount;
 }
 
 /// Decrease range quote ledger balance; aborts if insufficient or ledger missing.
 fun debit_range_quote(proxy: &mut UserProxy, key: RangeKey, amount: u64) {
-    assert!(proxy.range_ledgers.contains(key), errors::insufficient_collateral());
+    assert!(proxy.range_ledgers.contains(key), errors::insufficient_margin());
     let ledger = proxy.range_ledgers.borrow_mut(key);
-    assert!(ledger.quote_balance >= amount, errors::insufficient_collateral());
+    assert!(ledger.quote_balance >= amount, errors::insufficient_margin());
     ledger.quote_balance = ledger.quote_balance - amount;
-}
-
-/// Increase binary collateral balance for `asset`; ensures ledger and collateral table exist.
-fun credit_binary_collateral_amount(
-    proxy: &mut UserProxy,
-    key: MarketKey,
-    asset: TypeName,
-    amount: u64,
-    ctx: &mut TxContext,
-) {
-    let amounts = ensure_binary_collateral_table(proxy, key, ctx);
-    if (amounts.contains(asset)) {
-        let bal = amounts.borrow_mut(asset);
-        *bal = *bal + amount;
-    } else {
-        amounts.add(asset, amount);
-    };
-    ensure_binary_ledger(proxy, key, ctx);
-}
-
-/// Increase range collateral balance for `asset`; ensures ledger and collateral table exist.
-fun credit_range_collateral_amount(
-    proxy: &mut UserProxy,
-    key: RangeKey,
-    asset: TypeName,
-    amount: u64,
-    ctx: &mut TxContext,
-) {
-    let amounts = ensure_range_collateral_table(proxy, key, ctx);
-    if (amounts.contains(asset)) {
-        let bal = amounts.borrow_mut(asset);
-        *bal = *bal + amount;
-    } else {
-        amounts.add(asset, amount);
-    };
-    ensure_range_ledger(proxy, key, ctx);
-}
-
-/// Decrease binary collateral balance for `asset`; aborts if insufficient.
-fun debit_binary_collateral_amount(
-    proxy: &mut UserProxy,
-    key: MarketKey,
-    asset: TypeName,
-    amount: u64,
-) {
-    assert!(proxy.binary_collateral.contains(key), errors::insufficient_collateral());
-    let amounts = proxy.binary_collateral.borrow_mut(key);
-    assert!(amounts.contains(asset), errors::insufficient_collateral());
-    let bal = amounts.borrow_mut(asset);
-    assert!(*bal >= amount, errors::insufficient_collateral());
-    *bal = *bal - amount;
-}
-
-/// Decrease range collateral balance for `asset`; aborts if insufficient.
-fun debit_range_collateral_amount(
-    proxy: &mut UserProxy,
-    key: RangeKey,
-    asset: TypeName,
-    amount: u64,
-) {
-    assert!(proxy.range_collateral.contains(key), errors::insufficient_collateral());
-    let amounts = proxy.range_collateral.borrow_mut(key);
-    assert!(amounts.contains(asset), errors::insufficient_collateral());
-    let bal = amounts.borrow_mut(asset);
-    assert!(*bal >= amount, errors::insufficient_collateral());
-    *bal = *bal - amount;
-}
-
-/// Return a mutable binary `PositionLedger`, inserting a zero ledger if absent.
-fun ensure_binary_ledger(
-    proxy: &mut UserProxy,
-    key: MarketKey,
-    ctx: &mut TxContext,
-): &mut PositionLedger {
-    if (!proxy.binary_ledgers.contains(key)) {
-        proxy.binary_ledgers.add(key, PositionLedger {
-            quote_balance: 0,
-            borrowed_quote: 0,
-        });
-    };
-    proxy.binary_ledgers.borrow_mut(key)
-}
-
-/// Return a mutable range `PositionLedger`, inserting a zero ledger if absent.
-fun ensure_range_ledger(
-    proxy: &mut UserProxy,
-    key: RangeKey,
-    ctx: &mut TxContext,
-): &mut PositionLedger {
-    if (!proxy.range_ledgers.contains(key)) {
-        proxy.range_ledgers.add(key, PositionLedger {
-            quote_balance: 0,
-            borrowed_quote: 0,
-        });
-    };
-    proxy.range_ledgers.borrow_mut(key)
-}
-
-/// Return a mutable collateral table for a binary key, creating it if absent.
-fun ensure_binary_collateral_table(
-    proxy: &mut UserProxy,
-    key: MarketKey,
-    ctx: &mut TxContext,
-): &mut Table<TypeName, u64> {
-    if (!proxy.binary_collateral.contains(key)) {
-        proxy.binary_collateral.add(key, table::new(ctx));
-    };
-    proxy.binary_collateral.borrow_mut(key)
-}
-
-/// Return a mutable collateral table for a range key, creating it if absent.
-fun ensure_range_collateral_table(
-    proxy: &mut UserProxy,
-    key: RangeKey,
-    ctx: &mut TxContext,
-): &mut Table<TypeName, u64> {
-    if (!proxy.range_collateral.contains(key)) {
-        proxy.range_collateral.add(key, table::new(ctx));
-    };
-    proxy.range_collateral.borrow_mut(key)
 }
 
 // === DeepBook integration ===
@@ -1071,8 +870,6 @@ public fun create_for_testing(
         executors: vec_set::empty(),
         binary_ledgers: table::new(ctx),
         range_ledgers: table::new(ctx),
-        binary_collateral: table::new(ctx),
-        range_collateral: table::new(ctx),
         binary_triggers: table::new(ctx),
         range_triggers: table::new(ctx),
         binary_limit_mints: table::new(ctx),

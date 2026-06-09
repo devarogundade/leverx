@@ -7,16 +7,15 @@ use diesel::ExpressionMethods;
 use diesel::QueryDsl;
 use diesel_async::RunQueryDsl;
 use leverx_schema::models::{
-    NewAccountTimeline, NewCollateralAsset, NewCollateralBalance, NewGlobalMarketTrade,
-    NewLeverxEvent, NewLimitMintOrder, NewLeveragedPosition, NewLiquidation, NewMarket,
-    NewMarketTrade, NewPositionTrigger, NewPredictManager, NewProtocolSettings, NewProxyExecutor,
-    NewSwapPool, NewUserPoints, NewUserProxy, NewVaultSnapshot,
+    NewAccountTimeline, NewGlobalMarketTrade, NewLeverxEvent, NewLimitMintOrder,
+    NewLeveragedPosition, NewLiquidation, NewMarket, NewMarketTrade, NewPositionTrigger,
+    NewPredictManager, NewProtocolSettings, NewProxyExecutor, NewUserPoints, NewUserProxy,
+    NewVaultSnapshot,
 };
 use leverx_schema::schema::{
-    account_timeline, collateral_assets, collateral_balances, global_market_trades, leverx_events,
-    limit_mint_orders, leveraged_positions, liquidations, market_trades, markets,
-    position_triggers, predict_managers, protocol_settings, proxy_executors, swap_pools,
-    user_points, user_proxies, vault_snapshots,
+    account_timeline, global_market_trades, leverx_events, limit_mint_orders, leveraged_positions,
+    liquidations, market_trades, markets, position_triggers, predict_managers, protocol_settings,
+    proxy_executors, user_points, user_proxies, vault_snapshots,
 };
 use sui_indexer_alt_framework::pipeline::Processor;
 use sui_indexer_alt_framework::pipeline::sequential::Handler;
@@ -46,17 +45,13 @@ pub struct LeverxBatch {
     pub global_trades: Vec<NewGlobalMarketTrade>,
     pub vaults: Vec<NewVaultSnapshot>,
     pub debt_repaid: Vec<DebtRepaidPatch>,
-    pub collateral_assets: Vec<NewCollateralAsset>,
-    pub swap_pools: Vec<NewSwapPool>,
     pub protocol_settings: Vec<NewProtocolSettings>,
-    pub collateral_balances: Vec<NewCollateralBalance>,
     pub triggers: Vec<NewPositionTrigger>,
     pub executors: Vec<NewProxyExecutor>,
     pub liquidations: Vec<NewLiquidation>,
     pub liquidation_positions: Vec<LiquidationPositionPatch>,
     pub borrow_rate_patches: Vec<BorrowRatePatch>,
     pub trading_paused_patches: Vec<TradingPausedPatch>,
-    pub pyth_max_age_patches: Vec<PythMaxAgePatch>,
     pub points_patches: Vec<UserPointsPatch>,
 }
 
@@ -128,12 +123,6 @@ pub struct BorrowRatePatch {
 pub struct TradingPausedPatch {
     pub registry_id: String,
     pub paused: bool,
-    pub updated_at_ms: i64,
-}
-
-pub struct PythMaxAgePatch {
-    pub registry_id: String,
-    pub max_age_secs: i64,
     pub updated_at_ms: i64,
 }
 
@@ -302,17 +291,13 @@ impl Handler for LeverxEventsHandler {
             batch.global_trades.extend(v.global_trades);
             batch.vaults.extend(v.vaults);
             batch.debt_repaid.extend(v.debt_repaid);
-            batch.collateral_assets.extend(v.collateral_assets);
-            batch.swap_pools.extend(v.swap_pools);
             batch.protocol_settings.extend(v.protocol_settings);
-            batch.collateral_balances.extend(v.collateral_balances);
             batch.triggers.extend(v.triggers);
             batch.executors.extend(v.executors);
             batch.liquidations.extend(v.liquidations);
             batch.liquidation_positions.extend(v.liquidation_positions);
             batch.borrow_rate_patches.extend(v.borrow_rate_patches);
             batch.trading_paused_patches.extend(v.trading_paused_patches);
-            batch.pyth_max_age_patches.extend(v.pyth_max_age_patches);
             batch.points_patches.extend(v.points_patches);
         }
     }
@@ -454,8 +439,6 @@ impl Handler for LeverxEventsHandler {
                     leveraged_positions::owner.eq(excluded(leveraged_positions::owner)),
                     leveraged_positions::predict_manager_id
                         .eq(excluded(leveraged_positions::predict_manager_id)),
-                    leveraged_positions::collateral_asset
-                        .eq(excluded(leveraged_positions::collateral_asset)),
                     leveraged_positions::open_quantity.eq(
                         leveraged_positions::open_quantity + excluded(leveraged_positions::open_quantity),
                     ),
@@ -546,40 +529,6 @@ impl Handler for LeverxEventsHandler {
             .await?;
         }
 
-        if !batch.collateral_assets.is_empty() {
-            rows += diesel::insert_into(collateral_assets::table)
-                .values(&batch.collateral_assets)
-                .on_conflict(collateral_assets::coin_type)
-                .do_update()
-                .set((
-                    collateral_assets::registry_id.eq(excluded(collateral_assets::registry_id)),
-                    collateral_assets::decimals.eq(excluded(collateral_assets::decimals)),
-                    collateral_assets::max_ltv_bps.eq(excluded(collateral_assets::max_ltv_bps)),
-                    collateral_assets::liquidation_ltv_bps
-                        .eq(excluded(collateral_assets::liquidation_ltv_bps)),
-                    collateral_assets::max_conf_bps.eq(excluded(collateral_assets::max_conf_bps)),
-                    collateral_assets::updated_at_ms.eq(excluded(collateral_assets::updated_at_ms)),
-                    collateral_assets::event_digest.eq(excluded(collateral_assets::event_digest)),
-                ))
-                .execute(conn)
-                .await?;
-        }
-
-        if !batch.swap_pools.is_empty() {
-            rows += diesel::insert_into(swap_pools::table)
-                .values(&batch.swap_pools)
-                .on_conflict(swap_pools::collateral_asset)
-                .do_update()
-                .set((
-                    swap_pools::pool_id.eq(excluded(swap_pools::pool_id)),
-                    swap_pools::registry_id.eq(excluded(swap_pools::registry_id)),
-                    swap_pools::updated_at_ms.eq(excluded(swap_pools::updated_at_ms)),
-                    swap_pools::event_digest.eq(excluded(swap_pools::event_digest)),
-                ))
-                .execute(conn)
-                .await?;
-        }
-
         for settings in &batch.protocol_settings {
             rows += diesel::insert_into(protocol_settings::table)
                 .values(settings)
@@ -604,7 +553,6 @@ impl Handler for LeverxEventsHandler {
                     predict_id: None,
                     fee_collector_id: None,
                     trading_paused: patch.paused,
-                    pyth_max_age_secs: None,
                     base_rate_bps: None,
                     kink_utilization_bps: None,
                     slope1_bps: None,
@@ -617,50 +565,6 @@ impl Handler for LeverxEventsHandler {
                 .set((
                     protocol_settings::trading_paused.eq(excluded(protocol_settings::trading_paused)),
                     protocol_settings::updated_at_ms.eq(excluded(protocol_settings::updated_at_ms)),
-                ))
-                .execute(conn)
-                .await?;
-        }
-
-        for patch in &batch.pyth_max_age_patches {
-            rows += diesel::insert_into(protocol_settings::table)
-                .values(NewProtocolSettings {
-                    registry_id: patch.registry_id.clone(),
-                    vault_id: None,
-                    predict_id: None,
-                    fee_collector_id: None,
-                    trading_paused: false,
-                    pyth_max_age_secs: Some(patch.max_age_secs),
-                    base_rate_bps: None,
-                    kink_utilization_bps: None,
-                    slope1_bps: None,
-                    slope2_bps: None,
-                    flash_fee_bps: None,
-                    updated_at_ms: patch.updated_at_ms,
-                })
-                .on_conflict(protocol_settings::registry_id)
-                .do_update()
-                .set((
-                    protocol_settings::pyth_max_age_secs
-                        .eq(excluded(protocol_settings::pyth_max_age_secs)),
-                    protocol_settings::updated_at_ms.eq(excluded(protocol_settings::updated_at_ms)),
-                ))
-                .execute(conn)
-                .await?;
-        }
-
-        for balance in &batch.collateral_balances {
-            rows += diesel::insert_into(collateral_balances::table)
-                .values(balance)
-                .on_conflict((
-                    collateral_balances::position_key,
-                    collateral_balances::account_id,
-                    collateral_balances::collateral_asset,
-                ))
-                .do_update()
-                .set((
-                    collateral_balances::balance_atoms.eq(excluded(collateral_balances::balance_atoms)),
-                    collateral_balances::updated_at_ms.eq(excluded(collateral_balances::updated_at_ms)),
                 ))
                 .execute(conn)
                 .await?;

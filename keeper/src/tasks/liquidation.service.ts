@@ -1,21 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Transaction } from '@mysten/sui/transactions';
-import {
-  FLASH_BORROW_BUFFER_BPS,
-  LIQUIDATION_SWAP_SLIPPAGE_BPS,
-} from '../config/constants';
-import {
-  flashBorrowAmount,
-  hasSpotLiquidationRoute,
-  liquidationMinQuoteOut,
-  resolveCollateralRoute,
-} from '../config/collateral-routing';
+import { FLASH_BORROW_BUFFER_BPS } from '../config/constants';
 import { IndexerService } from '../indexer/indexer.service';
 import type { LeveragedPosition } from '../indexer/indexer.types';
-import type { CollateralRoute } from '../config/collateral-routing';
 import type { TaskResult } from '../keeper/keeper.types';
 import { PtbBuilderService } from '../sui/ptb-builder.service';
 import { SuiService } from '../sui/sui.service';
+
+function flashBorrowAmount(borrowQuote: number | string, bufferBps: number): bigint {
+  const principal = BigInt(borrowQuote || 0);
+  if (principal === 0n) return 0n;
+  return principal + (principal * BigInt(bufferBps)) / 10_000n;
+}
 
 @Injectable()
 export class LiquidationService {
@@ -42,17 +38,11 @@ export class LiquidationService {
       ];
     }
 
-    const keeper = this.sui.getKeypair()?.getPublicKey().toSuiAddress();
-    if (!keeper) {
-      return [{ kind: 'liquidation', target: '-', success: false, error: 'missing_signer' }];
-    }
-
     const candidates = await this.indexer.fetchAllPages((offset, pageSize) =>
       this.indexer.fetchPositions({
         status: 'all',
         minBorrowQuote: 1,
         hasPredictManager: true,
-        hasCollateral: true,
         excludeStatus: 'liquidated',
         limit: pageSize,
         offset,
@@ -64,21 +54,8 @@ export class LiquidationService {
       if (results.filter((r) => r.success).length >= limit) break;
 
       const target = `${position.account_id}:${position.position_key}`;
-      const route = resolveCollateralRoute(cfg, position.collateral_asset);
-      if (!route) {
-        this.logger.debug(`liquidation skip ${target}: missing Pyth oracle route`);
-        continue;
-      }
-
-      if (!route.quoteNative && !hasSpotLiquidationRoute(route)) {
-        this.logger.debug(
-          `liquidation skip ${target}: no spot pool for ${route.coinType}`,
-        );
-        continue;
-      }
-
       try {
-        if (!(await this.isLiquidatable(position, route))) {
+        if (!(await this.isLiquidatable(position))) {
           continue;
         }
 
@@ -86,24 +63,9 @@ export class LiquidationService {
           position.borrow_quote,
           FLASH_BORROW_BUFFER_BPS,
         );
-        const minQuoteOut = route.quoteNative
-          ? 0n
-          : liquidationMinQuoteOut(borrowAmount, LIQUIDATION_SWAP_SLIPPAGE_BPS);
 
         const tx = new Transaction();
-        const feeDeep = route.quoteNative
-          ? undefined
-          : await this.sui.addDeepFeeCoin(tx);
-        this.ptb.buildLiquidation(
-          tx,
-          cfg,
-          position,
-          route,
-          borrowAmount,
-          minQuoteOut,
-          keeper,
-          feeDeep,
-        );
+        this.ptb.buildLiquidation(tx, cfg, position, borrowAmount);
         if (!(await this.sui.devInspect(tx))) {
           results.push({
             kind: 'liquidation',
@@ -118,21 +80,19 @@ export class LiquidationService {
         this.logger.log(`liquidated ${target} digest=${digest}`);
         results.push({ kind: 'liquidation', target, success: true, digest });
       } catch (err) {
-        const error = String(err);
-        this.logger.warn(`liquidation ${target}: ${error}`);
-        results.push({ kind: 'liquidation', target, success: false, error });
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.warn(`liquidation failed ${target}: ${message}`);
+        results.push({ kind: 'liquidation', target, success: false, error: message });
       }
     }
+
     return results;
   }
 
-  private async isLiquidatable(
-    position: LeveragedPosition,
-    route: CollateralRoute,
-  ): Promise<boolean> {
+  private async isLiquidatable(position: LeveragedPosition): Promise<boolean> {
     const cfg = this.sui.getConfig();
-    const tx = this.ptb.buildIsLiquidatable(cfg, position, route);
-    const liquidatable = await this.sui.devInspectBool(tx);
-    return liquidatable === true;
+    const tx = this.ptb.buildIsLiquidatable(cfg, position);
+    const result = await this.sui.devInspectBool(tx);
+    return result === true;
   }
 }

@@ -141,7 +141,7 @@ export function PredictMarketsGrid({
                     <p className="line-clamp-2 text-xs font-medium leading-snug text-foreground transition-colors hover:text-accent">
                       {m.question}
                     </p>
-                    <span className={cn(leverageBadge, "mt-1")}>10X</span>
+                    <span className={cn(leverageBadge, "mt-1")}>1X</span>
                   </Link>
                   <Link
                     {...marketHref}

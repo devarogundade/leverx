@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { resolveCollateralRoute } from '../config/collateral-routing';
 import { IndexerService } from '../indexer/indexer.service';
 import type { LimitMintOrder } from '../indexer/indexer.types';
 import type { TaskResult } from '../keeper/keeper.types';
@@ -36,7 +35,6 @@ export class LimitOrderService {
       this.indexer.fetchLimitOrders({
         status: 'open',
         minOrderExpiresMs: now,
-        hasCollateral: true,
         limit: pageSize,
         offset,
       }),
@@ -47,12 +45,6 @@ export class LimitOrderService {
       if (results.filter((r) => r.success).length >= limit) break;
 
       const target = `${order.account_id}:${order.position_key}`;
-      const route = resolveCollateralRoute(cfg, order.collateral_asset);
-      if (!route) {
-        this.logger.debug(`limit skip ${target}: no collateral route`);
-        continue;
-      }
-
       try {
         if (!(await this.isFillable(order))) {
           continue;
@@ -70,7 +62,7 @@ export class LimitOrderService {
           continue;
         }
 
-        const tx = this.ptb.buildExecuteLimitMint(cfg, order, managerId, route);
+        const tx = this.ptb.buildExecuteLimitMint(cfg, order, managerId);
         if (!(await this.sui.devInspect(tx))) {
           results.push({
             kind: 'limit_order',
@@ -85,11 +77,12 @@ export class LimitOrderService {
         this.logger.log(`filled limit ${target} digest=${digest}`);
         results.push({ kind: 'limit_order', target, success: true, digest });
       } catch (err) {
-        const error = String(err);
-        this.logger.warn(`limit fill ${target}: ${error}`);
-        results.push({ kind: 'limit_order', target, success: false, error });
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.warn(`limit fill failed ${target}: ${message}`);
+        results.push({ kind: 'limit_order', target, success: false, error: message });
       }
     }
+
     return results;
   }
 

@@ -3,8 +3,6 @@ import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { Input } from "@/components/ui/input";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import {
-  useIndexerCollateralAssets,
-  useIndexerCollateralBalances,
   useIndexerExecutors,
   useIndexerLiquidations,
   useIndexerTriggers,
@@ -13,7 +11,7 @@ import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
 import type { LeveragedPosition, UserProxy } from "@/lib/leverx/indexer-client";
 import { premiumRawToCents } from "@/lib/leverx/trade-math";
 import { formatUsdcOrPlaceholder } from "@/lib/leverx/placeholders";
-import { scaleAtoms, scaleQuote } from "@/lib/predict/scaling";
+import { scaleQuote } from "@/lib/predict/scaling";
 import { isValidSuiAddress } from "@/lib/leverx/form-helpers";
 import { inputInField, labelCaps, pillToggleBtn, pillToggleIdle, tradeSurface } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
@@ -38,12 +36,8 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
   const accountId = account.account_id;
   const { data: triggers = [] } = useIndexerTriggers(accountId);
   const { data: executors = [] } = useIndexerExecutors(accountId);
-  const { data: collateralBalances = [] } = useIndexerCollateralBalances(accountId);
-  const { data: collateralAssets = [] } = useIndexerCollateralAssets();
   const { data: liquidations = [] } = useIndexerLiquidations({ accountId, owner });
-  const collateralDecimals = new Map(
-    collateralAssets.map((a) => [a.coin_type, a.decimals]),
-  );
+  const openMargins = positions.filter((p) => p.status === "open" && p.margin_quote > 0);
   const {
     clearTriggers,
     registerExecutor,
@@ -226,23 +220,18 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
 
       <section className={cn(tradeSurface, "space-y-2 p-4")}>
         <LabelWithInfo
-          label="Funds in trades"
+          label="dUSDC in open trades"
           labelClassName={labelCaps}
-          info={leverxInfo.collateralBalances}
+          info={leverxInfo.marginInTrades}
         />
-        {collateralBalances.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No funds locked in open trades.</p>
+        {openMargins.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No dUSDC margin in open trades.</p>
         ) : (
           <ul className="space-y-1 text-xs">
-            {collateralBalances.slice(0, 8).map((b) => (
-              <li key={`${b.position_key}-${b.collateral_asset}`} className="flex justify-between">
-                <span className="truncate font-mono">{b.collateral_asset.split("::").pop()}</span>
-                <span>
-                  {scaleAtoms(
-                    b.balance_atoms,
-                    collateralDecimals.get(b.collateral_asset) ?? 6,
-                  ).toFixed(4)}
-                </span>
+            {openMargins.slice(0, 8).map((p) => (
+              <li key={p.position_key} className="flex justify-between gap-2">
+                <span className="truncate font-mono">{p.oracle_id.slice(0, 10)}…</span>
+                <span>{formatUsdcOrPlaceholder(scaleQuote(p.margin_quote))}</span>
               </li>
             ))}
           </ul>

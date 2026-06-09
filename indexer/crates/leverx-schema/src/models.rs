@@ -4,10 +4,9 @@ use serde_json::Value as JsonValue;
 use sui_field_count::FieldCount;
 
 use crate::schema::{
-    account_timeline, collateral_assets, collateral_balances, global_market_trades, leverx_events,
-    limit_mint_orders, leveraged_positions, liquidations, market_trades, markets,
-    position_triggers, predict_managers, protocol_settings, proxy_executors, swap_pools,
-    user_points, user_proxies, vault_snapshots,
+    account_timeline, global_market_trades, leverx_events, limit_mint_orders, leveraged_positions,
+    liquidations, market_trades, markets, position_triggers, predict_managers, protocol_settings,
+    proxy_executors, user_points, user_proxies, vault_snapshots,
 };
 
 #[derive(Queryable, Selectable, Serialize, Debug, Clone)]
@@ -106,7 +105,6 @@ pub struct LimitMintOrderRow {
     pub higher_strike: i64,
     pub is_range: bool,
     pub is_up: bool,
-    pub collateral_asset: String,
     pub limit_premium_per_unit: i64,
     pub slippage_bps: i64,
     pub market_ask_at_place: Option<i64>,
@@ -140,7 +138,6 @@ pub struct NewLimitMintOrder {
     pub higher_strike: i64,
     pub is_range: bool,
     pub is_up: bool,
-    pub collateral_asset: String,
     pub limit_premium_per_unit: i64,
     pub slippage_bps: i64,
     pub market_ask_at_place: Option<i64>,
@@ -174,7 +171,6 @@ pub struct LeveragedPositionRow {
     pub higher_strike: i64,
     pub is_up: bool,
     pub is_range: bool,
-    pub collateral_asset: String,
     pub open_quantity: i64,
     pub margin_quote: i64,
     pub borrow_quote: i64,
@@ -219,29 +215,6 @@ pub struct VaultSnapshotRow {
 }
 
 #[derive(Queryable, Selectable, Serialize, Debug, Clone)]
-#[diesel(table_name = collateral_assets)]
-pub struct CollateralAssetRow {
-    pub coin_type: String,
-    pub registry_id: String,
-    pub decimals: i16,
-    pub max_ltv_bps: i64,
-    pub liquidation_ltv_bps: i64,
-    pub max_conf_bps: i64,
-    pub updated_at_ms: i64,
-    pub event_digest: String,
-}
-
-#[derive(Queryable, Selectable, Serialize, Debug, Clone)]
-#[diesel(table_name = swap_pools)]
-pub struct SwapPoolRow {
-    pub collateral_asset: String,
-    pub pool_id: String,
-    pub registry_id: String,
-    pub updated_at_ms: i64,
-    pub event_digest: String,
-}
-
-#[derive(Queryable, Selectable, Serialize, Debug, Clone)]
 #[diesel(table_name = protocol_settings)]
 pub struct ProtocolSettingsRow {
     pub registry_id: String,
@@ -249,22 +222,11 @@ pub struct ProtocolSettingsRow {
     pub predict_id: Option<String>,
     pub fee_collector_id: Option<String>,
     pub trading_paused: bool,
-    pub pyth_max_age_secs: Option<i64>,
     pub base_rate_bps: Option<i64>,
     pub kink_utilization_bps: Option<i64>,
     pub slope1_bps: Option<i64>,
     pub slope2_bps: Option<i64>,
     pub flash_fee_bps: Option<i64>,
-    pub updated_at_ms: i64,
-}
-
-#[derive(Queryable, Selectable, Serialize, Debug, Clone)]
-#[diesel(table_name = collateral_balances)]
-pub struct CollateralBalanceRow {
-    pub position_key: String,
-    pub account_id: String,
-    pub collateral_asset: String,
-    pub balance_atoms: i64,
     pub updated_at_ms: i64,
 }
 
@@ -298,10 +260,7 @@ pub struct LiquidationRow {
     pub account_id: String,
     pub owner: String,
     pub keeper: String,
-    pub collateral_asset: String,
     pub debt_repaid: i64,
-    pub collateral_seized: i64,
-    pub quote_from_swap: i64,
     pub surplus_quote: i64,
     pub health_bps: i64,
     pub had_position_redeem: bool,
@@ -332,7 +291,6 @@ pub struct NewLeveragedPosition {
     pub higher_strike: i64,
     pub is_up: bool,
     pub is_range: bool,
-    pub collateral_asset: String,
     pub open_quantity: i64,
     pub margin_quote: i64,
     pub borrow_quote: i64,
@@ -454,29 +412,6 @@ pub struct NewVaultSnapshot {
 }
 
 #[derive(Insertable, AsChangeset, Debug, Clone, FieldCount)]
-#[diesel(table_name = collateral_assets)]
-pub struct NewCollateralAsset {
-    pub coin_type: String,
-    pub registry_id: String,
-    pub decimals: i16,
-    pub max_ltv_bps: i64,
-    pub liquidation_ltv_bps: i64,
-    pub max_conf_bps: i64,
-    pub updated_at_ms: i64,
-    pub event_digest: String,
-}
-
-#[derive(Insertable, AsChangeset, Debug, Clone, FieldCount)]
-#[diesel(table_name = swap_pools)]
-pub struct NewSwapPool {
-    pub collateral_asset: String,
-    pub pool_id: String,
-    pub registry_id: String,
-    pub updated_at_ms: i64,
-    pub event_digest: String,
-}
-
-#[derive(Insertable, AsChangeset, Debug, Clone, FieldCount)]
 #[diesel(table_name = protocol_settings)]
 pub struct NewProtocolSettings {
     pub registry_id: String,
@@ -484,22 +419,11 @@ pub struct NewProtocolSettings {
     pub predict_id: Option<String>,
     pub fee_collector_id: Option<String>,
     pub trading_paused: bool,
-    pub pyth_max_age_secs: Option<i64>,
     pub base_rate_bps: Option<i64>,
     pub kink_utilization_bps: Option<i64>,
     pub slope1_bps: Option<i64>,
     pub slope2_bps: Option<i64>,
     pub flash_fee_bps: Option<i64>,
-    pub updated_at_ms: i64,
-}
-
-#[derive(Insertable, AsChangeset, Debug, Clone, FieldCount)]
-#[diesel(table_name = collateral_balances)]
-pub struct NewCollateralBalance {
-    pub position_key: String,
-    pub account_id: String,
-    pub collateral_asset: String,
-    pub balance_atoms: i64,
     pub updated_at_ms: i64,
 }
 
@@ -533,10 +457,7 @@ pub struct NewLiquidation {
     pub account_id: String,
     pub owner: String,
     pub keeper: String,
-    pub collateral_asset: String,
     pub debt_repaid: i64,
-    pub collateral_seized: i64,
-    pub quote_from_swap: i64,
     pub surplus_quote: i64,
     pub health_bps: i64,
     pub had_position_redeem: bool,

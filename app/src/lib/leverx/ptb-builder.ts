@@ -1,12 +1,11 @@
 import { Transaction } from "@mysten/sui/transactions";
 import { SUI_CLOCK_OBJECT_ID } from "@/lib/leverx/constants";
 import { addMarketKey, type MarketKeyArgs } from "@/lib/leverx/market-keys";
-import type { CollateralRoute, LeverxProtocolConfig } from "@/lib/leverx/protocol";
+import type { LeverxProtocolConfig } from "@/lib/leverx/protocol";
 import type { TransactionObjectArgument } from "@mysten/sui/transactions";
 
 export type MintOrderParams = {
   key: MarketKeyArgs;
-  collateral: CollateralRoute;
   marginQuoteAtoms: bigint;
   leverageBps: bigint;
   quantity: bigint;
@@ -24,12 +23,6 @@ export type RedeemParams = {
   redeemMode?: "market" | "limit";
   minPayout?: bigint;
   minPremiumPerUnit?: bigint;
-};
-
-export type CancelLimitParams = {
-  key: MarketKeyArgs;
-  accountId: string;
-  collateralCoinType: string;
 };
 
 export type TriggerParams = {
@@ -68,39 +61,8 @@ function cancelFn(isRange: boolean): string {
   return isRange ? "cancel_range_limit_mint_order" : "cancel_binary_limit_mint_order";
 }
 
-function depositCollateralFn(isRange: boolean): string {
-  return isRange ? "deposit_collateral_for_range" : "deposit_collateral_for_binary";
-}
-
 function depositQuoteFn(isRange: boolean): string {
   return isRange ? "deposit_quote_for_range_market" : "deposit_quote_for_binary_market";
-}
-
-export function buildDepositCollateral(
-  cfg: LeverxProtocolConfig,
-  route: CollateralRoute,
-  accountId: string,
-  key: MarketKeyArgs,
-  collateralCoin: TransactionObjectArgument,
-): Transaction {
-  const tx = new Transaction();
-  const marketKey = addMarketKey(tx, key);
-
-  tx.moveCall({
-    target: `${cfg.packageId}::trade::${depositCollateralFn(key.isRange)}`,
-    typeArguments: [route.coinType, cfg.quoteType],
-    arguments: [
-      tx.object(cfg.registryId),
-      tx.object(accountId),
-      marketKey,
-      tx.object(route.pythOracleId),
-      tx.object(cfg.pythQuoteOracleId),
-      collateralCoin,
-      tx.object(SUI_CLOCK_OBJECT_ID),
-    ],
-  });
-
-  return tx;
 }
 
 export function buildDepositQuote(
@@ -121,30 +83,6 @@ export function buildDepositQuote(
   return tx;
 }
 
-export function appendDepositCollateral(
-  tx: Transaction,
-  cfg: LeverxProtocolConfig,
-  route: CollateralRoute,
-  accountId: string,
-  key: MarketKeyArgs,
-  collateralCoin: TransactionObjectArgument,
-): void {
-  const marketKey = addMarketKey(tx, key);
-  tx.moveCall({
-    target: `${cfg.packageId}::trade::${depositCollateralFn(key.isRange)}`,
-    typeArguments: [route.coinType, cfg.quoteType],
-    arguments: [
-      tx.object(cfg.registryId),
-      tx.object(accountId),
-      marketKey,
-      tx.object(route.pythOracleId),
-      tx.object(cfg.pythQuoteOracleId),
-      collateralCoin,
-      tx.object(SUI_CLOCK_OBJECT_ID),
-    ],
-  });
-}
-
 export function appendDepositQuote(
   tx: Transaction,
   cfg: LeverxProtocolConfig,
@@ -163,7 +101,6 @@ export function appendDepositQuote(
 export function appendLeveragedMint(
   tx: Transaction,
   cfg: LeverxProtocolConfig,
-  route: CollateralRoute,
   accountId: string,
   predictManagerId: string,
   params: MintOrderParams,
@@ -175,7 +112,7 @@ export function appendLeveragedMint(
   if (orderType === "place") {
     tx.moveCall({
       target: `${cfg.packageId}::trade::${fn}`,
-      typeArguments: [route.coinType, cfg.quoteType],
+      typeArguments: [cfg.quoteType],
       arguments: [
         tx.object(cfg.registryId),
         tx.object(accountId),
@@ -201,8 +138,6 @@ export function appendLeveragedMint(
     tx.object(cfg.predictId),
     tx.object(predictManagerId),
     tx.object(params.key.oracleId),
-    tx.object(route.pythOracleId),
-    tx.object(cfg.pythQuoteOracleId),
     marketKey,
     tx.pure.u64(params.marginQuoteAtoms),
     tx.pure.u64(params.leverageBps),
@@ -222,33 +157,28 @@ export function appendLeveragedMint(
 
   tx.moveCall({
     target: `${cfg.packageId}::trade::${fn}`,
-    typeArguments: [route.coinType, cfg.quoteType],
+    typeArguments: [cfg.quoteType],
     arguments: args,
   });
 }
 
 export function buildLeveragedMintTx(
   cfg: LeverxProtocolConfig,
-  route: CollateralRoute,
   accountId: string,
   predictManagerId: string,
   params: MintOrderParams,
   orderType: "market" | "limit" | "place",
   deposits?: {
-    collateralCoin?: TransactionObjectArgument;
     quoteCoin?: TransactionObjectArgument;
   },
 ): Transaction {
   const tx = new Transaction();
 
-  if (deposits?.collateralCoin) {
-    appendDepositCollateral(tx, cfg, route, accountId, params.key, deposits.collateralCoin);
-  }
   if (deposits?.quoteCoin) {
     appendDepositQuote(tx, cfg, accountId, params.key, deposits.quoteCoin);
   }
 
-  appendLeveragedMint(tx, cfg, route, accountId, predictManagerId, params, orderType);
+  appendLeveragedMint(tx, cfg, accountId, predictManagerId, params, orderType);
   return tx;
 }
 
@@ -336,7 +266,7 @@ export function appendDeleverageDebt(
 
 export function appendClearTriggers(
   tx: Transaction,
-  cfg: LeverxProtocolConfig,
+  _cfg: LeverxProtocolConfig,
   accountId: string,
   key: MarketKeyArgs,
 ): void {
@@ -344,7 +274,7 @@ export function appendClearTriggers(
   const fn = key.isRange ? "clear_range_triggers" : "clear_automated_triggers";
 
   tx.moveCall({
-    target: `${cfg.packageId}::triggers::${fn}`,
+    target: `${_cfg.packageId}::triggers::${fn}`,
     arguments: [tx.object(accountId), marketKey],
   });
 }
@@ -388,13 +318,11 @@ export function appendLinkManager(
 export function appendCancelLimit(
   tx: Transaction,
   cfg: LeverxProtocolConfig,
-  params: CancelLimitParams,
+  params: { key: MarketKeyArgs; accountId: string },
 ): void {
   const marketKey = addMarketKey(tx, params.key);
-
   tx.moveCall({
     target: `${cfg.packageId}::trade::${cancelFn(params.key.isRange)}`,
-    typeArguments: [params.collateralCoinType],
     arguments: [tx.object(params.accountId), marketKey],
   });
 }

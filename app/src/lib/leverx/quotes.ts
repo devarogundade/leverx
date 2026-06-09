@@ -3,7 +3,7 @@ import type { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
 import { READONLY_SENDER } from "@/context/WalletContext";
 import { SUI_CLOCK_OBJECT_ID } from "@/lib/leverx/constants";
 import { addMarketKey, type MarketKeyArgs } from "@/lib/leverx/market-keys";
-import type { CollateralRoute, LeverxProtocolConfig } from "@/lib/leverx/protocol";
+import type { LeverxProtocolConfig } from "@/lib/leverx/protocol";
 
 export type MintQuote = {
   marketAskPerUnit: bigint;
@@ -39,7 +39,6 @@ function parseReturnTuple(
 export async function fetchMintQuote(params: {
   client: SuiJsonRpcClient;
   cfg: LeverxProtocolConfig;
-  route: CollateralRoute;
   accountId?: string | null;
   key: MarketKeyArgs;
   marginQuoteAtoms: bigint;
@@ -57,14 +56,12 @@ export async function fetchMintQuote(params: {
 
   tx.moveCall({
     target: `${params.cfg.packageId}::trade::${fn}`,
-    typeArguments: [params.route.coinType, params.cfg.quoteType],
+    typeArguments: [params.cfg.quoteType],
     arguments: [
       tx.object(params.cfg.registryId),
       tx.object(params.accountId),
       tx.object(params.cfg.predictId),
       tx.object(params.key.oracleId),
-      tx.object(params.route.pythOracleId),
-      tx.object(params.cfg.pythQuoteOracleId),
       marketKey,
       tx.pure.u64(params.marginQuoteAtoms),
       tx.pure.u64(params.leverageBps),

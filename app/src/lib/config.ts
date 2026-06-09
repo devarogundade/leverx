@@ -22,15 +22,16 @@ const TESTNET_DEEPBOOK = {
   registryId: "0x7c256edbda983a2cd6f946655f4bf3f00a41043993781f8674a7046e8c0e11d1",
 } as const;
 
-/** Published LeverX package (testnet). */
+/** Published LeverX package + shared objects (testnet). */
 const TESTNET_LEVERX = {
   packageId:
-    "0x8780ec7cfae9d333ba11325bb078fa79d5942aa077a739e7ad6683ea8f5ed36d",
+    "0x4275c1990b8182c59a638abdc4922303f9e77bae92fcb1cc519f25a97fc8c7cb",
+  registryId:
+    "0x00235fa4d1ca972353e8bafa51bb1e0450d7f3467d96e066a86e42263f8462d8",
+  vaultId:
+    "0x011dece1b6c222fc352e7979d7c5c97d215db522821377a85208d2ec4e788fab",
   feeCollectorId:
-    "0x4fcd19f16566024cd13ee49b3926f2d3c763a392a5988748d738d545e9f238a8",
-  pythQuoteOracleId:
-    import.meta.env.VITE_PYTH_QUOTE_ORACLE_ID ??
-    "0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81",
+    "0xdfb7203456a4061d860f7051a97d981063531167b74a2f4897c0a472c2477d22",
 } as const;
 
 export const appConfig = {
@@ -46,8 +47,9 @@ export const appConfig = {
 
   leverxPackageId:
     import.meta.env.VITE_LEVERX_PACKAGE_ID ?? TESTNET_LEVERX.packageId,
+  leverxRegistryId: TESTNET_LEVERX.registryId,
+  leverxVaultId: TESTNET_LEVERX.vaultId,
   feeCollectorId: TESTNET_LEVERX.feeCollectorId,
-  pythQuoteOracleId: TESTNET_LEVERX.pythQuoteOracleId,
 
   /** Vault/manager legacy paths; oracle catalog always uses predictServerUrl. */
   usePredictServer: false,

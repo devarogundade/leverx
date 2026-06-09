@@ -1,5 +1,4 @@
 import { registerAs } from '@nestjs/config';
-import type { CollateralCatalogEntry } from './collateral-catalog';
 import {
   DEFAULT_PORT,
   DEFAULT_SUI_NETWORK,
@@ -7,11 +6,9 @@ import {
   KEEPER_CRON_DEFAULTS,
   KEEPER_ENABLED,
   KEEPER_LIMIT_DEFAULTS,
-  LAUNCH_COLLATERAL_CATALOG,
   SUI_RPC_URLS,
   TESTNET_ASSETS,
   TESTNET_LEVERX,
-  TESTNET_LIQUIDATION,
   TESTNET_PREDICT,
 } from './constants';
 
@@ -28,11 +25,6 @@ export type KeeperConfig = {
   predictId: string;
   predictServerUrl: string;
   quoteType: string;
-  collateralType: string;
-  spotPoolId: string;
-  pythCollateralOracleId: string;
-  pythQuoteOracleId: string;
-  supportedCollaterals: CollateralCatalogEntry[];
   indexerUrl: string;
   cron: {
     settlement: string;
@@ -65,11 +57,6 @@ export default registerAs(
     predictId: TESTNET_PREDICT.sharedObjectId,
     predictServerUrl: TESTNET_PREDICT.serverUrl,
     quoteType: TESTNET_ASSETS.quoteType,
-    collateralType: TESTNET_ASSETS.defaultCollateralType,
-    spotPoolId: TESTNET_LIQUIDATION.spotPoolId,
-    pythCollateralOracleId: TESTNET_LIQUIDATION.pythCollateralOracleId,
-    pythQuoteOracleId: TESTNET_LIQUIDATION.pythQuoteOracleId,
-    supportedCollaterals: LAUNCH_COLLATERAL_CATALOG,
     indexerUrl: (process.env.INDEXER_URL ?? INDEXER_URL).trim(),
     cron: { ...KEEPER_CRON_DEFAULTS },
     limits: { ...KEEPER_LIMIT_DEFAULTS },
