@@ -306,6 +306,8 @@ export const tradeTerminalSidebar = cn(
   "trade-terminal-sidebar order-2 flex min-w-0 w-full flex-col gap-3",
   "md:col-span-2 md:row-start-2",
   "lg:order-none lg:col-span-1 lg:col-start-3 lg:row-span-2 lg:row-start-1 lg:w-[var(--trade-sidebar-w)] lg:self-start",
+  "lg:sticky lg:top-[calc(var(--site-header-h)+var(--trade-gap))] lg:z-[1]",
+  "lg:max-h-[calc(100dvh-var(--site-header-h)-var(--space-8))] lg:overflow-y-auto",
 );
 
 export const tradeTerminalPositions = cn(
@@ -326,23 +328,25 @@ export const tradeTerminalPositionsBody = cn(
 /** Mobile predictions workspace switcher (Trade vs Chart) */
 export const tradeMobileDock = cn(
   "pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center md:hidden",
-  "pb-[max(0.75rem,env(safe-area-inset-bottom))]",
+  "pb-[max(0.5rem,env(safe-area-inset-bottom))]",
 );
 
 export const tradeMobileDockTabs = cn(
-  "pointer-events-auto inline-flex items-stretch gap-0.5 rounded-full border border-border",
-  "bg-card/95 p-1 shadow-lg backdrop-blur-md",
+  "pointer-events-auto inline-flex items-center gap-0 rounded-lg border border-border",
+  "bg-card/95 p-0.5 shadow-md backdrop-blur-md",
 );
 
 export const tradeMobileDockTab = cn(
-  "inline-flex min-w-[4.5rem] items-center justify-center rounded-full px-4 py-2",
+  "inline-flex min-w-[3.25rem] items-center justify-center rounded-md px-3 py-1.5",
   "text-xs font-medium text-muted-foreground transition-colors duration-150",
   "hover:text-foreground",
 );
 
-export const tradeMobileDockTabActive = "bg-hover font-semibold text-foreground shadow-sm";
+export const tradeMobileDockTabActive = "bg-hover font-semibold text-foreground";
 
-export const tradeTerminalMobileBody = "max-md:pb-[calc(3.75rem+env(safe-area-inset-bottom,0px))]";
+export const tradeTerminalMobileBody = "max-md:pb-[calc(2.75rem+env(safe-area-inset-bottom,0px))]";
+
+export const tradeTerminalMobileChartPanel = "trade-terminal-mobile-chart flex min-h-0 flex-1 flex-col";
 
 export const tradeSummaryGrid = "grid w-full grid-cols-2 gap-3 sm:grid-cols-4";
 

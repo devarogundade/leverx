@@ -99,6 +99,16 @@ export function isLiveOracleRow(row: PredictOracleSummary): boolean {
   return Boolean(row.oracle_id) && !isSettledOracleRow(row);
 }
 
+/** Whether new orders should be blocked (list row and/or live state). */
+export function isOracleSettledForTrade(
+  row?: Pick<PredictOracleSummary, "oracle_id" | "status" | "settled_at"> | null,
+  detail?: Pick<PredictOracleDetail, "status" | "settled_at"> | null,
+): boolean {
+  if (row?.oracle_id && isSettledOracleRow(row as PredictOracleSummary)) return true;
+  if (detail?.settled_at != null && detail.settled_at > 0) return true;
+  return isOracleSettledStatus(detail?.status ?? row?.status);
+}
+
 /** Predict list row is active, non-expired, and has an oracle id. */
 export function isActiveOracleRow(row: PredictOracleSummary, now = Date.now()): boolean {
   if (!row.oracle_id) return false;

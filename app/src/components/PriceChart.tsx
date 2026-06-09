@@ -35,7 +35,17 @@ interface Props {
   rangeLower?: number;
   rangeUpper?: number;
   height?: number;
+  /** When false (e.g. mobile tab hidden), skip resize until visible again */
+  layoutActive?: boolean;
   className?: string;
+}
+
+function applyChartSize(chart: IChartApi, el: HTMLElement): boolean {
+  const width = el.clientWidth;
+  const height = el.clientHeight;
+  if (width < 2 || height < 2) return false;
+  chart.resize(width, height);
+  return true;
 }
 
 export function PriceChart({
@@ -47,6 +57,7 @@ export function PriceChart({
   rangeLower,
   rangeUpper,
   height,
+  layoutActive = true,
   className,
 }: Props) {
   const [mounted, setMounted] = useState(false);
@@ -95,20 +106,31 @@ export function PriceChart({
     const el = containerRef.current;
     const chart = createChart(
       el,
-      lightweightChartOptions(el.clientWidth, el.clientHeight, PREDICT_CHART_SCALE_MARGINS),
+      lightweightChartOptions(
+        Math.max(el.clientWidth, 1),
+        Math.max(el.clientHeight, 240),
+        PREDICT_CHART_SCALE_MARGINS,
+      ),
     );
     chartRef.current = chart;
     priceSeriesRef.current = null;
 
-    const ro = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (!entry) return;
-      const { width, height: h } = entry.contentRect;
-      chart.applyOptions({ width, height: h });
+    const ro = new ResizeObserver(() => {
+      if (chartRef.current) applyChartSize(chartRef.current, el);
     });
     ro.observe(el);
 
+    let raf = 0;
+    const ensureSize = () => {
+      if (!chartRef.current) return;
+      if (!applyChartSize(chartRef.current, el)) {
+        raf = requestAnimationFrame(ensureSize);
+      }
+    };
+    raf = requestAnimationFrame(ensureSize);
+
     return () => {
+      cancelAnimationFrame(raf);
       ro.disconnect();
       chart.remove();
       chartRef.current = null;
@@ -117,6 +139,22 @@ export function PriceChart({
       strikeKeyRef.current = "";
     };
   }, [mounted, oracleId]);
+
+  useEffect(() => {
+    if (!layoutActive || !mounted) return;
+    const chart = chartRef.current;
+    const el = containerRef.current;
+    if (!chart || !el) return;
+
+    const resize = () => applyChartSize(chart, el);
+    resize();
+    const raf = requestAnimationFrame(resize);
+    const timer = window.setTimeout(resize, 120);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(timer);
+    };
+  }, [layoutActive, mounted, lineData.length]);
 
   useEffect(() => {
     const chart = chartRef.current;

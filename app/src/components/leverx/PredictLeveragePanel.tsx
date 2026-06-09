@@ -83,6 +83,8 @@ interface Props {
   lowerStrikeRaw?: number;
   upperStrikeRaw?: number;
   lastAskPremium?: number;
+  /** Set when oracle has settled — blocks new orders */
+  disabled?: boolean;
 }
 
 function coinTypeSymbol(coinType: string): string {
@@ -105,6 +107,7 @@ export function PredictLeveragePanel({
   lowerStrikeRaw,
   upperStrikeRaw,
   lastAskPremium,
+  disabled = false,
 }: Props) {
   const { isWalletConnected, address } = useWallet();
   const { openTrade, isProtocolReady, formatTxError } = useLeverxTransactions();
@@ -358,6 +361,7 @@ export function PredictLeveragePanel({
   });
 
   const canSubmit =
+    !disabled &&
     isWalletConnected &&
     isProtocolReady &&
     !protocol?.trading_paused &&
@@ -439,7 +443,16 @@ export function PredictLeveragePanel({
   };
 
   return (
-    <div className={cn(tradeLeveragePanel, "trade-leverage-panel")}>
+    <div className={cn(tradeLeveragePanel, "trade-leverage-panel", disabled && "relative")}>
+      {disabled ? (
+        <div
+          className="border-b border-border bg-muted/40 px-4 py-2.5 text-center text-xs text-muted-foreground"
+          role="status"
+        >
+          This market has settled. New orders are not accepted.
+        </div>
+      ) : null}
+      <div className={cn(disabled && "pointer-events-none select-none opacity-50")}>
       <div className="border-b border-border p-3">
         <div className={segTabsClass("stretch", "outcomes")} role="group" aria-label="Outcome">
           {canSwitchOutcome ? (
@@ -763,6 +776,7 @@ export function PredictLeveragePanel({
         ) : (
           <WalletConnectButton fullWidth large className={ctaClass} />
         )}
+      </div>
       </div>
     </div>
   );

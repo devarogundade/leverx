@@ -46,6 +46,7 @@ import {
 import { summarizeGlobalTrades } from "@/lib/leverx/trade-stats";
 import { formatCount, ui } from "@/lib/copy";
 import { formatRangeStrikes, type PredictSide } from "@/lib/predict/instruments";
+import { isOracleSettledForTrade } from "@/lib/predict/oracles";
 import { scaleQuote, scaleSpot } from "@/lib/predict/scaling";
 import {
   textFilterActive,
@@ -78,6 +79,7 @@ import {
   tradeMobileDockTabActive,
   tradeMobileDockTabs,
   tradeTerminalMobileBody,
+  tradeTerminalMobileChartPanel,
 } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
 
@@ -157,6 +159,295 @@ function formatAutoClose(expiry: number): string {
     .replace(" PM", "pm");
 }
 
+function TerminalPriceChart({
+  sessionKey,
+  asset,
+  oracleId,
+  chartStrikePrice,
+  activeSide,
+  chartRangeLower,
+  chartRangeUpper,
+  layoutActive = true,
+}: {
+  sessionKey: string;
+  asset: string;
+  oracleId: string;
+  chartStrikePrice?: number;
+  activeSide: PredictSide;
+  chartRangeLower?: number;
+  chartRangeUpper?: number;
+  layoutActive?: boolean;
+}) {
+  return (
+    <div className={tradeTerminalChart}>
+      <PriceChart
+        key={sessionKey}
+        asset={asset}
+        oracleId={oracleId}
+        strikePrice={chartStrikePrice}
+        activeSide={activeSide}
+        rangeLower={chartRangeLower}
+        rangeUpper={chartRangeUpper}
+        layoutActive={layoutActive}
+      />
+    </div>
+  );
+}
+
+function TerminalOrderBook({
+  sessionKey,
+  oracleId,
+  market,
+  activeSide,
+}: {
+  sessionKey: string;
+  oracleId: string;
+  market: ReturnType<typeof resolveTradeMarket> | undefined;
+  activeSide: PredictSide;
+}) {
+  return (
+    <div className={cn(tradeTerminalOrderbook, "min-h-[280px]")}>
+      <PredictOrderBook
+        key={sessionKey}
+        oracleId={oracleId}
+        expiryMs={market?.expiry ?? 0}
+        strike={market?.strikeRaw ?? 0}
+        higherStrike={market?.higherStrikeRaw ?? 0}
+        isUp={market?.isUp ?? activeSide === "up"}
+        isRange={market?.isRange ?? activeSide === "range"}
+        placeholder={!market || market.strikeRaw <= 0 || !market.expiry}
+      />
+    </div>
+  );
+}
+
+type TradePositionsPanelProps = {
+  activeTab: (typeof TABS)[number];
+  setActiveTab: (tab: (typeof TABS)[number]) => void;
+  tradesLoading: boolean;
+  tradeStats: ReturnType<typeof summarizeGlobalTrades>;
+  trades: Awaited<ReturnType<typeof useIndexerGlobalTrades>>["data"];
+  positionsFilter: "open" | "closed";
+  setPositionsFilter: (filter: "open" | "closed") => void;
+  address: string | null;
+  positionsLoading: boolean;
+  positions: Awaited<ReturnType<typeof useIndexerPositions>>["data"];
+  ordersLoading: boolean;
+  limitOrders: Awaited<ReturnType<typeof useIndexerLimitOrders>>["data"];
+  vaultSummary: Awaited<ReturnType<typeof useIndexerVaultSummary>>["data"];
+};
+
+function TradePositionsPanel({
+  activeTab,
+  setActiveTab,
+  tradesLoading,
+  tradeStats,
+  trades = [],
+  positionsFilter,
+  setPositionsFilter,
+  address,
+  positionsLoading,
+  positions = [],
+  ordersLoading,
+  limitOrders = [],
+  vaultSummary,
+}: TradePositionsPanelProps) {
+  return (
+    <div className={tradeTerminalPositions}>
+      <div className={tradeTerminalTabsRow}>
+        <UnderlineTabs
+          variant="plain"
+          className="min-w-0 flex-1"
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as (typeof TABS)[number])}
+          options={TABS.map((tab) => ({
+            value: tab,
+            label: tradeTabLabel(tab, tradesLoading, formatCount(tradeStats.total)),
+          }))}
+        />
+        {activeTab === "Positions" ? (
+          <div className={textFilterGroup} role="group" aria-label="Position filter">
+            <button
+              type="button"
+              className={cn(textFilterBtn, positionsFilter === "open" && textFilterActive)}
+              onClick={() => setPositionsFilter("open")}
+              aria-pressed={positionsFilter === "open"}
+            >
+              Open
+            </button>
+            <button
+              type="button"
+              className={cn(textFilterBtn, positionsFilter === "closed" && textFilterActive)}
+              onClick={() => setPositionsFilter("closed")}
+              aria-pressed={positionsFilter === "closed"}
+            >
+              Closed
+            </button>
+          </div>
+        ) : null}
+      </div>
+
+      <div className={tradeTerminalPositionsBody}>
+        {activeTab === "Summary" ? (
+          <div className={tradeSummaryGrid}>
+            <StatItem label="Total trades" value={formatCount(tradeStats.total)} />
+            <StatItem label="24h trades" value={formatCount(tradeStats.last24h)} />
+            <StatItem label="Opens" value={formatCount(tradeStats.mints)} />
+            <StatItem label="Closes" value={formatCount(tradeStats.redeems)} />
+            <StatItem
+              label="Pool in use"
+              value={
+                vaultSummary?.snapshot?.utilization_bps != null
+                  ? `${(vaultSummary.snapshot.utilization_bps / 100).toFixed(1)}%`
+                  : "—"
+              }
+            />
+          </div>
+        ) : activeTab === "Market trades" ? (
+          tradesLoading ? (
+            <LoadingState label={ui.loadingTrades} compact />
+          ) : trades.length > 0 ? (
+            <table className="w-full table-fixed text-left text-xs">
+              <colgroup>
+                <col className="w-[34%]" />
+                <col className="w-[36%]" />
+                <col className="w-[15%]" />
+                <col className="w-[15%]" />
+              </colgroup>
+              <thead>
+                <tr className="border-b border-border/40 text-[0.625rem] font-medium uppercase tracking-wider text-muted-foreground">
+                  <th className="pb-1.5 pr-3 text-left font-medium">Side</th>
+                  <th className="pb-1.5 pr-3 text-left font-medium">Time</th>
+                  <th className="pb-1.5 pr-2 text-right font-medium">Qty</th>
+                  <th className="pb-1.5 text-right font-medium">Price</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/40 font-mono">
+                {trades.slice(0, 12).map((t) => (
+                  <tr key={t.event_digest}>
+                    <td className="py-2 pr-3 align-middle">
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        {t.trade_side === "mint" ? (
+                          <ArrowUpRight className="h-3 w-3 shrink-0 text-success" />
+                        ) : (
+                          <ArrowDownRight className="h-3 w-3 shrink-0 text-destructive" />
+                        )}
+                        <span className={t.is_up ? "text-success" : "text-destructive"}>
+                          {t.trade_side === "mint" ? "OPEN" : "CLOSE"} {t.is_up ? "UP" : "DOWN"}
+                        </span>
+                      </span>
+                    </td>
+                    <td className="py-2 pr-3 align-middle whitespace-nowrap text-muted-foreground">
+                      {new Date(t.timestamp_ms).toLocaleString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </td>
+                    <td className="py-2 pr-2 align-middle text-right tabular-nums text-foreground">
+                      {t.quantity.toLocaleString()}
+                    </td>
+                    <td className="py-2 align-middle text-right tabular-nums text-foreground">
+                      {t.ask_price
+                        ? formatPremiumCents(t.ask_price)
+                        : t.bid_price
+                          ? formatPremiumCents(t.bid_price)
+                          : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <EmptyState
+              icon={Inbox}
+              title="No activity yet"
+              description="Recent trades will show up here."
+              compact
+            />
+          )
+        ) : activeTab === "Positions" ? (
+          !address ? (
+            <EmptyState
+              icon={Inbox}
+              title="Connect wallet"
+              description="Connect to see your open trades."
+              compact
+            />
+          ) : positionsLoading ? (
+            <LoadingState label="Loading positions…" compact />
+          ) : positions.length > 0 ? (
+            <div className="w-full space-y-2 text-left">
+              {positions.map((p) => (
+                <div
+                  key={`${p.position_key}-${p.account_id}`}
+                  className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2 text-xs"
+                >
+                  <span className="font-medium">
+                    {p.is_up ? "UP" : "DOWN"} · qty {p.open_quantity.toLocaleString()}
+                  </span>
+                  <span className="font-mono text-muted-foreground">
+                    margin {formatUsdcOrPlaceholder(scaleQuote(p.margin_quote))}
+                  </span>
+                  <span className="text-muted-foreground">{p.status}</span>
+                  {p.status === "open" ? (
+                    <PositionRiskMenu position={p} owner={address ?? undefined} />
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon={Inbox}
+              title={ui.emptyPositions}
+              description={ui.emptyPositionsHint}
+              compact
+            />
+          )
+        ) : activeTab === "Open Orders" ? (
+          !address ? (
+            <EmptyState
+              icon={Inbox}
+              title="Connect wallet"
+              description="Connect to see your waiting orders."
+              compact
+            />
+          ) : ordersLoading ? (
+            <LoadingState label="Loading orders…" compact />
+          ) : limitOrders.length > 0 ? (
+            <div className="w-full space-y-2 text-left">
+              {limitOrders.map((o) => (
+                <div
+                  key={o.placed_event_digest}
+                  className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2 text-xs"
+                >
+                  <span>
+                    {o.is_up ? "UP" : "DOWN"} limit @{" "}
+                    {formatPremiumCents(o.limit_premium_per_unit)}
+                  </span>
+                  <span className="font-mono">qty {o.quantity.toLocaleString()}</span>
+                  <span className="text-muted-foreground">{o.status}</span>
+                  {o.status === "open" ? (
+                    <LeverxCancelOrderButton order={o} owner={address ?? undefined} />
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              icon={Inbox}
+              title="No waiting orders"
+              description="Orders waiting for a match will appear here."
+              compact
+            />
+          )
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function oracleSessionKey(args: {
   oracleId: string;
   side: PredictSide;
@@ -213,6 +504,11 @@ export function PredictTradeTerminal({
   const oracleSummary = useMemo(
     () => oracles.find((o) => o.oracle_id === oracleId),
     [oracles, oracleId],
+  );
+
+  const isOracleSettled = useMemo(
+    () => isOracleSettledForTrade(oracleSummary, oracleState),
+    [oracleSummary, oracleState],
   );
 
   const oracleSpot =
@@ -400,6 +696,22 @@ export function PredictTradeTerminal({
   const showMobileChart = mobileWorkspace === "chart";
   const showMobileTrade = mobileWorkspace === "trade";
 
+  const positionsPanelProps: TradePositionsPanelProps = {
+    activeTab,
+    setActiveTab,
+    tradesLoading,
+    tradeStats,
+    trades,
+    positionsFilter,
+    setPositionsFilter,
+    address: address ?? null,
+    positionsLoading,
+    positions,
+    ordersLoading,
+    limitOrders,
+    vaultSummary,
+  };
+
   return (
     <section className={tradeTerminal}>
       <header className={tradeTerminalHeader}>
@@ -491,39 +803,23 @@ export function PredictTradeTerminal({
       </header>
 
       <div className={cn(tradeTerminalBody, tradeTerminalMobileBody)}>
-        <div className={tradeTerminalWorkspace}>
-          <div
-            className={cn(tradeTerminalChart, !showMobileChart && "max-md:hidden")}
-          >
-            <PriceChart
-              key={sessionKey}
-              asset={asset}
-              oracleId={oracleId}
-              strikePrice={chartStrikePrice}
-              activeSide={activeSide}
-              rangeLower={chartRangeLower}
-              rangeUpper={chartRangeUpper}
-            />
-          </div>
-          <div
-            className={cn(
-              tradeTerminalOrderbook,
-              "min-h-[280px]",
-              !showMobileChart && "max-md:hidden",
-            )}
-          >
-            <PredictOrderBook
-              key={sessionKey}
-              oracleId={oracleId}
-              expiryMs={market?.expiry ?? 0}
-              strike={market?.strikeRaw ?? 0}
-              higherStrike={market?.higherStrikeRaw ?? 0}
-              isUp={market?.isUp ?? activeSide === "up"}
-              isRange={market?.isRange ?? activeSide === "range"}
-              placeholder={!market || market.strikeRaw <= 0 || !market.expiry}
-            />
-          </div>
-          <div className={cn(tradeTerminalSidebar, !showMobileTrade && "max-md:hidden")}>
+        <div className={cn(tradeTerminalWorkspace, "max-md:hidden")}>
+          <TerminalPriceChart
+            sessionKey={sessionKey}
+            asset={asset}
+            oracleId={oracleId}
+            chartStrikePrice={chartStrikePrice}
+            activeSide={activeSide}
+            chartRangeLower={chartRangeLower}
+            chartRangeUpper={chartRangeUpper}
+          />
+          <TerminalOrderBook
+            sessionKey={sessionKey}
+            oracleId={oracleId}
+            market={market}
+            activeSide={activeSide}
+          />
+          <div className={tradeTerminalSidebar}>
             <PredictLeveragePanel
               key={sessionKey}
               oracleId={oracleId}
@@ -533,197 +829,55 @@ export function PredictTradeTerminal({
               lowerStrikeRaw={rangeLower}
               upperStrikeRaw={rangeUpper}
               lastAskPremium={market?.lastAskPremium ?? undefined}
+              disabled={isOracleSettled}
             />
           </div>
+          <TradePositionsPanel {...positionsPanelProps} />
+        </div>
 
-          <div className={cn(tradeTerminalPositions, !showMobileTrade && "max-md:hidden")}>
-            <div className={tradeTerminalTabsRow}>
-              <UnderlineTabs
-                variant="plain"
-                className="min-w-0 flex-1"
-                value={activeTab}
-                onValueChange={(v) => setActiveTab(v as (typeof TABS)[number])}
-                options={TABS.map((tab) => ({
-                  value: tab,
-                  label: tradeTabLabel(
-                    tab,
-                    tradesLoading,
-                    formatCount(tradeStats.total),
-                  ),
-                }))}
-              />
-              {activeTab === "Positions" ? (
-                <div className={textFilterGroup} role="group" aria-label="Position filter">
-                  <button
-                    type="button"
-                    className={cn(textFilterBtn, positionsFilter === "open" && textFilterActive)}
-                    onClick={() => setPositionsFilter("open")}
-                    aria-pressed={positionsFilter === "open"}
-                  >
-                    Open
-                  </button>
-                  <button
-                    type="button"
-                    className={cn(textFilterBtn, positionsFilter === "closed" && textFilterActive)}
-                    onClick={() => setPositionsFilter("closed")}
-                    aria-pressed={positionsFilter === "closed"}
-                  >
-                    Closed
-                  </button>
-                </div>
-              ) : null}
-            </div>
+        <div
+          className={cn(
+            tradeTerminalWorkspace,
+            tradeTerminalMobileChartPanel,
+            "md:hidden",
+            !showMobileChart && "hidden",
+          )}
+        >
+          <TerminalPriceChart
+            sessionKey={sessionKey}
+            asset={asset}
+            oracleId={oracleId}
+            chartStrikePrice={chartStrikePrice}
+            activeSide={activeSide}
+            chartRangeLower={chartRangeLower}
+            chartRangeUpper={chartRangeUpper}
+            layoutActive={showMobileChart}
+          />
+          <TerminalOrderBook
+            sessionKey={sessionKey}
+            oracleId={oracleId}
+            market={market}
+            activeSide={activeSide}
+          />
+        </div>
 
-            <div className={tradeTerminalPositionsBody}>
-              {activeTab === "Summary" ? (
-                <div className={tradeSummaryGrid}>
-                  <StatItem label="Total trades" value={formatCount(tradeStats.total)} />
-                  <StatItem label="24h trades" value={formatCount(tradeStats.last24h)} />
-                  <StatItem label="Opens" value={formatCount(tradeStats.mints)} />
-                  <StatItem label="Closes" value={formatCount(tradeStats.redeems)} />
-                  <StatItem
-                    label="Pool in use"
-                    value={
-                      vaultSummary?.snapshot?.utilization_bps != null
-                        ? `${(vaultSummary.snapshot.utilization_bps / 100).toFixed(1)}%`
-                        : "—"
-                    }
-                  />
-                </div>
-              ) : activeTab === "Market trades" ? (
-                tradesLoading ? (
-                  <LoadingState label={ui.loadingTrades} compact />
-                ) : trades.length > 0 ? (
-                  <div className="w-full text-left">
-                    <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto_auto] gap-x-3 border-b border-border/40 pb-1.5 text-[0.625rem] font-medium uppercase tracking-wider text-muted-foreground">
-                      <span>Side</span>
-                      <span>Time</span>
-                      <span className="text-right">Qty</span>
-                      <span className="text-right">Price</span>
-                    </div>
-                    {trades.slice(0, 12).map((t) => (
-                      <div
-                        key={t.event_digest}
-                        className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto_auto] gap-x-3 items-center border-b border-border/40 py-2 font-mono text-xs"
-                      >
-                        <span className="flex min-w-0 items-center gap-1.5">
-                          {t.trade_side === "mint" ? (
-                            <ArrowUpRight className="h-3 w-3 shrink-0 text-success" />
-                          ) : (
-                            <ArrowDownRight className="h-3 w-3 shrink-0 text-destructive" />
-                          )}
-                          <span className={t.is_up ? "text-success" : "text-destructive"}>
-                            {t.trade_side === "mint" ? "OPEN" : "CLOSE"}{" "}
-                            {t.is_up ? "UP" : "DOWN"}
-                          </span>
-                        </span>
-                        <span className="text-muted-foreground">
-                          {new Date(t.timestamp_ms).toLocaleString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            hour: "numeric",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                        <span className="text-right tabular-nums text-foreground">
-                          {t.quantity.toLocaleString()}
-                        </span>
-                        <span className="text-right text-foreground">
-                          {t.ask_price
-                            ? formatPremiumCents(t.ask_price)
-                            : t.bid_price
-                              ? formatPremiumCents(t.bid_price)
-                              : "—"}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyState
-                    icon={Inbox}
-                    title="No activity yet"
-                    description="Recent trades will show up here."
-                    compact
-                  />
-                )
-              ) : activeTab === "Positions" ? (
-                !address ? (
-                  <EmptyState
-                    icon={Inbox}
-                    title="Connect wallet"
-                    description="Connect to see your open trades."
-                    compact
-                  />
-                ) : positionsLoading ? (
-                  <LoadingState label="Loading positions…" compact />
-                ) : positions.length > 0 ? (
-                  <div className="w-full space-y-2 text-left">
-                    {positions.map((p) => (
-                      <div
-                        key={`${p.position_key}-${p.account_id}`}
-                        className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2 text-xs"
-                      >
-                        <span className="font-medium">
-                          {p.is_up ? "UP" : "DOWN"} · qty {p.open_quantity.toLocaleString()}
-                        </span>
-                        <span className="font-mono text-muted-foreground">
-                          margin {formatUsdcOrPlaceholder(scaleQuote(p.margin_quote))}
-                        </span>
-                        <span className="text-muted-foreground">{p.status}</span>
-                        {p.status === "open" ? (
-                          <PositionRiskMenu position={p} owner={address ?? undefined} />
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyState
-                    icon={Inbox}
-                    title={ui.emptyPositions}
-                    description={ui.emptyPositionsHint}
-                    compact
-                  />
-                )
-              ) : activeTab === "Open Orders" ? (
-                !address ? (
-                  <EmptyState
-                    icon={Inbox}
-                    title="Connect wallet"
-                    description="Connect to see your waiting orders."
-                    compact
-                  />
-                ) : ordersLoading ? (
-                  <LoadingState label="Loading orders…" compact />
-                ) : limitOrders.length > 0 ? (
-                  <div className="w-full space-y-2 text-left">
-                    {limitOrders.map((o) => (
-                      <div
-                        key={o.placed_event_digest}
-                        className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2 text-xs"
-                      >
-                        <span>
-                          {o.is_up ? "UP" : "DOWN"} limit @{" "}
-                          {formatPremiumCents(o.limit_premium_per_unit)}
-                        </span>
-                        <span className="font-mono">qty {o.quantity.toLocaleString()}</span>
-                        <span className="text-muted-foreground">{o.status}</span>
-                        {o.status === "open" ? (
-                          <LeverxCancelOrderButton order={o} owner={address ?? undefined} />
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyState
-                    icon={Inbox}
-                    title="No waiting orders"
-                    description="Orders waiting for a match will appear here."
-                    compact
-                  />
-                )
-              ) : null}
-            </div>
+        <div
+          className={cn(tradeTerminalWorkspace, "md:hidden", !showMobileTrade && "hidden")}
+        >
+          <div className={tradeTerminalSidebar}>
+            <PredictLeveragePanel
+              key={sessionKey}
+              oracleId={oracleId}
+              side={activeSide}
+              expiryMs={expiry}
+              strikeRaw={binaryStrikeRaw}
+              lowerStrikeRaw={rangeLower}
+              upperStrikeRaw={rangeUpper}
+              lastAskPremium={market?.lastAskPremium ?? undefined}
+              disabled={isOracleSettled}
+            />
           </div>
+          <TradePositionsPanel {...positionsPanelProps} />
         </div>
       </div>
 
