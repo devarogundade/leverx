@@ -200,14 +200,16 @@ function TerminalOrderBook({
   oracleId,
   market,
   activeSide,
+  compact = false,
 }: {
   sessionKey: string;
   oracleId: string;
   market: ReturnType<typeof resolveTradeMarket> | undefined;
   activeSide: PredictSide;
+  compact?: boolean;
 }) {
   return (
-    <div className={cn(tradeTerminalOrderbook, "min-h-[280px]")}>
+    <div className={cn(tradeTerminalOrderbook, compact ? "min-h-0" : "min-h-[280px]")}>
       <PredictOrderBook
         key={sessionKey}
         oracleId={oracleId}
@@ -217,6 +219,7 @@ function TerminalOrderBook({
         isUp={market?.isUp ?? activeSide === "up"}
         isRange={market?.isRange ?? activeSide === "range"}
         placeholder={!market || market.strikeRaw <= 0 || !market.expiry}
+        compact={compact}
       />
     </div>
   );
@@ -860,6 +863,7 @@ export function PredictTradeTerminal({
             oracleId={oracleId}
             market={market}
             activeSide={activeSide}
+            compact
           />
         </div>
 

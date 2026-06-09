@@ -33,6 +33,8 @@ interface Props {
   isUp?: boolean;
   isRange?: boolean;
   placeholder?: boolean;
+  /** Natural height instead of filling the parent (mobile chart tab). */
+  compact?: boolean;
 }
 
 const PLACEHOLDER_ROWS = 4;
@@ -57,6 +59,7 @@ function OrderBookShell({
   lastTradedLabel,
   spreadLabel,
   muted = false,
+  compact = false,
 }: {
   bookSide: "long" | "short";
   onBookSideChange: (side: "long" | "short") => void;
@@ -67,12 +70,20 @@ function OrderBookShell({
   lastTradedLabel: string;
   spreadLabel: string;
   muted?: boolean;
+  compact?: boolean;
 }) {
   const askMax = maxTotal(asks);
   const bidMax = maxTotal(bids);
 
   return (
-    <div className={cn(tradeSurface, "flex h-full min-h-[280px] min-h-0 flex-1 flex-col", muted && "opacity-70")}>
+    <div
+      className={cn(
+        tradeSurface,
+        "flex flex-col",
+        compact ? "h-auto min-h-[240px]" : "h-full min-h-[280px] flex-1",
+        muted && "opacity-70",
+      )}
+    >
       <div className="flex items-center justify-between border-b border-border px-3 py-2">
         <LabelWithInfo
           label="Prices"
@@ -110,9 +121,9 @@ function OrderBookShell({
         <span className="text-right">USD</span>
       </div>
 
-      <div className={cn(orderbookStack, "px-1")}>
-        <div className={orderbookStackSection}>
-          <div className={cn(orderbookStackRows, "justify-end")}>
+      <div className={cn(compact ? "flex flex-col" : orderbookStack, "px-1")}>
+        <div className={compact ? "flex flex-col" : orderbookStackSection}>
+          <div className={cn(compact ? "flex flex-col" : orderbookStackRows, "justify-end")}>
             {asks.map((row, i) => (
               <div key={`ask-${i}`} className={orderbookRow}>
                 <div
@@ -144,8 +155,8 @@ function OrderBookShell({
           </span>
         </div>
 
-        <div className={orderbookStackSection}>
-          <div className={orderbookStackRows}>
+        <div className={compact ? "flex flex-col" : orderbookStackSection}>
+          <div className={compact ? "flex flex-col" : orderbookStackRows}>
             {bids.map((row, i) => (
               <div key={`bid-${i}`} className={orderbookRow}>
                 <div
@@ -201,6 +212,7 @@ export function PredictOrderBook({
   isUp = true,
   isRange = false,
   placeholder = false,
+  compact = false,
 }: Props) {
   const [bookSide, setBookSide] = useState<"long" | "short">("long");
   const { data: book, isLoading } = useIndexerOrderBook({
@@ -215,7 +227,13 @@ export function PredictOrderBook({
 
   if (!placeholder && isLoading && !book) {
     return (
-      <div className={cn(tradeSurface, "flex min-h-[280px] flex-1 items-center justify-center p-6")}>
+      <div
+        className={cn(
+          tradeSurface,
+          "flex min-h-[240px] items-center justify-center p-6",
+          !compact && "min-h-[280px] flex-1",
+        )}
+      >
         <LoadingState label="Loading order book…" compact />
       </div>
     );
@@ -234,6 +252,7 @@ export function PredictOrderBook({
         lastTradedLabel={DATA_PLACEHOLDER}
         spreadLabel={DATA_PLACEHOLDER}
         muted
+        compact={compact}
       />
     );
   }
@@ -258,6 +277,7 @@ export function PredictOrderBook({
       bidShare={book.bid_share_pct}
       lastTradedLabel={lastTraded > 0 ? formatPremiumOrPlaceholder(lastTraded) : DATA_PLACEHOLDER}
       spreadLabel={spread}
+      compact={compact}
     />
   );
 }
