@@ -77,6 +77,7 @@ export class IndexerService {
     minOpenQuantity?: number;
     maxExpiryMs?: number;
     hasPredictManager?: boolean;
+    hasMargin?: boolean;
     excludeStatus?: string;
     limit?: number;
     offset?: number;
@@ -88,6 +89,7 @@ export class IndexerService {
         min_open_quantity: args?.minOpenQuantity,
         max_expiry_ms: args?.maxExpiryMs,
         has_predict_manager: args?.hasPredictManager,
+        has_margin: args?.hasMargin,
         exclude_status: args?.excludeStatus,
         limit: args?.limit ?? 500,
         offset: args?.offset ?? 0,
@@ -95,15 +97,41 @@ export class IndexerService {
     );
   }
 
-  /** Keys with outstanding per-position debt (open or closed predict leg). */
-  fetchLiquidationCandidates(limit = 500): Promise<Paginated<LeveragedPosition>> {
-    return this.fetchPositions({
-      status: 'all',
-      minBorrowQuote: 1,
-      hasPredictManager: true,
-      excludeStatus: 'liquidated',
-      limit,
-    });
+  /** Open keys with margin (1×) plus any keys with residual vault borrow. */
+  async fetchLiquidationCandidates(limit = 500): Promise<LeveragedPosition[]> {
+    const [withMargin, withBorrow] = await Promise.all([
+      this.fetchAllPages((offset, pageSize) =>
+        this.fetchPositions({
+          status: 'open',
+          hasMargin: true,
+          hasPredictManager: true,
+          excludeStatus: 'liquidated',
+          limit: pageSize,
+          offset,
+        }),
+      ),
+      this.fetchAllPages((offset, pageSize) =>
+        this.fetchPositions({
+          status: 'all',
+          minBorrowQuote: 1,
+          hasPredictManager: true,
+          excludeStatus: 'liquidated',
+          limit: pageSize,
+          offset,
+        }),
+      ),
+    ]);
+
+    const seen = new Set<string>();
+    const merged: LeveragedPosition[] = [];
+    for (const position of [...withMargin, ...withBorrow]) {
+      const key = `${position.account_id}:${position.position_key}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(position);
+      if (merged.length >= limit) break;
+    }
+    return merged;
   }
 
   fetchLimitOrders(args?: {

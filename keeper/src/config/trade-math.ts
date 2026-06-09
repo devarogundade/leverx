@@ -8,3 +8,19 @@ export function minPayoutAfterSlippage(expectedPayout: bigint, slippageBps: numb
   const floor = 10_000n - BigInt(slippageBps);
   return (expectedPayout * floor) / 10_000n;
 }
+
+/**
+ * Vault flash principal for liquidation PTBs.
+ * At 1×, `borrow_quote` is often 0 while on-chain `margin_debt` tracks posted margin.
+ */
+export function flashBorrowAmountForLiquidation(
+  borrowQuote: number | string,
+  marginQuote: number | string,
+  bufferBps: number,
+): bigint {
+  const vaultDebt = BigInt(borrowQuote || 0);
+  const marginDebt = BigInt(marginQuote || 0);
+  const principal = vaultDebt > 0n ? vaultDebt : marginDebt;
+  if (principal === 0n) return 1n;
+  return principal + (principal * BigInt(bufferBps)) / 10_000n;
+}
