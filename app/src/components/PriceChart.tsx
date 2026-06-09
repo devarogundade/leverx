@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { LineSeries, createChart, type IChartApi, type ISeriesApi } from "lightweight-charts";
 import { LineChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,8 +18,9 @@ import {
   lightweightChartOptions,
 } from "@/lib/charts/lightweight-shared";
 import { flatLineData, toLineData } from "@/lib/charts/line-data";
+import type { UTCTimestamp } from "lightweight-charts";
 import type { PredictSide } from "@/lib/predict/instruments";
-import { fetchPredictOraclePriceHistory } from "@/lib/predict/price-history";
+import { useOracleSpotPriceSeries } from "@/hooks/useOracleSpotPriceSeries";
 import { cn } from "@/lib/utils";
 import { tradeSurface } from "@/lib/leverx/tw";
 
@@ -62,20 +62,26 @@ export function PriceChart({
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const segmentRefs = useRef<ISeriesApi<"Line">[]>([]);
+  const lineDataLenRef = useRef(0);
 
   const optionsMode = strikePrice != null && strikePrice > 0;
 
-  const { data: history, isLoading, isError, refetch } = useQuery({
-    queryKey: ["predict-oracle-prices", oracleId],
-    queryFn: () => fetchPredictOraclePriceHistory(oracleId),
-    staleTime: 120_000,
-    enabled: Boolean(oracleId),
-  });
+  const { data: history, isLoading, isError, refetch } = useOracleSpotPriceSeries(oracleId);
 
   const flatPrice = useMemo(() => resolveFlatPrice(spotPrice, levels), [spotPrice, levels]);
 
   const lineData = useMemo(() => {
-    if (history?.length) return toLineData(history);
+    if (history?.length) {
+      const data = toLineData(history);
+      if (data.length === 1) {
+        const point = data[0]!;
+        return [
+          { time: (point.time - 300) as UTCTimestamp, value: point.value },
+          point,
+        ];
+      }
+      return data;
+    }
     if (flatPrice != null) return flatLineData(flatPrice);
     return [];
   }, [history, flatPrice]);
@@ -114,6 +120,7 @@ export function PriceChart({
       chart.remove();
       chartRef.current = null;
       segmentRefs.current = [];
+      lineDataLenRef.current = 0;
     };
   }, [mounted, oracleId]);
 
@@ -150,7 +157,13 @@ export function PriceChart({
       addSeries(lineSeriesWinColor(), lineData);
     }
 
-    chart.timeScale().fitContent();
+    const prevLen = lineDataLenRef.current;
+    lineDataLenRef.current = lineData.length;
+    if (prevLen === 0 || lineData.length <= 2) {
+      chart.timeScale().fitContent();
+    } else if (lineData.length > prevLen) {
+      chart.timeScale().scrollToRealTime();
+    }
 
     if (optionsMode && strikePrice != null && strikePrice > 0) {
       const prices = lineData.map((point) => point.value);

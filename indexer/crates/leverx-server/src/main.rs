@@ -66,12 +66,11 @@ fn cors_layer(raw: &str) -> CorsLayer {
             .allow_headers(Any);
     }
 
-    let origins: Vec<HeaderValue> = raw
+    let patterns: Vec<String> = raw
         .split(',')
         .map(str::trim)
         .filter(|s| !s.is_empty())
-        .map(|s| s.trim_end_matches('/'))
-        .filter_map(|s| HeaderValue::from_str(s).ok())
+        .map(|s| s.trim_end_matches('/').to_string())
         .collect();
 
     let mut layer = CorsLayer::new()
@@ -90,11 +89,57 @@ fn cors_layer(raw: &str) -> CorsLayer {
             header::ORIGIN,
         ]);
 
-    if origins.is_empty() {
-        layer.allow_origin(Any)
-    } else if origins.len() == 1 {
-        layer.allow_origin(AllowOrigin::exact(origins[0].clone()))
-    } else {
-        layer.allow_origin(AllowOrigin::list(origins))
+    if patterns.is_empty() {
+        return layer.allow_origin(Any);
     }
+
+    if patterns.iter().all(|p| !p.contains('*')) {
+        let origins: Vec<HeaderValue> = patterns
+            .iter()
+            .filter_map(|s| HeaderValue::from_str(s).ok())
+            .collect();
+        return match origins.len() {
+            0 => layer.allow_origin(Any),
+            1 => layer.allow_origin(AllowOrigin::exact(origins[0].clone())),
+            _ => layer.allow_origin(AllowOrigin::list(origins)),
+        };
+    }
+
+    layer.allow_origin(AllowOrigin::predicate(move |origin: &HeaderValue, _| {
+        origin
+            .to_str()
+            .ok()
+            .is_some_and(|value| origin_matches(value, &patterns))
+    }))
+}
+
+fn origin_matches(origin: &str, patterns: &[String]) -> bool {
+    let origin = origin.trim_end_matches('/');
+    patterns.iter().any(|pattern| {
+        if pattern.contains('*') {
+            wildcard_origin_match(origin, pattern)
+        } else {
+            origin == pattern.as_str()
+        }
+    })
+}
+
+/// Matches patterns like `https://*.suileverx.xyz` (apex + any subdomain).
+fn wildcard_origin_match(origin: &str, pattern: &str) -> bool {
+    let Some((scheme, suffix)) = pattern.split_once("://*.") else {
+        return false;
+    };
+
+    let Ok(url) = url::Url::parse(origin) else {
+        return false;
+    };
+    if url.scheme() != scheme {
+        return false;
+    }
+
+    let Some(host) = url.host_str() else {
+        return false;
+    };
+
+    host == suffix || host.ends_with(&format!(".{suffix}"))
 }

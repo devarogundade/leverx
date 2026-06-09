@@ -155,7 +155,7 @@ export const pillCount = "rounded-full bg-background px-2 py-0.5 text-xs font-se
 
 /** Markets grid responsive columns */
 export const marketsGrid =
-  "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4";
+  "grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4";
 
 /** Market card shell */
 export const marketCard = cn(

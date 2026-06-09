@@ -118,7 +118,7 @@ function MarketsPage() {
         }))}
       />
 
-      <div className={marketsCatalogRegion}>
+      <div className={cn(view === "list" && marketsCatalogRegion)}>
         {view === "grid" ? (
           <PredictMarketsGrid
             markets={markets}

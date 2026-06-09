@@ -96,8 +96,8 @@ export function PredictMarketsGrid({
   }
 
   return (
-    <div className="flex min-h-[var(--markets-catalog-h)] flex-col">
-      <div className={cn(marketsGrid, "min-h-0 flex-1")}>
+    <div className="flex flex-col">
+      <div className={marketsGrid}>
         {pageMarkets.map((m) => {
           const range = resolveRangeBounds({
             oracleId: m.oracleId,
