@@ -91,6 +91,11 @@ export function isActiveOracleRow(row: PredictOracleSummary, now = Date.now()): 
   return expiryMs > now;
 }
 
+/** Settled, expired, or otherwise non-tradeable oracle row. */
+export function isClosedOracleRow(row: PredictOracleSummary, now = Date.now()): boolean {
+  return Boolean(row.oracle_id) && !isActiveOracleRow(row, now);
+}
+
 /** Active Predict oracle that settles protection for a margin base asset. */
 export function isProtectionOracleForBase(
   row: PredictOracleSummary,

@@ -35,6 +35,7 @@ function PredictTradePage() {
 
   return (
     <PredictTradeTerminal
+      key={oracleId}
       oracleId={oracleId}
       strikeRaw={strike}
       lowerStrikeRaw={lowerStrike}

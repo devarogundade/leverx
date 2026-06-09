@@ -6,12 +6,12 @@ import {
   type LeverxMarketRow,
 } from "@/lib/leverx/indexer-markets";
 import { FLOAT_SCALING } from "@/lib/predict/constants";
-import { isActiveOracleRow } from "@/lib/predict/oracles";
+import { isActiveOracleRow, isClosedOracleRow } from "@/lib/predict/oracles";
 import type { PredictOracleSummary } from "@/lib/predict/types";
 
 const SCALE = Number(FLOAT_SCALING);
 
-export type MarketCategory = "All" | "Live" | "Range";
+export type MarketCategory = "All" | "Live" | "Closed";
 
 function scaledRaw(value: number | undefined | null): number {
   if (value == null || value <= 0) return 0;
@@ -147,7 +147,7 @@ function groupCatalogByOracle(
   return map;
 }
 
-function enrichRow(
+export function enrichMarketRow(
   row: LeverxMarketRow,
   oracle: PredictOracleSummary | undefined,
   spot?: number,
@@ -206,19 +206,26 @@ function defaultUpRow(
 function oraclesForCategory(
   oracles: readonly PredictOracleSummary[],
   category: MarketCategory,
-  catalogByOracle: Map<string, MarketCatalogEntry[]>,
 ): PredictOracleSummary[] {
-  if (category === "Range") return [];
-
-  const hasCatalog = (id: string) => (catalogByOracle.get(id)?.length ?? 0) > 0;
-
   if (category === "Live") {
     return oracles.filter((o) => isActiveOracleRow(o));
   }
 
-  return oracles.filter(
-    (o) => isActiveOracleRow(o) || hasCatalog(o.oracle_id),
-  );
+  if (category === "Closed") {
+    return oracles.filter((o) => isClosedOracleRow(o));
+  }
+
+  return oracles.filter((o) => Boolean(o.oracle_id));
+}
+
+function catalogEntriesForCategory(
+  entries: readonly MarketCatalogEntry[],
+  category: MarketCategory,
+): MarketCatalogEntry[] {
+  if (category === "Live") {
+    return entries.filter((entry) => !entry.is_range);
+  }
+  return [...entries];
 }
 
 export function mergeOracleMarkets(args: {
@@ -232,69 +239,47 @@ export function mergeOracleMarkets(args: {
   const oracleById = new Map(oracles.map((o) => [o.oracle_id, o]));
   const catalogByOracle = groupCatalogByOracle(catalog);
 
-  let rows: LeverxMarketRow[];
+  const selectedOracles = oraclesForCategory(oracles, category);
+  const seen = new Set<string>();
+  const rows: LeverxMarketRow[] = [];
 
-  if (category === "Range") {
-    rows = catalog
-      .filter((e) => e.is_range)
-      .map((e) => {
-        const base = catalogEntryToMarketRow(e);
-        return enrichRow(base, oracleById.get(e.oracle_id), spotByOracle?.get(e.oracle_id));
-      });
-  } else {
-    const selectedOracles = oraclesForCategory(oracles, category, catalogByOracle);
-    const seen = new Set<string>();
+  for (const oracle of selectedOracles) {
+    const entries = catalogEntriesForCategory(
+      catalogByOracle.get(oracle.oracle_id) ?? [],
+      category,
+    );
 
-    rows = [];
-    for (const oracle of selectedOracles) {
-      const entries = (catalogByOracle.get(oracle.oracle_id) ?? []).filter((e) => !e.is_range);
-
-      if (entries.length > 0) {
-        for (const entry of entries) {
-          const row = enrichRow(
-            catalogEntryToMarketRow(entry),
-            oracle,
-            spotByOracle?.get(oracle.oracle_id),
-          );
-          if (!seen.has(row.id)) {
-            seen.add(row.id);
-            rows.push(row);
-          }
-        }
-        continue;
-      }
-
-      if (!isActiveOracleRow(oracle)) continue;
-
-      const spot =
-        spotByOracle?.get(oracle.oracle_id) ??
-        (oracle.settlement_price ? oracle.settlement_price / SCALE : undefined);
-      const strikeRaw = atmStrikeRaw(
-        spot ?? 0,
-        scaledRaw(oracle.min_strike),
-        scaledRaw(oracle.tick_size),
-      );
-      if (strikeRaw <= 0) continue;
-
-      const row = defaultUpRow(oracle, strikeRaw, spot);
-      if (!seen.has(row.id)) {
-        seen.add(row.id);
-        rows.push(row);
-      }
-    }
-
-    if (category === "All") {
-      for (const entry of catalog.filter((e) => e.is_range)) {
-        const row = enrichRow(
+    if (entries.length > 0) {
+      for (const entry of entries) {
+        const row = enrichMarketRow(
           catalogEntryToMarketRow(entry),
-          oracleById.get(entry.oracle_id),
-          spotByOracle?.get(entry.oracle_id),
+          oracle,
+          spotByOracle?.get(oracle.oracle_id),
         );
         if (!seen.has(row.id)) {
           seen.add(row.id);
           rows.push(row);
         }
       }
+      continue;
+    }
+
+    if (category !== "Live" || !isActiveOracleRow(oracle)) continue;
+
+    const spot =
+      spotByOracle?.get(oracle.oracle_id) ??
+      (oracle.settlement_price ? oracle.settlement_price / SCALE : undefined);
+    const strikeRaw = atmStrikeRaw(
+      spot ?? 0,
+      scaledRaw(oracle.min_strike),
+      scaledRaw(oracle.tick_size),
+    );
+    if (strikeRaw <= 0) continue;
+
+    const row = defaultUpRow(oracle, strikeRaw, spot);
+    if (!seen.has(row.id)) {
+      seen.add(row.id);
+      rows.push(row);
     }
   }
 

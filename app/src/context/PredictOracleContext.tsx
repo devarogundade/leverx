@@ -9,13 +9,19 @@ import {
   getPredictOracleRows,
   PREDICT_ORACLES_QUERY_KEY,
 } from "@/lib/predict/oracle-cache";
-import { resolveOracleNeighbors } from "@/lib/predict/oracle-navigation";
+import {
+  resolveOracleNeighbors,
+  type OracleNeighborOptions,
+} from "@/lib/predict/oracle-navigation";
 import { sortOracleRows } from "@/lib/predict/other-oracles";
 import type { PredictOracleSummary } from "@/lib/predict/types";
 
 type PredictOracleContextValue = UseQueryResult<PredictOracleSummary[], Error> & {
   oracles: PredictOracleSummary[];
-  getNeighbors: (oracleId: string) => ReturnType<typeof resolveOracleNeighbors>;
+  getNeighbors: (
+    oracleId: string,
+    options?: OracleNeighborOptions,
+  ) => ReturnType<typeof resolveOracleNeighbors>;
 };
 
 const PredictOracleContext = createContext<PredictOracleContextValue | null>(null);
@@ -35,7 +41,7 @@ export function PredictOracleProvider({ children }: { children: ReactNode }) {
       ...query,
       data: oracles,
       oracles,
-      getNeighbors: (oracleId: string) => resolveOracleNeighbors(oracles, oracleId),
+      getNeighbors: (oracleId, options) => resolveOracleNeighbors(oracles, oracleId, options),
     }),
     [query, oracles],
   );

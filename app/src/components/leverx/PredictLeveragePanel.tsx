@@ -142,6 +142,24 @@ export function PredictLeveragePanel({
   );
 
   useEffect(() => {
+    setTxError(null);
+    setOrderType("market");
+    setLimitPrice("");
+    setLowerStrike(lowerStrikeRaw ? String(lowerStrikeRaw / 1e9) : "");
+    setUpperStrike(upperStrikeRaw ? String(upperStrikeRaw / 1e9) : "");
+    setMargin("");
+    setLeverage(1.1);
+    setPlacementSlippagePct(5);
+    setOrderExpiresHours(DEFAULT_LIMIT_ORDER_EXPIRY_HOURS);
+    setLimitExecution("immediate");
+    setTpSl(false);
+    setTp("");
+    setSl("");
+    setTpUnit("pct");
+    setSlUnit("pct");
+  }, [oracleId, side, strikeRaw, lowerStrikeRaw, upperStrikeRaw]);
+
+  useEffect(() => {
     if (orderType !== "limit") return;
     if (lastAskPremium && lastAskPremium > 0) {
       setLimitPrice(premiumToCents(lastAskPremium).toFixed(1));

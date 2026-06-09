@@ -230,8 +230,7 @@ export const tradeTerminal = "flex w-full flex-col";
 
 export const tradeTerminalHeader = "flex flex-col gap-3 pb-3";
 
-export const tradeTerminalHeaderTop =
-  "flex min-w-0 w-full items-start justify-between gap-3";
+export const tradeTerminalHeaderTop = "flex min-w-0 w-full items-start justify-between gap-3";
 
 export const tradeTerminalHeaderMetrics = cn(
   "md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-[var(--trade-gap)]",
@@ -310,6 +309,27 @@ export const tradeTerminalPositionsBody = cn(
   "h-[var(--trade-positions-body-h)] min-h-[var(--trade-positions-body-h)] overflow-y-auto p-4",
   "text-sm text-muted-foreground",
 );
+
+/** Mobile predictions workspace switcher (Trade vs Chart) */
+export const tradeMobileDock = cn(
+  "pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center md:hidden",
+  "pb-[max(0.75rem,env(safe-area-inset-bottom))]",
+);
+
+export const tradeMobileDockTabs = cn(
+  "pointer-events-auto inline-flex items-stretch gap-0.5 rounded-full border border-border",
+  "bg-card/95 p-1 shadow-lg backdrop-blur-md",
+);
+
+export const tradeMobileDockTab = cn(
+  "inline-flex min-w-[4.5rem] items-center justify-center rounded-full px-4 py-2",
+  "text-xs font-medium text-muted-foreground transition-colors duration-150",
+  "hover:text-foreground",
+);
+
+export const tradeMobileDockTabActive = "bg-hover font-semibold text-foreground shadow-sm";
+
+export const tradeTerminalMobileBody = "max-md:pb-[calc(3.75rem+env(safe-area-inset-bottom,0px))]";
 
 export const tradeSummaryGrid = "grid w-full grid-cols-2 gap-3 sm:grid-cols-4";
 
@@ -490,7 +510,7 @@ export const marketsTradePillDown = marketSideActionDown;
 export const marketsTradePillRange = marketSideActionRange;
 
 export const catalogPagination = cn(
-  "flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3",
+  "flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 mt-2",
 );
 
 export const catalogPaginationInfo = "text-xs text-muted-foreground tabular-nums";

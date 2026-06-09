@@ -13,6 +13,11 @@ import {
   lightweightChartOptions,
 } from "@/lib/charts/lightweight-shared";
 import { buildStrikeAnchoredSpotLineData } from "@/lib/charts/line-data";
+import {
+  applyPredictChartViewport,
+  buildPredictAutoscaleInfo,
+  PREDICT_CHART_SCALE_MARGINS,
+} from "@/lib/charts/predict-chart-view";
 import { ORACLE_SPOT_POLL_INTERVAL_MS } from "@/hooks/useOracleSpotPriceSeries";
 import type { PredictSide } from "@/lib/predict/instruments";
 import { useOracleSpotPriceSeries } from "@/hooks/useOracleSpotPriceSeries";
@@ -50,6 +55,8 @@ export function PriceChart({
   const priceSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
   const lineDataLenRef = useRef(0);
   const strikeKeyRef = useRef("");
+  const lineDataRef = useRef<ReturnType<typeof buildStrikeAnchoredSpotLineData>>([]);
+  const strikeLevelsRef = useRef<ReturnType<typeof buildStrikeChartLevels>>([]);
 
   const { data: history, isLoading, isError, refetch } = useOracleSpotPriceSeries(oracleId);
 
@@ -75,6 +82,9 @@ export function PriceChart({
     [activeSide, strikePrice, rangeLower, rangeUpper],
   );
 
+  lineDataRef.current = lineData;
+  strikeLevelsRef.current = strikeLevels;
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -83,7 +93,10 @@ export function PriceChart({
     if (!mounted || !containerRef.current) return;
 
     const el = containerRef.current;
-    const chart = createChart(el, lightweightChartOptions(el.clientWidth, el.clientHeight));
+    const chart = createChart(
+      el,
+      lightweightChartOptions(el.clientWidth, el.clientHeight, PREDICT_CHART_SCALE_MARGINS),
+    );
     chartRef.current = chart;
     priceSeriesRef.current = null;
 
@@ -123,7 +136,7 @@ export function PriceChart({
         series.update(point);
       }
       lineDataLenRef.current = lineData.length;
-      chart.timeScale().scrollToRealTime();
+      applyPredictChartViewport(chart, lineData.length);
       return;
     }
 
@@ -138,15 +151,15 @@ export function PriceChart({
       crosshairMarkerVisible: true,
       lastValueVisible: true,
       priceLineVisible: false,
+      autoscaleInfoProvider: () =>
+        buildPredictAutoscaleInfo(lineDataRef.current, strikeLevelsRef.current),
     });
     series.setData(lineData);
     priceSeriesRef.current = series;
     lineDataLenRef.current = lineData.length;
 
-    chart.timeScale().fitContent();
-    if (lineData.length > 2) {
-      chart.timeScale().scrollToRealTime();
-    }
+    applyPredictChartViewport(chart, lineData.length);
+    chart.priceScale("right").applyOptions({ autoScale: true });
   }, [lineData, activeSide, strikePrice, rangeLower, rangeUpper]);
 
   useEffect(() => {
@@ -163,6 +176,8 @@ export function PriceChart({
         title: level.label,
       }),
     );
+
+    chartRef.current?.priceScale("right").applyOptions({ autoScale: true });
 
     return () => {
       for (const line of priceLines) {

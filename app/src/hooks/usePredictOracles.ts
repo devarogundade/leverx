@@ -1,4 +1,5 @@
 import { usePredictOracleContext } from "@/context/PredictOracleContext";
+import type { OracleNeighborOptions } from "@/lib/predict/oracle-navigation";
 
 /** Predict-server oracle catalog — loaded once via PredictOracleProvider. */
 export function usePredictOracleRows() {
@@ -13,7 +14,7 @@ export function usePredictOracleRows() {
   };
 }
 
-export function useOracleNeighbors(oracleId: string) {
+export function useOracleNeighbors(oracleId: string, options?: OracleNeighborOptions) {
   const ctx = usePredictOracleContext();
-  return ctx.getNeighbors(oracleId);
+  return ctx.getNeighbors(oracleId, options);
 }

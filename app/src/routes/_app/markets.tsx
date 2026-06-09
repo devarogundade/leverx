@@ -24,7 +24,7 @@ import {
 } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
 
-const CATEGORIES = ["All", "Live", "Range"] as const;
+const CATEGORIES = ["All", "Live", "Closed"] as const;
 
 export const Route = createFileRoute("/_app/markets")({
   head: () => ({
