@@ -47,8 +47,8 @@ SELECT
     m.is_range,
     lt.last_ask_price,
     lb.last_bid_price,
-    COALESCE(v.volume_24h, 0) AS volume_24h,
-    COALESCE(v.trade_count_24h, 0) AS trade_count_24h,
+    COALESCE(v.volume_24h, 0)::bigint AS volume_24h,
+    COALESCE(v.trade_count_24h, 0)::bigint AS trade_count_24h,
     m.updated_at_ms
 FROM markets m
 LEFT JOIN LATERAL (
@@ -68,8 +68,8 @@ LEFT JOIN LATERAL (
 LEFT JOIN (
     SELECT
         market_key,
-        SUM(volume) AS volume_24h,
-        SUM(trade_count) AS trade_count_24h
+        SUM(volume)::bigint AS volume_24h,
+        SUM(trade_count)::bigint AS trade_count_24h
     FROM (
         SELECT
             market_key,
@@ -112,7 +112,10 @@ pub async fn fetch_market_catalog(
         .bind::<diesel::sql_types::BigInt, _>(offset)
         .load::<MarketCatalogRow>(&mut conn)
         .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+        .map_err(|e| {
+            tracing::error!(error = %e, "market catalog query failed");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })
 }
 
 pub fn catalog_response(

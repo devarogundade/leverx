@@ -453,7 +453,8 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                 None,
                 Some(ev.withdrawer.to_string()),
                 Some(ev.amount),
-                Some(ev.nav),
+                // On-chain emits pre-withdraw NAV; pool TVL after withdraw is nav - amount.
+                Some(ev.nav.saturating_sub(ev.amount)),
                 Some(ev.utilization_bps),
                 Some(ev.total_borrowed),
                 Some(ev.borrow_rate_bps),

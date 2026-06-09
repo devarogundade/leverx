@@ -28,7 +28,7 @@ use crate::catalog::{catalog_response, fetch_market_catalog, parse_catalog_pagin
 use crate::leaderboard::{fetch_leaderboard, fetch_owner_rank, leaderboard_response, parse_leaderboard_pagination};
 use crate::orderbook;
 use crate::pagination::{paginate, parse_limit_offset};
-use crate::vault::merge_vault_snapshot;
+use crate::vault::{merge_vault_snapshot, normalize_snapshot_row};
 use crate::stream::StreamHub;
 use crate::ws::ws_handler;
 
@@ -359,7 +359,7 @@ async fn vault_history(
     let (limit, offset) = parse_limit_offset(q.limit, q.offset);
     let mut conn = state.pool.get().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let rows = vault_snapshots::table
+    let mut rows = vault_snapshots::table
         .filter(vault_snapshots::vault_id.eq(vault_id))
         .order(vault_snapshots::timestamp_ms.desc())
         .limit(limit + 1)
@@ -368,6 +368,10 @@ async fn vault_history(
         .load::<VaultSnapshotRow>(&mut conn)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    for row in &mut rows {
+        normalize_snapshot_row(row);
+    }
 
     Ok(Json(serde_json::to_value(paginate(rows, limit, offset)).unwrap()))
 }

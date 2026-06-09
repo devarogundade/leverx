@@ -1,6 +1,7 @@
 pub mod models;
 pub mod relations;
 pub mod schema;
+pub mod vault_snapshot;
 
 pub use diesel_migrations::{embed_migrations, EmbeddedMigrations};
 
