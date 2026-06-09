@@ -17,12 +17,12 @@ export const TESTNET_PREDICT = {
 /** Published LeverX package + shared objects (testnet). */
 export const TESTNET_LEVERX = {
   packageId:
-    '0x4275c1990b8182c59a638abdc4922303f9e77bae92fcb1cc519f25a97fc8c7cb',
+    '0x0d97963b7032ca790844559446a8fb4b036d00d0c7e50f338840d4ad6d109a20',
   registryId:
-    '0x00235fa4d1ca972353e8bafa51bb1e0450d7f3467d96e066a86e42263f8462d8',
-  vaultId: '0x011dece1b6c222fc352e7979d7c5c97d215db522821377a85208d2ec4e788fab',
+    '0x7e36d8362e5315ea97b2f374c90b96d1a8d3e93a1ceb5dbc54acf40bae1c17e2',
+  vaultId: '0x4e3d2d54c5b3ac7f0d65be9515a50da4cf72e7388ef985298c417f4c8b8317a7',
   feeCollectorId:
-    '0xdfb7203456a4061d860f7051a97d981063531167b74a2f4897c0a472c2477d22',
+    '0x66a202c6ed7a2bb451da7d049cb0f82b0780e95307c5966c1c187d5c32493110',
 } as const;
 
 /** dUSDC quote type on testnet. */
