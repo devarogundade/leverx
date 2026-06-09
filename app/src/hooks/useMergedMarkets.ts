@@ -7,7 +7,6 @@ import {
   mergeOracleMarkets,
   type MarketCategory,
 } from "@/lib/leverx/predict-oracle-markets";
-import { isLiveOracleRow, isSettledOracleRow } from "@/lib/predict/oracles";
 
 export function useMergedMarkets(args: {
   category: MarketCategory;
@@ -24,17 +23,36 @@ export function useMergedMarkets(args: {
     limit: 1000,
   });
 
-  const spotOracleIds = useMemo(() => {
-    if (args.category === "Closed") {
-      return oracles.filter((o) => isSettledOracleRow(o)).map((o) => o.oracle_id);
-    }
-    if (args.category === "All") {
-      return oracles.filter((o) => o.oracle_id).map((o) => o.oracle_id);
-    }
-    return oracles.filter((o) => isLiveOracleRow(o)).map((o) => o.oracle_id);
-  }, [oracles, args.category]);
+  const spotOracleIds = useMemo(
+    () => oracles.filter((o) => o.oracle_id).map((o) => o.oracle_id),
+    [oracles],
+  );
 
   const { data: spotMap } = useOracleSpotMap(spotOracleIds);
+
+  const categoryCounts = useMemo(
+    () => ({
+      All: mergeOracleMarkets({
+        oracles,
+        catalog,
+        spotByOracle: spotMap,
+        category: "All",
+      }).length,
+      Live: mergeOracleMarkets({
+        oracles,
+        catalog,
+        spotByOracle: spotMap,
+        category: "Live",
+      }).length,
+      Closed: mergeOracleMarkets({
+        oracles,
+        catalog,
+        spotByOracle: spotMap,
+        category: "Closed",
+      }).length,
+    }),
+    [oracles, catalog, spotMap],
+  );
 
   const markets = useMemo(
     (): LeverxMarketRow[] =>
@@ -50,6 +68,7 @@ export function useMergedMarkets(args: {
 
   return {
     markets,
+    categoryCounts,
     oracles,
     catalog,
     loading: oraclesLoading && !oraclesFetched,

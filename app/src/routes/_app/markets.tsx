@@ -44,7 +44,7 @@ function MarketsPage() {
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"grid" | "list">("grid");
 
-  const { markets, loading, offline, catalogReady } = useMergedMarkets({
+  const { markets, categoryCounts, loading, offline, catalogReady } = useMergedMarkets({
     category: category as MarketCategory,
     search,
   });
@@ -110,8 +110,8 @@ function MarketsPage() {
           label: (
             <>
               {cat}
-              {cat === "Live" && markets.length > 0 ? (
-                <span className={cn(pillCount, "ml-1")}>{markets.length}</span>
+              {cat === "Live" && categoryCounts.Live > 0 ? (
+                <span className={cn(pillCount, "ml-1")}>{categoryCounts.Live}</span>
               ) : null}
             </>
           ),
