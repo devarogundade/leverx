@@ -115,12 +115,15 @@ const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem('lx-theme'
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className="dark" suppressHydrationWarning>
       <head>
         <HeadContent />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body className="min-h-dvh bg-background text-foreground antialiased">
+      <body
+        className="min-h-dvh bg-background text-foreground antialiased"
+        suppressHydrationWarning
+      >
         {children}
         <Scripts />
       </body>
