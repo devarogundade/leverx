@@ -39,6 +39,7 @@ export type LimitExecutionMode = "resting" | "immediate";
 export type OpenTradeInput = {
   key: MarketKeyArgs;
   marginUsd: number;
+  leverage: number;
   orderType: "market" | "limit";
   limitExecution?: LimitExecutionMode;
   limitCents?: number;
@@ -105,7 +106,7 @@ export async function executeOpenTrade(params: {
   }
 
   const marginAtoms = marginUsdToQuoteAtoms(input.marginUsd);
-  const leverageBps = leverageToBps();
+  const leverageBps = leverageToBps(input.leverage);
   const quantity = input.quantity > 0n ? input.quantity : 1n;
   const positionAtoms = positionQuoteAtoms(marginAtoms, leverageBps);
   const marketSlippageBps = input.marketSlippageBps ?? DEFAULT_SLIPPAGE_BPS;

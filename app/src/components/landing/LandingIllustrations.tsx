@@ -64,7 +64,7 @@ export function LandingChartIllustration() {
         </text>
         <rect x="104" y="228" width="72" height="22" rx="4" fill="var(--color-surface)" stroke="var(--color-border)" />
         <text x="112" y="243" fill="var(--color-muted-foreground)" fontSize="10" fontFamily="Inter, sans-serif">
-          1× dUSDC
+          10× max
         </text>
       </svg>
     </Frame>

@@ -1,3 +1,5 @@
+import { MAX_MARGIN_USD } from "@/lib/leverx/trade-limits";
+
 /** Fraction presets for wallet-balance quick-amount buttons. */
 export const BALANCE_QUICK_FRACTIONS = [
   { label: "10%", fraction: 0.1 },
@@ -23,7 +25,8 @@ export function formatAmountInput(amount: number): string {
 export function buildQuickAmounts(
   balance: number | null | undefined,
 ): readonly { label: string; value: string }[] {
-  const available = balance != null && balance > 0 ? balance : 0;
+  const capped = balance != null && balance > 0 ? Math.min(balance, MAX_MARGIN_USD) : 0;
+  const available = capped;
   return BALANCE_QUICK_FRACTIONS.map(({ label, fraction }) => ({
     label,
     value: formatAmountInput(available * fraction),

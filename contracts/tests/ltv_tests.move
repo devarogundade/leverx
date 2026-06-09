@@ -25,7 +25,18 @@ fun zero_debt_is_not_liquidatable() {
 }
 
 #[test]
-fun borrow_for_leverage_is_zero_at_fixed_1x() {
-    assert!(ltv::borrow_for_leverage(5_000, 5_000) == 0, 0);
-    ltv::assert_leverage_bps(protocol_constants::leverage_bps());
+fun position_from_margin_at_2x() {
+    let margin = 100_000_000;
+    let leverage_bps = 20_000;
+    assert!(ltv::position_from_margin(margin, leverage_bps) == 200_000_000, 0);
+}
+
+#[test]
+fun borrow_for_leverage_is_position_minus_margin() {
+    assert!(ltv::borrow_for_leverage(200_000_000, 100_000_000) == 100_000_000, 0);
+}
+
+#[test]
+fun min_leverage_bps_is_one_point_one_x() {
+    ltv::assert_leverage_bps(protocol_constants::min_leverage_bps());
 }

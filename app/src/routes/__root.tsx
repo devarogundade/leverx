@@ -85,12 +85,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: APP_NAME },
       {
         name: "description",
-        content: "Trade price predictions with dUSDC margin at 1× leverage on the LeverX demo.",
+        content: "Trade price predictions with dUSDC margin at up to 10× leverage on the LeverX demo.",
       },
       { property: "og:title", content: APP_NAME },
       {
         property: "og:description",
-        content: "Trade price predictions with dUSDC margin at 1× leverage on the LeverX demo.",
+        content: "Trade price predictions with dUSDC margin at up to 10× leverage on the LeverX demo.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

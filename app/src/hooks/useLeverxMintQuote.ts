@@ -9,6 +9,7 @@ import { leverageToBps, marginUsdToQuoteAtoms } from "@/lib/leverx/trade-math";
 export function useLeverxMintQuote(args: {
   key?: MarketKeyArgs;
   marginUsd?: number;
+  leverage?: number;
   quantity?: bigint;
   owner?: string;
   enabled?: boolean;
@@ -19,7 +20,7 @@ export function useLeverxMintQuote(args: {
   const accountId = accounts[0]?.account_id;
 
   const marginAtoms = marginUsdToQuoteAtoms(args.marginUsd ?? 0);
-  const leverageBps = leverageToBps();
+  const leverageBps = leverageToBps(args.leverage ?? 1.1);
   const quantity = args.quantity && args.quantity > 0n ? args.quantity : 1n;
 
   return useQuery({

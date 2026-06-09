@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { LeverageSlider } from "@/components/leverx/LeverageSlider";
 import { InfoPopover, LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { SlippagePopover } from "@/components/leverx/SlippagePopover";
 import { TradeQuoteSummary } from "@/components/leverx/TradeQuoteSummary";
@@ -37,6 +38,12 @@ import { type MarketKeyArgs } from "@/lib/leverx/market-keys";
 import { MARGIN_CALL_BPS } from "@/lib/leverx/protocol";
 import { buildQuickAmounts } from "@/lib/leverx/form-helpers";
 import { tradeCtaLabel, tradeNeedsDeposit } from "@/lib/leverx/trade-cta";
+import {
+  DEFAULT_LEVERAGE,
+  formatLeverageBadge,
+  MAX_MARGIN_USD,
+  MIN_MARGIN_USD,
+} from "@/lib/leverx/trade-limits";
 import { ui } from "@/lib/copy";
 import { Loader2 } from "lucide-react";
 import {
@@ -106,6 +113,7 @@ export function PredictLeveragePanel({
     upperStrikeRaw ? String(upperStrikeRaw / 1e9) : "",
   );
   const [margin, setMargin] = useState("");
+  const [leverage, setLeverage] = useState(DEFAULT_LEVERAGE);
   const [placementSlippagePct, setPlacementSlippagePct] = useState(5);
   const [orderExpiresHours, setOrderExpiresHours] =
     useState<LimitOrderExpiryHours>(DEFAULT_LIMIT_ORDER_EXPIRY_HOURS);
@@ -118,6 +126,7 @@ export function PredictLeveragePanel({
     setLowerStrike(lowerStrikeRaw ? String(lowerStrikeRaw / 1e9) : "");
     setUpperStrike(upperStrikeRaw ? String(upperStrikeRaw / 1e9) : "");
     setMargin("");
+    setLeverage(DEFAULT_LEVERAGE);
     setPlacementSlippagePct(5);
     setOrderExpiresHours(DEFAULT_LIMIT_ORDER_EXPIRY_HOURS);
     setLimitExecution("immediate");
@@ -141,6 +150,7 @@ export function PredictLeveragePanel({
   const [tpUnit, setTpUnit] = useState("pct");
   const [slUnit, setSlUnit] = useState("pct");
 
+  const lev = leverage;
   const marginNum = parseFloat(margin) || 0;
   const isRange = side === "range";
   const ctaClass = tradeCtaClass(side);
@@ -219,6 +229,12 @@ export function PredictLeveragePanel({
 
   const validationErrors = useMemo(() => {
     const errors: string[] = [];
+    if (marginNum > 0 && marginNum < MIN_MARGIN_USD) {
+      errors.push(`Minimum deposit is ${MIN_MARGIN_USD} dUSDC.`);
+    }
+    if (marginNum > MAX_MARGIN_USD) {
+      errors.push(`Maximum deposit is ${MAX_MARGIN_USD} dUSDC.`);
+    }
     if (marginNum > 0 && walletQuoteBalance != null && marginNum > walletQuoteBalance + 1e-6) {
       errors.push("Deposit exceeds available USDC balance.");
     }
@@ -254,6 +270,7 @@ export function PredictLeveragePanel({
   const { data: mintQuote, isLoading: quoteLoading } = useLeverxMintQuote({
     key: tradeKey,
     marginUsd: marginNum,
+    leverage: lev,
     quantity: BigInt(Math.max(1, quantityNum)),
     owner: address ?? undefined,
     enabled: marginNum > 0 && quantityNum > 0,
@@ -313,6 +330,7 @@ export function PredictLeveragePanel({
           isRange,
         },
         marginUsd: marginNum,
+        leverage: lev,
         orderType,
         limitExecution,
         limitCents: orderType === "limit" ? parseFloat(limitPrice) || undefined : undefined,
@@ -539,7 +557,7 @@ export function PredictLeveragePanel({
             value={margin}
             onChange={(e) => setMargin(e.target.value)}
             placeholder="0.00"
-            suffix={<span className={leverageBadge}>1X dUSDC</span>}
+            suffix={<span className={leverageBadge}>{formatLeverageBadge(lev)} dUSDC</span>}
           />
           <div className="mt-2">
             <TradeQuickAmounts amounts={quickAmounts} onPick={setMargin} />
@@ -548,13 +566,15 @@ export function PredictLeveragePanel({
             <p className="mt-2 text-xs text-muted-foreground">
               Position size:{" "}
               <span className="font-mono text-foreground">
-                {formatCollateralAmount(appConfig.quoteType, marginNum)}
+                {formatCollateralAmount(appConfig.quoteType, marginNum * lev)}
               </span>
               {" · "}
               Margin call at {(MARGIN_CALL_BPS / 100).toFixed(0)}%
             </p>
           ) : null}
         </div>
+
+        <LeverageSlider value={leverage} onChange={setLeverage} />
 
         <TradeQuoteSummary quote={mintQuote} isLoading={quoteLoading} />
 

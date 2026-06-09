@@ -1,6 +1,6 @@
 import { FLOAT_SCALING, QUOTE_UNIT } from "@/lib/predict/constants";
 import { PREDICT_PRICE_SCALE } from "@/lib/leverx/constants";
-import { LEVERAGE_BPS } from "@/lib/leverx/protocol";
+import { clampLeverage } from "@/lib/leverx/trade-limits";
 
 /** USD margin → quote atoms (6-decimal dUSDC). */
 export function marginUsdToQuoteAtoms(marginUsd: number): bigint {
@@ -8,9 +8,9 @@ export function marginUsdToQuoteAtoms(marginUsd: number): bigint {
   return BigInt(Math.round(marginUsd * Number(QUOTE_UNIT)));
 }
 
-/** Fixed 1:1 leverage — always 10_000 bps. */
-export function leverageToBps(_leverage?: number): bigint {
-  return LEVERAGE_BPS;
+/** Leverage multiplier → basis points (2x → 20_000). */
+export function leverageToBps(leverage: number): bigint {
+  return BigInt(Math.round(clampLeverage(leverage) * 10_000));
 }
 
 /** Percent → basis points. */
@@ -35,14 +35,13 @@ export function strikeUsdToRaw(strikeUsd: number): number {
   return Math.round(strikeUsd * Number(FLOAT_SCALING));
 }
 
-/** At 1:1 leverage, position notional equals margin. */
-export function positionQuoteAtoms(marginAtoms: bigint, _leverageBps?: bigint): bigint {
-  return marginAtoms;
+export function positionQuoteAtoms(marginAtoms: bigint, leverageBps: bigint): bigint {
+  return (marginAtoms * leverageBps) / 10_000n;
 }
 
-/** No vault borrow on open at fixed 1x. */
-export function borrowQuoteAtoms(_marginAtoms: bigint, _leverageBps?: bigint): bigint {
-  return 0n;
+export function borrowQuoteAtoms(marginAtoms: bigint, leverageBps: bigint): bigint {
+  const position = positionQuoteAtoms(marginAtoms, leverageBps);
+  return position > marginAtoms ? position - marginAtoms : 0n;
 }
 
 /** Estimate contract quantity from margin and per-unit premium. */

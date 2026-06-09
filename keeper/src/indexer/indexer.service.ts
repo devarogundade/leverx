@@ -97,7 +97,7 @@ export class IndexerService {
     );
   }
 
-  /** Open keys with margin (1×) plus any keys with residual vault borrow. */
+  /** Open keys with posted margin plus any keys with residual vault borrow. */
   async fetchLiquidationCandidates(limit = 500): Promise<LeveragedPosition[]> {
     const [withMargin, withBorrow] = await Promise.all([
       this.fetchAllPages((offset, pageSize) =>

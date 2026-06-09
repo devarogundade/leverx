@@ -11,7 +11,7 @@ export function minPayoutAfterSlippage(expectedPayout: bigint, slippageBps: numb
 
 /**
  * Vault flash principal for liquidation PTBs.
- * At 1×, `borrow_quote` is often 0 while on-chain `margin_debt` tracks posted margin.
+ * Uses vault debt when present; otherwise falls back to posted margin debt.
  */
 export function flashBorrowAmountForLiquidation(
   borrowQuote: number | string,

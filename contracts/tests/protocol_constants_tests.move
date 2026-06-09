@@ -12,8 +12,19 @@ fun fee_shares_sum_to_one_hundred_percent() {
 }
 
 #[test]
-fun fixed_one_x_leverage() {
-    assert!(protocol_constants::leverage_bps() == 10_000, 0);
+fun leverage_bounds() {
+    assert!(protocol_constants::min_leverage_bps() == 11_000, 0);
+    assert!(protocol_constants::max_leverage() == 10, 0);
+    assert!(
+        protocol_constants::max_leverage_bps() == protocol_constants::max_leverage() * protocol_constants::bps(),
+        0,
+    );
+}
+
+#[test]
+fun margin_bounds() {
+    assert!(protocol_constants::min_margin_quote() == 100_000, 0);
+    assert!(protocol_constants::max_margin_quote() == 100_000_000, 0);
 }
 
 #[test]

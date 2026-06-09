@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_app/keeper")({
       { title: pageTitle("Helper") },
       {
         name: "description",
-        content: "Trade price predictions with dUSDC margin at 1× leverage on the LeverX demo.",
+        content: "Trade price predictions with dUSDC margin at up to 10× leverage on the LeverX demo.",
       },
     ],
   }),

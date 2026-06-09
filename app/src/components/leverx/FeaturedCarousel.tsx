@@ -64,7 +64,7 @@ export function FeaturedCarousel({ markets, loading }: Props) {
                   <p className="text-[10px] text-muted-foreground">DeepBook Predict</p>
                 </div>
                 <div className="shrink-0 text-right">
-                  <span className={leverageBadge}>1X</span>
+                  <span className={leverageBadge}>10X</span>
                   <div className="mt-0.5 text-sm font-semibold tabular-nums">
                     {formatPremiumOrPlaceholder(m.lastAskPremium)}
                   </div>

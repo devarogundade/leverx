@@ -69,7 +69,7 @@ export function GuideStorybook() {
             <h1 className="guide-hero-title">How LeverX works</h1>
             <p className="guide-hero-lead">
               {ui.appTagline}. Bet on price going up, down, or staying in a range — with dUSDC
-              margin at fixed 1× leverage on the demo network.
+              margin from 0.1–100 dUSDC at 1.1×–10× leverage on the demo network.
             </p>
           </div>
           <Link to="/markets" className="guide-hero-cta">
@@ -79,8 +79,8 @@ export function GuideStorybook() {
         </div>
         <div className="guide-hero-stats">
           <div className="guide-hero-stat">
-            <span className="guide-hero-stat-value">1×</span>
-            <span className="guide-hero-stat-label">Fixed leverage</span>
+            <span className="guide-hero-stat-value">10×</span>
+            <span className="guide-hero-stat-label">Max leverage</span>
           </div>
           <div className="guide-hero-stat">
             <span className="guide-hero-stat-value">3</span>
@@ -137,14 +137,14 @@ export function GuideStorybook() {
           >
             <p>
               LeverX lets you bet on where an asset&apos;s price will be at expiry — above a target,
-              below it, or inside a range. Post dUSDC margin at 1× — your position size matches your
-              deposit.
+              below it, or inside a range. Post 0.1–100 dUSDC margin and choose leverage up to 10× to
+              size your position.
             </p>
             <div className="guide-pillar-grid guide-pillar-grid--single">
               <PillarCard
                 icon={<Zap className="h-4 w-4" />}
-                title="1× dUSDC"
-                body="Deposit $10 dUSDC to control a $10 position on the demo network."
+                title="dUSDC margin"
+                body="Deposit $10 dUSDC at 2× to control a $20 position — the extra comes from the vault."
                 accent="shield"
               />
             </div>
@@ -186,25 +186,30 @@ export function GuideStorybook() {
             id="leverage"
             index="03"
             title="Margin & safety"
-            subtitle="Fixed 1× dUSDC — no vault borrow on open"
+            subtitle="1.1×–10× leverage with 0.1–100 dUSDC margin"
           >
             <p>
-              When you open a trade, you deposit dUSDC from your wallet. At 1× leverage there is no
-              vault borrow on open — position size equals your margin. If the market moves against
-              you, health drops; at 95% the position may be auto-closed.
+              When you open a trade, you deposit dUSDC from your wallet (0.1–100 dUSDC) and pick
+              leverage from 1.1× to 10×. Position size = margin × leverage; anything above your
+              deposit is borrowed from the vault. If the market moves against you, health drops; at
+              95% the position may be auto-closed.
             </p>
             <div className="guide-leverage-demo">
               <div className="guide-leverage-row guide-leverage-row-highlight">
                 <span className="guide-leverage-label">$10 dUSDC deposit</span>
-                <span className="guide-leverage-value">$10 position</span>
+                <span className="guide-leverage-value">$20 position at 2×</span>
               </div>
               <div className="guide-leverage-bar" aria-hidden>
-                <div className="guide-leverage-bar-fill" style={{ width: "100%" }} />
+                <div className="guide-leverage-bar-fill" style={{ width: "50%" }} />
               </div>
               <div className="guide-leverage-legend">
                 <span>
                   <i className="guide-swatch guide-swatch-you" />
                   Your dUSDC margin
+                </span>
+                <span>
+                  <i className="guide-swatch guide-swatch-borrow" />
+                  Vault borrow
                 </span>
               </div>
             </div>
@@ -278,7 +283,7 @@ export function GuideStorybook() {
                 </span>
                 <span className="guide-step-body">
                   <strong>Set your trade</strong>
-                  <span>dUSDC deposit (1×), and optional take-profit / stop-loss.</span>
+                  <span>dUSDC deposit (0.1–100), leverage (1.1×–10×), and optional take-profit / stop-loss.</span>
                 </span>
               </li>
               <li>

@@ -11,14 +11,16 @@ public fun mul_bps(amount: u64, bps: u64): u64 {
     protocol_constants::mul_bps(amount, bps)
 }
 
-/// Position size from margin — fixed 1:1 leverage returns margin as-is.
-public fun position_from_margin(margin_quote: u64, _leverage_bps: u64): u64 {
-    margin_quote
+/// Position size from margin and leverage bps (e.g. 2x = 20_000 bps).
+public fun position_from_margin(margin_quote: u64, leverage_bps: u64): u64 {
+    assert_leverage_bps(leverage_bps);
+    mul_bps(margin_quote, leverage_bps)
 }
 
-/// Borrow amount for leveraged trade — fixed 1x returns zero.
-public fun borrow_for_leverage(_position_quote: u64, _margin_quote: u64): u64 {
-    0
+/// Borrow amount for leveraged trade (position minus posted margin).
+public fun borrow_for_leverage(position_quote: u64, margin_quote: u64): u64 {
+    assert!(position_quote >= margin_quote, errors::invalid_leverage());
+    position_quote - margin_quote
 }
 
 /// Debt used for health: vault debt with interest takes precedence over posted margin.
@@ -60,9 +62,16 @@ public fun is_position_liquidatable(
     is_liquidatable(quote_balance, effective_health_debt(vault_debt, margin_debt))
 }
 
-/// Assert leverage equals the protocol-fixed 1x rate.
+/// Assert leverage is within protocol min/max bounds.
 public fun assert_leverage_bps(leverage_bps: u64) {
-    assert!(leverage_bps == protocol_constants::leverage_bps(), errors::invalid_leverage());
+    assert!(leverage_bps >= protocol_constants::min_leverage_bps(), errors::invalid_leverage());
+    assert!(leverage_bps <= protocol_constants::max_leverage_bps(), errors::invalid_leverage());
+}
+
+/// Assert margin is within protocol min/max bounds.
+public fun assert_margin_quote(margin_quote: u64) {
+    assert!(margin_quote >= protocol_constants::min_margin_quote(), errors::invalid_margin());
+    assert!(margin_quote <= protocol_constants::max_margin_quote(), errors::invalid_margin());
 }
 
 #[test_only]

@@ -79,6 +79,7 @@ const E_INVALID_FEE_COLLECTOR: u64 = 37;
 const E_INVALID_COLLATERAL_CONFIG: u64 = 38;
 const E_SAME_ASSET_SWAP: u64 = 39;
 const E_LIQUIDATION_NO_COLLATERAL: u64 = 40;
+const E_INVALID_MARGIN: u64 = 41;
 
 // --- Auth & access control ---
 
@@ -120,6 +121,9 @@ public fun collateral_not_supported(): u64 { E_COLLATERAL_NOT_SUPPORTED }
 
 /// Withdrawal would drop position below maintenance LTV.
 public fun withdraw_exceeds_maintenance(): u64 { E_WITHDRAW_EXCEEDS_MAINTENANCE }
+
+/// Margin amount is outside the protocol min/max bounds.
+public fun invalid_margin(): u64 { E_INVALID_MARGIN }
 
 // --- Debt & vault liquidity ---
 

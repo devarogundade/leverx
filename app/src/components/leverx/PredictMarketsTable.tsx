@@ -160,7 +160,7 @@ function MarketMobileCard({
           >
             {m.question}
           </Link>
-          <span className={cn(leverageBadge, "mt-1")}>1X</span>
+          <span className={cn(leverageBadge, "mt-1")}>10X</span>
         </div>
         <MarketPremiumQuote
           series={premiumSeries}
@@ -373,7 +373,7 @@ export function PredictMarketsTable({
                         >
                           {m.question}
                         </Link>
-                        <span className={cn(leverageBadge, "mt-1")}>1X</span>
+                        <span className={cn(leverageBadge, "mt-1")}>10X</span>
                       </div>
                     </div>
                   </td>

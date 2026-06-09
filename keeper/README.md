@@ -27,7 +27,7 @@ pnpm run start:dev
 | `keeper/.env`             | `KEEPER_PRIVATE_KEY` and optional `INDEXER_URL`                         |
 | `src/config/constants.ts` | Package IDs, registry/vault/fee-collector, Predict, cron, indexer URL   |
 
-**dUSDC-only, fixed 1× leverage** — quote type `dusdc::DUSDC`, `LEVERAGE_BPS = 10_000`, margin call at `MARGIN_CALL_BPS = 9_500`.
+**dUSDC-only, 1.1×–10× leverage** — quote type `dusdc::DUSDC`, `MIN_LEVERAGE_BPS = 11_000`, `MAX_LEVERAGE_BPS = 100_000`, margin 0.1–100 dUSDC, margin call at `MARGIN_CALL_BPS = 9_500`.
 
 Liquidations scan:
 

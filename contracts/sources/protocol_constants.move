@@ -10,10 +10,17 @@ const BPS: u64 = 10_000;
 const USD_DECIMALS: u8 = 9;
 const QUOTE_DECIMALS: u8 = 6;
 
-// --- Fixed leverage (1:1) & margin call ---
+// --- Leverage bounds & margin call ---
 
-const LEVERAGE_BPS: u64 = 10_000;
+const MAX_LEVERAGE: u64 = 10;
+/// Minimum leverage in bps (10_000 bps = 1x).
+const MIN_LEVERAGE_BPS: u64 = 11_000;
 const MARGIN_CALL_BPS: u64 = 9_500;
+
+// --- Margin bounds (dUSDC, 6 decimals) ---
+
+const MIN_MARGIN_QUOTE: u64 = 100_000;
+const MAX_MARGIN_QUOTE: u64 = 100_000_000;
 
 // --- Interest rate model defaults (two-slope kink) ---
 
@@ -72,8 +79,22 @@ public fun quote_decimals(): u8 { QUOTE_DECIMALS }
 
 // --- Public getters: leverage & margin call ---
 
-/// Fixed leverage in basis points (10_000 = 1x).
-public fun leverage_bps(): u64 { LEVERAGE_BPS }
+/// Maximum allowed leverage multiplier.
+public fun max_leverage(): u64 { MAX_LEVERAGE }
+
+/// Minimum allowed leverage in basis points (11_000 = 1.1x).
+public fun min_leverage_bps(): u64 { MIN_LEVERAGE_BPS }
+
+/// `max_leverage()` expressed in basis points (10_000 bps = 1x).
+public fun max_leverage_bps(): u64 {
+    MAX_LEVERAGE * BPS
+}
+
+/// Minimum dUSDC margin per trade in quote atoms (0.1 dUSDC).
+public fun min_margin_quote(): u64 { MIN_MARGIN_QUOTE }
+
+/// Maximum dUSDC margin per trade in quote atoms (100 dUSDC).
+public fun max_margin_quote(): u64 { MAX_MARGIN_QUOTE }
 
 /// Margin-call health threshold in basis points (liquidate when health < this).
 public fun margin_call_bps(): u64 { MARGIN_CALL_BPS }

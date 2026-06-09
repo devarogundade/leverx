@@ -1106,8 +1106,10 @@ fun quote_borrow_for_leverage_binary(
     leverage_bps: u64,
 ): u64 {
     assert!(margin_quote > 0, errors::zero_amount());
+    ltv::assert_margin_quote(margin_quote);
     ltv::assert_leverage_bps(leverage_bps);
-    0
+    let position_quote = ltv::position_from_margin(margin_quote, leverage_bps);
+    ltv::borrow_for_leverage(position_quote, margin_quote)
 }
 
 fun quote_borrow_for_leverage_range(
@@ -1118,8 +1120,10 @@ fun quote_borrow_for_leverage_range(
     leverage_bps: u64,
 ): u64 {
     assert!(margin_quote > 0, errors::zero_amount());
+    ltv::assert_margin_quote(margin_quote);
     ltv::assert_leverage_bps(leverage_bps);
-    0
+    let position_quote = ltv::position_from_margin(margin_quote, leverage_bps);
+    ltv::borrow_for_leverage(position_quote, margin_quote)
 }
 
 /// Fill a resting binary limit mint (uses frozen placement slippage).
@@ -1487,6 +1491,7 @@ fun plan_leverage_binary(
     };
     assert!(object::id(manager) == proxy.predict_manager_id(), errors::invalid_manager());
     assert!(margin_quote > 0, errors::zero_amount());
+    ltv::assert_margin_quote(margin_quote);
     ltv::assert_leverage_bps(leverage_bps);
     assert!(
         proxy.binary_quote_balance(key) >= margin_quote,
@@ -1518,6 +1523,7 @@ fun plan_leverage_range(
     };
     assert!(object::id(manager) == proxy.predict_manager_id(), errors::invalid_manager());
     assert!(margin_quote > 0, errors::zero_amount());
+    ltv::assert_margin_quote(margin_quote);
     ltv::assert_leverage_bps(leverage_bps);
     assert!(
         proxy.range_quote_balance(key) >= margin_quote,

@@ -31,8 +31,9 @@ export const TESTNET_ASSETS = {
     '0xe95040085976bfd54a1a07225cd46c8a2b4e8e2b6732f140a0fc49850ba73e1a::dusdc::DUSDC',
 } as const;
 
-/** Fixed 1:1 leverage (10_000 bps). */
-export const LEVERAGE_BPS = 10_000;
+/** Min/max leverage (basis points). */
+export const MIN_LEVERAGE_BPS = 11_000;
+export const MAX_LEVERAGE_BPS = 100_000;
 
 /** Margin-call threshold (95%). */
 export const MARGIN_CALL_BPS = 9_500;

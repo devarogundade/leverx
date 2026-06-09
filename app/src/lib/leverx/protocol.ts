@@ -13,9 +13,6 @@ export type LeverxProtocolConfig = {
   quoteType: string;
 };
 
-/** Fixed 1:1 leverage in basis points. */
-export const LEVERAGE_BPS = 10_000n;
-
 /** Margin-call threshold (95%). */
 export const MARGIN_CALL_BPS = 9_500;
 
