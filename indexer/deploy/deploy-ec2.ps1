@@ -150,8 +150,7 @@ sudo chown -R ubuntu:ubuntu /opt/leverx
 mkdir -p /opt/leverx/contracts
 mv /opt/leverx/deploy-testnet.env /opt/leverx/contracts/deploy-testnet.env 2>/dev/null || true
 cd /opt/leverx
-sudo docker compose -f indexer/docker-compose.ec2.yml up -d --build
-sudo docker compose -f indexer/docker-compose.ec2.yml ps
+bash indexer/deploy/reset-and-resync.sh
 "@
 }
 

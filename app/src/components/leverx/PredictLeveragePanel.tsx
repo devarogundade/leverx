@@ -107,7 +107,7 @@ export function PredictLeveragePanel({
   lastAskPremium,
 }: Props) {
   const { isWalletConnected, address } = useWallet();
-  const { openTrade, isProtocolReady, formatTxError } = useLeverxTransactions(address ?? undefined);
+  const { openTrade, isProtocolReady, formatTxError } = useLeverxTransactions();
   const [txError, setTxError] = useState<string | null>(null);
   const [orderType, setOrderType] = useState<OrderType>("market");
   const [limitPrice, setLimitPrice] = useState("");

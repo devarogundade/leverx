@@ -51,7 +51,7 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
     linkManager,
     isProtocolReady,
     formatTxError,
-  } = useLeverxTransactions(owner);
+  } = useLeverxTransactions();
 
   const [executorAddress, setExecutorAddress] = useState("");
   const [managerId, setManagerId] = useState(account.predict_manager_id ?? "");

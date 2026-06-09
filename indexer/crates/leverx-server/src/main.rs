@@ -4,6 +4,7 @@ mod orderbook;
 mod pagination;
 mod routes;
 mod stream;
+mod vault;
 mod ws;
 
 use std::net::SocketAddr;

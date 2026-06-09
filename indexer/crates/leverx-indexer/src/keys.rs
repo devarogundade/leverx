@@ -39,3 +39,12 @@ pub fn position_key(
         if is_range { 1 } else { 0 }
     )
 }
+
+/// Normalize `package::module::TYPE` coin types to `0xpackage::module::TYPE` for API consistency.
+pub fn normalize_type_name(name: &str) -> String {
+    let s = name.trim();
+    if s.is_empty() || s.starts_with("0x") {
+        return s.to_string();
+    }
+    format!("0x{s}")
+}

@@ -12,7 +12,7 @@ use crate::handlers::{
     BorrowRatePatch, DebtRepaidPatch, LeverxBatch, LimitCancelPatch, LimitExecutePatch,
     LiquidationPositionPatch, PositionClosePatch, PythMaxAgePatch, TradingPausedPatch,
 };
-use crate::keys::{limit_order_key, position_key};
+use crate::keys::{limit_order_key, normalize_type_name, position_key};
 use crate::points::record_volume;
 use crate::relation_upserts::{ensure_market, ensure_predict_manager};
 use crate::move_events::{
@@ -41,7 +41,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
     batch.events.push(NewLeverxEvent {
         event_digest: ctx.event_digest.to_string(),
         event_type: ctx.event_name.to_string(),
-        module: ctx.event.transaction_module.to_string(),
+        module: ctx.event.type_.module.to_string(),
         package_id: ctx.event.package_id.to_string(),
         transaction_digest: ctx.tx_digest.to_string(),
         checkpoint: ctx.checkpoint,
@@ -105,7 +105,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     higher_strike: ev.higher_strike as i64,
                     is_range: ev.is_range,
                     is_up: ev.is_up,
-                    collateral_asset: ev.collateral_asset.name.clone(),
+                    collateral_asset: normalize_type_name(&ev.collateral_asset.name),
                     limit_premium_per_unit: ev.limit_premium_per_unit as i64,
                     slippage_bps: ev.slippage_bps as i64,
                     market_ask_at_place: Some(ev.market_ask_at_place as i64),
@@ -218,7 +218,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     higher_strike: ev.higher_strike as i64,
                     is_up: ev.is_up,
                     is_range: ev.is_range,
-                    collateral_asset: ev.collateral_asset.name.clone(),
+                    collateral_asset: normalize_type_name(&ev.collateral_asset.name),
                     open_quantity: ev.quantity as i64,
                     margin_quote: ev.margin_quote as i64,
                     borrow_quote: ev.borrow_quote as i64,
@@ -381,7 +381,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
         "CollateralWhitelisted" => {
             if let Some(ev) = try_parse::<CollateralWhitelisted>(ctx.event.contents.as_slice()) {
                 batch.collateral_assets.push(NewCollateralAsset {
-                    coin_type: ev.asset.name.clone(),
+                    coin_type: normalize_type_name(&ev.asset.name),
                     registry_id: ev.registry_id.to_string(),
                     decimals: ev.decimals as i16,
                     max_ltv_bps: ev.max_ltv_bps as i64,
@@ -395,7 +395,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
         "SwapPoolRegistered" => {
             if let Some(ev) = try_parse::<SwapPoolRegistered>(ctx.event.contents.as_slice()) {
                 batch.swap_pools.push(NewSwapPool {
-                    collateral_asset: ev.asset.name.clone(),
+                    collateral_asset: normalize_type_name(&ev.asset.name),
                     pool_id: ev.pool_id.to_string(),
                     registry_id: ev.registry_id.to_string(),
                     updated_at_ms: ctx.timestamp_ms,
@@ -626,7 +626,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     account_id: ev.account_id.to_string(),
                     owner: ev.owner.to_string(),
                     keeper: ev.keeper.to_string(),
-                    collateral_asset: ev.collateral_asset.name.clone(),
+                    collateral_asset: normalize_type_name(&ev.collateral_asset.name),
                     debt_repaid: ev.debt_repaid as i64,
                     collateral_seized: ev.collateral_seized as i64,
                     quote_from_swap: ev.quote_from_swap as i64,
@@ -653,7 +653,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                         ev.is_range,
                     ),
                     account_id: ev.account_id.to_string(),
-                    collateral_asset: ev.collateral_asset.name.clone(),
+                    collateral_asset: normalize_type_name(&ev.collateral_asset.name),
                     balance_atoms: 0,
                     updated_at_ms: ctx.timestamp_ms,
                 });
@@ -683,10 +683,17 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     ev.is_range,
                 );
                 batch.collateral_balances.push(NewCollateralBalance {
+                    position_key: pk.clone(),
+                    account_id: ev.account_id.to_string(),
+                    collateral_asset: normalize_type_name(&ev.base_asset.name),
+                    balance_atoms: ev.collateral_balance_after as i64,
+                    updated_at_ms: ctx.timestamp_ms,
+                });
+                batch.collateral_balances.push(NewCollateralBalance {
                     position_key: pk,
                     account_id: ev.account_id.to_string(),
-                    collateral_asset: ev.base_asset.name.clone(),
-                    balance_atoms: ev.collateral_balance_after as i64,
+                    collateral_asset: normalize_type_name(&ev.quote_asset.name),
+                    balance_atoms: ev.quote_balance_after as i64,
                     updated_at_ms: ctx.timestamp_ms,
                 });
                 timeline(batch, ctx, ev.account_id.to_string(), Some(ev.owner.to_string()));
@@ -738,7 +745,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     account_id: ev.account_id.to_string(),
                     executor: ev.executor.to_string(),
                     active: false,
-                    registered_at_ms: ctx.timestamp_ms,
+                    registered_at_ms: 0,
                     revoked_at_ms: Some(ctx.timestamp_ms),
                 });
                 timeline(batch, ctx, ev.account_id.to_string(), None);
@@ -804,7 +811,7 @@ fn upsert_collateral_balance(
             ev.is_range(),
         ),
         account_id: ev.account_id().to_string(),
-        collateral_asset: ev.asset_name().to_string(),
+        collateral_asset: normalize_type_name(ev.asset_name()),
         balance_atoms: ev.balance_after() as i64,
         updated_at_ms,
     });

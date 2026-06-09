@@ -30,7 +30,7 @@ export function PositionRiskMenu({ position, owner, className }: Props) {
     repayDebt,
     isProtocolReady,
     formatTxError,
-  } = useLeverxTransactions(owner);
+  } = useLeverxTransactions();
 
   const [limitCents, setLimitCents] = useState("");
   const [repayUsd, setRepayUsd] = useState("");

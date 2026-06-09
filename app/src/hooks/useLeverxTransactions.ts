@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useWallet } from "@/context/WalletContext";
-import { indexerKeys } from "@/hooks/useIndexer";
 import { useIndexerProtocol } from "@/hooks/useIndexer";
+import { invalidateLeverxQueries } from "@/lib/leverx/invalidate-queries";
 import type { LimitMintOrder, LeveragedPosition } from "@/lib/leverx/indexer-client";
 import type { MarketKeyArgs } from "@/lib/leverx/market-keys";
 import { resolveLeverxProtocol } from "@/lib/leverx/protocol";
@@ -31,27 +31,12 @@ export function useLeverxProtocolConfig() {
   return resolveLeverxProtocol(settings ?? null);
 }
 
-export function useLeverxTransactions(owner?: string) {
+export function useLeverxTransactions() {
   const queryClient = useQueryClient();
   const { client, wallet, account } = useWallet();
   const cfg = useLeverxProtocolConfig();
 
-  const invalidate = async (accountId?: string) => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: indexerKeys.positions(owner) }),
-      queryClient.invalidateQueries({ queryKey: indexerKeys.limitOrders(owner) }),
-      queryClient.invalidateQueries({ queryKey: indexerKeys.accounts(owner) }),
-      queryClient.invalidateQueries({ queryKey: ["wallet-coin-balance"] }),
-      queryClient.invalidateQueries({ queryKey: indexerKeys.protocol }),
-      queryClient.invalidateQueries({ queryKey: ["leverx-mint-quote"] }),
-      queryClient.invalidateQueries({ queryKey: indexerKeys.triggers(accountId) }),
-      queryClient.invalidateQueries({ queryKey: indexerKeys.executors(accountId) }),
-      queryClient.invalidateQueries({
-        queryKey: indexerKeys.collateralBalances(accountId),
-      }),
-      queryClient.invalidateQueries({ queryKey: indexerKeys.liquidations(owner) }),
-    ]);
-  };
+  const invalidate = () => invalidateLeverxQueries(queryClient);
 
   const requireReady = () => {
     if (!wallet || !account) {
@@ -134,7 +119,7 @@ export function useLeverxTransactions(owner?: string) {
         key: args.key,
       });
     },
-    onSuccess: (_, vars) => invalidate(vars.accountId),
+    onSuccess: () => invalidate(),
   });
 
   const registerExecutor = useMutation({
@@ -149,7 +134,7 @@ export function useLeverxTransactions(owner?: string) {
         executor: args.executor,
       });
     },
-    onSuccess: (_, vars) => invalidate(vars.accountId),
+    onSuccess: () => invalidate(),
   });
 
   const revokeExecutor = useMutation({
@@ -164,7 +149,7 @@ export function useLeverxTransactions(owner?: string) {
         executor: args.executor,
       });
     },
-    onSuccess: (_, vars) => invalidate(vars.accountId),
+    onSuccess: () => invalidate(),
   });
 
   const linkManager = useMutation({
@@ -179,7 +164,7 @@ export function useLeverxTransactions(owner?: string) {
         managerId: args.managerId,
       });
     },
-    onSuccess: (_, vars) => invalidate(vars.accountId),
+    onSuccess: () => invalidate(),
   });
 
   const cancelLimitOrder = useMutation({

@@ -39,7 +39,7 @@ export function PredictVaultLiquidityPanel({ vaultNav, vaultId, className }: Pro
   const [txError, setTxError] = useState<string | null>(null);
   const { isWalletConnected, address } = useWallet();
   const { vaultSupply, vaultWithdraw, isProtocolReady, formatTxError, cfg } =
-    useLeverxTransactions(address ?? undefined);
+    useLeverxTransactions();
 
   const quoteType = appConfig.quoteType;
   const lxplpType = cfg ? lxplpCoinType(cfg.packageId) : null;

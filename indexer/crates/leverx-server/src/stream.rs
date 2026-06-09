@@ -84,6 +84,26 @@ pub fn parse_channel(raw: &str) -> Option<ChannelKind> {
     }
 }
 
+fn json_u64(v: &Value) -> Option<u64> {
+    v.as_u64()
+        .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
+}
+
+/// Reconstruct `position_key` from deserialized leverx limit-order event JSON.
+fn position_key_from_parsed(parsed: &Value) -> Option<String> {
+    let oracle_id = parsed.get("oracle_id").and_then(|v| v.as_str())?;
+    let expiry_ms = json_u64(parsed.get("expiry_ms")?)? as i64;
+    let strike = json_u64(parsed.get("strike")?)? as i64;
+    let higher_strike = json_u64(parsed.get("higher_strike")?)? as i64;
+    let is_up = parsed.get("is_up").and_then(|v| v.as_bool())?;
+    let is_range = parsed.get("is_range").and_then(|v| v.as_bool())?;
+    Some(format!(
+        "{oracle_id}:{expiry_ms}:{strike}:{higher_strike}:{}:{}",
+        if is_up { 1 } else { 0 },
+        if is_range { 1 } else { 0 }
+    ))
+}
+
 pub fn orderbook_channel_from_position_key(position_key: &str) -> Option<String> {
     let parts: Vec<&str> = position_key.split(':').collect();
     if parts.len() < 6 {
@@ -330,8 +350,8 @@ async fn dispatch_event(
 
     match row.event_type.as_str() {
         "LimitMintOrderPlaced" | "LimitMintOrderExecuted" | "LimitMintOrderCancelled" => {
-            if let Some(position_key) = parsed.get("position_key").and_then(|v| v.as_str()) {
-                if let Some(channel) = orderbook_channel_from_position_key(position_key) {
+            if let Some(position_key) = position_key_from_parsed(parsed) {
+                if let Some(channel) = orderbook_channel_from_position_key(&position_key) {
                     if active.contains(&channel) {
                         push_snapshot(pool, hub, &channel).await?;
                     }
@@ -342,7 +362,10 @@ async fn dispatch_event(
                 push_matching_limits(pool, hub, active, owner, oracle_id).await?;
             }
         }
-        "PositionMinted" | "PositionRedeemed" => {
+        "PositionMinted"
+        | "PositionRedeemed"
+        | "RangeMinted"
+        | "RangeRedeemed" => {
             if let Some(oracle_id) = parsed.get("oracle_id").and_then(|v| v.as_str()) {
                 let channel = format!("trades:global:{oracle_id}");
                 if active.contains(&channel) {

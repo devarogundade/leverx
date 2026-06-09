@@ -25,7 +25,7 @@ interface CancelProps {
 }
 
 export function LeverxCancelOrderButton({ order, owner, className }: CancelProps) {
-  const { cancelLimitOrder, isProtocolReady, formatTxError } = useLeverxTransactions(owner);
+  const { cancelLimitOrder, isProtocolReady, formatTxError } = useLeverxTransactions();
 
   const pending = cancelLimitOrder.isPending;
   const disabled = !isProtocolReady || order.status !== "open" || pending;

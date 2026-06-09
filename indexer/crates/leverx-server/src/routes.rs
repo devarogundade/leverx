@@ -28,6 +28,7 @@ use crate::catalog::{catalog_response, fetch_market_catalog, parse_catalog_pagin
 use crate::leaderboard::{fetch_leaderboard, fetch_owner_rank, leaderboard_response, parse_leaderboard_pagination};
 use crate::orderbook;
 use crate::pagination::{paginate, parse_limit_offset};
+use crate::vault::merge_vault_snapshot;
 use crate::stream::StreamHub;
 use crate::ws::ws_handler;
 
@@ -336,14 +337,16 @@ async fn vault_summary(
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     let mut conn = state.pool.get().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let snapshot = vault_snapshots::table
-        .filter(vault_snapshots::vault_id.eq(vault_id))
+    let recent = vault_snapshots::table
+        .filter(vault_snapshots::vault_id.eq(&vault_id))
         .order(vault_snapshots::timestamp_ms.desc())
+        .limit(64)
         .select(VaultSnapshotRow::as_select())
-        .first::<VaultSnapshotRow>(&mut conn)
+        .load::<VaultSnapshotRow>(&mut conn)
         .await
-        .optional()
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let snapshot = merge_vault_snapshot(&recent);
 
     Ok(Json(json!({ "snapshot": snapshot })))
 }
@@ -483,6 +486,7 @@ async fn protocol_settings_handler(
 ) -> Result<Json<Option<ProtocolSettingsRow>>, StatusCode> {
     let mut conn = state.pool.get().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let row = protocol_settings::table
+        .order(protocol_settings::updated_at_ms.desc())
         .select(ProtocolSettingsRow::as_select())
         .first::<ProtocolSettingsRow>(&mut conn)
         .await

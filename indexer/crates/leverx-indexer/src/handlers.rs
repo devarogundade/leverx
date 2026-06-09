@@ -99,6 +99,7 @@ pub struct PositionClosePatch {
     pub remaining_borrow_quote: i64,
 }
 
+#[derive(Clone)]
 pub struct DebtRepaidPatch {
     pub account_id: String,
     pub remaining_debt: i64,
@@ -148,13 +149,13 @@ impl LeverxEventsHandler {
 
     fn is_predict_trade_event(&self, event: &Event) -> bool {
         event.package_id == self.config.predict_package_id
-            && event.transaction_module.as_str() == "predict"
+            && event.type_.module.as_str() == "predict"
             && is_predict_trade_event(event.type_.name.as_str())
     }
 
     fn is_predict_manager_event(&self, event: &Event) -> bool {
         event.package_id == self.config.predict_package_id
-            && event.transaction_module.as_str() == "predict_manager"
+            && event.type_.module.as_str() == "predict_manager"
             && is_predict_manager_event(event.type_.name.as_str())
     }
 }
@@ -193,6 +194,21 @@ fn dedupe_predict_managers(rows: &[NewPredictManager]) -> Vec<NewPredictManager>
             .or_insert_with(|| row.clone());
     }
     by_id.into_values().collect()
+}
+
+fn dedupe_debt_patches(rows: &[DebtRepaidPatch]) -> Vec<DebtRepaidPatch> {
+    let mut by_account: HashMap<String, DebtRepaidPatch> = HashMap::new();
+    for row in rows {
+        by_account
+            .entry(row.account_id.clone())
+            .and_modify(|existing| {
+                if row.updated_at_ms >= existing.updated_at_ms {
+                    *existing = row.clone();
+                }
+            })
+            .or_insert_with(|| row.clone());
+    }
+    by_account.into_values().collect()
 }
 
 fn dedupe_points_patches(rows: &[UserPointsPatch]) -> Vec<UserPointsPatch> {
@@ -435,6 +451,11 @@ impl Handler for LeverxEventsHandler {
                 .on_conflict((leveraged_positions::position_key, leveraged_positions::account_id))
                 .do_update()
                 .set((
+                    leveraged_positions::owner.eq(excluded(leveraged_positions::owner)),
+                    leveraged_positions::predict_manager_id
+                        .eq(excluded(leveraged_positions::predict_manager_id)),
+                    leveraged_positions::collateral_asset
+                        .eq(excluded(leveraged_positions::collateral_asset)),
                     leveraged_positions::open_quantity.eq(
                         leveraged_positions::open_quantity + excluded(leveraged_positions::open_quantity),
                     ),
@@ -451,6 +472,7 @@ impl Handler for LeverxEventsHandler {
                     leveraged_positions::last_order_type.eq(excluded(leveraged_positions::last_order_type)),
                     leveraged_positions::status.eq("open"),
                     leveraged_positions::opened_at_ms.eq(excluded(leveraged_positions::opened_at_ms)),
+                    leveraged_positions::closed_at_ms.eq(None::<i64>),
                 ))
                 .execute(conn)
                 .await?;
@@ -462,8 +484,15 @@ impl Handler for LeverxEventsHandler {
                  open_quantity = open_quantity - $1, \
                  realized_payout = realized_payout + $2, \
                  borrow_quote = $3, \
-                 status = CASE WHEN open_quantity - $1 <= 0 THEN 'closed' ELSE 'open' END, \
-                 closed_at_ms = $4 \
+                 margin_quote = CASE \
+                   WHEN open_quantity - $1 <= 0 THEN 0 \
+                   ELSE (margin_quote * GREATEST(open_quantity - $1, 0) / GREATEST(open_quantity, 1)) \
+                 END, \
+                 status = CASE \
+                   WHEN open_quantity - $1 <= 0 THEN CASE WHEN $7 THEN 'settled' ELSE 'closed' END \
+                   ELSE 'open' \
+                 END, \
+                 closed_at_ms = CASE WHEN open_quantity - $1 <= 0 THEN $4 ELSE NULL END \
                  WHERE position_key = $5 AND account_id = $6",
             )
             .bind::<diesel::sql_types::BigInt, _>(close.quantity)
@@ -472,6 +501,7 @@ impl Handler for LeverxEventsHandler {
             .bind::<diesel::sql_types::BigInt, _>(close.closed_at_ms)
             .bind::<diesel::sql_types::Text, _>(&close.position_key)
             .bind::<diesel::sql_types::Text, _>(&close.account_id)
+            .bind::<diesel::sql_types::Bool, _>(close.settled)
             .execute(conn)
             .await?;
         }
@@ -503,7 +533,8 @@ impl Handler for LeverxEventsHandler {
                 .await?;
         }
 
-        for debt in &batch.debt_repaid {
+        let debt_rows = dedupe_debt_patches(&batch.debt_repaid);
+        for debt in &debt_rows {
             rows += diesel::update(
                 user_proxies::table.filter(user_proxies::account_id.eq(&debt.account_id)),
             )
@@ -566,27 +597,56 @@ impl Handler for LeverxEventsHandler {
         }
 
         for patch in &batch.trading_paused_patches {
-            rows += diesel::update(
-                protocol_settings::table.filter(protocol_settings::registry_id.eq(&patch.registry_id)),
-            )
-            .set((
-                protocol_settings::trading_paused.eq(patch.paused),
-                protocol_settings::updated_at_ms.eq(patch.updated_at_ms),
-            ))
-            .execute(conn)
-            .await?;
+            rows += diesel::insert_into(protocol_settings::table)
+                .values(NewProtocolSettings {
+                    registry_id: patch.registry_id.clone(),
+                    vault_id: None,
+                    predict_id: None,
+                    fee_collector_id: None,
+                    trading_paused: patch.paused,
+                    pyth_max_age_secs: None,
+                    base_rate_bps: None,
+                    kink_utilization_bps: None,
+                    slope1_bps: None,
+                    slope2_bps: None,
+                    flash_fee_bps: None,
+                    updated_at_ms: patch.updated_at_ms,
+                })
+                .on_conflict(protocol_settings::registry_id)
+                .do_update()
+                .set((
+                    protocol_settings::trading_paused.eq(excluded(protocol_settings::trading_paused)),
+                    protocol_settings::updated_at_ms.eq(excluded(protocol_settings::updated_at_ms)),
+                ))
+                .execute(conn)
+                .await?;
         }
 
         for patch in &batch.pyth_max_age_patches {
-            rows += diesel::update(
-                protocol_settings::table.filter(protocol_settings::registry_id.eq(&patch.registry_id)),
-            )
-            .set((
-                protocol_settings::pyth_max_age_secs.eq(patch.max_age_secs),
-                protocol_settings::updated_at_ms.eq(patch.updated_at_ms),
-            ))
-            .execute(conn)
-            .await?;
+            rows += diesel::insert_into(protocol_settings::table)
+                .values(NewProtocolSettings {
+                    registry_id: patch.registry_id.clone(),
+                    vault_id: None,
+                    predict_id: None,
+                    fee_collector_id: None,
+                    trading_paused: false,
+                    pyth_max_age_secs: Some(patch.max_age_secs),
+                    base_rate_bps: None,
+                    kink_utilization_bps: None,
+                    slope1_bps: None,
+                    slope2_bps: None,
+                    flash_fee_bps: None,
+                    updated_at_ms: patch.updated_at_ms,
+                })
+                .on_conflict(protocol_settings::registry_id)
+                .do_update()
+                .set((
+                    protocol_settings::pyth_max_age_secs
+                        .eq(excluded(protocol_settings::pyth_max_age_secs)),
+                    protocol_settings::updated_at_ms.eq(excluded(protocol_settings::updated_at_ms)),
+                ))
+                .execute(conn)
+                .await?;
         }
 
         for balance in &batch.collateral_balances {
@@ -634,7 +694,9 @@ impl Handler for LeverxEventsHandler {
                 .do_update()
                 .set((
                     proxy_executors::active.eq(excluded(proxy_executors::active)),
-                    proxy_executors::registered_at_ms.eq(excluded(proxy_executors::registered_at_ms)),
+                    proxy_executors::registered_at_ms.eq(diesel::dsl::sql(
+                        "CASE WHEN EXCLUDED.active THEN EXCLUDED.registered_at_ms ELSE proxy_executors.registered_at_ms END",
+                    )),
                     proxy_executors::revoked_at_ms.eq(excluded(proxy_executors::revoked_at_ms)),
                 ))
                 .execute(conn)
@@ -670,26 +732,16 @@ impl Handler for LeverxEventsHandler {
             let filter = leveraged_positions::table
                 .filter(leveraged_positions::position_key.eq(&liq.position_key))
                 .filter(leveraged_positions::account_id.eq(&liq.account_id));
-            if liq.had_position_redeem {
-                rows += diesel::update(filter)
-                    .set((
-                        leveraged_positions::status.eq("liquidated"),
-                        leveraged_positions::borrow_quote.eq(0),
-                        leveraged_positions::closed_at_ms.eq(liq.closed_at_ms),
-                        leveraged_positions::open_quantity.eq(0),
-                    ))
-                    .execute(conn)
-                    .await?;
-            } else {
-                rows += diesel::update(filter)
-                    .set((
-                        leveraged_positions::status.eq("liquidated"),
-                        leveraged_positions::borrow_quote.eq(0),
-                        leveraged_positions::closed_at_ms.eq(liq.closed_at_ms),
-                    ))
-                    .execute(conn)
-                    .await?;
-            }
+            rows += diesel::update(filter)
+                .set((
+                    leveraged_positions::status.eq("liquidated"),
+                    leveraged_positions::borrow_quote.eq(0),
+                    leveraged_positions::open_quantity.eq(0),
+                    leveraged_positions::margin_quote.eq(0),
+                    leveraged_positions::closed_at_ms.eq(liq.closed_at_ms),
+                ))
+                .execute(conn)
+                .await?;
 
             // Liquidation prep cancels resting limits on-chain without a separate event.
             rows += diesel::update(
