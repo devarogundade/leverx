@@ -10,7 +10,6 @@ import { PositionRiskMenu } from "@/components/leverx/PositionRiskMenu";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { PriceChart } from "@/components/PriceChart";
 import { PredictOrderBook } from "@/components/leverx/PredictOrderBook";
-import { buildPredictChartLevels } from "@/lib/charts/predict-chart-levels";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import { AssetBadge } from "@/components/AssetBadge";
 import { useWallet } from "@/context/WalletContext";
@@ -326,22 +325,8 @@ export function PredictTradeTerminal({
 
   const activePremium = market?.lastAskPremium;
 
-  const chartLevels = useMemo(
-    () =>
-      buildPredictChartLevels({
-        strikeRaw: market?.strikeRaw,
-        lowerStrikeRaw: rangeLower,
-        upperStrikeRaw: rangeUpper,
-        spot: oracleSpot ?? undefined,
-        activeSide,
-      }),
-    [market?.strikeRaw, rangeLower, rangeUpper, oracleSpot, activeSide],
-  );
-
   const chartStrikePrice = useMemo(() => {
-    if (activeSide === "range" && rangeLower && rangeUpper) {
-      return scaleSpot(Math.round((rangeLower + rangeUpper) / 2));
-    }
+    if (activeSide === "range") return undefined;
     if (market?.strikeRaw && market.strikeRaw > 0) return scaleSpot(market.strikeRaw);
     if (binaryStrikeRaw && binaryStrikeRaw > 0) return scaleSpot(binaryStrikeRaw);
     return undefined;
@@ -448,8 +433,6 @@ export function PredictTradeTerminal({
             <PriceChart
               asset={asset}
               oracleId={oracleId}
-              spotPrice={oracleSpot}
-              levels={chartLevels}
               strikePrice={chartStrikePrice}
               activeSide={activeSide}
               rangeLower={chartRangeLower}

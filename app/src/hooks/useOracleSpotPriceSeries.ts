@@ -5,12 +5,25 @@ import type { PricePoint } from "@/lib/predict/price-point";
 export const ORACLE_SPOT_POLL_INTERVAL_MS = 5_000;
 const MAX_SERIES_POINTS = 720;
 
-function polledPricePoint(latest: { spot: number }): PricePoint {
-  return { t: Date.now(), price: latest.spot };
+function polledPricePoint(
+  latest: { spot: number; timestampMs?: number },
+  last?: PricePoint,
+): PricePoint {
+  let t = latest.timestampMs ?? Date.now();
+  if (last) {
+    if (t <= last.t) t = Date.now();
+    if (t <= last.t) t = last.t + 1_000;
+  }
+  return { t, price: latest.spot };
 }
 
 function appendPricePoint(prev: PricePoint[], point: PricePoint): PricePoint[] {
-  const next = [...prev, point].sort((a, b) => a.t - b.t);
+  const last = prev[prev.length - 1];
+  const next =
+    last && last.t === point.t
+      ? [...prev.slice(0, -1), point]
+      : [...prev, point];
+  next.sort((a, b) => a.t - b.t);
   return next.length > MAX_SERIES_POINTS ? next.slice(-MAX_SERIES_POINTS) : next;
 }
 
@@ -26,7 +39,10 @@ export function useOracleSpotPriceSeries(oracleId: string) {
     const latest = await fetchOraclePriceLatest(oracleId);
     if (!latest) return false;
 
-    setPoints((prev) => appendPricePoint(prev, polledPricePoint(latest)));
+    setPoints((prev) => {
+      const last = prev[prev.length - 1];
+      return appendPricePoint(prev, polledPricePoint(latest, last));
+    });
     setIsError(false);
     setIsLoading(false);
     return true;
