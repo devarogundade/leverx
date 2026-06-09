@@ -5,16 +5,15 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MarketTableSkeleton } from "@/components/ui/market-skeleton";
 import { AssetBadge } from "@/components/AssetBadge";
+import { MarketPremiumQuote } from "@/components/leverx/MarketPremiumQuote";
 import { MarketSideActions } from "@/components/leverx/MarketSideActions";
+import { useMarketPremiumSparklines } from "@/hooks/useMarketPremiumSparklines";
 import {
   MARKETS_TABLE_PAGE_SIZE,
   MarketCatalogPagination,
   paginateSlice,
 } from "@/components/leverx/MarketCatalogPagination";
-import {
-  formatPremiumOrPlaceholder,
-  type LeverxMarketRow,
-} from "@/lib/leverx/indexer-markets";
+import type { LeverxMarketRow } from "@/lib/leverx/indexer-markets";
 import { resolveRangeBounds } from "@/lib/leverx/predict-oracle-markets";
 import { formatCompactUsdOrPlaceholder } from "@/lib/leverx/placeholders";
 import { ui } from "@/lib/copy";
@@ -23,8 +22,6 @@ import {
   marketsBookmark,
   marketsMarketCell,
   marketsMarketLink,
-  marketsPriceCell,
-  marketsPriceValue,
   marketsRow,
   marketsTable,
   marketsTableDesktop,
@@ -123,10 +120,12 @@ function MarketMobileCard({
   market: m,
   catalogRows,
   liquidityLabel,
+  premiumSeries,
 }: {
   market: LeverxMarketRow;
   catalogRows: LeverxMarketRow[];
   liquidityLabel: string;
+  premiumSeries: readonly number[];
 }) {
   const range = rangeBoundsForMarket(m, catalogRows);
   const side = m.isRange ? ("range" as const) : m.isUp ? ("up" as const) : ("down" as const);
@@ -163,12 +162,18 @@ function MarketMobileCard({
           </Link>
           <span className={cn(leverageBadge, "mt-1")}>10X</span>
         </div>
-        <div className={marketsPriceCell}>
-          <span className={marketsPriceValue}>
-            {formatPremiumOrPlaceholder(m.lastAskPremium)}
-          </span>
-        </div>
+        <MarketPremiumQuote
+          series={premiumSeries}
+          lastAskPremium={m.lastAskPremium}
+        />
       </div>
+
+      <MarketPremiumQuote
+        variant="band"
+        series={premiumSeries}
+        lastAskPremium={m.lastAskPremium}
+        className="mt-2"
+      />
 
       <dl className={marketsTableMobileCardStats}>
         <div>
@@ -256,6 +261,7 @@ export function PredictMarketsTable({
     () => paginateSlice(sortedMarkets, page, MARKETS_TABLE_PAGE_SIZE),
     [sortedMarkets, page],
   );
+  const { seriesByMarketId } = useMarketPremiumSparklines(pageMarkets);
 
   if (loading) {
     return <MarketTableSkeleton />;
@@ -286,6 +292,7 @@ export function PredictMarketsTable({
             market={m}
             catalogRows={markets}
             liquidityLabel={liquidityLabel}
+            premiumSeries={seriesByMarketId.get(m.id) ?? []}
           />
         ))}
       </div>
@@ -371,11 +378,10 @@ export function PredictMarketsTable({
                     </div>
                   </td>
                   <td className={marketsTd}>
-                    <div className={marketsPriceCell}>
-                      <span className={marketsPriceValue}>
-                        {formatPremiumOrPlaceholder(m.lastAskPremium)}
-                      </span>
-                    </div>
+                    <MarketPremiumQuote
+                      series={seriesByMarketId.get(m.id) ?? []}
+                      lastAskPremium={m.lastAskPremium}
+                    />
                   </td>
                   <td className={cn(marketsTd, marketsTdMono, marketsTdHideMd)}>
                     {formatCompactUsdOrPlaceholder(m.volume > 0 ? m.volume : null)}

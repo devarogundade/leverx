@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MarketGridSkeleton } from "@/components/ui/market-skeleton";
 import { AssetBadge } from "@/components/AssetBadge";
+import { MarketPremiumQuote } from "@/components/leverx/MarketPremiumQuote";
 import { MarketSideActions } from "@/components/leverx/MarketSideActions";
+import { useMarketPremiumSparklines } from "@/hooks/useMarketPremiumSparklines";
 import {
   MARKETS_GRID_PAGE_SIZE,
   MarketCatalogPagination,
@@ -69,6 +71,7 @@ export function PredictMarketsGrid({
     () => paginateSlice(markets, page, MARKETS_GRID_PAGE_SIZE),
     [markets, page],
   );
+  const { seriesByMarketId } = useMarketPremiumSparklines(pageMarkets);
 
   if (loading) {
     return <MarketGridSkeleton />;
@@ -149,6 +152,12 @@ export function PredictMarketsGrid({
                     </div>
                   </Link>
                 </div>
+
+                <MarketPremiumQuote
+                  variant="band"
+                  series={seriesByMarketId.get(m.id) ?? []}
+                  lastAskPremium={m.lastAskPremium}
+                />
 
                 <div className={marketCardActions}>
                   <MarketSideActions
