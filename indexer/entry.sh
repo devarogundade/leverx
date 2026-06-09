@@ -29,6 +29,47 @@ if command -v pg_isready >/dev/null 2>&1; then
   done
 fi
 
+if [[ -n "${LEVERX_REGISTRY_ID:-}" ]] && command -v psql >/dev/null 2>&1; then
+  echo "seeding protocol_settings if empty..."
+  psql "${DATABASE_URL}" -v ON_ERROR_STOP=1 <<SQL
+INSERT INTO protocol_settings (
+  registry_id, vault_id, predict_id, fee_collector_id, trading_paused, updated_at_ms
+)
+SELECT
+  '${LEVERX_REGISTRY_ID}',
+  NULLIF('${LEVERX_VAULT_ID:-}', ''),
+  NULLIF('${PREDICT_ID:-}', ''),
+  NULLIF('${LEVERX_FEE_COLLECTOR_ID:-}', ''),
+  false,
+  (EXTRACT(EPOCH FROM NOW()) * 1000)::bigint
+WHERE NOT EXISTS (SELECT 1 FROM protocol_settings LIMIT 1);
+SQL
+fi
+
+if [[ -n "${LEVERX_REGISTRY_ID:-}" && -n "${QUOTE_TYPE:-}" ]] && command -v psql >/dev/null 2>&1; then
+  coin_type="${QUOTE_TYPE}"
+  collateral_decimals="${COLLATERAL_DECIMALS:-6}"
+  collateral_max_ltv="${COLLATERAL_MAX_LTV_BPS:-9000}"
+  collateral_liq_ltv="${COLLATERAL_LIQUIDATION_LTV_BPS:-9500}"
+  collateral_max_conf="${COLLATERAL_MAX_CONF_BPS:-100}"
+  echo "seeding collateral_assets if empty..."
+  psql "${DATABASE_URL}" -v ON_ERROR_STOP=1 <<SQL
+INSERT INTO collateral_assets (
+  coin_type, registry_id, decimals, max_ltv_bps, liquidation_ltv_bps, max_conf_bps, updated_at_ms, event_digest
+)
+SELECT
+  '${coin_type}',
+  '${LEVERX_REGISTRY_ID}',
+  ${collateral_decimals},
+  ${collateral_max_ltv},
+  ${collateral_liq_ltv},
+  ${collateral_max_conf},
+  (EXTRACT(EPOCH FROM NOW()) * 1000)::bigint,
+  'bootstrap:collateral'
+WHERE NOT EXISTS (SELECT 1 FROM collateral_assets LIMIT 1);
+SQL
+fi
+
 indexer_args=()
 if [[ -n "${REMOTE_STORE_URL:-}" ]]; then
   indexer_args+=(--remote-store-url "${REMOTE_STORE_URL}")

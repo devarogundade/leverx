@@ -2,6 +2,8 @@
  * LeverX indexer HTTP client — structured on-chain projections.
  */
 
+import { normalizeQuoteAssetType } from "@/lib/predict/quote-assets";
+
 const INDEXER_URL =
   import.meta.env.VITE_LEVERX_INDEXER_URL ?? "http://localhost:3100";
 
@@ -470,7 +472,12 @@ export function fetchHealth() {
 }
 
 export function fetchCollateralAssets(): Promise<CollateralAsset[]> {
-  return get("/v1/collateral-assets");
+  return get<CollateralAsset[]>("/v1/collateral-assets").then((rows) =>
+    rows.map((row) => ({
+      ...row,
+      coin_type: normalizeQuoteAssetType(row.coin_type),
+    })),
+  );
 }
 
 export function fetchSwapPools(): Promise<SwapPool[]> {

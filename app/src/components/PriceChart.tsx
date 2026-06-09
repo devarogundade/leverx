@@ -12,8 +12,8 @@ import {
   lineSeriesWinColor,
   lightweightChartOptions,
 } from "@/lib/charts/lightweight-shared";
-import { toLineData } from "@/lib/charts/line-data";
-import type { UTCTimestamp } from "lightweight-charts";
+import { buildStrikeAnchoredSpotLineData } from "@/lib/charts/line-data";
+import { ORACLE_SPOT_POLL_INTERVAL_MS } from "@/hooks/useOracleSpotPriceSeries";
 import type { PredictSide } from "@/lib/predict/instruments";
 import { useOracleSpotPriceSeries } from "@/hooks/useOracleSpotPriceSeries";
 import { cn } from "@/lib/utils";
@@ -56,16 +56,13 @@ export function PriceChart({
   const lineData = useMemo(() => {
     if (!history?.length) return [];
 
-    const data = toLineData(history);
-    if (data.length === 1) {
-      const point = data[0]!;
-      return [
-        { time: (point.time - 300) as UTCTimestamp, value: point.value },
-        point,
-      ];
-    }
-    return data;
-  }, [history]);
+    const anchorStrike = activeSide === "range" ? undefined : strikePrice;
+    return buildStrikeAnchoredSpotLineData(
+      history,
+      anchorStrike,
+      ORACLE_SPOT_POLL_INTERVAL_MS,
+    );
+  }, [history, strikePrice, activeSide]);
 
   const strikeLevels = useMemo(
     () =>

@@ -1,6 +1,7 @@
 import { appConfig } from "@/lib/config";
 import { leverxCollateralCatalog } from "@/lib/leverx/collateral-catalog";
 import type { ProtocolSettings } from "@/lib/leverx/indexer-client";
+import { normalizeQuoteAssetType } from "@/lib/predict/quote-assets";
 
 export type LeverxProtocolConfig = {
   packageId: string;
@@ -10,6 +11,7 @@ export type LeverxProtocolConfig = {
   predictId: string;
   predictRegistryId: string;
   predictPackageId: string;
+  deepbookRegistryId: string;
   quoteType: string;
   pythQuoteOracleId: string;
 };
@@ -45,6 +47,7 @@ export function resolveLeverxProtocol(
     predictId: settings?.predict_id ?? appConfig.predictId,
     predictRegistryId: appConfig.predictRegistryId,
     predictPackageId: appConfig.predictPackageId,
+    deepbookRegistryId: appConfig.deepbookRegistryId,
     quoteType: appConfig.quoteType,
     pythQuoteOracleId: appConfig.pythQuoteOracleId,
   };
@@ -56,16 +59,19 @@ export function resolveCollateralRoute(
   catalogMaxLtvBps?: number,
   catalogDecimals?: number,
 ): CollateralRoute | null {
+  const normalized = normalizeQuoteAssetType(coinType);
   const envEntry = leverxCollateralCatalog().find(
-    (e) => e.coinType === coinType || e.coinType.endsWith(coinType.split("::").pop() ?? ""),
+    (e) =>
+      normalizeQuoteAssetType(e.coinType) === normalized ||
+      e.coinType.endsWith(normalized.split("::").pop() ?? ""),
   );
   const pythOracleId = envEntry?.pythOracleId ?? "";
   if (!pythOracleId) return null;
 
-  const decimals = catalogDecimals ?? (coinType.includes("sui::SUI") ? 9 : 6);
+  const decimals = catalogDecimals ?? (normalized.includes("sui::SUI") ? 9 : 6);
 
   return {
-    coinType,
+    coinType: normalized,
     pythOracleId,
     maxLtvBps: catalogMaxLtvBps ?? envEntry?.maxLtvBps ?? 8_000,
     decimals,

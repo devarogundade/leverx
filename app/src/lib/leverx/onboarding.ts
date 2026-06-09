@@ -144,7 +144,7 @@ export async function ensureLeverxAccount(params: {
 
       tx.moveCall({
         target: `${params.cfg.packageId}::trade::create_user_proxy`,
-        arguments: [tx.object(params.cfg.predictRegistryId), managerIdArg],
+        arguments: [tx.object(params.cfg.deepbookRegistryId), managerIdArg],
       });
     },
     { gasBudget: ONBOARD_GAS_BUDGET },

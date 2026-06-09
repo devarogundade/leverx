@@ -143,7 +143,7 @@ pub struct LeverxEventsHandler {
 impl LeverxEventsHandler {
     fn is_leverx_event(&self, event: &Event) -> bool {
         event.package_id == self.config.package_id
-            && event.transaction_module.as_str() == "events"
+            && event.type_.module.as_str() == "events"
     }
 
     fn is_predict_trade_event(&self, event: &Event) -> bool {

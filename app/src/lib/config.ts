@@ -17,6 +17,11 @@ const TESTNET_PREDICT = {
     "0xe95040085976bfd54a1a07225cd46c8a2b4e8e2b6732f140a0fc49850ba73e1a::dusdc::DUSDC",
 } as const;
 
+/** DeepBook V3 testnet (predict-testnet-4-16) — balance manager registry for UserProxy onboarding. */
+const TESTNET_DEEPBOOK = {
+  registryId: "0x7c256edbda983a2cd6f946655f4bf3f00a41043993781f8674a7046e8c0e11d1",
+} as const;
+
 /** Published LeverX package (testnet). */
 const TESTNET_LEVERX = {
   packageId:
@@ -35,6 +40,8 @@ export const appConfig = {
   predictId: TESTNET_PREDICT.predictId,
   predictPackageId: TESTNET_PREDICT.packageId,
   predictRegistryId: TESTNET_PREDICT.registryId,
+  deepbookRegistryId:
+    import.meta.env.VITE_DEEPBOOK_REGISTRY_ID ?? TESTNET_DEEPBOOK.registryId,
   quoteType: TESTNET_PREDICT.quoteType,
 
   leverxPackageId:
