@@ -32,11 +32,14 @@ export class LimitOrderService {
     }
 
     const now = Date.now();
-    const items = await this.indexer.fetchAllPages((offset, pageSize) =>
-      this.indexer.fetchLimitOrders({ status: 'open', limit: pageSize, offset }),
-    );
-    const fillable = items.filter(
-      (o) => o.order_expires_ms > now && o.collateral_asset,
+    const fillable = await this.indexer.fetchAllPages((offset, pageSize) =>
+      this.indexer.fetchLimitOrders({
+        status: 'open',
+        minOrderExpiresMs: now,
+        hasCollateral: true,
+        limit: pageSize,
+        offset,
+      }),
     );
 
     const results: TaskResult[] = [];

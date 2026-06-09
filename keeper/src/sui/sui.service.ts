@@ -2,12 +2,16 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
-import { Transaction } from '@mysten/sui/transactions';
+import {
+  Transaction,
+  type TransactionObjectArgument,
+} from '@mysten/sui/transactions';
 import {
   liquidationRoutesReady,
   resolveQuoteOracleId,
 } from '../config/collateral-routing';
 import type { KeeperConfig } from '../config/keeper.config';
+import { addKeeperDeepFeeCoin } from './keeper-coins';
 
 type ProtocolSettingsResponse = {
   registry_id?: string;
@@ -156,7 +160,7 @@ export class SuiService implements OnModuleInit {
     const hasCatalogRoutes = liquidationRoutesReady(cfg);
     if (!hasCatalogRoutes) {
       missing.push(
-        'LAUNCH_COLLATERAL_CATALOG (pythOracleId per asset; spotPoolId + deepCoinId for non-quote collateral)',
+        'LAUNCH_COLLATERAL_CATALOG (pythOracleId per asset; spotPoolId for non-quote collateral)',
       );
     }
 
@@ -216,6 +220,14 @@ export class SuiService implements OnModuleInit {
       return false;
     }
     return true;
+  }
+
+  async addDeepFeeCoin(tx: Transaction): Promise<TransactionObjectArgument> {
+    const address = this.keypair?.getPublicKey().toSuiAddress();
+    if (!address) {
+      throw new Error('keeper signer not configured');
+    }
+    return addKeeperDeepFeeCoin(this.client, address, tx);
   }
 
   async execute(tx: Transaction): Promise<string> {

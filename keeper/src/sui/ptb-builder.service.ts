@@ -203,39 +203,43 @@ export class PtbBuilderService {
    * other assets use DeepBook flash + spot swap.
    */
   buildLiquidation(
+    tx: Transaction,
     cfg: KeeperConfig,
     position: LeveragedPosition,
     route: CollateralRoute,
     borrowAmount: bigint,
     minQuoteOut: bigint,
     keeperAddress: string,
+    feeDeep?: TransactionObjectArgument,
   ): Transaction {
     if (route.quoteNative) {
-      return this.buildQuoteNativeLiquidation(
-        cfg,
-        position,
-        route,
-        borrowAmount,
-      );
+      this.buildQuoteNativeLiquidation(tx, cfg, position, route, borrowAmount);
+      return tx;
     }
-    return this.buildSpotLiquidation(
+    if (!feeDeep) {
+      throw new Error('feeDeep required for spot liquidation');
+    }
+    this.buildSpotLiquidation(
+      tx,
       cfg,
       position,
       route,
       borrowAmount,
       minQuoteOut,
       keeperAddress,
+      feeDeep,
     );
+    return tx;
   }
 
   /** Vault flash loan + permissionless redeem/liquidate (dUSDC collateral). */
   private buildQuoteNativeLiquidation(
+    tx: Transaction,
     cfg: KeeperConfig,
     position: LeveragedPosition,
     route: CollateralRoute,
     borrowAmount: bigint,
-  ): Transaction {
-    const tx = new Transaction();
+  ): void {
     const key = this.addMarketKey(tx, cfg, this.keyFromPosition(position));
 
     const [flashCoin, receipt] = tx.moveCall({
@@ -286,23 +290,21 @@ export class PtbBuilderService {
         tx.object(SUI_CLOCK_OBJECT_ID),
       ],
     });
-
-    return tx;
   }
 
   /** DeepBook flash loan + spot swap liquidation (SUI, DEEP, etc.). */
   private buildSpotLiquidation(
+    tx: Transaction,
     cfg: KeeperConfig,
     position: LeveragedPosition,
     route: CollateralRoute,
     borrowAmount: bigint,
     minQuoteOut: bigint,
     keeperAddress: string,
-  ): Transaction {
-    const tx = new Transaction();
+    feeDeep: TransactionObjectArgument,
+  ): void {
     const key = this.addMarketKey(tx, cfg, this.keyFromPosition(position));
     const spotPoolId = route.spotPoolId!;
-    const deepCoinId = route.deepCoinId!;
 
     const [flashCoin, flashLoan] = tx.moveCall({
       target: `${cfg.packageId}::deepbook_flash::borrow_flash_loan_quote`,
@@ -331,7 +333,7 @@ export class PtbBuilderService {
         tx.object(route.pythOracleId),
         tx.object(cfg.pythQuoteOracleId),
         flashCoin,
-        tx.object(deepCoinId),
+        feeDeep,
         tx.pure.u64(minQuoteOut),
         tx.object(SUI_CLOCK_OBJECT_ID),
       ],
@@ -344,6 +346,5 @@ export class PtbBuilderService {
     });
 
     tx.transferObjects([deepLeft], keeperAddress);
-    return tx;
   }
 }

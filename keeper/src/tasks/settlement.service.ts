@@ -36,11 +36,15 @@ export class SettlementService {
 
     const cfg = this.sui.getConfig();
     const now = Date.now();
-    const items = await this.indexer.fetchAllPages((offset, pageSize) =>
-      this.indexer.fetchPositions({ status: 'open', limit: pageSize, offset }),
-    );
-    const expired = items.filter(
-      (p) => p.expiry_ms <= now && p.open_quantity > 0 && p.predict_manager_id,
+    const expired = await this.indexer.fetchAllPages((offset, pageSize) =>
+      this.indexer.fetchPositions({
+        status: 'open',
+        maxExpiryMs: now,
+        minOpenQuantity: 1,
+        hasPredictManager: true,
+        limit: pageSize,
+        offset,
+      }),
     );
 
     const results: TaskResult[] = [];

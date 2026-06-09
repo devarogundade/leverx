@@ -74,6 +74,11 @@ export class IndexerService {
   fetchPositions(args?: {
     status?: string;
     minBorrowQuote?: number;
+    minOpenQuantity?: number;
+    maxExpiryMs?: number;
+    hasPredictManager?: boolean;
+    hasCollateral?: boolean;
+    excludeStatus?: string;
     limit?: number;
     offset?: number;
   }): Promise<Paginated<LeveragedPosition>> {
@@ -81,6 +86,11 @@ export class IndexerService {
       `/v1/positions${this.buildQuery({
         status: args?.status ?? 'open',
         min_borrow_quote: args?.minBorrowQuote,
+        min_open_quantity: args?.minOpenQuantity,
+        max_expiry_ms: args?.maxExpiryMs,
+        has_predict_manager: args?.hasPredictManager,
+        has_collateral: args?.hasCollateral,
+        exclude_status: args?.excludeStatus,
         limit: args?.limit ?? 500,
         offset: args?.offset ?? 0,
       })}`,
@@ -92,18 +102,25 @@ export class IndexerService {
     return this.fetchPositions({
       status: 'all',
       minBorrowQuote: 1,
+      hasPredictManager: true,
+      hasCollateral: true,
+      excludeStatus: 'liquidated',
       limit,
     });
   }
 
   fetchLimitOrders(args?: {
     status?: string;
+    minOrderExpiresMs?: number;
+    hasCollateral?: boolean;
     limit?: number;
     offset?: number;
   }): Promise<Paginated<LimitMintOrder>> {
     return this.get(
       `/v1/limit-orders${this.buildQuery({
         status: args?.status ?? 'open',
+        min_order_expires_ms: args?.minOrderExpiresMs,
+        has_collateral: args?.hasCollateral,
         limit: args?.limit ?? 500,
         offset: args?.offset ?? 0,
       })}`,

@@ -118,6 +118,18 @@ struct ListQuery {
     event_type: Option<String>,
     /// When set, only rows with `borrow_quote >= min_borrow_quote` (keeper liquidation scans).
     min_borrow_quote: Option<i64>,
+    /// When set, only rows with `open_quantity >= min_open_quantity` (keeper settlement/triggers).
+    min_open_quantity: Option<i64>,
+    /// When set, only rows with `expiry_ms <= max_expiry_ms` (keeper settlement scans).
+    max_expiry_ms: Option<i64>,
+    /// When true, only rows with a linked predict manager.
+    has_predict_manager: Option<bool>,
+    /// When true, only rows with non-empty `collateral_asset`.
+    has_collateral: Option<bool>,
+    /// Comma-separated statuses to exclude (e.g. `liquidated`).
+    exclude_status: Option<String>,
+    /// When set, only limit orders with `order_expires_ms > min_order_expires_ms`.
+    min_order_expires_ms: Option<i64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -191,6 +203,12 @@ async fn limit_orders(
     if let Some(oracle_id) = &q.oracle_id {
         query = query.filter(limit_mint_orders::oracle_id.eq(oracle_id));
     }
+    if let Some(min_expires) = q.min_order_expires_ms {
+        query = query.filter(limit_mint_orders::order_expires_ms.gt(min_expires));
+    }
+    if q.has_collateral == Some(true) {
+        query = query.filter(limit_mint_orders::collateral_asset.ne(""));
+    }
 
     let rows = query
         .order(limit_mint_orders::placed_at_ms.desc())
@@ -232,6 +250,26 @@ async fn positions(
     }
     if let Some(min_borrow) = q.min_borrow_quote {
         query = query.filter(leveraged_positions::borrow_quote.ge(min_borrow));
+    }
+    if let Some(min_qty) = q.min_open_quantity {
+        query = query.filter(leveraged_positions::open_quantity.ge(min_qty));
+    }
+    if let Some(max_expiry) = q.max_expiry_ms {
+        query = query.filter(leveraged_positions::expiry_ms.le(max_expiry));
+    }
+    if q.has_predict_manager == Some(true) {
+        query = query.filter(leveraged_positions::predict_manager_id.is_not_null());
+    }
+    if q.has_collateral == Some(true) {
+        query = query.filter(leveraged_positions::collateral_asset.ne(""));
+    }
+    if let Some(exclude) = &q.exclude_status {
+        for status in exclude.split(',') {
+            let status = status.trim();
+            if !status.is_empty() {
+                query = query.filter(leveraged_positions::status.ne(status));
+            }
+        }
     }
 
     let rows = query

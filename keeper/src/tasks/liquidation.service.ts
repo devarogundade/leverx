@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Transaction } from '@mysten/sui/transactions';
 import {
   FLASH_BORROW_BUFFER_BPS,
   LIQUIDATION_SWAP_SLIPPAGE_BPS,
@@ -46,20 +47,16 @@ export class LiquidationService {
       return [{ kind: 'liquidation', target: '-', success: false, error: 'missing_signer' }];
     }
 
-    const items = await this.indexer.fetchAllPages((offset, pageSize) =>
+    const candidates = await this.indexer.fetchAllPages((offset, pageSize) =>
       this.indexer.fetchPositions({
         status: 'all',
         minBorrowQuote: 1,
+        hasPredictManager: true,
+        hasCollateral: true,
+        excludeStatus: 'liquidated',
         limit: pageSize,
         offset,
       }),
-    );
-    const candidates = items.filter(
-      (p) =>
-        p.borrow_quote > 0 &&
-        p.predict_manager_id &&
-        p.collateral_asset &&
-        p.status !== 'liquidated',
     );
 
     const results: TaskResult[] = [];
@@ -93,13 +90,19 @@ export class LiquidationService {
           ? 0n
           : liquidationMinQuoteOut(borrowAmount, LIQUIDATION_SWAP_SLIPPAGE_BPS);
 
-        const tx = this.ptb.buildLiquidation(
+        const tx = new Transaction();
+        const feeDeep = route.quoteNative
+          ? undefined
+          : await this.sui.addDeepFeeCoin(tx);
+        this.ptb.buildLiquidation(
+          tx,
           cfg,
           position,
           route,
           borrowAmount,
           minQuoteOut,
           keeper,
+          feeDeep,
         );
         if (!(await this.sui.devInspect(tx))) {
           results.push({

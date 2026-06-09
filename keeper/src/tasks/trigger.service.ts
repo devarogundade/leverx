@@ -44,7 +44,13 @@ export class TriggerService {
     if (triggers.length === 0) return [];
 
     const positions = await this.indexer.fetchAllPages((offset, pageSize) =>
-      this.indexer.fetchPositions({ status: 'open', limit: pageSize, offset }),
+      this.indexer.fetchPositions({
+        status: 'open',
+        minOpenQuantity: 1,
+        hasPredictManager: true,
+        limit: pageSize,
+        offset,
+      }),
     );
 
     const results: TaskResult[] = [];
@@ -55,9 +61,7 @@ export class TriggerService {
         (p) =>
           p.account_id === trigger.account_id &&
           p.oracle_id === trigger.oracle_id &&
-          p.is_range === trigger.is_range &&
-          p.open_quantity > 0 &&
-          p.predict_manager_id,
+          p.is_range === trigger.is_range,
       );
 
       for (const position of matches) {

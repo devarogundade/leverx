@@ -32,7 +32,6 @@ export type KeeperConfig = {
   spotPoolId: string;
   pythCollateralOracleId: string;
   pythQuoteOracleId: string;
-  deepCoinId: string;
   supportedCollaterals: CollateralCatalogEntry[];
   indexerUrl: string;
   cron: {
@@ -70,7 +69,6 @@ export default registerAs(
     spotPoolId: TESTNET_LIQUIDATION.spotPoolId,
     pythCollateralOracleId: TESTNET_LIQUIDATION.pythCollateralOracleId,
     pythQuoteOracleId: TESTNET_LIQUIDATION.pythQuoteOracleId,
-    deepCoinId: TESTNET_LIQUIDATION.deepCoinId,
     supportedCollaterals: LAUNCH_COLLATERAL_CATALOG,
     indexerUrl: (process.env.INDEXER_URL ?? INDEXER_URL).trim(),
     cron: { ...KEEPER_CRON_DEFAULTS },

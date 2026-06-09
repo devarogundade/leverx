@@ -8,6 +8,4 @@ export type CollateralCatalogEntry = {
   pythOracleId?: string;
   /** DeepBook spot pool for collateral ↔ quote swaps. */
   spotPoolId?: string;
-  /** Keeper-owned DEEP coin for spot swap fees. */
-  deepCoinId?: string;
 };

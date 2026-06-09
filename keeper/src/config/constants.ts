@@ -39,12 +39,15 @@ export const TESTNET_ASSETS = {
 export const TESTNET_PYTH_QUOTE_ORACLE_ID =
   '0x9c4dd4008297ffa5e480684b8100ec21cc934405ed9a25d4e4d7b6259aad9c81';
 
+/** DeepBook DEEP token type (testnet) — fee coins come from the keeper wallet. */
+export const DEEP_COIN_TYPE =
+  '0xdeeb7a4662eec9f2f3def03fb937a663dddaa2e215b8078a284d026b7946c270::deep::DEEP';
+
 /** Quote Pyth oracle + default collateral liquidation wiring (fill after deploy). */
 export const TESTNET_LIQUIDATION = {
   spotPoolId: '',
   pythCollateralOracleId: TESTNET_PYTH_QUOTE_ORACLE_ID,
   pythQuoteOracleId: TESTNET_PYTH_QUOTE_ORACLE_ID,
-  deepCoinId: '',
 } as const;
 
 /** Extra quote borrowed on flash loans to cover accrued vault interest. */
@@ -71,7 +74,6 @@ export const LAUNCH_COLLATERAL_CATALOG: CollateralCatalogEntry[] = [
     liquidationLtvBps: 9500,
     pythOracleId: TESTNET_PYTH_QUOTE_ORACLE_ID,
     spotPoolId: '',
-    deepCoinId: '',
   },
 ];
 

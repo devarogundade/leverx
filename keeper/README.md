@@ -27,7 +27,7 @@ pnpm run start:dev
 | `keeper/.env`             | `KEEPER_PRIVATE_KEY` only                                                             |
 | `src/config/constants.ts` | Package IDs, registry/vault/fee-collector, Predict, cron, indexer URL, launch catalog |
 
-**Launch collateral** (whitelist on-chain): SUI 80%, dUSDC 90%, DEEP 70% max LTV; all liquidate below 95% health — see `LAUNCH_COLLATERAL_CATALOG` in `constants.ts`. Each entry needs `coinType` and `pythOracleId`. Non-quote collateral (SUI, DEEP, …) also needs `spotPoolId` and keeper `deepCoinId` for spot-swap liquidations. Quote-native dUSDC uses vault flash loans (no spot pool). Quote Pyth oracle lives in `TESTNET_LIQUIDATION.pythQuoteOracleId`.
+**Launch collateral** (whitelist on-chain): SUI 80%, dUSDC 90%, DEEP 70% max LTV; all liquidate below 95% health — see `LAUNCH_COLLATERAL_CATALOG` in `constants.ts`. Each entry needs `coinType` and `pythOracleId`. Non-quote collateral (SUI, DEEP, …) also needs `spotPoolId` for spot-swap liquidations; DEEP swap fees are paid from coins in the keeper wallet. Quote-native dUSDC uses vault flash loans (no spot pool). Quote Pyth oracle lives in `TESTNET_LIQUIDATION.pythQuoteOracleId`.
 
 Liquidations scan indexed keys with `borrow_quote > 0` via `GET /v1/positions?status=all&min_borrow_quote=1` (includes closed predict legs with remaining vault debt), then pre-filter with on-chain `trade::is_binary_position_liquidatable` / `is_range_position_liquidatable` (collateral + key quote balance vs per-asset liquidation LTV). Quote-native dUSDC uses `vault_flash` + `flash_liquidate_*_with_redeem_permissionless`; other collaterals use DeepBook flash + `flash_liquidate_*_with_spot_swap_and_redeem`.
 
