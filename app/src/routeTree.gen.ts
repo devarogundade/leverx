@@ -21,7 +21,6 @@ import { Route as AppMarketsRouteImport } from './routes/_app/markets'
 import { Route as AppKeeperRouteImport } from './routes/_app/keeper'
 import { Route as AppGuideRouteImport } from './routes/_app/guide'
 import { Route as DetailPredictionsOracleIdRouteImport } from './routes/_detail/predictions/$oracleId'
-import { Route as AppPointsLeaderboardRouteImport } from './routes/_app/points.leaderboard'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -82,11 +81,6 @@ const DetailPredictionsOracleIdRoute =
     path: '/predictions/$oracleId',
     getParentRoute: () => DetailRoute,
   } as any)
-const AppPointsLeaderboardRoute = AppPointsLeaderboardRouteImport.update({
-  id: '/leaderboard',
-  path: '/leaderboard',
-  getParentRoute: () => AppPointsRoute,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -95,10 +89,9 @@ export interface FileRoutesByFullPath {
   '/guide': typeof AppGuideRoute
   '/keeper': typeof AppKeeperRoute
   '/markets': typeof AppMarketsRoute
-  '/points': typeof AppPointsRouteWithChildren
+  '/points': typeof AppPointsRoute
   '/portfolio': typeof AppPortfolioRoute
   '/vault': typeof AppVaultRoute
-  '/points/leaderboard': typeof AppPointsLeaderboardRoute
   '/predictions/$oracleId': typeof DetailPredictionsOracleIdRoute
 }
 export interface FileRoutesByTo {
@@ -108,10 +101,9 @@ export interface FileRoutesByTo {
   '/guide': typeof AppGuideRoute
   '/keeper': typeof AppKeeperRoute
   '/markets': typeof AppMarketsRoute
-  '/points': typeof AppPointsRouteWithChildren
+  '/points': typeof AppPointsRoute
   '/portfolio': typeof AppPortfolioRoute
   '/vault': typeof AppVaultRoute
-  '/points/leaderboard': typeof AppPointsLeaderboardRoute
   '/predictions/$oracleId': typeof DetailPredictionsOracleIdRoute
 }
 export interface FileRoutesById {
@@ -124,10 +116,9 @@ export interface FileRoutesById {
   '/_app/guide': typeof AppGuideRoute
   '/_app/keeper': typeof AppKeeperRoute
   '/_app/markets': typeof AppMarketsRoute
-  '/_app/points': typeof AppPointsRouteWithChildren
+  '/_app/points': typeof AppPointsRoute
   '/_app/portfolio': typeof AppPortfolioRoute
   '/_app/vault': typeof AppVaultRoute
-  '/_app/points/leaderboard': typeof AppPointsLeaderboardRoute
   '/_detail/predictions/$oracleId': typeof DetailPredictionsOracleIdRoute
 }
 export interface FileRouteTypes {
@@ -142,7 +133,6 @@ export interface FileRouteTypes {
     | '/points'
     | '/portfolio'
     | '/vault'
-    | '/points/leaderboard'
     | '/predictions/$oracleId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -155,7 +145,6 @@ export interface FileRouteTypes {
     | '/points'
     | '/portfolio'
     | '/vault'
-    | '/points/leaderboard'
     | '/predictions/$oracleId'
   id:
     | '__root__'
@@ -170,7 +159,6 @@ export interface FileRouteTypes {
     | '/_app/points'
     | '/_app/portfolio'
     | '/_app/vault'
-    | '/_app/points/leaderboard'
     | '/_detail/predictions/$oracleId'
   fileRoutesById: FileRoutesById
 }
@@ -268,33 +256,14 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DetailPredictionsOracleIdRouteImport
       parentRoute: typeof DetailRoute
     }
-    '/_app/points/leaderboard': {
-      id: '/_app/points/leaderboard'
-      path: '/leaderboard'
-      fullPath: '/points/leaderboard'
-      preLoaderRoute: typeof AppPointsLeaderboardRouteImport
-      parentRoute: typeof AppPointsRoute
-    }
   }
 }
-
-interface AppPointsRouteChildren {
-  AppPointsLeaderboardRoute: typeof AppPointsLeaderboardRoute
-}
-
-const AppPointsRouteChildren: AppPointsRouteChildren = {
-  AppPointsLeaderboardRoute: AppPointsLeaderboardRoute,
-}
-
-const AppPointsRouteWithChildren = AppPointsRoute._addFileChildren(
-  AppPointsRouteChildren,
-)
 
 interface AppRouteChildren {
   AppGuideRoute: typeof AppGuideRoute
   AppKeeperRoute: typeof AppKeeperRoute
   AppMarketsRoute: typeof AppMarketsRoute
-  AppPointsRoute: typeof AppPointsRouteWithChildren
+  AppPointsRoute: typeof AppPointsRoute
   AppPortfolioRoute: typeof AppPortfolioRoute
   AppVaultRoute: typeof AppVaultRoute
 }
@@ -303,7 +272,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppGuideRoute: AppGuideRoute,
   AppKeeperRoute: AppKeeperRoute,
   AppMarketsRoute: AppMarketsRoute,
-  AppPointsRoute: AppPointsRouteWithChildren,
+  AppPointsRoute: AppPointsRoute,
   AppPortfolioRoute: AppPortfolioRoute,
   AppVaultRoute: AppVaultRoute,
 }

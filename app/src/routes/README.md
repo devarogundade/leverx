@@ -7,8 +7,7 @@ TanStack Router file-based routes for LeverX.
 | `/` | `index.tsx` — landing |
 | `/markets` | `_app/markets.tsx` |
 | `/portfolio` | `_app/portfolio.tsx` |
-| `/points` | `_app/points.tsx` |
-| `/points/leaderboard` | `_app/points.leaderboard.tsx` |
+| `/points` | `_app/points.tsx` — volume leaderboard |
 | `/guide` | `_app/guide.tsx` |
 | `/predictions/:oracleId` | `_detail/predictions/$oracleId.tsx` — trade terminal |
 | `/terms` | `terms.tsx` |
