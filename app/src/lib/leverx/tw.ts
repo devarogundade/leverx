@@ -325,15 +325,16 @@ export const tradeTerminalPositionsBody = cn(
   "text-sm text-muted-foreground",
 );
 
-/** Mobile predictions workspace switcher (Trade vs Chart) */
+/** Mobile predictions workspace switcher (Trade vs Chart) — portaled to body */
 export const tradeMobileDock = cn(
-  "pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center md:hidden",
+  "fixed inset-x-0 bottom-0 z-[60] flex justify-center md:hidden",
   "pb-[max(0.5rem,env(safe-area-inset-bottom))]",
+  "pointer-events-none",
 );
 
 export const tradeMobileDockTabs = cn(
-  "pointer-events-auto inline-flex items-center gap-0 rounded-lg border border-border",
-  "bg-card/95 p-0.5 shadow-md backdrop-blur-md",
+  "pointer-events-auto inline-flex items-center gap-0 rounded-full border border-border",
+  "bg-card/95 p-0.5 shadow-lg backdrop-blur-md",
 );
 
 export const tradeMobileDockTab = cn(

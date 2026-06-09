@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "@tanstack/react-router";
 import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, Inbox } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -488,7 +489,12 @@ export function PredictTradeTerminal({
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>("Positions");
   const [positionsFilter, setPositionsFilter] = useState<"open" | "closed">("open");
   const [mobileWorkspace, setMobileWorkspace] = useState<MobileWorkspaceTab>("trade");
+  const [dockMounted, setDockMounted] = useState(false);
   const { address } = useWallet();
+
+  useEffect(() => {
+    setDockMounted(true);
+  }, []);
 
   const { data: protocol } = useIndexerProtocol();
   const vaultId = protocol?.vault_id ?? undefined;
@@ -803,7 +809,7 @@ export function PredictTradeTerminal({
       </header>
 
       <div className={cn(tradeTerminalBody, tradeTerminalMobileBody)}>
-        <div className={cn(tradeTerminalWorkspace, "max-md:hidden")}>
+        <div className={cn(tradeTerminalWorkspace, "trade-terminal-workspace-desktop")}>
           <TerminalPriceChart
             sessionKey={sessionKey}
             asset={asset}
@@ -836,12 +842,8 @@ export function PredictTradeTerminal({
         </div>
 
         <div
-          className={cn(
-            tradeTerminalWorkspace,
-            tradeTerminalMobileChartPanel,
-            "md:hidden",
-            !showMobileChart && "hidden",
-          )}
+          className={cn(tradeTerminalWorkspace, tradeTerminalMobileChartPanel, "trade-terminal-workspace-mobile")}
+          data-active={showMobileChart ? "true" : "false"}
         >
           <TerminalPriceChart
             sessionKey={sessionKey}
@@ -862,7 +864,8 @@ export function PredictTradeTerminal({
         </div>
 
         <div
-          className={cn(tradeTerminalWorkspace, "md:hidden", !showMobileTrade && "hidden")}
+          className={cn(tradeTerminalWorkspace, "trade-terminal-workspace-mobile")}
+          data-active={showMobileTrade ? "true" : "false"}
         >
           <div className={tradeTerminalSidebar}>
             <PredictLeveragePanel
@@ -881,25 +884,30 @@ export function PredictTradeTerminal({
         </div>
       </div>
 
-      <nav className={tradeMobileDock} aria-label="Trade workspace">
-        <div className={tradeMobileDockTabs} role="tablist">
-          {MOBILE_WORKSPACE_TABS.map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              role="tab"
-              aria-selected={mobileWorkspace === tab}
-              className={cn(
-                tradeMobileDockTab,
-                mobileWorkspace === tab && tradeMobileDockTabActive,
-              )}
-              onClick={() => setMobileWorkspace(tab)}
-            >
-              {tab === "trade" ? "Trade" : "Chart"}
-            </button>
-          ))}
-        </div>
-      </nav>
+      {dockMounted
+        ? createPortal(
+            <nav className={tradeMobileDock} aria-label="Trade workspace">
+              <div className={tradeMobileDockTabs} role="tablist">
+                {MOBILE_WORKSPACE_TABS.map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    role="tab"
+                    aria-selected={mobileWorkspace === tab}
+                    className={cn(
+                      tradeMobileDockTab,
+                      mobileWorkspace === tab && tradeMobileDockTabActive,
+                    )}
+                    onClick={() => setMobileWorkspace(tab)}
+                  >
+                    {tab === "trade" ? "Trade" : "Chart"}
+                  </button>
+                ))}
+              </div>
+            </nav>,
+            document.body,
+          )
+        : null}
     </section>
   );
 }

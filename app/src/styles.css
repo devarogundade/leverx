@@ -565,6 +565,23 @@ select {
   min-width: 0;
 }
 
+/* Mobile Trade | Chart panels — must beat .trade-terminal-workspace { display:flex } */
+@media (max-width: 767px) {
+  .trade-terminal-workspace-desktop {
+    display: none !important;
+  }
+
+  .trade-terminal-workspace-mobile[data-active="false"] {
+    display: none !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .trade-terminal-workspace-mobile {
+    display: none !important;
+  }
+}
+
 .trade-terminal-chart {
   min-width: 0;
   min-height: var(--trade-chart-h);
