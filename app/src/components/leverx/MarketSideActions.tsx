@@ -6,6 +6,7 @@ import {
   marketSideActionRange,
   marketSideActionUp,
   marketSideActions,
+  marketSideActionsPlain,
   marketSideActionsStretch,
 } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,7 @@ interface Props {
   rangeUpper?: number;
   className?: string;
   stretch?: boolean;
+  plain?: boolean;
   hideRangeOnMobile?: boolean;
 }
 
@@ -27,13 +29,18 @@ export function MarketSideActions({
   rangeUpper,
   className,
   stretch = false,
+  plain = false,
   hideRangeOnMobile = false,
 }: Props) {
   const resolvedLower = rangeLower ?? strikeRaw;
   const resolvedUpper = rangeUpper ?? strikeRaw;
   return (
     <div
-      className={cn(marketSideActions, stretch && marketSideActionsStretch, className)}
+      className={cn(
+        plain ? marketSideActionsPlain : marketSideActions,
+        stretch && marketSideActionsStretch,
+        className,
+      )}
       role="group"
       aria-label="Trade side"
     >

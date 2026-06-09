@@ -173,7 +173,8 @@ export const marketCardOverlay = cn(
   "focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent",
 );
 
-export const marketCardBody = "pointer-events-none relative z-0 flex flex-col gap-3 p-4";
+export const marketCardBody =
+  "pointer-events-none relative z-0 flex min-h-0 flex-1 flex-col gap-3 p-4";
 
 export const marketCardInteractive = "pointer-events-auto relative z-[2]";
 
@@ -184,6 +185,11 @@ export const marketCardPrice = "ml-auto text-right";
 export const marketCardPriceValue = "font-mono text-sm font-semibold tabular-nums sm:text-lg";
 
 export const marketCardActions = cn(marketCardInteractive, "market-card-interactive w-full");
+
+export const marketCardActionsFooter = cn(
+  marketCardInteractive,
+  "market-card-interactive mt-auto w-full -mx-4 -mb-4 border-t border-border/50 px-4 pb-4 pt-3",
+);
 
 export const marketCardAction = cn(
   "flex h-8 items-center justify-center rounded-md border border-border bg-surface",
@@ -201,6 +207,10 @@ export const marketCardActionShort =
 /** Joined UP / DOWN / RANGE action group — shared across grid and table */
 export const marketSideActions = cn(
   "inline-flex overflow-hidden rounded-md border border-border bg-surface",
+);
+
+export const marketSideActionsPlain = cn(
+  "flex w-full overflow-hidden rounded-none border-0 bg-transparent",
 );
 
 export const marketSideActionsStretch = "[&>*]:min-w-0 [&>*]:flex-1";

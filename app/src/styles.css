@@ -2701,7 +2701,6 @@ select {
 .site-footer {
   flex-shrink: 0;
   margin-top: auto;
-  border-top: 1px solid var(--color-border);
   background-color: var(--color-background);
 }
 

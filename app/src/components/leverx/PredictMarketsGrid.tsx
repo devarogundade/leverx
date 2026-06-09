@@ -23,7 +23,7 @@ import {
   landingCtaSecondary,
   leverageBadge,
   marketCard,
-  marketCardActions,
+  marketCardActionsFooter,
   marketCardBody,
   marketCardHeader,
   marketCardInteractive,
@@ -159,17 +159,6 @@ export function PredictMarketsGrid({
                   lastAskPremium={m.lastAskPremium}
                 />
 
-                <div className={marketCardActions}>
-                  <MarketSideActions
-                    oracleId={m.oracleId}
-                    strikeRaw={m.strikeRaw}
-                    rangeLower={range?.lower}
-                    rangeUpper={range?.upper}
-                    stretch
-                    className="w-full"
-                  />
-                </div>
-
                 <div className={marketCardMeta}>
                   <span>
                     {m.volume > 0 ? `$${Math.round(m.volume)}` : "_"} · {liquidityLabel}
@@ -186,6 +175,18 @@ export function PredictMarketsGrid({
                       <Bookmark className="h-3 w-3" />
                     </Button>
                   </div>
+                </div>
+
+                <div className={marketCardActionsFooter}>
+                  <MarketSideActions
+                    oracleId={m.oracleId}
+                    strikeRaw={m.strikeRaw}
+                    rangeLower={range?.lower}
+                    rangeUpper={range?.upper}
+                    stretch
+                    plain
+                    className="w-full"
+                  />
                 </div>
               </div>
             </article>
