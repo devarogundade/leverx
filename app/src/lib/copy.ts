@@ -55,7 +55,7 @@ export const ui = {
   portfolioHint: "Your account balance, profit and loss, and open trades.",
   portfolioAccountValue: "Account value",
   balanceTotal: "Total balance",
-  balanceAvailable: "Available to trade",
+  balanceAvailable: "Avail",
   balanceInPositions: "In open trades",
   balanceRealizedPnl: "Realized profit & loss",
   balanceConnectHint: "Connect your wallet to see your balance.",
@@ -66,8 +66,7 @@ export const ui = {
   predictManagerUnrealizedPnl: "Unrealized P&L",
   predictManagerOpenPositions: "Open trades",
   predictManagerRecentPositions: "Recent trades",
-  predictManagerEmpty:
-    "No trading account yet — one is created when you place your first trade.",
+  predictManagerEmpty: "No trading account yet — one is created when you place your first trade.",
   predictOracleSpot: "Price",
   backToMarkets: "Back to markets",
   connectForTrades: "Connect your wallet to trade and view your positions.",
