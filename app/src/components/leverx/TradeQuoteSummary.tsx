@@ -1,6 +1,7 @@
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import type { MintQuote } from "@/lib/leverx/quotes";
 import { formatPremiumCents } from "@/lib/leverx/indexer-markets";
+import { isPremiumWithinPredictBounds } from "@/lib/leverx/trade-math";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import { scaleQuote } from "@/lib/predict/scaling";
 import { labelCaps } from "@/lib/leverx/tw";
@@ -21,7 +22,21 @@ export function TradeQuoteSummary({ quote, isLoading, className }: Props) {
     );
   }
 
-  if (!quote) return null;
+  if (!quote) {
+    return (
+      <div
+        className={cn(
+          "rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200",
+          className,
+        )}
+      >
+        Live contract price is unavailable or outside the 1¢–99¢ range DeepBook Predict allows.
+      </div>
+    );
+  }
+
+  const premiumRaw = Number(quote.marketAskPerUnit);
+  const outOfBounds = !isPremiumWithinPredictBounds(quote.marketAskPerUnit);
 
   return (
     <div className={cn("space-y-2 rounded-md border border-border/60 bg-card/40 p-3", className)}>
@@ -32,8 +47,8 @@ export function TradeQuoteSummary({ quote, isLoading, className }: Props) {
       />
       <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
         <LabelWithInfo label="Per contract" info={leverxInfo.askPerUnit} />
-        <span className="font-mono text-right">
-          {formatPremiumCents(Number(quote.marketAskPerUnit))}
+        <span className={cn("font-mono text-right", outOfBounds && "text-amber-400")}>
+          {formatPremiumCents(premiumRaw)}
         </span>
         <LabelWithInfo label="Total cost" info={leverxInfo.mintCost} />
         <span className="font-mono text-right">{scaleQuote(Number(quote.mintCost)).toFixed(2)} dUSDC</span>
@@ -46,6 +61,11 @@ export function TradeQuoteSummary({ quote, isLoading, className }: Props) {
           </>
         ) : null}
       </div>
+      {outOfBounds ? (
+        <p className="text-xs text-amber-200">
+          This price cannot be traded on-chain right now (Predict allows 1¢–99¢ per contract).
+        </p>
+      ) : null}
     </div>
   );
 }

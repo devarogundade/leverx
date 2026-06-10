@@ -30,7 +30,11 @@ import {
 import type { LimitExecutionMode } from "@/lib/leverx/transactions";
 import {
   centsToPremiumRaw,
+  isLimitCentsWithinPredictBounds,
+  isPremiumWithinPredictBounds,
   percentToBps,
+  PREDICT_MAX_PREMIUM_CENTS,
+  PREDICT_MIN_PREMIUM_CENTS,
   strikeUsdToRaw,
   tpSlToPremiumRaw,
 } from "@/lib/leverx/trade-math";
@@ -227,6 +231,15 @@ export function PredictLeveragePanel({
     [walletQuoteBalance],
   );
 
+  const { data: mintQuote, isLoading: quoteLoading } = useLeverxMintQuote({
+    key: tradeKey,
+    marginUsd: marginNum,
+    leverage: lev,
+    quantity: BigInt(Math.max(1, quantityNum)),
+    owner: address ?? undefined,
+    enabled: marginNum > 0 && quantityNum > 0,
+  });
+
   const validationErrors = useMemo(() => {
     const errors: string[] = [];
     if (marginNum > 0 && marginNum < MIN_MARGIN_USD) {
@@ -242,9 +255,26 @@ export function PredictLeveragePanel({
       const cents = parseFloat(limitPrice);
       if (!Number.isFinite(cents) || cents <= 0) {
         errors.push("Enter a limit price above 0¢.");
+      } else if (!isLimitCentsWithinPredictBounds(cents)) {
+        errors.push(
+          `Limit price must be between ${PREDICT_MIN_PREMIUM_CENTS}¢ and ${PREDICT_MAX_PREMIUM_CENTS}¢.`,
+        );
       }
       if (placementSlippagePct < 0.1) {
         errors.push("Slippage must be at least 0.1%.");
+      }
+    }
+    if (orderType === "market" && marginNum > 0 && address) {
+      if (quoteLoading) {
+        errors.push("Waiting for live contract price…");
+      } else if (mintQuote == null) {
+        errors.push(
+          "Live contract price is unavailable or outside 1¢–99¢. Try another strike or wait for oracle updates.",
+        );
+      } else if (!isPremiumWithinPredictBounds(mintQuote.marketAskPerUnit)) {
+        errors.push(
+          `Live contract price must be between ${PREDICT_MIN_PREMIUM_CENTS}¢ and ${PREDICT_MAX_PREMIUM_CENTS}¢.`,
+        );
       }
     }
     if (isRange && !rangeFromChart) {
@@ -265,16 +295,10 @@ export function PredictLeveragePanel({
     rangeFromChart,
     lowerStrike,
     upperStrike,
+    address,
+    quoteLoading,
+    mintQuote,
   ]);
-
-  const { data: mintQuote, isLoading: quoteLoading } = useLeverxMintQuote({
-    key: tradeKey,
-    marginUsd: marginNum,
-    leverage: lev,
-    quantity: BigInt(Math.max(1, quantityNum)),
-    owner: address ?? undefined,
-    enabled: marginNum > 0 && quantityNum > 0,
-  });
 
   const canSubmit =
     !disabled &&

@@ -2,6 +2,21 @@ import { FLOAT_SCALING, QUOTE_UNIT } from "@/lib/predict/constants";
 import { PREDICT_PRICE_SCALE } from "@/lib/leverx/constants";
 import { clampLeverage } from "@/lib/leverx/trade-limits";
 
+/** DeepBook Predict per-oracle ask bounds (1e9 premium scale). */
+export const PREDICT_MIN_ASK_PREMIUM = 10_000_000n;
+export const PREDICT_MAX_ASK_PREMIUM = 990_000_000n;
+export const PREDICT_MIN_PREMIUM_CENTS = 1;
+export const PREDICT_MAX_PREMIUM_CENTS = 99;
+
+export function isPremiumWithinPredictBounds(premium: bigint): boolean {
+  return premium >= PREDICT_MIN_ASK_PREMIUM && premium <= PREDICT_MAX_ASK_PREMIUM;
+}
+
+export function isLimitCentsWithinPredictBounds(cents: number): boolean {
+  if (!Number.isFinite(cents) || cents <= 0) return false;
+  return cents >= PREDICT_MIN_PREMIUM_CENTS && cents <= PREDICT_MAX_PREMIUM_CENTS;
+}
+
 /** USD margin → quote atoms (6-decimal dUSDC). */
 export function marginUsdToQuoteAtoms(marginUsd: number): bigint {
   if (!Number.isFinite(marginUsd) || marginUsd <= 0) return 0n;

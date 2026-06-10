@@ -21,9 +21,23 @@ import {
   type OpenTradeInput,
 } from "@/lib/leverx/transactions";
 
+const PREMIUM_BOUNDS_MESSAGE =
+  "Contract price is outside DeepBook Predict's tradable range (1¢–99¢). The market may be near expiry or temporarily unpriced — try another strike or wait for updated oracle prices.";
+
 function formatTxError(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  return "Transaction failed.";
+  const raw =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "Transaction failed.";
+  if (
+    raw.includes("assert_premium_within_bounds") ||
+    (raw.includes("predict_client") && raw.includes(", 27)"))
+  ) {
+    return PREMIUM_BOUNDS_MESSAGE;
+  }
+  return raw;
 }
 
 export function useLeverxProtocolConfig() {

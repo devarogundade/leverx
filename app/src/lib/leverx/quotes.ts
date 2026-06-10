@@ -4,6 +4,7 @@ import { READONLY_SENDER } from "@/context/WalletContext";
 import { SUI_CLOCK_OBJECT_ID } from "@/lib/leverx/constants";
 import { addMarketKey, type MarketKeyArgs } from "@/lib/leverx/market-keys";
 import type { LeverxProtocolConfig } from "@/lib/leverx/protocol";
+import { isPremiumWithinPredictBounds } from "@/lib/leverx/trade-math";
 
 export type MintQuote = {
   marketAskPerUnit: bigint;
@@ -78,9 +79,12 @@ export async function fetchMintQuote(params: {
     if (inspect.effects?.status?.status !== "success") return null;
     const [marketAskPerUnit, mintCost, borrowQuote] = parseReturnTuple(
       inspect.results,
-      0,
+      1,
       3,
     );
+    if (!isPremiumWithinPredictBounds(marketAskPerUnit)) {
+      return null;
+    }
     return { marketAskPerUnit, mintCost, borrowQuote };
   } catch {
     return null;
