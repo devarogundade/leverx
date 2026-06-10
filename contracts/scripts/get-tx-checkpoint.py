@@ -4,7 +4,7 @@ import json
 import sys
 import urllib.request
 
-DIGEST = sys.argv[1] if len(sys.argv) > 1 else "2QTzisDZyHN5Uhe8BfuvfaBaLAESHa4WuexxL8YWyEna"
+DIGEST = sys.argv[1] if len(sys.argv) > 1 else "866WrEoHQrxvTSqK38oXXKqNigoFDUhgFYAy7HDuVbXi"
 RPC = sys.argv[2] if len(sys.argv) > 2 else "https://fullnode.testnet.sui.io"
 
 body = json.dumps(

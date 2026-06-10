@@ -4,8 +4,23 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 COMPOSE_FILE="${COMPOSE_FILE:-${ROOT}/indexer/docker-compose.ec2.yml}"
-CHECKPOINT="${FIRST_CHECKPOINT:-346747492}"
 DEPLOY_ENV="${ROOT}/contracts/deploy-testnet.env"
+
+read_deploy_var() {
+  local key="$1"
+  local fallback="${2:-}"
+  if [[ -f "${DEPLOY_ENV}" ]]; then
+    local value
+    value="$(grep -E "^${key}=" "${DEPLOY_ENV}" | tail -1 | cut -d= -f2- || true)"
+    if [[ -n "${value}" ]]; then
+      echo "${value}"
+      return
+    fi
+  fi
+  echo "${fallback}"
+}
+
+CHECKPOINT="${FIRST_CHECKPOINT:-$(read_deploy_var FIRST_CHECKPOINT 346747492)}"
 
 cd "${ROOT}"
 if command -v docker-compose >/dev/null 2>&1; then

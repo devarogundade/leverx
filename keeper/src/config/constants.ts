@@ -1,5 +1,5 @@
 /**
- * Keeper configuration — edit this file for testnet deploy IDs, etc.
+ * Keeper configuration — defaults mirror `contracts/deploy-testnet.env`.
  * The only value in `keeper/.env` is `KEEPER_PRIVATE_KEY`.
  */
 

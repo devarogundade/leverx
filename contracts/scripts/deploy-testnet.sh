@@ -1,15 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 export PATH="/home/devarogundade/.local/bin:${PATH}"
-cd /mnt/c/Users/devar/Documents/leverx/contracts
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+cd "${ROOT}"
+
+DEPLOY_ENV="${ROOT}/deploy-testnet.env"
+if [[ -f "${DEPLOY_ENV}" ]]; then
+  set -a
+  # shellcheck source=/dev/null
+  source "${DEPLOY_ENV}"
+  set +a
+fi
 source /tmp/leverx-deploy.env 2>/dev/null || true
 
 PACKAGE_ID="${LEVERX_PACKAGE_ID:?LEVERX_PACKAGE_ID missing — run publish-testnet.sh first}"
 ADMIN_CAP="${LEVERX_ADMIN_CAP_ID:?LEVERX_ADMIN_CAP_ID missing}"
 TREASURY_CAP="${LEVERX_TREASURY_CAP_ID:?LEVERX_TREASURY_CAP_ID missing — republish with lxplp::init}"
-PREDICT_ID="0xc8736204d12f0a7277c86388a68bf8a194b0a14c5538ad13f22cbd8e2a38028a"
-QUOTE_TYPE="0xe95040085976bfd54a1a07225cd46c8a2b4e8e2b6732f140a0fc49850ba73e1a::dusdc::DUSDC"
+PREDICT_ID="${PREDICT_ID:?PREDICT_ID missing in deploy-testnet.env}"
+QUOTE_TYPE="${QUOTE_TYPE:?QUOTE_TYPE missing in deploy-testnet.env}"
 
 echo "Deploying shared objects..."
 echo "  package=$PACKAGE_ID"
