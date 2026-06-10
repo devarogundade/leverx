@@ -3,7 +3,7 @@
 NestJS bot that maintains the LeverX protocol off-chain:
 
 - **Settlement** — redeem expired positions after oracle settlement (`settle_expired_proxy_position` / `range`)
-- **Limit orders** — fill resting mint limits when market ask crosses limit + slippage
+- **Limit orders** — fill resting mint limits when market ask crosses limit + slippage; expire unfilled orders past `order_expires_ms` via `trade::expire_*_limit_mint_order`
 - **Liquidation** — vault flash + permissionless redeem liquidations for underwater dUSDC keys
 - **Triggers** — execute TP/SL redeems when indexed trigger premiums are hit
 
@@ -24,8 +24,10 @@ pnpm run start:dev
 
 | File                      | Purpose                                                                 |
 | ------------------------- | ----------------------------------------------------------------------- |
-| `keeper/.env`             | `KEEPER_PRIVATE_KEY` and optional `INDEXER_URL`                         |
-| `src/config/constants.ts` | Package IDs, registry/vault/fee-collector, Predict, cron, indexer URL   |
+| `keeper/.env`             | `KEEPER_PRIVATE_KEY` and optional deploy/indexer env overrides          |
+| `src/config/constants.ts` | Default package IDs, cron, indexer URL (overridden by env when set)     |
+
+Optional env vars (same names as `contracts/deploy-testnet.env` and docker-compose): `LEVERX_PACKAGE_ID`, `LEVERX_REGISTRY_ID`, `LEVERX_VAULT_ID`, `LEVERX_FEE_COLLECTOR_ID`, `PREDICT_PACKAGE_ID`, `PREDICT_ID`, `QUOTE_TYPE`, `INDEXER_URL`.
 
 **dUSDC-only, 1.1×–10× leverage** — quote type `dusdc::DUSDC`, `MIN_LEVERAGE_BPS = 11_000`, `MAX_LEVERAGE_BPS = 100_000`, margin 0.1–100 dUSDC, margin call at `MARGIN_CALL_BPS = 9_500`.
 
@@ -36,7 +38,7 @@ Liquidations scan:
 
 Each candidate is pre-filtered on-chain via `trade::is_binary_position_liquidatable` / `is_range_position_liquidatable` (quote balance vs `effective_health_debt` = vault debt or `margin_debt`). Execution uses `vault_flash::borrow_flash_liquidity` + `liquidation::flash_liquidate_*_with_redeem_permissionless`.
 
-On startup the keeper also loads `/v1/protocol` from the indexer to override registry, vault, fee collector, and predict IDs when synced.
+On startup the keeper loads `/v1/protocol` from the indexer to override registry, vault, and fee collector IDs (required for fill/settle/liquidate/trigger; limit expiry only needs `LEVERX_PACKAGE_ID`).
 
 ## HTTP API
 

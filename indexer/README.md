@@ -53,10 +53,7 @@ Production checkpoint sources: [Sui custom indexer build guide](https://docs.sui
 | `user_proxies` | `AccountCreated`, `PredictManagerLinked`, debt sync |
 | `account_timeline` | Account-scoped activity |
 | `vault_snapshots` | Vault / flash / insurance events (+ borrow/LP APR) |
-| `collateral_assets` | `CollateralWhitelisted` |
-| `swap_pools` | `SwapPoolRegistered` |
 | `protocol_settings` | `ProtocolDeployed`, `RegistryInitialized`, pause/rate updates |
-| `collateral_balances` | `CollateralDeposited/Withdrawn/Swapped` |
 | `position_triggers` | `TriggersUpdated/Cleared` |
 | `proxy_executors` | `ExecutorRegistered/Revoked` |
 | `liquidations` | `PositionLiquidated` |
@@ -71,7 +68,16 @@ docker build -f indexer/Dockerfile -t devarogundade/leverx-indexer:latest .
 docker push devarogundade/leverx-indexer:latest
 ```
 
-Required env: `DATABASE_URL`, `LEVERX_PACKAGE_ID`, `PREDICT_PACKAGE_ID`. Optional: `FIRST_CHECKPOINT`, `LEVERX_API_PORT` (default 3100), `METRICS_PORT` (default 9184, Sui framework default).
+Required env: `DATABASE_URL`, `LEVERX_PACKAGE_ID`, `PREDICT_PACKAGE_ID`, `REMOTE_STORE_URL`, `STREAMING_URL`. Optional: `FIRST_CHECKPOINT` (set to publish tx checkpoint after a fresh deploy), `LEVERX_API_PORT` (default 3100), `METRICS_PORT` (default 9184).
+
+After a fresh contract publish, wipe Postgres and re-index from the publish checkpoint:
+
+```bash
+bash indexer/scripts/reset-from-publish.sh
+# or: docker-compose -f indexer/docker-compose.ec2.yml down -v && FIRST_CHECKPOINT=346747492 docker-compose -f indexer/docker-compose.ec2.yml up -d --build
+```
+
+Verify: `curl -s http://127.0.0.1:3100/v1/protocol` should return the new `registry_id` / `vault_id` from `contracts/deploy-testnet.env`.
 
 ## HTTP API (`leverx-server`)
 
@@ -83,7 +89,7 @@ Required env: `DATABASE_URL`, `LEVERX_PACKAGE_ID`, `PREDICT_PACKAGE_ID`. Optiona
 | `GET /v1/points/leaderboard?limit&offset` | LeverX volume leaderboard (leveraged open/close only) |
 | `GET /v1/points/:owner` | Single trader rank + stats |
 | `GET /v1/orderbook?oracle_id&expiry_ms&strike&is_up&is_range&higher_strike` | Bid depth + synthetic asks |
-| `GET /v1/limit-orders?account_id&status&oracle_id` | Resting / filled limits |
+| `GET /v1/limit-orders?account_id&status&oracle_id&min_order_expires_ms&max_order_expires_ms` | Resting / filled limits |
 | `GET /v1/positions?owner&account_id&oracle_id&status&min_borrow_quote` | Leveraged positions (`status=all` disables default open filter; `min_borrow_quote` for keeper scans) |
 | `GET /v1/accounts?owner&account_id` | All user proxies |
 | `GET /v1/accounts/:id` | Account + open positions/limits |
@@ -93,10 +99,7 @@ Required env: `DATABASE_URL`, `LEVERX_PACKAGE_ID`, `PREDICT_PACKAGE_ID`. Optiona
 | `GET /v1/markets/:oracleId/trades` | LeverX market trades |
 | `GET /v1/global-markets/:oracleId/trades?trade_side&is_range` | Predict global mint/redeem trades |
 | `GET /v1/events?event_type` | Raw indexed events |
-| `GET /v1/collateral-assets` | Whitelisted collateral catalog |
-| `GET /v1/swap-pools` | DeepBook swap pool registry |
-| `GET /v1/protocol` | Protocol settings (pause, Pyth age, borrow params) |
-| `GET /v1/collateral-balances?account_id&position_key` | Per-position collateral balances |
+| `GET /v1/protocol` | Protocol settings (registry, vault, fee collector, pause, borrow params) |
 | `GET /v1/triggers?account_id` | Active take-profit / stop-loss triggers |
 | `GET /v1/executors?account_id` | Active proxy executors |
 | `GET /v1/liquidations?account_id&owner` | Liquidation history |

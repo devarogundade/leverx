@@ -44,7 +44,7 @@ export function useLeverxTransactions() {
     }
     if (!cfg) {
       throw new Error(
-        "LeverX protocol is not fully configured. Set registry, vault, and fee collector IDs.",
+        "LeverX protocol is not fully configured. Wait for deploy_and_share to be indexed, or set VITE_LEVERX_REGISTRY_ID / VAULT_ID / FEE_COLLECTOR_ID.",
       );
     }
     return { wallet, account, cfg };

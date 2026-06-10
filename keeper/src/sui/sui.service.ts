@@ -4,14 +4,7 @@ import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 import { Transaction } from '@mysten/sui/transactions';
 import type { KeeperConfig } from '../config/keeper.config';
-
-type ProtocolSettingsResponse = {
-  registry_id?: string;
-  vault_id?: string | null;
-  predict_id?: string | null;
-  fee_collector_id?: string | null;
-  trading_paused?: boolean;
-};
+import type { ProtocolSettings } from '../indexer/indexer.types';
 
 @Injectable()
 export class SuiService implements OnModuleInit {
@@ -54,7 +47,7 @@ export class SuiService implements OnModuleInit {
     try {
       const res = await fetch(`${this.cfg.indexerUrl}/v1/protocol`);
       if (!res.ok) return;
-      const settings = (await res.json()) as ProtocolSettingsResponse | null;
+      const settings = (await res.json()) as ProtocolSettings | null;
       if (!settings) return;
 
       if (settings.registry_id?.trim()) {
@@ -139,7 +132,8 @@ export class SuiService implements OnModuleInit {
     const settlement = core;
     const trigger = core;
 
-    const limit_order = core;
+    const limit_order =
+      require('packageId', 'packageId') && Boolean(this.keypair);
     const liquidation = core;
 
     const txReady = settlement && Boolean(this.keypair);

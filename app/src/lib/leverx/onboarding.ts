@@ -3,7 +3,7 @@ import type { WalletWithRequiredFeatures } from "@mysten/wallet-standard";
 import type { WalletAccount } from "@wallet-standard/core";
 import { fetchAccounts } from "@/lib/leverx/indexer-client";
 import { ONBOARD_GAS_BUDGET } from "@/lib/leverx/constants";
-import type { LeverxProtocolConfig } from "@/lib/leverx/protocol";
+import type { LeverxOnboardingConfig } from "@/lib/leverx/protocol";
 import { executeWalletTransaction } from "@/lib/sui/execute-transaction";
 
 export type LeverxAccount = {
@@ -50,7 +50,7 @@ function extractCreatedId(
 export async function resolveLeverxAccount(
   client: SuiJsonRpcClient,
   owner: string,
-  cfg: LeverxProtocolConfig,
+  cfg: LeverxOnboardingConfig,
 ): Promise<LeverxAccount | null> {
   try {
     const { items } = await fetchAccounts({ owner, limit: 5 });
@@ -88,7 +88,7 @@ export async function ensureLeverxAccount(params: {
   client: SuiJsonRpcClient;
   wallet: WalletWithRequiredFeatures;
   account: WalletAccount;
-  cfg: LeverxProtocolConfig;
+  cfg: LeverxOnboardingConfig;
 }): Promise<LeverxAccount> {
   const existing = await resolveLeverxAccount(
     params.client,
@@ -144,7 +144,7 @@ export async function ensureLeverxAccount(params: {
 
       tx.moveCall({
         target: `${params.cfg.packageId}::trade::create_user_proxy`,
-        arguments: [tx.object(params.cfg.deepbookRegistryId), managerIdArg],
+        arguments: [managerIdArg],
       });
     },
     { gasBudget: ONBOARD_GAS_BUDGET },

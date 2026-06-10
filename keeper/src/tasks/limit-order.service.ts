@@ -31,41 +31,83 @@ export class LimitOrderService {
     }
 
     const now = Date.now();
-    const fillable = await this.indexer.fetchAllPages((offset, pageSize) =>
+    const results: TaskResult[] = [];
+    const coreReady = this.sui.getTaskReadiness().tasks.settlement;
+
+    if (coreReady) {
+      const fillable = await this.indexer.fetchAllPages((offset, pageSize) =>
+        this.indexer.fetchLimitOrders({
+          status: 'open',
+          minOrderExpiresMs: now,
+          limit: pageSize,
+          offset,
+        }),
+      );
+
+      for (const order of fillable.slice(0, limit * 3)) {
+        if (results.filter((r) => r.success && r.kind === 'limit_order').length >= limit) {
+          break;
+        }
+
+        const target = `${order.account_id}:${order.position_key}`;
+        try {
+          if (!(await this.isFillable(order))) {
+            continue;
+          }
+
+          const account = await this.indexer.fetchAccount(order.account_id);
+          const managerId = account.account?.predict_manager_id;
+          if (!managerId) {
+            results.push({
+              kind: 'limit_order',
+              target,
+              success: false,
+              error: 'missing_predict_manager',
+            });
+            continue;
+          }
+
+          const tx = this.ptb.buildExecuteLimitMint(cfg, order, managerId);
+          if (!(await this.sui.devInspect(tx))) {
+            results.push({
+              kind: 'limit_order',
+              target,
+              success: false,
+              error: 'simulation_failed',
+            });
+            continue;
+          }
+
+          const digest = await this.sui.execute(tx);
+          this.logger.log(`filled limit ${target} digest=${digest}`);
+          results.push({ kind: 'limit_order', target, success: true, digest });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          this.logger.warn(`limit fill failed ${target}: ${message}`);
+          results.push({ kind: 'limit_order', target, success: false, error: message });
+        }
+      }
+    }
+
+    const expired = await this.indexer.fetchAllPages((offset, pageSize) =>
       this.indexer.fetchLimitOrders({
         status: 'open',
-        minOrderExpiresMs: now,
+        maxOrderExpiresMs: now,
         limit: pageSize,
         offset,
       }),
     );
 
-    const results: TaskResult[] = [];
-    for (const order of fillable.slice(0, limit * 3)) {
-      if (results.filter((r) => r.success).length >= limit) break;
+    let expiredCount = 0;
+    for (const order of expired) {
+      if (expiredCount >= limit) break;
 
       const target = `${order.account_id}:${order.position_key}`;
       try {
-        if (!(await this.isFillable(order))) {
-          continue;
-        }
-
-        const account = await this.indexer.fetchAccount(order.account_id);
-        const managerId = account.account?.predict_manager_id;
-        if (!managerId) {
-          results.push({
-            kind: 'limit_order',
-            target,
-            success: false,
-            error: 'missing_predict_manager',
-          });
-          continue;
-        }
-
-        const tx = this.ptb.buildExecuteLimitMint(cfg, order, managerId);
+        const tx = this.ptb.buildExpireLimitMint(cfg, order);
         if (!(await this.sui.devInspect(tx))) {
           results.push({
-            kind: 'limit_order',
+            kind: 'limit_order_expire',
             target,
             success: false,
             error: 'simulation_failed',
@@ -74,12 +116,18 @@ export class LimitOrderService {
         }
 
         const digest = await this.sui.execute(tx);
-        this.logger.log(`filled limit ${target} digest=${digest}`);
-        results.push({ kind: 'limit_order', target, success: true, digest });
+        this.logger.log(`expired limit ${target} digest=${digest}`);
+        results.push({ kind: 'limit_order_expire', target, success: true, digest });
+        expiredCount += 1;
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        this.logger.warn(`limit fill failed ${target}: ${message}`);
-        results.push({ kind: 'limit_order', target, success: false, error: message });
+        this.logger.warn(`limit expire failed ${target}: ${message}`);
+        results.push({
+          kind: 'limit_order_expire',
+          target,
+          success: false,
+          error: message,
+        });
       }
     }
 

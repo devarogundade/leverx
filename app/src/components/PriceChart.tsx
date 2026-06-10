@@ -21,6 +21,7 @@ import {
 import { ORACLE_SPOT_POLL_INTERVAL_MS } from "@/hooks/useOracleSpotPriceSeries";
 import type { PredictSide } from "@/lib/predict/instruments";
 import { useOracleSpotPriceSeries } from "@/hooks/useOracleSpotPriceSeries";
+import type { PricePoint } from "@/lib/predict/price-point";
 import { cn } from "@/lib/utils";
 import { tradeSurface } from "@/lib/leverx/tw";
 
@@ -28,6 +29,11 @@ interface Props {
   asset: string;
   pair?: string;
   oracleId: string;
+  /** When provided, skips internal predict-server polling (share one series per page). */
+  spotSeries?: PricePoint[];
+  spotSeriesLoading?: boolean;
+  spotSeriesError?: boolean;
+  onSpotSeriesRefetch?: () => void;
   /** Scaled strike for UP/DOWN. */
   strikePrice?: number;
   activeSide?: PredictSide;
@@ -52,6 +58,10 @@ export function PriceChart({
   asset,
   pair,
   oracleId,
+  spotSeries,
+  spotSeriesLoading,
+  spotSeriesError,
+  onSpotSeriesRefetch,
   strikePrice,
   activeSide = "up",
   rangeLower,
@@ -69,7 +79,13 @@ export function PriceChart({
   const lineDataRef = useRef<ReturnType<typeof buildStrikeAnchoredSpotLineData>>([]);
   const strikeLevelsRef = useRef<ReturnType<typeof buildStrikeChartLevels>>([]);
 
-  const { data: history, isLoading, isError, refetch } = useOracleSpotPriceSeries(oracleId);
+  const internalSeries = useOracleSpotPriceSeries(oracleId, {
+    enabled: spotSeries === undefined,
+  });
+  const history = spotSeries ?? internalSeries.data;
+  const isLoading = spotSeriesLoading ?? internalSeries.isLoading;
+  const isError = spotSeriesError ?? internalSeries.isError;
+  const refetch = onSpotSeriesRefetch ?? internalSeries.refetch;
 
   const lineData = useMemo(() => {
     if (!history?.length) return [];

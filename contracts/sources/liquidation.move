@@ -39,6 +39,7 @@ public fun flash_liquidate_with_redeem_permissionless<Quote>(
     clock: &Clock,
     ctx: &mut TxContext,
 ): Coin<Quote> {
+    protocol_registry::assert_predict(registry, predict);
     assert!(object::id(manager) == proxy.predict_manager_id(), errors::invalid_manager());
 
     let had_redeem = position_qty > 0;
@@ -84,6 +85,7 @@ public fun flash_liquidate_range_with_redeem_permissionless<Quote>(
     clock: &Clock,
     ctx: &mut TxContext,
 ): Coin<Quote> {
+    protocol_registry::assert_predict(registry, predict);
     assert!(object::id(manager) == proxy.predict_manager_id(), errors::invalid_manager());
 
     let had_redeem = position_qty > 0;
@@ -154,6 +156,7 @@ fun flash_liquidate_binary_internal<Quote>(
             ctx,
         );
         proxy.record_repay_for_binary(key, ledger_principal);
+        proxy.clear_binary_margin_debt(key);
         events::emit_vault_repaid(
             object::id(vault),
             object::id(proxy),
@@ -212,6 +215,7 @@ fun flash_liquidate_range_internal<Quote>(
             ctx,
         );
         proxy.record_repay_for_range(key, ledger_principal);
+        proxy.clear_range_margin_debt(key);
         events::emit_vault_repaid(
             object::id(vault),
             object::id(proxy),

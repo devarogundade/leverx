@@ -81,8 +81,8 @@ public fun share<Quote>(vault: LeverageVault<Quote>) {
     transfer::share_object(vault);
 }
 
-/// Update kinked borrow curve and flash-loan fee on an existing vault.
-public fun set_borrow_rate_params<Quote>(
+/// Update kinked borrow curve and flash-loan fee on an existing vault (package-only; admin via registry).
+public(package) fun set_borrow_rate_params<Quote>(
     vault: &mut LeverageVault<Quote>,
     base_rate_bps: u64,
     kink_utilization_bps: u64,

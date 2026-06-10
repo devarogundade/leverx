@@ -11,7 +11,6 @@ fun error_codes_are_distinct() {
     assert!(errors::not_liquidatable() != errors::insufficient_repayment(), 0);
     assert!(errors::invalid_protocol_vault() != errors::invalid_fee_collector(), 0);
     assert!(errors::limit_order_not_found() != errors::limit_order_exists(), 0);
-    assert!(errors::insufficient_margin() == errors::insufficient_collateral(), 0);
 }
 
 #[test]

@@ -399,7 +399,7 @@ export function buildOnboardingTx(
 
   tx.moveCall({
     target: `${cfg.packageId}::trade::create_user_proxy`,
-    arguments: [tx.object(cfg.deepbookRegistryId), managerIdArg],
+    arguments: [managerIdArg],
   });
 
   return tx;

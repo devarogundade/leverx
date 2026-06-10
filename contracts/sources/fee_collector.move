@@ -171,7 +171,7 @@ public(package) fun repay_vault_for_ledger_principal<Quote>(
 }
 
 /// Repay a vault flash loan: principal returns to liquidity; fee is split 80/10/10.
-public fun repay_flash_liquidity<Quote>(
+public(package) fun repay_flash_liquidity<Quote>(
     vault: &mut LeverageVault<Quote>,
     collector: &mut FeeCollector<Quote>,
     payment: Coin<Quote>,

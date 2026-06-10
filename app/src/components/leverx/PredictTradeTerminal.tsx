@@ -22,7 +22,10 @@ import {
   useIndexerVaultSummary,
   useMarketCatalog,
 } from "@/hooks/useIndexer";
-import { useOracleSpotMap } from "@/hooks/useOracleSpotMap";
+import {
+  useOraclePriceLatest,
+  useOracleSpotPriceSeries,
+} from "@/hooks/useOracleSpotPriceSeries";
 import { useOracleNeighbors, usePredictOracleRows } from "@/hooks/usePredictOracles";
 import { usePredictOracleState } from "@/hooks/usePredictOracleState";
 import {
@@ -169,6 +172,10 @@ function TerminalPriceChart({
   chartRangeLower,
   chartRangeUpper,
   layoutActive = true,
+  spotSeries,
+  spotSeriesLoading,
+  spotSeriesError,
+  onSpotSeriesRefetch,
 }: {
   sessionKey: string;
   asset: string;
@@ -178,6 +185,10 @@ function TerminalPriceChart({
   chartRangeLower?: number;
   chartRangeUpper?: number;
   layoutActive?: boolean;
+  spotSeries: ReturnType<typeof useOracleSpotPriceSeries>["data"];
+  spotSeriesLoading: boolean;
+  spotSeriesError: boolean;
+  onSpotSeriesRefetch: () => void;
 }) {
   return (
     <div className={tradeTerminalChart}>
@@ -185,6 +196,10 @@ function TerminalPriceChart({
         key={sessionKey}
         asset={asset}
         oracleId={oracleId}
+        spotSeries={spotSeries}
+        spotSeriesLoading={spotSeriesLoading}
+        spotSeriesError={spotSeriesError}
+        onSpotSeriesRefetch={onSpotSeriesRefetch}
         strikePrice={chartStrikePrice}
         activeSide={activeSide}
         rangeLower={chartRangeLower}
@@ -508,7 +523,13 @@ export function PredictTradeTerminal({
     activeOnly: true,
   });
   const { data: oracleState } = usePredictOracleState(oracleId);
-  const { data: spotMap } = useOracleSpotMap([oracleId]);
+  const { data: latestPrice } = useOraclePriceLatest(oracleId);
+  const {
+    data: spotSeries,
+    isLoading: spotSeriesLoading,
+    isError: spotSeriesError,
+    refetch: refetchSpotSeries,
+  } = useOracleSpotPriceSeries(oracleId);
 
   const oracleSummary = useMemo(
     () => oracles.find((o) => o.oracle_id === oracleId),
@@ -521,7 +542,7 @@ export function PredictTradeTerminal({
   );
 
   const oracleSpot =
-    spotMap?.get(oracleId) ??
+    latestPrice?.spot ??
     oracleState?.spot_price ??
     (oracleSummary?.settlement_price
       ? oracleSummary.settlement_price / 1e9
@@ -821,6 +842,10 @@ export function PredictTradeTerminal({
             activeSide={activeSide}
             chartRangeLower={chartRangeLower}
             chartRangeUpper={chartRangeUpper}
+            spotSeries={spotSeries}
+            spotSeriesLoading={spotSeriesLoading}
+            spotSeriesError={spotSeriesError}
+            onSpotSeriesRefetch={refetchSpotSeries}
           />
           <TerminalOrderBook
             sessionKey={sessionKey}
@@ -857,6 +882,10 @@ export function PredictTradeTerminal({
             chartRangeLower={chartRangeLower}
             chartRangeUpper={chartRangeUpper}
             layoutActive={showMobileChart}
+            spotSeries={spotSeries}
+            spotSeriesLoading={spotSeriesLoading}
+            spotSeriesError={spotSeriesError}
+            onSpotSeriesRefetch={refetchSpotSeries}
           />
           <TerminalOrderBook
             sessionKey={sessionKey}

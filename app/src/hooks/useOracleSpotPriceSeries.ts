@@ -1,9 +1,16 @@
-import { useCallback, useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { fetchOraclePriceLatest } from "@/lib/predict/client";
 import type { PricePoint } from "@/lib/predict/price-point";
 
 export const ORACLE_SPOT_POLL_INTERVAL_MS = 5_000;
 const MAX_SERIES_POINTS = 720;
+
+export const ORACLE_PRICE_LATEST_QUERY_KEY = "predict-oracle-price-latest";
+
+export function oraclePriceLatestQueryKey(oracleId: string) {
+  return [ORACLE_PRICE_LATEST_QUERY_KEY, oracleId] as const;
+}
 
 function polledPricePoint(
   latest: { spot: number; timestampMs?: number },
@@ -27,77 +34,58 @@ function appendPricePoint(prev: PricePoint[], point: PricePoint): PricePoint[] {
   return next.length > MAX_SERIES_POINTS ? next.slice(-MAX_SERIES_POINTS) : next;
 }
 
-/** Live oracle spot series from `GET /oracles/:id/prices/latest` (polled). */
-export function useOracleSpotPriceSeries(oracleId: string) {
+/** Shared poll for `GET /oracles/:id/prices/latest` (deduped via React Query). */
+export function useOraclePriceLatest(
+  oracleId: string,
+  options?: { enabled?: boolean },
+) {
+  const enabled = Boolean(oracleId) && (options?.enabled ?? true);
+
+  return useQuery({
+    queryKey: oraclePriceLatestQueryKey(oracleId),
+    queryFn: () => fetchOraclePriceLatest(oracleId),
+    enabled,
+    staleTime: ORACLE_SPOT_POLL_INTERVAL_MS / 2,
+    refetchInterval: enabled ? ORACLE_SPOT_POLL_INTERVAL_MS : false,
+    refetchIntervalInBackground: false,
+    retry: 1,
+  });
+}
+
+/** Live oracle spot series built from shared latest-price polls. */
+export function useOracleSpotPriceSeries(
+  oracleId: string,
+  options?: { enabled?: boolean },
+) {
+  const enabled = Boolean(oracleId) && (options?.enabled ?? true);
+  const {
+    data: latest,
+    isLoading,
+    isError,
+    isFetched,
+    refetch,
+  } = useOraclePriceLatest(oracleId, { enabled });
+
   const [points, setPoints] = useState<PricePoint[]>([]);
-  const [isLoading, setIsLoading] = useState(Boolean(oracleId));
-  const [isError, setIsError] = useState(false);
 
-  const poll = useCallback(async () => {
-    if (!oracleId) return false;
+  useEffect(() => {
+    setPoints([]);
+  }, [oracleId]);
 
-    const latest = await fetchOraclePriceLatest(oracleId);
-    if (!latest) return false;
-
+  useEffect(() => {
+    if (!latest) return;
     setPoints((prev) => {
       const last = prev[prev.length - 1];
       return appendPricePoint(prev, polledPricePoint(latest, last));
     });
-    setIsError(false);
-    setIsLoading(false);
-    return true;
-  }, [oracleId]);
-
-  useEffect(() => {
-    if (!oracleId) {
-      setPoints([]);
-      setIsLoading(false);
-      setIsError(false);
-      return;
-    }
-
-    setPoints([]);
-    setIsLoading(true);
-    setIsError(false);
-
-    let cancelled = false;
-
-    const tick = async () => {
-      try {
-        const ok = await poll();
-        if (!cancelled && !ok) {
-          setPoints((prev) => {
-            if (prev.length === 0) setIsError(true);
-            return prev;
-          });
-          setIsLoading(false);
-        }
-      } catch {
-        if (!cancelled) {
-          setPoints((prev) => {
-            if (prev.length === 0) setIsError(true);
-            return prev;
-          });
-          setIsLoading(false);
-        }
-      }
-    };
-
-    void tick();
-    const id = window.setInterval(() => {
-      void tick();
-    }, ORACLE_SPOT_POLL_INTERVAL_MS);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-    };
-  }, [oracleId, poll]);
+  }, [latest]);
 
   return {
     data: points,
-    isLoading,
-    isError,
-    refetch: poll,
+    isLoading: enabled && isLoading && !isFetched && points.length === 0,
+    isError: enabled && isError && points.length === 0,
+    refetch: () => {
+      void refetch();
+    },
   };
 }

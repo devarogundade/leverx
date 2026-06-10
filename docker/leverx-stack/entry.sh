@@ -33,6 +33,12 @@ if command -v pg_isready >/dev/null 2>&1; then
 fi
 
 indexer_args=()
+if [[ -n "${REMOTE_STORE_URL:-}" ]]; then
+  indexer_args+=(--remote-store-url "${REMOTE_STORE_URL}")
+fi
+if [[ -n "${STREAMING_URL:-}" ]]; then
+  indexer_args+=(--streaming-url "${STREAMING_URL}")
+fi
 if [[ -n "${FIRST_CHECKPOINT:-}" ]]; then
   indexer_args+=(--first-checkpoint "${FIRST_CHECKPOINT}")
   echo "starting leverx-indexer from checkpoint ${FIRST_CHECKPOINT}..."

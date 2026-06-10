@@ -7,7 +7,8 @@ import type {
   LimitMintOrder,
   OrderBookResponse,
   Paginated,
-  TriggerState,
+  PositionTrigger,
+  ProtocolSettings,
   UserProxy,
 } from './indexer.types';
 
@@ -69,6 +70,10 @@ export class IndexerService {
       this.logger.warn(`indexer health check failed: ${String(err)}`);
       return { ok: false };
     }
+  }
+
+  fetchProtocol(): Promise<ProtocolSettings | null> {
+    return this.get('/v1/protocol');
   }
 
   fetchPositions(args?: {
@@ -137,6 +142,7 @@ export class IndexerService {
   fetchLimitOrders(args?: {
     status?: string;
     minOrderExpiresMs?: number;
+    maxOrderExpiresMs?: number;
     limit?: number;
     offset?: number;
   }): Promise<Paginated<LimitMintOrder>> {
@@ -144,6 +150,7 @@ export class IndexerService {
       `/v1/limit-orders${this.buildQuery({
         status: args?.status ?? 'open',
         min_order_expires_ms: args?.minOrderExpiresMs,
+        max_order_expires_ms: args?.maxOrderExpiresMs,
         limit: args?.limit ?? 500,
         offset: args?.offset ?? 0,
       })}`,
@@ -196,7 +203,7 @@ export class IndexerService {
     accountId?: string;
     limit?: number;
     offset?: number;
-  }): Promise<Paginated<TriggerState>> {
+  }): Promise<Paginated<PositionTrigger>> {
     return this.get(
       `/v1/triggers${this.buildQuery({
         account_id: args?.accountId,

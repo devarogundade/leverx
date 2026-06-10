@@ -125,6 +125,8 @@ struct ListQuery {
     exclude_status: Option<String>,
     /// When set, only limit orders with `order_expires_ms > min_order_expires_ms`.
     min_order_expires_ms: Option<i64>,
+    /// When set, only limit orders with `order_expires_ms <= max_order_expires_ms` (keeper expiry).
+    max_order_expires_ms: Option<i64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -200,6 +202,9 @@ async fn limit_orders(
     }
     if let Some(min_expires) = q.min_order_expires_ms {
         query = query.filter(limit_mint_orders::order_expires_ms.gt(min_expires));
+    }
+    if let Some(max_expires) = q.max_order_expires_ms {
+        query = query.filter(limit_mint_orders::order_expires_ms.le(max_expires));
     }
     if q.has_margin == Some(true) {
         query = query.filter(limit_mint_orders::margin_quote.gt(0));

@@ -23,10 +23,8 @@ const E_INVALID_LEVERAGE: u64 = 5;
 // --- Margin ---
 
 const E_INSUFFICIENT_MARGIN: u64 = 6;
-/// Deprecated alias — same code as `E_INSUFFICIENT_MARGIN` (indexer / client compat).
-const E_INSUFFICIENT_COLLATERAL: u64 = 6;
-const E_COLLATERAL_NOT_SUPPORTED: u64 = 8;
-const E_WITHDRAW_EXCEEDS_MAINTENANCE: u64 = 24;
+const E_INVALID_PREDICT: u64 = 8;
+const E_LIMIT_ORDER_STILL_ACTIVE: u64 = 12;
 
 // --- Debt & vault liquidity ---
 
@@ -38,18 +36,11 @@ const E_INVALID_FLASH_REPAYMENT: u64 = 22;
 
 // --- LTV & liquidation ---
 
-const E_LTV_EXCEEDED: u64 = 10;
 const E_NOT_LIQUIDATABLE: u64 = 18;
 
 // --- Oracle & pricing ---
 
-const E_INVALID_PYTH_PRICE: u64 = 13;
-const E_PRICE_FEED_MISMATCH: u64 = 14;
 const E_ORACLE_NOT_SETTLED: u64 = 19;
-
-// --- Swap routing ---
-
-const E_INVALID_SWAP_POOL: u64 = 12;
 
 // --- Trading & slippage ---
 
@@ -76,9 +67,6 @@ const E_TRIGGER_NOT_FOUND: u64 = 20;
 
 const E_INVALID_PROTOCOL_VAULT: u64 = 36;
 const E_INVALID_FEE_COLLECTOR: u64 = 37;
-const E_INVALID_COLLATERAL_CONFIG: u64 = 38;
-const E_SAME_ASSET_SWAP: u64 = 39;
-const E_LIQUIDATION_NO_COLLATERAL: u64 = 40;
 const E_INVALID_MARGIN: u64 = 41;
 
 // --- Auth & access control ---
@@ -108,22 +96,16 @@ public fun zero_quantity(): u64 { E_ZERO_QUANTITY }
 /// Leverage is outside the protocol min/max bounds.
 public fun invalid_leverage(): u64 { E_INVALID_LEVERAGE }
 
-// --- Collateral & margin ---
+// --- Margin ---
 
 /// User does not hold enough quote margin for the operation.
 public fun insufficient_margin(): u64 { E_INSUFFICIENT_MARGIN }
 
-/// Deprecated alias — use `insufficient_margin`.
-public fun insufficient_collateral(): u64 { E_INSUFFICIENT_MARGIN }
-
-/// Collateral type is not whitelisted in the protocol registry.
-public fun collateral_not_supported(): u64 { E_COLLATERAL_NOT_SUPPORTED }
-
-/// Withdrawal would drop position below maintenance LTV.
-public fun withdraw_exceeds_maintenance(): u64 { E_WITHDRAW_EXCEEDS_MAINTENANCE }
-
 /// Margin amount is outside the protocol min/max bounds.
 public fun invalid_margin(): u64 { E_INVALID_MARGIN }
+
+/// Predict shared object ID does not match the registry's linked deployment.
+public fun invalid_predict(): u64 { E_INVALID_PREDICT }
 
 // --- Debt & vault liquidity ---
 
@@ -144,27 +126,13 @@ public fun invalid_flash_repayment(): u64 { E_INVALID_FLASH_REPAYMENT }
 
 // --- LTV & liquidation ---
 
-/// Post-trade loan-to-value exceeds the collateral's max LTV cap.
-public fun ltv_exceeded(): u64 { E_LTV_EXCEEDED }
-
 /// Position health is above the liquidation threshold — cannot liquidate.
 public fun not_liquidatable(): u64 { E_NOT_LIQUIDATABLE }
 
 // --- Oracle & pricing ---
 
-/// Pyth price is stale, zero, or fails confidence checks.
-public fun invalid_pyth_price(): u64 { E_INVALID_PYTH_PRICE }
-
-/// Supplied price feed ID does not match the collateral's registered feed.
-public fun price_feed_mismatch(): u64 { E_PRICE_FEED_MISMATCH }
-
 /// DeepBook Predict oracle has not settled for the current round.
 public fun oracle_not_settled(): u64 { E_ORACLE_NOT_SETTLED }
-
-// --- Swap routing ---
-
-/// DeepBook pool ID does not match the registry's swap pool for this asset.
-public fun invalid_swap_pool(): u64 { E_INVALID_SWAP_POOL }
 
 // --- Trading & slippage ---
 
@@ -203,6 +171,9 @@ public fun limit_order_expired(): u64 { E_LIMIT_ORDER_EXPIRED }
 /// Expiry is in the past or after the market's oracle expiry.
 public fun invalid_limit_order_expiry(): u64 { E_INVALID_LIMIT_ORDER_EXPIRY }
 
+/// Resting limit order has not yet passed its expiry timestamp.
+public fun limit_order_still_active(): u64 { E_LIMIT_ORDER_STILL_ACTIVE }
+
 // --- Triggers ---
 
 /// No take-profit / stop-loss triggers are set for the requested market key.
@@ -213,12 +184,3 @@ public fun invalid_protocol_vault(): u64 { E_INVALID_PROTOCOL_VAULT }
 
 /// Fee collector object ID does not match the registry's linked collector.
 public fun invalid_fee_collector(): u64 { E_INVALID_FEE_COLLECTOR }
-
-/// Collateral LTV parameters fail protocol sanity checks.
-public fun invalid_collateral_config(): u64 { E_INVALID_COLLATERAL_CONFIG }
-
-/// Spot swap requested with identical base and quote asset types.
-public fun same_asset_swap(): u64 { E_SAME_ASSET_SWAP }
-
-/// Liquidation invoked with zero balance for the declared collateral asset type.
-public fun liquidation_no_collateral(): u64 { E_LIQUIDATION_NO_COLLATERAL }

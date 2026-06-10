@@ -30,12 +30,12 @@ services:
       INDEXER_DATABASE_URL: postgres://leverx:leverx@postgres:5432/leverx_indexer
       PGHOST: postgres
       PGUSER: leverx
-      LEVERX_PACKAGE_ID: "0x0d97963b7032ca790844559446a8fb4b036d00d0c7e50f338840d4ad6d109a20"
+      LEVERX_PACKAGE_ID: "0x81e913fc694919d1fca5ebc78c05d996a77d050a9568e6d055825acd339baae1"
       PREDICT_PACKAGE_ID: "0xf5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138"
       REMOTE_STORE_URL: "https://checkpoints.testnet.sui.io"
       STREAMING_URL: "https://fullnode.testnet.sui.io:443"
-      # Publish tx ArY5Hjw2DwBdd2h1ua8xTgYeoQtchqGoXGvHRoE1fTKn (contracts/deploy-testnet.env)
-      FIRST_CHECKPOINT: "346394798"
+      # Publish tx 866WrEoHQrxvTSqK38oXXKqNigoFDUhgFYAy7HDuVbXi @ checkpoint 346747492
+      FIRST_CHECKPOINT: "346747492"
       CORS_ORIGIN: "https://*.suileverx.xyz"
       LEVERX_API_PORT: "3100"
       METRICS_PORT: "9184"

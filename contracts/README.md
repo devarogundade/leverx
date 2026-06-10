@@ -4,45 +4,41 @@
 
 **Convention:** each file `foo.move` defines exactly one module `leverx::foo`.
 
-LeverX is a leveraged trading layer on [DeepBook Predict](https://docs.sui.io/onchain-finance/deepbook-predict/deepbook-predict). Traders deposit cross-collateral, borrow dUSDC from the LeverageVault, and mint binary positions via their linked PredictManager.
+LeverX is a leveraged trading layer on [DeepBook Predict](https://docs.sui.io/onchain-finance/deepbook-predict/deepbook-predict). Traders deposit dUSDC margin, borrow from the `LeverageVault`, and mint binary positions via their linked `PredictManager`.
 
 ## Dependencies
 
-| Dependency         | Purpose                                                            |
-| ------------------ | ------------------------------------------------------------------ |
-| `deepbook_predict` | Binary option mint/redeem via shared `Predict` + `PredictManager`  |
-| `deepbook_margin`  | Reference patterns for Pyth oracle + DeepBook pool proxy (testnet) |
-| `deepbook`         | Spot pool market orders for collateral → dUSDC swap                |
-| `pyth`             | Cross-collateral LTV pricing via `PriceInfoObject` feeds           |
+| Dependency         | Purpose                                                           |
+| ------------------ | ----------------------------------------------------------------- |
+| `deepbook_predict` | Binary option mint/redeem via shared `Predict` + `PredictManager` |
 
-Pinned to testnet (`predict-testnet-4-16`, `margin-testnet`, `sui-contract-testnet`).
+Pinned to testnet (`predict-testnet-4-16`).
 
 ## Layout
 
-| File                  | Module                   | Who calls it                                         |
-| --------------------- | ------------------------ | ---------------------------------------------------- |
-| `trade.move`          | `leverx::trade`          | App — deposit, swap, open position, repay            |
-| `account.move`        | `leverx::account`        | App — create proxy account                           |
-| `vault.move`          | `leverx::vault`          | App (LP supply/withdraw), `trade` (borrow/repay)     |
-| `registry.move`       | `leverx::registry`       | Admin — initialize, register collateral + swap pools |
-| `ltv.move`            | `leverx::ltv`            | Internal — Pyth collateral valuation + LTV checks    |
-| `spot_swap.move`      | `leverx::spot_swap`      | Internal — DeepBook spot sell for quote              |
-| `predict_client.move` | `leverx::predict_client` | Internal — Predict mint/redeem wrappers              |
-| `constants.move`      | `leverx::constants`      | Internal — scaling, max leverage                     |
-| `events.move`         | `leverx::events`         | Internal — indexer events                            |
-| `errors.move`         | `leverx::errors`         | Internal — abort codes                               |
+| File                    | Module                      | Who calls it                              |
+| ----------------------- | --------------------------- | ----------------------------------------- |
+| `trade.move`            | `leverx::trade`             | App — deposit, open/close, limits, repay  |
+| `user_proxy.move`       | `leverx::user_proxy`        | Internal — per-user custody + ledgers     |
+| `proxy_vault.move`      | `leverx::proxy_vault`       | Internal — in-proxy coin custody          |
+| `leverage_vault.move`   | `leverx::leverage_vault`    | App (LP supply/withdraw), `trade` (borrow) |
+| `protocol_registry.move`| `leverx::protocol_registry` | Admin — pause, fee withdraw, vault params |
+| `ltv.move`              | `leverx::ltv`               | Internal — quote-only health math         |
+| `predict_client.move`   | `leverx::predict_client`    | Internal — Predict mint/redeem wrappers   |
+| `protocol_constants.move` | `leverx::protocol_constants` | Internal — scaling, leverage bounds    |
+| `events.move`           | `leverx::events`            | Internal — indexer events                 |
+| `errors.move`           | `leverx::errors`            | Internal — abort codes                    |
 
 ## Transaction model
 
 Typical leveraged open (single PTB):
 
-1. `predict::create_manager` (if needed)
-2. `trade::create_account` — link PredictManager
-3. `trade::deposit_collateral` — post cross-collateral
-4. `trade::swap_collateral_to_quote` — when margin asset ≠ dUSDC
-5. `trade::open_leveraged_position` — LTV check, vault borrow, `predict::mint`
+1. `predict_client::create_manager` (if needed)
+2. `trade::create_user_proxy` — link `PredictManager`
+3. `trade::deposit_quote_for_binary` / `deposit_quote_for_range` — post margin
+4. `trade::leveraged_mint_*` — vault borrow + `predict::mint`
 
-LP flows use `vault::supply` / `vault::withdraw` directly.
+LP flows use `leverage_vault::supply` / `withdraw` directly.
 
 ## Tests
 
@@ -56,17 +52,7 @@ On Windows, use WSL2 for the Sui toolchain.
 
 After publish:
 
-1. Mint `LXPLP` treasury cap and call `vault::new` + `vault::share`
-2. Call `registry::initialize` with `AdminCap`, `PREDICT_ID`, vault ID
-3. `whitelist_collateral_entry` per asset with Pyth feed + per-asset LTV bps (see env catalog)
-4. `register_swap_pool_entry` per collateral → DeepBook spot pool ID
+1. Mint `LXPLP` treasury cap and call `deploy::deploy_and_share` (vault + fee collector + registry)
+2. IDs land in `deploy-testnet.env` and `app/src/lib/config.ts`
 
-**Initial launch collateral** (configure on-chain via admin; documented in `keeper/.env.example`):
-
-| Asset | Max LTV          | Notes                  |
-| ----- | ---------------- | ---------------------- |
-| dUSDC | 90% (9000 bps max) | quote-native margin; liquidation below 95% health |
-
-`liquidation_ltv_bps = 9500` (liquidate when health falls below 95%).
-
-IDs from `deploy-testnet.env` and `app/src/lib/config.ts`.
+Margin-call threshold: health below 95% (`protocol_constants::margin_call_bps`).

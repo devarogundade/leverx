@@ -103,6 +103,7 @@ export async function fetchRedeemQuote(params: {
   tx.moveCall({
     target: `${params.cfg.packageId}::trade::${fn}`,
     arguments: [
+      tx.object(params.cfg.registryId),
       tx.object(params.cfg.predictId),
       tx.object(params.key.oracleId),
       marketKey,

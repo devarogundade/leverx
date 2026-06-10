@@ -1,1 +1,14 @@
 /// <reference types="vite/client" />
+
+interface ImportMetaEnv {
+  readonly VITE_LEVERX_PACKAGE_ID?: string;
+  readonly VITE_LEVERX_REGISTRY_ID?: string;
+  readonly VITE_LEVERX_VAULT_ID?: string;
+  readonly VITE_LEVERX_FEE_COLLECTOR_ID?: string;
+  readonly VITE_LEVERX_INDEXER_URL?: string;
+  readonly VITE_LEVERX_INDEXER_WS_URL?: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}

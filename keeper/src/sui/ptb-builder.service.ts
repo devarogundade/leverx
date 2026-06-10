@@ -102,6 +102,24 @@ export class PtbBuilderService {
     return tx;
   }
 
+  buildExpireLimitMint(cfg: KeeperConfig, order: LimitMintOrder): Transaction {
+    const tx = new Transaction();
+    const key = this.addMarketKey(tx, cfg, this.keyFromLimitOrder(order));
+    const fn = order.is_range
+      ? 'expire_range_limit_mint_order'
+      : 'expire_binary_limit_mint_order';
+
+    tx.moveCall({
+      target: `${cfg.packageId}::trade::${fn}`,
+      arguments: [
+        tx.object(order.account_id),
+        key,
+        tx.object(SUI_CLOCK_OBJECT_ID),
+      ],
+    });
+    return tx;
+  }
+
   buildExecuteLimitMint(
     cfg: KeeperConfig,
     order: LimitMintOrder,

@@ -4,6 +4,7 @@
 /// Global LeverX configuration: Predict link, vault, fee collector, trading pause.
 module leverx::protocol_registry;
 
+use deepbook_predict::predict::Predict;
 use leverx::{
     protocol_constants,
     errors,
@@ -172,6 +173,11 @@ public fun assert_vault<Quote>(registry: &LeverxRegistry, vault: &LeverageVault<
 /// Assert the fee collector object matches the registry deployment link.
 public fun assert_fee_collector<Quote>(registry: &LeverxRegistry, collector: &FeeCollector<Quote>) {
     assert!(object::id(collector) == registry.fee_collector_id, errors::invalid_fee_collector());
+}
+
+/// Assert the Predict shared object matches the registry deployment link.
+public fun assert_predict(registry: &LeverxRegistry, predict: &Predict) {
+    assert!(object::id(predict) == registry.predict_id, errors::invalid_predict());
 }
 
 #[test_only]

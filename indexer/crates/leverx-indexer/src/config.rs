@@ -5,7 +5,7 @@ use sui_types::base_types::ObjectID;
 
 /// Default published leverx package on testnet (see `contracts/deploy-testnet.env`).
 const DEFAULT_LEVERX_PACKAGE_ID: &str =
-    "0x0d97963b7032ca790844559446a8fb4b036d00d0c7e50f338840d4ad6d109a20";
+    "0x81e913fc694919d1fca5ebc78c05d996a77d050a9568e6d055825acd339baae1";
 
 /// Default testnet `deepbook_predict` package (`contracts/Move.toml` published-at).
 const DEFAULT_PREDICT_PACKAGE_ID: &str =

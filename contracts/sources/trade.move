@@ -9,7 +9,6 @@
 /// Mutating flows delegate to internal `execute_*` helpers and emit indexer events via `events`.
 module leverx::trade;
 
-use deepbook::registry::Registry;
 use deepbook_predict::{
     market_key::MarketKey,
     oracle::OracleSVI,
@@ -28,17 +27,18 @@ use leverx::{
     protocol_registry::{Self, LeverxRegistry},
     leverage_vault::{Self as vault_mod, LeverageVault},
 };
+use std::u128;
 use sui::{clock::Clock, coin::{Self, Coin}};
+
+fun assert_registry_predict(registry: &LeverxRegistry, predict: &Predict) {
+    protocol_registry::assert_predict(registry, predict);
+}
 
 // === Factory ===
 
 /// Create a new `UserProxy` owned by the sender and linked to a DeepBook Predict manager.
-public entry fun create_user_proxy(
-    deepbook_registry: &Registry,
-    predict_manager_id: ID,
-    ctx: &mut TxContext,
-) {
-    user_proxy::create(deepbook_registry, predict_manager_id, ctx);
+public entry fun create_user_proxy(predict_manager_id: ID, ctx: &mut TxContext) {
+    user_proxy::create(predict_manager_id, ctx);
 }
 
 /// Re-link the proxy to a different DeepBook Predict `PredictManager` (owner or executor).
@@ -327,6 +327,7 @@ public fun place_binary_limit_mint_order<Quote>(
     ctx: &mut TxContext,
 ) {
     assert!(!registry.trading_paused(), errors::trading_paused());
+    assert_registry_predict(registry, predict_global);
     proxy.assert_can_act(ctx);
     assert!(quantity > 0, errors::zero_quantity());
     assert!(margin_quote > 0, errors::zero_amount());
@@ -402,6 +403,7 @@ public fun place_range_limit_mint_order<Quote>(
     ctx: &mut TxContext,
 ) {
     assert!(!registry.trading_paused(), errors::trading_paused());
+    assert_registry_predict(registry, predict_global);
     proxy.assert_can_act(ctx);
     assert!(quantity > 0, errors::zero_quantity());
     assert!(margin_quote > 0, errors::zero_amount());
@@ -626,6 +628,64 @@ public fun cancel_range_limit_mint_order(
     );
 }
 
+/// Permissionless: cancel an expired binary limit mint and release reserved margin.
+public fun expire_binary_limit_mint_order(
+    proxy: &mut UserProxy,
+    key: MarketKey,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    user_proxy::assert_binary_limit_mint_expired(proxy, key, clock);
+    let order = proxy.cancel_binary_limit_mint(key);
+    user_proxy::release_binary_quote_reserve(
+        proxy,
+        key,
+        user_proxy::margin_quote(&order),
+        ctx,
+    );
+    events::emit_limit_mint_order_cancelled(
+        object::id(proxy),
+        proxy.owner(),
+        key.oracle_id(),
+        key.expiry(),
+        key.strike(),
+        0,
+        false,
+        key.is_up(),
+        user_proxy::expires_ms(&order),
+        ctx.sender(),
+    );
+}
+
+/// Permissionless: cancel an expired range limit mint and release reserved margin.
+public fun expire_range_limit_mint_order(
+    proxy: &mut UserProxy,
+    key: RangeKey,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    user_proxy::assert_range_limit_mint_expired(proxy, key, clock);
+    let order = proxy.cancel_range_limit_mint(key);
+    user_proxy::release_range_quote_reserve(
+        proxy,
+        key,
+        user_proxy::margin_quote(&order),
+        ctx,
+    );
+    events::emit_limit_mint_order_cancelled(
+        object::id(proxy),
+        proxy.owner(),
+        key.oracle_id(),
+        key.expiry(),
+        key.lower_strike(),
+        key.higher_strike(),
+        true,
+        false,
+        user_proxy::expires_ms(&order),
+        ctx.sender(),
+    );
+}
+
 /// Read the pending resting binary limit mint order for a market key, if any.
 public fun get_binary_limit_mint_order(
     proxy: &UserProxy,
@@ -729,6 +789,7 @@ public fun settle_expired_proxy_position<Quote>(
     ctx: &mut TxContext,
 ) {
     assert!(!registry.trading_paused(), errors::trading_paused());
+    assert_registry_predict(registry, predict_global);
     assert!(oracle.is_settled(), errors::oracle_not_settled());
     proxy.assert_can_act(ctx);
 
@@ -762,6 +823,7 @@ public fun settle_expired_proxy_range<Quote>(
     ctx: &mut TxContext,
 ) {
     assert!(!registry.trading_paused(), errors::trading_paused());
+    assert_registry_predict(registry, predict_global);
     assert!(oracle.is_settled(), errors::oracle_not_settled());
     proxy.assert_can_act(ctx);
 
@@ -814,11 +876,7 @@ public fun deleverage_binary_account_balance<Quote>(
     let ledger_principal = proxy.binary_borrowed_quote(key);
     let debt = vault_mod::debt_with_accrued_interest(vault, ledger_principal);
     let repay_amt = if (amount > debt) { debt } else { amount };
-    let principal_repaid = if (repay_amt >= debt) {
-        ledger_principal
-    } else {
-        ((repay_amt as u128) * (ledger_principal as u128) / (debt as u128)) as u64
-    };
+    let principal_repaid = principal_repaid_for_payment(repay_amt, debt, ledger_principal);
     let mut funds = repayment_funds;
     let repay_coin = funds.split(repay_amt, ctx);
     fee_collector::repay_vault_for_ledger_principal(
@@ -871,11 +929,7 @@ public fun deleverage_range_account_balance<Quote>(
     let ledger_principal = proxy.range_borrowed_quote(key);
     let debt = vault_mod::debt_with_accrued_interest(vault, ledger_principal);
     let repay_amt = if (amount > debt) { debt } else { amount };
-    let principal_repaid = if (repay_amt >= debt) {
-        ledger_principal
-    } else {
-        ((repay_amt as u128) * (ledger_principal as u128) / (debt as u128)) as u64
-    };
+    let principal_repaid = principal_repaid_for_payment(repay_amt, debt, ledger_principal);
     let mut funds = repayment_funds;
     let repay_coin = funds.split(repay_amt, ctx);
     fee_collector::repay_vault_for_ledger_principal(
@@ -970,6 +1024,7 @@ public fun quote_leveraged_mint_binary<Quote>(
     quantity: u64,
     clock: &Clock,
 ): (u64, u64, u64) {
+    assert_registry_predict(registry, predict_global);
     let (market_ask, mint_cost) =
         predict_client::market_ask_binary(predict_global, oracle, key, quantity, clock);
     let borrow_quote = quote_borrow_for_leverage_binary(
@@ -994,6 +1049,7 @@ public fun quote_leveraged_mint_range<Quote>(
     quantity: u64,
     clock: &Clock,
 ): (u64, u64, u64) {
+    assert_registry_predict(registry, predict_global);
     let (market_ask, mint_cost) =
         predict_client::market_ask_range(predict_global, oracle, key, quantity, clock);
     let borrow_quote = quote_borrow_for_leverage_range(
@@ -1008,23 +1064,27 @@ public fun quote_leveraged_mint_range<Quote>(
 
 /// Read-only quote for binary redeem. Returns `(market_bid_per_unit, expected_payout)`.
 public fun quote_leveraged_redeem_binary(
+    registry: &LeverxRegistry,
     predict_global: &Predict,
     oracle: &OracleSVI,
     key: MarketKey,
     quantity: u64,
     clock: &Clock,
 ): (u64, u64) {
+    assert_registry_predict(registry, predict_global);
     predict_client::market_bid_binary(predict_global, oracle, key, quantity, clock)
 }
 
 /// Read-only quote for range redeem.
 public fun quote_leveraged_redeem_range(
+    registry: &LeverxRegistry,
     predict_global: &Predict,
     oracle: &OracleSVI,
     key: RangeKey,
     quantity: u64,
     clock: &Clock,
 ): (u64, u64) {
+    assert_registry_predict(registry, predict_global);
     predict_client::market_bid_range(predict_global, oracle, key, quantity, clock)
 }
 
@@ -1228,6 +1288,7 @@ fun execute_leveraged_mint_binary<Quote>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
+    assert_registry_predict(registry, predict_global);
     let (_, borrow_quote) = plan_leverage_binary(
         registry,
         proxy,
@@ -1296,6 +1357,7 @@ fun execute_leveraged_mint_range<Quote>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
+    assert_registry_predict(registry, predict_global);
     let (_, borrow_quote) = plan_leverage_range(
         registry,
         proxy,
@@ -1395,6 +1457,7 @@ fun execute_leveraged_redeem_binary<Quote>(
     ctx: &mut TxContext,
 ) {
     assert!(!registry.trading_paused(), errors::trading_paused());
+    assert_registry_predict(registry, predict_global);
     proxy.assert_can_act(ctx);
     assert!(object::id(manager) == proxy.predict_manager_id(), errors::invalid_manager());
 
@@ -1435,6 +1498,7 @@ fun execute_leveraged_redeem_range<Quote>(
     ctx: &mut TxContext,
 ) {
     assert!(!registry.trading_paused(), errors::trading_paused());
+    assert_registry_predict(registry, predict_global);
     proxy.assert_can_act(ctx);
     assert!(object::id(manager) == proxy.predict_manager_id(), errors::invalid_manager());
 
@@ -1454,6 +1518,21 @@ fun execute_leveraged_redeem_range<Quote>(
     let payout = predict_client::manager_balance<Quote>(manager) - balance_before;
 
     repay_from_payout_range(vault, collector, proxy, manager, payout, key, quantity, is_settled, clock, ctx);
+}
+
+fun principal_repaid_for_payment(
+    repay_amt: u64,
+    debt: u64,
+    ledger_principal: u64,
+): u64 {
+    if (repay_amt >= debt) {
+        ledger_principal
+    } else {
+        u128::divide_and_round_up(
+            (repay_amt as u128) * (ledger_principal as u128),
+            debt as u128,
+        ) as u64
+    }
 }
 
 fun validate_redeem_order(
@@ -1625,11 +1704,7 @@ fun repay_from_payout_binary<Quote>(
     let ledger_principal = proxy.binary_borrowed_quote(key);
     let debt = vault_mod::debt_with_accrued_interest(vault, ledger_principal);
     let repay_amt = if (payout >= debt) { debt } else { payout };
-    let principal_repaid = if (repay_amt >= debt) {
-        ledger_principal
-    } else {
-        ((repay_amt as u128) * (ledger_principal as u128) / (debt as u128)) as u64
-    };
+    let principal_repaid = principal_repaid_for_payment(repay_amt, debt, ledger_principal);
     let surplus = payout - repay_amt;
 
     let mut payout_coin = predict_client::withdraw_quote(manager, payout, ctx);
@@ -1705,11 +1780,7 @@ fun repay_from_payout_range<Quote>(
     let ledger_principal = proxy.range_borrowed_quote(key);
     let debt = vault_mod::debt_with_accrued_interest(vault, ledger_principal);
     let repay_amt = if (payout >= debt) { debt } else { payout };
-    let principal_repaid = if (repay_amt >= debt) {
-        ledger_principal
-    } else {
-        ((repay_amt as u128) * (ledger_principal as u128) / (debt as u128)) as u64
-    };
+    let principal_repaid = principal_repaid_for_payment(repay_amt, debt, ledger_principal);
     let surplus = payout - repay_amt;
 
     let mut payout_coin = predict_client::withdraw_quote(manager, payout, ctx);

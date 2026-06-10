@@ -9,20 +9,38 @@ export type LeverxProtocolConfig = {
   predictId: string;
   predictRegistryId: string;
   predictPackageId: string;
-  deepbookRegistryId: string;
   quoteType: string;
 };
+
+/** Fields required for onboarding PTBs (`create_user_proxy`, `link_predict_manager`). */
+export type LeverxOnboardingConfig = Pick<
+  LeverxProtocolConfig,
+  "packageId" | "predictPackageId"
+>;
 
 /** Margin-call threshold (95%). */
 export const MARGIN_CALL_BPS = 9_500;
 
+function nonEmpty(value: string | null | undefined): string {
+  return value?.trim() ?? "";
+}
+
+export function resolveLeverxOnboardingConfig(): LeverxOnboardingConfig {
+  return {
+    packageId: appConfig.leverxPackageId,
+    predictPackageId: appConfig.predictPackageId,
+  };
+}
+
 export function resolveLeverxProtocol(
   settings: ProtocolSettings | null | undefined,
 ): LeverxProtocolConfig | null {
-  const registryId = settings?.registry_id ?? appConfig.leverxRegistryId;
-  const vaultId = settings?.vault_id ?? appConfig.leverxVaultId;
+  const registryId =
+    nonEmpty(settings?.registry_id) || appConfig.leverxRegistryId;
+  const vaultId = nonEmpty(settings?.vault_id) || appConfig.leverxVaultId;
   const packageId = appConfig.leverxPackageId;
-  const feeCollectorId = settings?.fee_collector_id ?? appConfig.feeCollectorId;
+  const feeCollectorId =
+    nonEmpty(settings?.fee_collector_id) || appConfig.feeCollectorId;
 
   if (!packageId || !registryId || !vaultId || !feeCollectorId) {
     return null;
@@ -33,10 +51,9 @@ export function resolveLeverxProtocol(
     registryId,
     vaultId,
     feeCollectorId,
-    predictId: settings?.predict_id ?? appConfig.predictId,
+    predictId: nonEmpty(settings?.predict_id) || appConfig.predictId,
     predictRegistryId: appConfig.predictRegistryId,
     predictPackageId: appConfig.predictPackageId,
-    deepbookRegistryId: appConfig.deepbookRegistryId,
     quoteType: appConfig.quoteType,
   };
 }

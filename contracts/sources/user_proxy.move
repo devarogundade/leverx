@@ -16,27 +16,23 @@
 /// - Optional `TriggerConfig` (take-profit / stop-loss premiums)
 /// - At most one resting `PendingLimitMintOrder`
 ///
-/// Deposits land in the shared DeepBook `BalanceManager` first, then credit the
+/// Deposits land in the in-proxy `BalanceManager` first, then credit the
 /// appropriate market-key ledger. Withdrawals and liquidations debit the ledger before
 /// pulling coins from the balance manager.
 ///
-/// # DeepBook balance manager integration
-/// On creation, the proxy mints a DeepBook `BalanceManager` owned by the proxy object
-/// address, plus `DepositCap`, `WithdrawCap`, and `TradeCap`. Physical coin storage lives
-/// in the balance manager; ledgers track logical allocation. `trade_proof` exposes
-/// DeepBook trading for predict-market settlement without transferring cap ownership.
+/// # Balance manager integration
+/// On creation, the proxy initializes an embedded `BalanceManager` owned by the proxy
+/// object address, plus `DepositCap` and `WithdrawCap`. Physical coin
+/// storage lives in the balance manager; ledgers track logical allocation.
 module leverx::user_proxy;
 
-use deepbook::{
-    balance_manager::{Self, BalanceManager, DepositCap, TradeCap, WithdrawCap},
-    registry::Registry,
-};
 use deepbook_predict::{market_key::MarketKey, range_key::RangeKey};
-use leverx::{errors, events};
+use leverx::{
+    errors,
+    events,
+    proxy_vault::{Self, BalanceManager, DepositCap, WithdrawCap},
+};
 use sui::{clock::Clock, coin::{Self, Coin}, table::{Self, Table}, vec_set::{Self, VecSet}};
-
-/// Marker type passed to DeepBook when minting a balance manager for LeverX proxies.
-public struct LeverxApp has drop {}
 
 /// Take-profit and stop-loss trigger thresholds for a single market key.
 ///
@@ -83,7 +79,7 @@ public struct PendingLimitMintOrder has copy, drop, store {
 
 /// Shared on-chain account for one LeverX user.
 ///
-/// Owns a DeepBook balance manager for physical custody and maintains logical ledgers
+/// Owns an embedded balance manager for physical custody and maintains logical ledgers
 /// keyed by binary `MarketKey` and range `RangeKey`.
 public struct UserProxy has key {
     /// Unique object identifier for this proxy.
@@ -94,14 +90,12 @@ public struct UserProxy has key {
     predict_manager_id: ID,
     /// Aggregate quote borrowed across all market keys (sum of ledger `borrowed_quote`).
     borrowed_quote: u64,
-    /// DeepBook balance manager holding all physical coins for this user.
+    /// Embedded balance manager holding all physical coins for this user.
     balance_manager: BalanceManager,
     /// Capability to deposit coins into `balance_manager`.
     deposit_cap: DepositCap,
     /// Capability to withdraw coins from `balance_manager`.
     withdraw_cap: WithdrawCap,
-    /// Capability to generate trade proofs for DeepBook settlement.
-    trade_cap: TradeCap,
     /// Session executors (e.g. bot keys) allowed to act alongside the owner.
     executors: VecSet<address>,
     /// Quote/debt ledgers indexed by binary market key.
@@ -122,26 +116,13 @@ public struct UserProxy has key {
 
 /// Create and share a new `UserProxy` for `ctx.sender()`.
 ///
-/// Mints a DeepBook balance manager owned by the proxy object address and initializes
+/// Initializes an embedded balance manager owned by the proxy object address and
 /// empty ledger tables. Emits `AccountCreated`.
-public fun create(
-    deepbook_registry: &Registry,
-    predict_manager_id: ID,
-    ctx: &mut TxContext,
-) {
+public fun create(predict_manager_id: ID, ctx: &mut TxContext) {
     let id = object::new(ctx);
     let owner = ctx.sender();
 
-    let (
-        balance_manager,
-        deposit_cap,
-        withdraw_cap,
-        trade_cap,
-    ) = balance_manager::new_with_custom_owner_caps<LeverxApp>(
-        deepbook_registry,
-        id.to_address(),
-        ctx,
-    );
+    let (balance_manager, deposit_cap, withdraw_cap    ) = proxy_vault::new_with_owner_caps(id.to_address(), ctx);
 
     let proxy = UserProxy {
         id,
@@ -151,7 +132,6 @@ public fun create(
         balance_manager,
         deposit_cap,
         withdraw_cap,
-        trade_cap,
         executors: vec_set::empty(),
         binary_ledgers: table::new(ctx),
         range_ledgers: table::new(ctx),
@@ -215,7 +195,7 @@ public fun borrowed_quote(proxy: &UserProxy): u64 {
     proxy.borrowed_quote
 }
 
-/// Return the physical balance of `Asset` in the DeepBook balance manager (all keys combined).
+/// Return the physical balance of `Asset` in the balance manager (all keys combined).
 public fun balance<Asset>(proxy: &UserProxy): u64 {
     proxy.balance_manager.balance<Asset>()
 }
@@ -426,7 +406,7 @@ public(package) fun release_range_quote_reserve(
 
 // === Borrow / repay accounting ===
 
-/// Record a vault borrow: credit quote balance and increment per-key and aggregate debt.
+/// Record vault borrow debt on a binary market key (physical quote credited separately).
 public(package) fun record_borrow_for_binary(
     proxy: &mut UserProxy,
     key: MarketKey,
@@ -434,12 +414,11 @@ public(package) fun record_borrow_for_binary(
     ctx: &mut TxContext,
 ) {
     let ledger = ensure_binary_ledger(proxy, key, ctx);
-    ledger.quote_balance = ledger.quote_balance + amount;
     ledger.borrowed_quote = ledger.borrowed_quote + amount;
     proxy.borrowed_quote = proxy.borrowed_quote + amount;
 }
 
-/// Record a vault borrow for a range market key.
+/// Record vault borrow debt on a range market key (physical quote credited separately).
 public(package) fun record_borrow_for_range(
     proxy: &mut UserProxy,
     key: RangeKey,
@@ -447,7 +426,6 @@ public(package) fun record_borrow_for_range(
     ctx: &mut TxContext,
 ) {
     let ledger = ensure_range_ledger(proxy, key, ctx);
-    ledger.quote_balance = ledger.quote_balance + amount;
     ledger.borrowed_quote = ledger.borrowed_quote + amount;
     proxy.borrowed_quote = proxy.borrowed_quote + amount;
 }
@@ -564,22 +542,6 @@ fun debit_range_quote(proxy: &mut UserProxy, key: RangeKey, amount: u64) {
     let ledger = proxy.range_ledgers.borrow_mut(key);
     assert!(ledger.quote_balance >= amount, errors::insufficient_margin());
     ledger.quote_balance = ledger.quote_balance - amount;
-}
-
-// === DeepBook integration ===
-
-/// Generate a DeepBook trade proof for predict-market settlement via this proxy's trade cap.
-public(package) fun trade_proof(proxy: &mut UserProxy, ctx: &TxContext): balance_manager::TradeProof {
-    proxy.balance_manager.generate_proof_as_trader(&proxy.trade_cap, ctx)
-}
-
-/// Mutable access to the balance manager for authorized trading flows.
-public(package) fun balance_manager_trading_mut(
-    proxy: &mut UserProxy,
-    ctx: &TxContext,
-): &mut BalanceManager {
-    proxy.assert_can_act(ctx);
-    &mut proxy.balance_manager
 }
 
 // === Triggers ===
@@ -803,6 +765,28 @@ public(package) fun assert_range_limit_mint_not_expired(
     assert!(clock.timestamp_ms() <= order.expires_ms, errors::limit_order_expired());
 }
 
+/// Abort unless the binary limit mint order has expired (permissionless release path).
+public(package) fun assert_binary_limit_mint_expired(
+    proxy: &UserProxy,
+    key: MarketKey,
+    clock: &Clock,
+) {
+    assert!(proxy.binary_limit_mints.contains(key), errors::limit_order_not_found());
+    let order = proxy.binary_limit_mints.borrow(key);
+    assert!(clock.timestamp_ms() > order.expires_ms, errors::limit_order_still_active());
+}
+
+/// Abort unless the range limit mint order has expired (permissionless release path).
+public(package) fun assert_range_limit_mint_expired(
+    proxy: &UserProxy,
+    key: RangeKey,
+    clock: &Clock,
+) {
+    assert!(proxy.range_limit_mints.contains(key), errors::limit_order_not_found());
+    let order = proxy.range_limit_mints.borrow(key);
+    assert!(clock.timestamp_ms() > order.expires_ms, errors::limit_order_still_active());
+}
+
 /// Construct a `PendingLimitMintOrder` value (protocol placement helper).
 public(package) fun new_pending_limit_mint_order(
     limit_premium_per_unit: u64,
@@ -845,7 +829,7 @@ public(package) fun assert_can_act(proxy: &UserProxy, ctx: &TxContext) {
 
 // === Test helpers ===
 
-/// Build an in-memory proxy without DeepBook registry wiring (unit tests only).
+/// Build an in-memory proxy for unit tests only.
 #[test_only]
 public fun create_for_testing(
     owner: address,
@@ -853,10 +837,7 @@ public fun create_for_testing(
     ctx: &mut TxContext,
 ): UserProxy {
     let id = object::new(ctx);
-    let mut balance_manager = balance_manager::new(ctx);
-    let deposit_cap = balance_manager.mint_deposit_cap(ctx);
-    let withdraw_cap = balance_manager.mint_withdraw_cap(ctx);
-    let trade_cap = balance_manager.mint_trade_cap(ctx);
+    let (balance_manager, deposit_cap, withdraw_cap    ) = proxy_vault::new_with_owner_caps(id.to_address(), ctx);
 
     UserProxy {
         id,
@@ -866,7 +847,6 @@ public fun create_for_testing(
         balance_manager,
         deposit_cap,
         withdraw_cap,
-        trade_cap,
         executors: vec_set::empty(),
         binary_ledgers: table::new(ctx),
         range_ledgers: table::new(ctx),

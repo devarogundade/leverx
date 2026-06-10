@@ -31,8 +31,8 @@ deps = { deepbook = "deepbook", std = "MoveStdlib", sui = "Sui" }
 [pinned.testnet.leverx]
 source = { root = true }
 use_environment = "testnet"
-manifest_digest = "FE167A5FA56B8A0A04A1A2D4543C6E3320106772945931C6C33FC184D11F6C04"
-deps = { deepbook = "deepbook", deepbook_predict = "deepbook_predict", std = "MoveStdlib", sui = "Sui" }
+manifest_digest = "F9C1FB8942C61FFC9F0ED5CAAF48224AC801B4F48318059623B6D17A9C33BEF7"
+deps = { deepbook_predict = "deepbook_predict", std = "MoveStdlib", sui = "Sui" }
 
 [pinned.testnet.token]
 source = { git = "https://github.com/MystenLabs/deepbookv3.git", subdir = "packages/token", rev = "e276939f0613b98d8dcfa818ada3612dbbeb386b" }

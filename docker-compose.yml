@@ -28,11 +28,16 @@ services:
     environment:
       DATABASE_URL: postgres://leverx:leverx@postgres:5432/leverx_indexer
       INDEXER_DATABASE_URL: postgres://leverx:leverx@postgres:5432/leverx_indexer
-      LEVERX_PACKAGE_ID: "0x0d97963b7032ca790844559446a8fb4b036d00d0c7e50f338840d4ad6d109a20"
+      LEVERX_PACKAGE_ID: "0x81e913fc694919d1fca5ebc78c05d996a77d050a9568e6d055825acd339baae1"
       PREDICT_PACKAGE_ID: "0xf5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138"
+      PREDICT_ID: "0xc8736204d12f0a7277c86388a68bf8a194b0a14c5538ad13f22cbd8e2a38028a"
+      QUOTE_TYPE: "0xe95040085976bfd54a1a07225cd46c8a2b4e8e2b6732f140a0fc49850ba73e1a::dusdc::DUSDC"
+      REMOTE_STORE_URL: "https://checkpoints.testnet.sui.io"
+      STREAMING_URL: "https://fullnode.testnet.sui.io:443"
       PGHOST: postgres
       PGUSER: leverx
-      FIRST_CHECKPOINT: "346394798"
+      # Publish tx 866WrEoHQrxvTSqK38oXXKqNigoFDUhgFYAy7HDuVbXi @ checkpoint 346747492
+      FIRST_CHECKPOINT: "346747492"
     depends_on:
       postgres:
         condition: service_healthy
