@@ -264,12 +264,12 @@ export function PredictLeveragePanel({
         errors.push("Slippage must be at least 0.1%.");
       }
     }
-    if (orderType === "market" && marginNum > 0 && address) {
+    if (orderType === "market" && marginNum > 0) {
       if (quoteLoading) {
         errors.push("Waiting for live contract price…");
       } else if (mintQuote == null) {
         errors.push(
-          "Live contract price is unavailable or outside 1¢–99¢. Try another strike or wait for oracle updates.",
+          "Live contract price is unavailable or outside 1¢–99¢ (common near oracle expiry). Try another strike or wait for oracle updates.",
         );
       } else if (!isPremiumWithinPredictBounds(mintQuote.marketAskPerUnit)) {
         errors.push(

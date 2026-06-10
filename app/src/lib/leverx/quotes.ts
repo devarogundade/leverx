@@ -25,29 +25,67 @@ function parseU64(bytes: number[]): bigint {
   return value;
 }
 
-function parseReturnTuple(
-  results: Array<{ returnValues?: Array<[number[], string]> }> | undefined,
-  index: number,
+function findReturnTuple(
+  results: Array<{ returnValues?: Array<[number[], string]> }> | null | undefined,
   count: number,
-): bigint[] {
-  const values = results?.[index]?.returnValues;
-  if (!values || values.length < count) {
-    throw new Error("Quote inspect returned incomplete values.");
+): bigint[] | null {
+  for (const result of results ?? []) {
+    const values = result.returnValues;
+    if (values && values.length >= count) {
+      return values.slice(0, count).map(([bytes]) => parseU64(bytes));
+    }
   }
-  return values.slice(0, count).map(([bytes]) => parseU64(bytes));
+  return null;
 }
 
-export async function fetchMintQuote(params: {
+/** Live Predict ask — no LeverX account required (same path as on-chain mint validation). */
+export async function fetchPredictMarketAsk(params: {
   client: SuiJsonRpcClient;
   cfg: LeverxProtocolConfig;
-  accountId?: string | null;
+  key: MarketKeyArgs;
+  quantity: bigint;
+}): Promise<Pick<MintQuote, "marketAskPerUnit" | "mintCost"> | null> {
+  const tx = new Transaction();
+  tx.setSender(READONLY_SENDER);
+  const marketKey = addMarketKey(tx, params.key);
+  const fn = params.key.isRange ? "market_ask_range" : "market_ask_binary";
+
+  tx.moveCall({
+    target: `${params.cfg.packageId}::predict_client::${fn}`,
+    arguments: [
+      tx.object(params.cfg.predictId),
+      tx.object(params.key.oracleId),
+      marketKey,
+      tx.pure.u64(params.quantity),
+      tx.object(SUI_CLOCK_OBJECT_ID),
+    ],
+  });
+
+  try {
+    const inspect = await params.client.devInspectTransactionBlock({
+      transactionBlock: tx,
+      sender: READONLY_SENDER,
+    });
+    if (inspect.effects?.status?.status !== "success") return null;
+    const tuple = findReturnTuple(inspect.results, 2);
+    if (!tuple) return null;
+    const [marketAskPerUnit, mintCost] = tuple;
+    if (!isPremiumWithinPredictBounds(marketAskPerUnit)) return null;
+    return { marketAskPerUnit, mintCost };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchMintBorrowQuote(params: {
+  client: SuiJsonRpcClient;
+  cfg: LeverxProtocolConfig;
+  accountId: string;
   key: MarketKeyArgs;
   marginQuoteAtoms: bigint;
   leverageBps: bigint;
   quantity: bigint;
-}): Promise<MintQuote | null> {
-  if (!params.accountId) return null;
-
+}): Promise<bigint | null> {
   const tx = new Transaction();
   tx.setSender(READONLY_SENDER);
   const marketKey = addMarketKey(tx, params.key);
@@ -77,18 +115,45 @@ export async function fetchMintQuote(params: {
       sender: READONLY_SENDER,
     });
     if (inspect.effects?.status?.status !== "success") return null;
-    const [marketAskPerUnit, mintCost, borrowQuote] = parseReturnTuple(
-      inspect.results,
-      1,
-      3,
-    );
-    if (!isPremiumWithinPredictBounds(marketAskPerUnit)) {
-      return null;
-    }
-    return { marketAskPerUnit, mintCost, borrowQuote };
+    const tuple = findReturnTuple(inspect.results, 3);
+    return tuple?.[2] ?? null;
   } catch {
     return null;
   }
+}
+
+export async function fetchMintQuote(params: {
+  client: SuiJsonRpcClient;
+  cfg: LeverxProtocolConfig;
+  accountId?: string | null;
+  key: MarketKeyArgs;
+  marginQuoteAtoms: bigint;
+  leverageBps: bigint;
+  quantity: bigint;
+}): Promise<MintQuote | null> {
+  const market = await fetchPredictMarketAsk({
+    client: params.client,
+    cfg: params.cfg,
+    key: params.key,
+    quantity: params.quantity,
+  });
+  if (!market) return null;
+
+  let borrowQuote = 0n;
+  if (params.accountId) {
+    const borrow = await fetchMintBorrowQuote({
+      client: params.client,
+      cfg: params.cfg,
+      accountId: params.accountId,
+      key: params.key,
+      marginQuoteAtoms: params.marginQuoteAtoms,
+      leverageBps: params.leverageBps,
+      quantity: params.quantity,
+    });
+    if (borrow != null) borrowQuote = borrow;
+  }
+
+  return { ...market, borrowQuote };
 }
 
 export async function fetchRedeemQuote(params: {
@@ -122,7 +187,9 @@ export async function fetchRedeemQuote(params: {
       sender: READONLY_SENDER,
     });
     if (inspect.effects?.status?.status !== "success") return null;
-    const [marketBidPerUnit, expectedPayout] = parseReturnTuple(inspect.results, 0, 2);
+    const tuple = findReturnTuple(inspect.results, 2);
+    if (!tuple) return null;
+    const [marketBidPerUnit, expectedPayout] = tuple;
     return { marketBidPerUnit, expectedPayout };
   } catch {
     return null;
