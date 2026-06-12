@@ -144,17 +144,25 @@ export function PredictLeveragePanel({
     setUpperStrike(upperStrikeRaw ? String(upperStrikeRaw / 1e9) : "");
   }, [lowerStrikeRaw, upperStrikeRaw]);
 
+  // Reset only when the user changes market or outcome — not when catalog/oracle props refetch.
   useEffect(() => {
     setTxError(null);
     setOrderType("market");
-    resetTradeInputs();
+    setMargin("");
+    setLimitPrice("");
+    setTpSl(false);
+    setTp("");
+    setSl("");
+    setLowerStrike(lowerStrikeRaw ? String(lowerStrikeRaw / 1e9) : "");
+    setUpperStrike(upperStrikeRaw ? String(upperStrikeRaw / 1e9) : "");
     setLeverage(DEFAULT_LEVERAGE);
     setPlacementSlippagePct(5);
     setOrderExpiresHours(DEFAULT_LIMIT_ORDER_EXPIRY_HOURS);
     setLimitExecution("resting");
-    // Only reset the trade form when the user changes market or outcome — not on background catalog refreshes.
-  }, [tradeContextKey, resetTradeInputs]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- strike props intentionally omitted
+  }, [tradeContextKey]);
 
+  // Seed limit price when switching to limit or changing market — not on every ask refresh.
   useEffect(() => {
     if (orderType !== "limit") return;
     setLimitPrice((prev) => {
@@ -164,7 +172,8 @@ export function PredictLeveragePanel({
       }
       return prev;
     });
-  }, [orderType, tradeContextKey, lastAskPremium]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- lastAskPremium omitted to avoid refetch clobbering input
+  }, [orderType, tradeContextKey]);
   const { data: walletQuoteBalance } = useWalletCoinBalance(appConfig.quoteType, 6);
 
   const lev = leverage;
