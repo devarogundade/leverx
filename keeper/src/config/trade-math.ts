@@ -1,4 +1,8 @@
-import { PREDICT_PRICE_SCALE } from './constants';
+import {
+  LEVERAGED_MINT_WINDOW_MS,
+  MIN_LEVERAGE_BPS,
+  PREDICT_PRICE_SCALE,
+} from './constants';
 
 export function redeemPayoutFromBid(bidPerUnit: bigint, quantity: bigint): bigint {
   return (bidPerUnit * quantity) / PREDICT_PRICE_SCALE;
@@ -9,10 +13,31 @@ export function minPayoutAfterSlippage(expectedPayout: bigint, slippageBps: numb
   return (expectedPayout * floor) / 10_000n;
 }
 
+/** Matches on-chain `assert_final_hour_before_expiry`: [expiry - window, expiry). */
+export function isFinalHourBeforeExpiry(
+  expiryMs: number,
+  now = Date.now(),
+): boolean {
+  if (!expiryMs || expiryMs <= 0) return false;
+  return expiryMs > now && expiryMs - LEVERAGED_MINT_WINDOW_MS <= now;
+}
+
+/** Matches on-chain `assert_leveraged_mint_window` for leverage above 1x. */
+export function isLeveragedMintAllowed(
+  expiryMs: number,
+  leverageBps: number,
+  now = Date.now(),
+): boolean {
+  if (leverageBps <= MIN_LEVERAGE_BPS) return true;
+  if (!expiryMs || expiryMs <= 0) return false;
+  return now < expiryMs - LEVERAGED_MINT_WINDOW_MS;
+}
+
 /**
  * Vault flash principal for liquidation PTBs.
  * Uses vault debt when present; otherwise falls back to posted margin debt.
  */
+
 export function flashBorrowAmountForLiquidation(
   borrowQuote: number | string,
   marginQuote: number | string,

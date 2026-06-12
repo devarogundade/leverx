@@ -69,7 +69,7 @@ export function GuideStorybook() {
             <h1 className="guide-hero-title">How LeverX works</h1>
             <p className="guide-hero-lead">
               {ui.appTagline}. Bet on price going up, down, or staying in a range — with dUSDC
-              margin from 0.1–100 dUSDC at 1.1×–10× leverage on the demo network.
+              margin from 0.1–100 dUSDC at 1×–10× leverage on the demo network.
             </p>
           </div>
           <Link to="/markets" className="guide-hero-cta">
@@ -186,11 +186,13 @@ export function GuideStorybook() {
             id="leverage"
             index="03"
             title="Margin & safety"
-            subtitle="1.1×–10× leverage with 0.1–100 dUSDC margin"
+            subtitle="1×–10× leverage with 0.1–100 dUSDC margin"
           >
             <p>
               When you open a trade, you deposit dUSDC from your wallet (0.1–100 dUSDC) and pick
-              leverage from 1.1× to 10×. Position size = margin × leverage; anything above your
+              leverage from 1× to 10×. At 1× there is no vault borrow. Leverage above 1× closes
+              one hour before market expiry. Position size = margin × leverage;
+              anything above your
               deposit is borrowed from the vault. If the market moves against you, health drops; at
               95% the position may be auto-closed.
             </p>
@@ -283,7 +285,7 @@ export function GuideStorybook() {
                 </span>
                 <span className="guide-step-body">
                   <strong>Set your trade</strong>
-                  <span>dUSDC deposit (0.1–100), leverage (1.1×–10×), and optional take-profit / stop-loss.</span>
+                  <span>dUSDC deposit (0.1–100), leverage (1×–10×), and optional take-profit / stop-loss.</span>
                 </span>
               </li>
               <li>

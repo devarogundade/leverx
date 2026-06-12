@@ -61,7 +61,7 @@ export class PtbBuilderService {
     const key = this.addMarketKey(tx, cfg, this.keyFromPosition(position));
 
     tx.moveCall({
-      target: `${cfg.packageId}::trade::settle_expired_proxy_position`,
+      target: `${cfg.packageId}::trade::settle_expired_proxy_position_permissionless`,
       typeArguments: [cfg.quoteType],
       arguments: [
         tx.object(cfg.registryId),
@@ -84,7 +84,111 @@ export class PtbBuilderService {
     const key = this.addMarketKey(tx, cfg, this.keyFromPosition(position));
 
     tx.moveCall({
-      target: `${cfg.packageId}::trade::settle_expired_proxy_range`,
+      target: `${cfg.packageId}::trade::settle_expired_proxy_range_permissionless`,
+      typeArguments: [cfg.quoteType],
+      arguments: [
+        tx.object(cfg.registryId),
+        tx.object(cfg.vaultId),
+        tx.object(cfg.feeCollectorId),
+        tx.object(position.account_id),
+        tx.object(cfg.predictId),
+        tx.object(position.predict_manager_id!),
+        tx.object(position.oracle_id),
+        key,
+        tx.pure.u64(position.open_quantity),
+        tx.object(SUI_CLOCK_OBJECT_ID),
+      ],
+    });
+    return tx;
+  }
+
+  buildForceDeleverageBinary(
+    cfg: KeeperConfig,
+    position: LeveragedPosition,
+  ): Transaction {
+    const tx = new Transaction();
+    const key = this.addMarketKey(tx, cfg, this.keyFromPosition(position));
+
+    tx.moveCall({
+      target: `${cfg.packageId}::trade::force_deleverage_binary_at_expiry`,
+      typeArguments: [cfg.quoteType],
+      arguments: [
+        tx.object(cfg.registryId),
+        tx.object(cfg.vaultId),
+        tx.object(cfg.feeCollectorId),
+        tx.object(position.account_id),
+        tx.object(cfg.predictId),
+        tx.object(position.predict_manager_id!),
+        tx.object(position.oracle_id),
+        key,
+        tx.pure.u64(position.open_quantity),
+        tx.object(SUI_CLOCK_OBJECT_ID),
+      ],
+    });
+    return tx;
+  }
+
+  buildForceRepayBinaryPostExpiry(
+    cfg: KeeperConfig,
+    position: LeveragedPosition,
+  ): Transaction {
+    const tx = new Transaction();
+    const key = this.addMarketKey(tx, cfg, this.keyFromPosition(position));
+
+    tx.moveCall({
+      target: `${cfg.packageId}::trade::force_repay_binary_post_expiry`,
+      typeArguments: [cfg.quoteType],
+      arguments: [
+        tx.object(cfg.registryId),
+        tx.object(cfg.vaultId),
+        tx.object(cfg.feeCollectorId),
+        tx.object(position.account_id),
+        tx.object(cfg.predictId),
+        tx.object(position.predict_manager_id!),
+        tx.object(position.oracle_id),
+        key,
+        tx.pure.u64(position.open_quantity),
+        tx.object(SUI_CLOCK_OBJECT_ID),
+      ],
+    });
+    return tx;
+  }
+
+  buildForceRepayRangePostExpiry(
+    cfg: KeeperConfig,
+    position: LeveragedPosition,
+  ): Transaction {
+    const tx = new Transaction();
+    const key = this.addMarketKey(tx, cfg, this.keyFromPosition(position));
+
+    tx.moveCall({
+      target: `${cfg.packageId}::trade::force_repay_range_post_expiry`,
+      typeArguments: [cfg.quoteType],
+      arguments: [
+        tx.object(cfg.registryId),
+        tx.object(cfg.vaultId),
+        tx.object(cfg.feeCollectorId),
+        tx.object(position.account_id),
+        tx.object(cfg.predictId),
+        tx.object(position.predict_manager_id!),
+        tx.object(position.oracle_id),
+        key,
+        tx.pure.u64(position.open_quantity),
+        tx.object(SUI_CLOCK_OBJECT_ID),
+      ],
+    });
+    return tx;
+  }
+
+  buildForceDeleverageRange(
+    cfg: KeeperConfig,
+    position: LeveragedPosition,
+  ): Transaction {
+    const tx = new Transaction();
+    const key = this.addMarketKey(tx, cfg, this.keyFromPosition(position));
+
+    tx.moveCall({
+      target: `${cfg.packageId}::trade::force_deleverage_range_at_expiry`,
       typeArguments: [cfg.quoteType],
       arguments: [
         tx.object(cfg.registryId),
@@ -183,8 +287,8 @@ export class PtbBuilderService {
     const tx = new Transaction();
     const key = this.addMarketKey(tx, cfg, this.keyFromPosition(position));
     const fn = position.is_range
-      ? 'is_range_position_liquidatable'
-      : 'is_binary_position_liquidatable';
+      ? 'is_range_position_liquidatable_with_open_position'
+      : 'is_binary_position_liquidatable_with_open_position';
 
     tx.moveCall({
       target: `${cfg.packageId}::trade::${fn}`,
@@ -193,7 +297,10 @@ export class PtbBuilderService {
         tx.object(cfg.registryId),
         tx.object(cfg.vaultId),
         tx.object(position.account_id),
+        tx.object(cfg.predictId),
+        tx.object(position.oracle_id),
         key,
+        tx.pure.u64(position.open_quantity),
         tx.object(SUI_CLOCK_OBJECT_ID),
       ],
     });

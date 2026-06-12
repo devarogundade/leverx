@@ -13,9 +13,12 @@ const QUOTE_DECIMALS: u8 = 6;
 // --- Leverage bounds & margin call ---
 
 const MAX_LEVERAGE: u64 = 10;
-/// Minimum leverage in bps (10_000 bps = 1x).
-const MIN_LEVERAGE_BPS: u64 = 11_000;
+/// Minimum leverage in bps (10_000 bps = 1x, no vault borrow).
+const MIN_LEVERAGE_BPS: u64 = 10_000;
 const MARGIN_CALL_BPS: u64 = 9_500;
+
+/// Leveraged mints (>1x) are blocked in the final hour before oracle expiry.
+const LEVERAGED_MINT_WINDOW_MS: u64 = 3_600_000;
 
 // --- Margin bounds (dUSDC, 6 decimals) ---
 
@@ -44,6 +47,7 @@ const KEEPER_FEE_SHARE_BPS: u64 = 1_000;
 const FEE_SOURCE_INTEREST: u8 = 1;
 const FEE_SOURCE_FLASH_LOAN: u8 = 2;
 const FEE_SOURCE_LIQUIDATION: u8 = 3;
+const FEE_SOURCE_INSURANCE: u8 = 4;
 
 // --- Time ---
 
@@ -82,8 +86,11 @@ public fun quote_decimals(): u8 { QUOTE_DECIMALS }
 /// Maximum allowed leverage multiplier.
 public fun max_leverage(): u64 { MAX_LEVERAGE }
 
-/// Minimum allowed leverage in basis points (11_000 = 1.1x).
+/// Minimum allowed leverage in basis points (10_000 = 1x).
 public fun min_leverage_bps(): u64 { MIN_LEVERAGE_BPS }
+
+/// Final-hour window (ms): leveraged mints (>1x) blocked; force-deleverage allowed.
+public fun leveraged_mint_window_ms(): u64 { LEVERAGED_MINT_WINDOW_MS }
 
 /// `max_leverage()` expressed in basis points (10_000 bps = 1x).
 public fun max_leverage_bps(): u64 {
@@ -135,6 +142,9 @@ public fun fee_source_flash_loan(): u8 { FEE_SOURCE_FLASH_LOAN }
 
 /// Fee source tag: liquidation surplus skim.
 public fun fee_source_liquidation(): u8 { FEE_SOURCE_LIQUIDATION }
+
+/// Fee source tag: insurance fund applied to residual borrower debt.
+public fun fee_source_insurance(): u8 { FEE_SOURCE_INSURANCE }
 
 // --- Public getters: time ---
 

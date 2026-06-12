@@ -5,7 +5,7 @@ use leverx::protocol_constants;
 
 #[test]
 fun leverage_and_margin_call() {
-    assert!(protocol_constants::min_leverage_bps() == 11_000, 0);
+    assert!(protocol_constants::min_leverage_bps() == 10_000, 0);
     assert!(protocol_constants::max_leverage_bps() == 100_000, 0);
     assert!(protocol_constants::margin_call_bps() == 9_500, 0);
 }

@@ -9,20 +9,19 @@ export type KeeperTaskKind =
   | 'settlement'
   | 'limit_order'
   | 'liquidation'
-  | 'trigger';
+  | 'trigger'
+  | 'force_close';
 
 export const KEEPER_CONTRACT_CALLS: Record<KeeperTaskKind, string[]> = {
   settlement: [
-    'trade::settle_expired_proxy_position',
-    'trade::settle_expired_proxy_range',
+    'trade::settle_expired_proxy_position_permissionless',
+    'trade::settle_expired_proxy_range_permissionless',
   ],
   limit_order: [
     'trade::execute_binary_limit_mint_order',
     'trade::execute_range_limit_mint_order',
   ],
   liquidation: [
-    'trade::is_binary_position_liquidatable',
-    'trade::is_range_position_liquidatable',
     'vault_flash::borrow_flash_liquidity',
     'vault_flash::repay_flash_liquidity',
     'liquidation::flash_liquidate_with_redeem_permissionless',
@@ -31,6 +30,14 @@ export const KEEPER_CONTRACT_CALLS: Record<KeeperTaskKind, string[]> = {
   trigger: [
     'trade::leveraged_redeem_binary_market',
     'trade::leveraged_redeem_range_market',
+  ],
+  force_close: [
+    'trade::force_deleverage_binary_at_expiry',
+    'trade::force_deleverage_range_at_expiry',
+    'trade::force_repay_binary_post_expiry',
+    'trade::force_repay_range_post_expiry',
+    'trade::is_binary_position_liquidatable_with_open_position',
+    'trade::is_range_position_liquidatable_with_open_position',
   ],
 };
 

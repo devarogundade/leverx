@@ -21,11 +21,21 @@ import {
 interface Props {
   value: number;
   onChange: (value: number) => void;
+  /** Upper bound (e.g. 1× when leveraged mint window is closed). */
+  maxLeverage?: number;
+  info?: string;
   className?: string;
 }
 
-export function LeverageSlider({ value, onChange, className }: Props) {
-  const clamped = clampLeverage(value);
+export function LeverageSlider({
+  value,
+  onChange,
+  maxLeverage = LEVERAGE_MAX,
+  info = leverxInfo.leverage,
+  className,
+}: Props) {
+  const effectiveMax = Math.min(LEVERAGE_MAX, Math.max(LEVERAGE_MIN, maxLeverage));
+  const clamped = Math.min(clampLeverage(value), effectiveMax);
 
   const step = (delta: number) => {
     onChange(clampLeverage(clamped + delta));
@@ -37,7 +47,7 @@ export function LeverageSlider({ value, onChange, className }: Props) {
         <LabelWithInfo
           label="Leverage"
           labelClassName={labelCaps}
-          info={leverxInfo.leverage}
+          info={info}
         />
         <div className="flex items-center gap-1.5">
           <button
@@ -56,7 +66,7 @@ export function LeverageSlider({ value, onChange, className }: Props) {
             type="button"
             className={cn(pillToggleBtn, pillToggleIdle, "flex h-7 w-7 items-center justify-center p-0")}
             aria-label="Increase leverage"
-            disabled={clamped >= LEVERAGE_MAX}
+            disabled={clamped >= effectiveMax}
             onClick={() => step(LEVERAGE_STEP)}
           >
             <Plus className="h-3.5 w-3.5" />
@@ -67,15 +77,17 @@ export function LeverageSlider({ value, onChange, className }: Props) {
       <Slider
         variant="leverage"
         min={LEVERAGE_MIN}
-        max={LEVERAGE_MAX}
+        max={effectiveMax}
         step={LEVERAGE_STEP}
         value={[clamped]}
-        onValueChange={([next]) => next != null && onChange(clampLeverage(next))}
+        onValueChange={([next]) =>
+          next != null && onChange(Math.min(clampLeverage(next), effectiveMax))
+        }
         aria-label="Leverage multiplier"
       />
       <div className="mt-1.5 flex justify-between font-mono text-[10px] tabular-nums text-muted-foreground">
         <span>{formatLeverage(LEVERAGE_MIN)}</span>
-        <span>{LEVERAGE_MAX}x</span>
+        <span>{formatLeverage(effectiveMax)}</span>
       </div>
     </div>
   );

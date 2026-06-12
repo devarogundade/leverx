@@ -68,6 +68,13 @@ const E_TRIGGER_NOT_FOUND: u64 = 20;
 const E_INVALID_PROTOCOL_VAULT: u64 = 36;
 const E_INVALID_FEE_COLLECTOR: u64 = 37;
 const E_INVALID_MARGIN: u64 = 41;
+const E_LEVERAGED_MINT_OUTSIDE_WINDOW: u64 = 42;
+const E_MARKET_NOT_EXPIRED: u64 = 43;
+const E_ORACLE_ALREADY_SETTLED: u64 = 44;
+const E_MUST_LIQUIDATE: u64 = 45;
+const E_NO_LEVERAGED_EXPOSURE: u64 = 46;
+const E_FORCE_DELEVERAGE_OUTSIDE_WINDOW: u64 = 47;
+const E_MARKET_STILL_OPEN: u64 = 48;
 
 // --- Auth & access control ---
 
@@ -184,3 +191,24 @@ public fun invalid_protocol_vault(): u64 { E_INVALID_PROTOCOL_VAULT }
 
 /// Fee collector object ID does not match the registry's linked collector.
 public fun invalid_fee_collector(): u64 { E_INVALID_FEE_COLLECTOR }
+
+/// Leveraged mint attempted in the final hour before market expiry (or after).
+public fun leveraged_mint_outside_window(): u64 { E_LEVERAGED_MINT_OUTSIDE_WINDOW }
+
+/// Reserved: market action requires expiry to have passed.
+public fun market_not_expired(): u64 { E_MARKET_NOT_EXPIRED }
+
+/// Force-deleverage may only run in the final hour before market expiry.
+public fun force_deleverage_outside_window(): u64 { E_FORCE_DELEVERAGE_OUTSIDE_WINDOW }
+
+/// Force-deleverage skipped: position has no vault borrow (already 1x).
+public fun no_leveraged_exposure(): u64 { E_NO_LEVERAGED_EXPOSURE }
+
+/// Force-deleverage rejected: position must be liquidated instead.
+public fun must_liquidate(): u64 { E_MUST_LIQUIDATE }
+
+/// Force-deleverage is invalid after oracle settlement (use settlement path).
+public fun oracle_already_settled(): u64 { E_ORACLE_ALREADY_SETTLED }
+
+/// Post-expiry recovery called before the market expiry timestamp.
+public fun market_still_open(): u64 { E_MARKET_STILL_OPEN }

@@ -29,7 +29,7 @@ pnpm run start:dev
 
 Optional env vars (same names as `contracts/deploy-testnet.env` and docker-compose): `LEVERX_PACKAGE_ID`, `LEVERX_REGISTRY_ID`, `LEVERX_VAULT_ID`, `LEVERX_FEE_COLLECTOR_ID`, `PREDICT_PACKAGE_ID`, `PREDICT_ID`, `QUOTE_TYPE`, `INDEXER_URL`.
 
-**dUSDC-only, 1.1×–10× leverage** — quote type `dusdc::DUSDC`, `MIN_LEVERAGE_BPS = 11_000`, `MAX_LEVERAGE_BPS = 100_000`, margin 0.1–100 dUSDC, margin call at `MARGIN_CALL_BPS = 9_500`.
+**dUSDC-only, 1×–10× leverage** — quote type `dusdc::DUSDC`, `MIN_LEVERAGE_BPS = 10_000`, `MAX_LEVERAGE_BPS = 100_000`, margin 0.1–100 dUSDC, margin call at `MARGIN_CALL_BPS = 9_500`. Leverage above 1× cannot be opened in the final hour before expiry; in that window the keeper force-deleverages existing borrowed positions (or liquidates if underwater).
 
 Liquidations scan:
 

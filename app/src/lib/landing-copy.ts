@@ -19,7 +19,7 @@ export const landingCopy = {
   leverageLead:
     "Your target price sits in the middle of the chart. When the live price crosses above or below it, the line turns green or red so you always know where you stand.",
   leverageBullets: [
-    "1.1×–10× leverage with 0.1–100 dUSDC margin on price-up, price-down, and range bets",
+    "1×–10× leverage with 0.1–100 dUSDC margin on price-up, price-down, and range bets",
     "Target price always centered on the chart",
     "Clear signals when a position is ahead or behind",
   ] as const,

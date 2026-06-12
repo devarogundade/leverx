@@ -31,12 +31,14 @@ export type KeeperConfig = {
     limitOrder: string;
     liquidation: string;
     trigger: string;
+    forceClose: string;
   };
   limits: {
     settlements: number;
     limitFills: number;
     liquidations: number;
     triggers: number;
+    forceCloses: number;
   };
 };
 

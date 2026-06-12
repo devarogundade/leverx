@@ -30,6 +30,9 @@ export type LimitOrderExpiryHours = (typeof LIMIT_ORDER_EXPIRY_HOURS)[number];
 
 export const DEFAULT_LIMIT_ORDER_EXPIRY_HOURS: LimitOrderExpiryHours = 6;
 
+/** Leveraged mints (>1x) blocked in the final hour before oracle expiry. */
+export const LEVERAGED_MINT_WINDOW_MS = 3_600_000;
+
 /** Gas budget for simple trades. */
 export const TRADE_GAS_BUDGET = 150_000_000;
 

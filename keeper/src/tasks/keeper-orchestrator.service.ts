@@ -6,6 +6,7 @@ import type { KeeperRunSummary, TaskResult } from '../keeper/keeper.types';
 import { SuiService } from '../sui/sui.service';
 import { LimitOrderService } from './limit-order.service';
 import { LiquidationService } from './liquidation.service';
+import { ForceCloseService } from './force-close.service';
 import { SettlementService } from './settlement.service';
 import { TriggerService } from './trigger.service';
 
@@ -14,6 +15,7 @@ export type KeeperTaskKind =
   | 'limit_order'
   | 'liquidation'
   | 'trigger'
+  | 'force_close'
   | 'all';
 
 @Injectable()
@@ -29,6 +31,7 @@ export class KeeperOrchestratorService {
     private readonly limitOrders: LimitOrderService,
     private readonly liquidation: LiquidationService,
     private readonly triggers: TriggerService,
+    private readonly forceClose: ForceCloseService,
   ) {
     this.cfg = config.get<KeeperConfig>('keeper')!;
   }
@@ -72,14 +75,17 @@ export class KeeperOrchestratorService {
         };
       }
 
-      if (kind === 'all' || kind === 'settlement') {
-        results.push(...(await this.settlement.run(this.cfg.limits.settlements)));
-      }
       if (kind === 'all' || kind === 'limit_order') {
         results.push(...(await this.limitOrders.run(this.cfg.limits.limitFills)));
       }
       if (kind === 'all' || kind === 'liquidation') {
         results.push(...(await this.liquidation.run(this.cfg.limits.liquidations)));
+      }
+      if (kind === 'all' || kind === 'force_close') {
+        results.push(...(await this.forceClose.run(this.cfg.limits.forceCloses)));
+      }
+      if (kind === 'all' || kind === 'settlement') {
+        results.push(...(await this.settlement.run(this.cfg.limits.settlements)));
       }
       if (kind === 'all' || kind === 'trigger') {
         results.push(...(await this.triggers.run(this.cfg.limits.triggers)));

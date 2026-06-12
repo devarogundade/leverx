@@ -19,8 +19,10 @@ use crate::move_events::{
     parse_event_json, try_parse, AccountCreated, DebtBorrowed, DebtRepaid, ExecutorRegistered,
     ExecutorRevoked, BorrowRateParamsUpdated, FeeCollectorWithdrawn, FlashLoanBorrowed,
     FlashLoanRepaid, InsuranceFundSkimmed, InterestAccrued, ProtocolFeeDistributed,
-    KeyBorrowUpdated, LeveragedPositionClosed, LeveragedPositionOpened, LimitMintOrderCancelled,
-    LimitMintOrderExecuted, LimitMintOrderPlaced, PositionLiquidated, PredictManagerLinked,
+    BadDebtWrittenOff, KeyBorrowUpdated, LeveragedPositionClosed, LeveragedPositionOpened,
+    LimitMintOrderCancelled, LimitMintOrderExecuted, LimitMintOrderPlaced, PositionForceDeleveraged,
+    PositionLiquidated,
+    PredictManagerLinked,
     ProtocolDeployed, ProxyAccountingSynced, RegistryInitialized,
     TradingPausedChanged, TriggersCleared, TriggersUpdated, VaultBorrowed, VaultRepaid,
     VaultSupplied, VaultWithdrawn,
@@ -577,6 +579,54 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     account_id: ev.account_id.to_string(),
                     key_borrowed_quote: ev.key_borrowed_quote as i64,
                 });
+                timeline(batch, ctx, ev.account_id.to_string(), Some(ev.owner.to_string()));
+            }
+        }
+        "BadDebtWrittenOff" => {
+            if let Some(ev) = try_parse::<BadDebtWrittenOff>(ctx.event.contents.as_slice()) {
+                ensure_market(
+                    batch,
+                    &ev.oracle_id.to_string(),
+                    ev.expiry_ms as i64,
+                    ev.strike as i64,
+                    ev.higher_strike as i64,
+                    ev.is_up,
+                    ev.is_range,
+                    ctx.timestamp_ms,
+                );
+                let pk = position_key(
+                    &ev.oracle_id.to_string(),
+                    ev.expiry_ms as i64,
+                    ev.strike as i64,
+                    ev.higher_strike as i64,
+                    ev.is_up,
+                    ev.is_range,
+                );
+                batch.key_borrow_patches.push(KeyBorrowPatch {
+                    position_key: pk,
+                    account_id: ev.account_id.to_string(),
+                    key_borrowed_quote: 0,
+                });
+                batch.debt_repaid.push(DebtRepaidPatch {
+                    account_id: ev.account_id.to_string(),
+                    remaining_debt: 0,
+                    updated_at_ms: ctx.timestamp_ms,
+                });
+                timeline(batch, ctx, ev.account_id.to_string(), Some(ev.owner.to_string()));
+            }
+        }
+        "PositionForceDeleveraged" => {
+            if let Some(ev) = try_parse::<PositionForceDeleveraged>(ctx.event.contents.as_slice()) {
+                ensure_market(
+                    batch,
+                    &ev.oracle_id.to_string(),
+                    ev.expiry_ms as i64,
+                    ev.strike as i64,
+                    ev.higher_strike as i64,
+                    ev.is_up,
+                    ev.is_range,
+                    ctx.timestamp_ms,
+                );
                 timeline(batch, ctx, ev.account_id.to_string(), Some(ev.owner.to_string()));
             }
         }

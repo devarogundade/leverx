@@ -37,6 +37,9 @@ export class KeeperScheduler implements OnModuleInit {
     this.register('trigger', this.cfg.cron.trigger, () =>
       this.orchestrator.run('trigger'),
     );
+    this.register('force_close', this.cfg.cron.forceClose, () =>
+      this.orchestrator.run('force_close'),
+    );
   }
 
   private register(name: string, expression: string, fn: () => Promise<unknown>) {

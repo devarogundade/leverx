@@ -85,13 +85,13 @@ public entry fun set_trading_paused_entry(
 
 /// Transaction entry: withdraw accumulated protocol fees from `FeeCollector`.
 public entry fun withdraw_fee_collector_entry<Quote>(
-    admin: &AdminCap,
+    _admin: &AdminCap,
     registry: &LeverxRegistry,
     collector: &mut FeeCollector<Quote>,
     amount: u64,
     ctx: &mut TxContext,
 ) {
-    assert!(object::id(collector) == registry.fee_collector_id, errors::invalid_manager());
+    assert_fee_collector(registry, collector);
     let coin = fee_collector::withdraw(collector, amount, ctx);
     transfer::public_transfer(coin, ctx.sender());
 }
@@ -117,6 +117,7 @@ public fun revoke_executor_cap(
 /// Configure the vault kinked borrow curve and flash-loan fee (admin-only).
 public fun set_borrow_rate_params<Quote>(
     _admin: &AdminCap,
+    registry: &LeverxRegistry,
     vault: &mut LeverageVault<Quote>,
     base_rate_bps: u64,
     kink_utilization_bps: u64,
@@ -124,6 +125,7 @@ public fun set_borrow_rate_params<Quote>(
     slope2_bps: u64,
     flash_fee_bps: u64,
 ) {
+    assert_vault(registry, vault);
     assert!(kink_utilization_bps <= protocol_constants::bps(), errors::invalid_leverage());
     assert!(flash_fee_bps <= protocol_constants::bps(), errors::invalid_leverage());
     vault.set_borrow_rate_params(

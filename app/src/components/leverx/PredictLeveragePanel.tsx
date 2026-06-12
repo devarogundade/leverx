@@ -50,9 +50,15 @@ import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
 import { MARGIN_CALL_BPS } from "@/lib/leverx/protocol";
 import { buildQuickAmounts } from "@/lib/leverx/form-helpers";
 import { tradeCtaLabel, tradeNeedsDeposit } from "@/lib/leverx/trade-cta";
+import { LEVERAGED_MINT_WINDOW_MS } from "@/lib/leverx/constants";
 import {
   DEFAULT_LEVERAGE,
   formatLeverageBadge,
+  isFinalHourBeforeExpiry,
+  isLeveragedMintAllowed,
+  LEVERAGE_MAX,
+  LEVERAGE_MIN,
+  maxLeveragedRestingOrderExpiryMs,
   MAX_MARGIN_USD,
   MIN_MARGIN_USD,
 } from "@/lib/leverx/trade-limits";
@@ -181,7 +187,18 @@ export function PredictLeveragePanel({
   const { data: walletQuoteBalance } = useWalletCoinBalance(appConfig.quoteType, 6);
 
   const lev = leverage;
+  const leveragedMintAllowed = isLeveragedMintAllowed(
+    expiryMs ?? 0,
+    LEVERAGED_MINT_WINDOW_MS,
+  );
+  const maxLeverageForMarket = leveragedMintAllowed ? LEVERAGE_MAX : LEVERAGE_MIN;
   const marginNum = parseFloat(margin) || 0;
+
+  useEffect(() => {
+    if (leverage > maxLeverageForMarket) {
+      setLeverage(maxLeverageForMarket);
+    }
+  }, [leverage, maxLeverageForMarket]);
   const isRange = side === "range";
   const ctaClass = tradeCtaClass(side);
   const rangeLower = lowerStrikeRaw;
@@ -266,7 +283,9 @@ export function PredictLeveragePanel({
     marginUsd: marginNum,
     leverage: lev,
     owner: address ?? undefined,
-    enabled: marginNum > 0,
+    enabled:
+      marginNum > 0 &&
+      (lev <= LEVERAGE_MIN + 1e-6 || leveragedMintAllowed),
     referencePremiumOverride: quoteReferencePremium,
   });
 
@@ -411,6 +430,15 @@ export function PredictLeveragePanel({
         "You already have an open position on this exact market (same strike and side). Manage it under Positions instead of opening again.",
       );
     }
+    if (
+      lev > LEVERAGE_MIN + 1e-6 &&
+      expiryMs &&
+      !isLeveragedMintAllowed(expiryMs, LEVERAGED_MINT_WINDOW_MS)
+    ) {
+      errors.push(
+        "Leverage above 1× closes one hour before this market expires.",
+      );
+    }
     if (marginNum > 0 && marginNum < MIN_MARGIN_USD) {
       errors.push(`Minimum deposit is ${MIN_MARGIN_USD} dUSDC.`);
     }
@@ -463,10 +491,22 @@ export function PredictLeveragePanel({
       }
       if (limitExecution === "resting" && expiryMs && expiryMs > 0) {
         const restingExpiresMs = Date.now() + orderExpiresHours * 3_600_000;
+        const maxLeveragedExpiryMs = maxLeveragedRestingOrderExpiryMs(
+          expiryMs,
+          LEVERAGED_MINT_WINDOW_MS,
+        );
         if (restingExpiresMs <= Date.now()) {
           errors.push("Order expiry must be in the future.");
         } else if (restingExpiresMs > expiryMs) {
           errors.push("Order expiry cannot be after this market closes. Pick a shorter duration.");
+        } else if (
+          lev > LEVERAGE_MIN + 1e-6 &&
+          maxLeveragedExpiryMs != null &&
+          restingExpiresMs > maxLeveragedExpiryMs
+        ) {
+          errors.push(
+            "Leveraged resting orders must expire at least one hour before this market closes.",
+          );
         } else if (expiryMs <= Date.now() + 60_000) {
           errors.push("Market closes too soon for a resting limit order. Use Fill now or wait for the next expiry.");
         }
@@ -549,6 +589,7 @@ export function PredictLeveragePanel({
     leverxAccounts.length,
     hasLinkedManager,
     duplicateOpenPosition,
+    lev,
   ]);
 
   const canSubmit =
@@ -848,7 +889,16 @@ export function PredictLeveragePanel({
           ) : null}
         </div>
 
-        <LeverageSlider value={leverage} onChange={setLeverage} />
+        <LeverageSlider
+          value={leverage}
+          onChange={setLeverage}
+          maxLeverage={maxLeverageForMarket}
+          info={
+            expiryMs && isFinalHourBeforeExpiry(expiryMs, LEVERAGED_MINT_WINDOW_MS)
+              ? leverxInfo.leveragedMintWindow
+              : leverxInfo.leverage
+          }
+        />
 
         <TradeQuoteSummary
           quote={mintQuote}

@@ -353,6 +353,32 @@ public(package) fun credit_lp_revenue<Quote>(
     vault.balance.join(revenue.into_balance());
 }
 
+/// Move quote from the insurance backstop into circulation for debt repayment.
+public(package) fun take_insurance_fund<Quote>(
+    vault: &mut LeverageVault<Quote>,
+    amount: u64,
+    ctx: &mut TxContext,
+): Coin<Quote> {
+    assert!(amount > 0, errors::zero_amount());
+    assert!(
+        vault.insurance_fund.value() >= amount,
+        errors::insufficient_vault_liquidity(),
+    );
+    coin::from_balance(balance::split(&mut vault.insurance_fund, amount), ctx)
+}
+
+/// Socialize unrecoverable debt: reduce vault borrow without returning LP liquidity.
+public(package) fun write_off_debt_for_ledger<Quote>(
+    vault: &mut LeverageVault<Quote>,
+    ledger_principal: u64,
+    write_off_amt: u64,
+) {
+    if (write_off_amt == 0 || ledger_principal == 0) return;
+    let (_, principal_in_payment) =
+        repayment_split_for_ledger_principal(vault, ledger_principal, write_off_amt);
+    apply_repayment(vault, write_off_amt, principal_in_payment);
+}
+
 // === Vault flash loans ===
 
 /// Flash-borrow quote; returns coin and a hot-potato receipt due principal + fee.

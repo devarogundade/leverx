@@ -37,6 +37,15 @@ fun borrow_for_leverage_is_position_minus_margin() {
 }
 
 #[test]
-fun min_leverage_bps_is_one_point_one_x() {
+fun min_leverage_bps_is_one_x() {
     ltv::assert_leverage_bps(protocol_constants::min_leverage_bps());
+}
+
+#[test]
+fun open_position_collateral_health_uses_redeem_payout() {
+    let debt = 1_000;
+    // Free quote alone is underwater; adding redeem payout restores health.
+    assert!(ltv::is_position_liquidatable(0, debt, 0), 0);
+    assert!(!ltv::is_position_liquidatable(950, debt, 0), 0);
+    assert!(!ltv::is_position_liquidatable(0 + 950, debt, 0), 0);
 }

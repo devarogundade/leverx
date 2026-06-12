@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { isLeveragedMintAllowed } from '../config/trade-math';
 import { IndexerService } from '../indexer/indexer.service';
 import type { LimitMintOrder } from '../indexer/indexer.types';
 import type { TaskResult } from '../keeper/keeper.types';
@@ -32,9 +33,9 @@ export class LimitOrderService {
 
     const now = Date.now();
     const results: TaskResult[] = [];
-    const coreReady = this.sui.getTaskReadiness().tasks.settlement;
 
-    if (coreReady) {
+    // Leveraged limit fills need vault + predict wiring (same as settlement/liquidation).
+    if (readiness.txReady) {
       const fillable = await this.indexer.fetchAllPages((offset, pageSize) =>
         this.indexer.fetchLimitOrders({
           status: 'open',
@@ -51,6 +52,9 @@ export class LimitOrderService {
 
         const target = `${order.account_id}:${order.position_key}`;
         try {
+          if (!this.canFillLeveragedOrder(order, now)) {
+            continue;
+          }
           if (!(await this.isFillable(order))) {
             continue;
           }
@@ -132,6 +136,11 @@ export class LimitOrderService {
     }
 
     return results;
+  }
+
+  /** Skip leveraged resting fills during the final hour (on-chain mint window closed). */
+  private canFillLeveragedOrder(order: LimitMintOrder, now: number): boolean {
+    return isLeveragedMintAllowed(order.expiry_ms, order.leverage_bps, now);
   }
 
   private async isFillable(order: LimitMintOrder): Promise<boolean> {

@@ -5,6 +5,7 @@ import { KeeperOrchestratorService } from './keeper-orchestrator.service';
 import { KeeperScheduler } from './keeper.scheduler';
 import { LimitOrderService } from './limit-order.service';
 import { LiquidationService } from './liquidation.service';
+import { ForceCloseService } from './force-close.service';
 import { SettlementService } from './settlement.service';
 import { TriggerService } from './trigger.service';
 
@@ -15,6 +16,7 @@ import { TriggerService } from './trigger.service';
     LimitOrderService,
     LiquidationService,
     TriggerService,
+    ForceCloseService,
     KeeperOrchestratorService,
     KeeperScheduler,
   ],

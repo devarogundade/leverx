@@ -11,7 +11,10 @@ export const leverxInfo = {
   collateral: "dUSDC margin posted for a trade.",
   margin: "dUSDC you deposit per trade (0.1–100 dUSDC). Higher leverage borrows from the vault to increase position size.",
   quantity: "How many contracts you are opening. Each one pays out based on the final price at expiry.",
-  leverage: "Multiplier on your deposit (1.1×–10×). Position size = margin × leverage; the extra is borrowed from the vault.",
+  leverage:
+    "Multiplier on your deposit (1×–10×). At 1× there is no vault borrow. Leverage above 1× closes one hour before market expiry.",
+  leveragedMintWindow:
+    "New leveraged positions cannot be opened in the final hour before expiry. Existing borrowed positions in that window are force-deleveraged to 1× (or liquidated if underwater).",
   preTradeQuote: "Estimated cost before you confirm. Connect your wallet for the most accurate number.",
   askPerUnit: "Best available price per contract right now.",
   mintCost: "Total cost to open, including your deposit and any fees.",

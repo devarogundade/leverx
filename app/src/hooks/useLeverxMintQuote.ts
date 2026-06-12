@@ -47,7 +47,7 @@ export function useLeverxMintQuote(args: {
   const accountId = accounts[0]?.account_id;
 
   const marginAtoms = marginUsdToQuoteAtoms(args.marginUsd ?? 0);
-  const leverageBps = leverageToBps(args.leverage ?? 1.1);
+  const leverageBps = leverageToBps(args.leverage ?? 1);
 
   const query = useQuery({
     queryKey: [

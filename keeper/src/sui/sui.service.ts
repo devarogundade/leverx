@@ -113,6 +113,7 @@ export class SuiService implements OnModuleInit {
       limit_order: boolean;
       liquidation: boolean;
       trigger: boolean;
+      force_close: boolean;
     };
     missing: string[];
   } {
@@ -144,6 +145,7 @@ export class SuiService implements OnModuleInit {
     const limit_order =
       require('packageId', 'packageId') && Boolean(this.keypair);
     const liquidation = core;
+    const force_close = core;
 
     const txReady = settlement && Boolean(this.keypair);
 
@@ -154,6 +156,7 @@ export class SuiService implements OnModuleInit {
         limit_order,
         liquidation,
         trigger,
+        force_close,
       },
       missing,
     };

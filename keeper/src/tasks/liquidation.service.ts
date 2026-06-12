@@ -82,7 +82,7 @@ export class LiquidationService {
 
       const target = `${position.account_id}:${position.position_key}`;
       try {
-        if (!(await this.isLiquidatable(position))) {
+        if (position.borrow_quote < 1) {
           continue;
         }
 
@@ -118,12 +118,5 @@ export class LiquidationService {
     }
 
     return results;
-  }
-
-  private async isLiquidatable(position: LeveragedPosition): Promise<boolean> {
-    const cfg = this.sui.getConfig();
-    const tx = this.ptb.buildIsLiquidatable(cfg, position);
-    const result = await this.sui.devInspectBool(tx);
-    return result === true;
   }
 }

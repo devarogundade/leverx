@@ -384,6 +384,44 @@ public struct LeveragedPositionClosed has copy, drop {
 
 // === Liquidation ===
 
+/// Emitted when a keeper force-deleverages a leveraged key in the final hour before expiry.
+public struct PositionForceDeleveraged has copy, drop {
+    account_id: ID,
+    owner: address,
+    predict_manager_id: ID,
+    oracle_id: ID,
+    expiry_ms: u64,
+    strike: u64,
+    higher_strike: u64,
+    is_up: bool,
+    is_range: bool,
+    /// Contracts redeemed from the leveraged position.
+    redeemed_quantity: u64,
+    /// Gross payout from the redeem leg.
+    payout: u64,
+    /// Contracts reminted at 1x (0 if surplus was too small).
+    reminted_quantity: u64,
+    /// Keeper that submitted the transaction.
+    keeper: address,
+}
+
+/// Emitted when residual vault debt is written off after oracle settlement.
+public struct BadDebtWrittenOff has copy, drop {
+    account_id: ID,
+    owner: address,
+    oracle_id: ID,
+    expiry_ms: u64,
+    strike: u64,
+    higher_strike: u64,
+    is_up: bool,
+    is_range: bool,
+    /// Quote covered from the insurance fund before socialization.
+    insurance_covered: u64,
+    /// Remaining debt socialized to LPs (vault `total_borrowed` reduced).
+    socialized: u64,
+    keeper: address,
+}
+
 /// Emitted when a keeper liquidates an undercollateralized market key.
 public struct PositionLiquidated has copy, drop {
     /// `UserProxy` object ID.
@@ -851,6 +889,68 @@ public(package) fun emit_leveraged_position_closed(
         surplus_quote,
         remaining_debt,
         is_settled,
+    });
+}
+
+/// Emit `BadDebtWrittenOff`.
+public(package) fun emit_bad_debt_written_off(
+    account_id: ID,
+    owner: address,
+    oracle_id: ID,
+    expiry_ms: u64,
+    strike: u64,
+    higher_strike: u64,
+    is_up: bool,
+    is_range: bool,
+    insurance_covered: u64,
+    socialized: u64,
+    keeper: address,
+) {
+    event::emit(BadDebtWrittenOff {
+        account_id,
+        owner,
+        oracle_id,
+        expiry_ms,
+        strike,
+        higher_strike,
+        is_up,
+        is_range,
+        insurance_covered,
+        socialized,
+        keeper,
+    });
+}
+
+/// Emit `PositionForceDeleveraged`.
+public(package) fun emit_position_force_deleveraged(
+    account_id: ID,
+    owner: address,
+    predict_manager_id: ID,
+    oracle_id: ID,
+    expiry_ms: u64,
+    strike: u64,
+    higher_strike: u64,
+    is_up: bool,
+    is_range: bool,
+    redeemed_quantity: u64,
+    payout: u64,
+    reminted_quantity: u64,
+    keeper: address,
+) {
+    event::emit(PositionForceDeleveraged {
+        account_id,
+        owner,
+        predict_manager_id,
+        oracle_id,
+        expiry_ms,
+        strike,
+        higher_strike,
+        is_up,
+        is_range,
+        redeemed_quantity,
+        payout,
+        reminted_quantity,
+        keeper,
     });
 }
 

@@ -16,6 +16,12 @@ const PLACEMENT_PRICE_NOT_ALIGNED_MESSAGE =
 const SLIPPAGE_TOO_HIGH_MESSAGE =
   "Slippage exceeds the on-chain maximum (50%). Lower slippage and try again.";
 
+const LEVERAGED_MINT_OUTSIDE_WINDOW_MESSAGE =
+  "Leverage above 1× closes one hour before this market expires.";
+
+const FORCE_DELEVERAGE_OUTSIDE_WINDOW_MESSAGE =
+  "Force deleverage is only available in the final hour before this market expires.";
+
 export function formatTxError(error: unknown): string {
   const raw =
     error instanceof Error
@@ -49,6 +55,18 @@ export function formatTxError(error: unknown): string {
   }
   if (raw.includes("slippage_too_high") || (raw.includes("predict_client") && raw.includes(", 32)"))) {
     return SLIPPAGE_TOO_HIGH_MESSAGE;
+  }
+  if (
+    raw.includes("leveraged_mint_outside_window") ||
+    (raw.includes("trade") && raw.includes(", 42)"))
+  ) {
+    return LEVERAGED_MINT_OUTSIDE_WINDOW_MESSAGE;
+  }
+  if (
+    raw.includes("force_deleverage_outside_window") ||
+    (raw.includes("trade") && raw.includes(", 47)"))
+  ) {
+    return FORCE_DELEVERAGE_OUTSIDE_WINDOW_MESSAGE;
   }
   if (raw.includes("Predict manager is not linked")) {
     return "Predict manager is not linked. Open Portfolio → Account to link your manager.";

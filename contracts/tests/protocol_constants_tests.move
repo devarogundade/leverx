@@ -13,7 +13,8 @@ fun fee_shares_sum_to_one_hundred_percent() {
 
 #[test]
 fun leverage_bounds() {
-    assert!(protocol_constants::min_leverage_bps() == 11_000, 0);
+    assert!(protocol_constants::min_leverage_bps() == 10_000, 0);
+    assert!(protocol_constants::leveraged_mint_window_ms() == 3_600_000, 0);
     assert!(protocol_constants::max_leverage() == 10, 0);
     assert!(
         protocol_constants::max_leverage_bps() == protocol_constants::max_leverage() * protocol_constants::bps(),

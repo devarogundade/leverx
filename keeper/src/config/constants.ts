@@ -17,11 +17,13 @@ export const TESTNET_PREDICT = {
 /** Published LeverX package + shared objects (testnet). */
 export const TESTNET_LEVERX = {
   packageId:
-    '0x6e9540e900a6bf28d9b8ab43a706ae24a089586eca90545c2e958dff21838043',
-  /** Filled from env or indexer `/v1/protocol` after `deploy_and_share`. */
-  registryId: '',
-  vaultId: '',
-  feeCollectorId: '',
+    '0x3a82d6ea5a802da8d552864cb64ed86aa02496f20e53acb825e9607e8c4f58c7',
+  registryId:
+    '0xf8de17c7163497d3ca6079265ac06bb5a2aa283e76781fe652603101ef651e73',
+  vaultId:
+    '0x7bd0a81d6cdb7eadfe90f8aea53d09e0033c43ceba2199bd11a0c96096042e0a',
+  feeCollectorId:
+    '0x860773663de9493955669648e3fdde9fa0a29f78ecbe6129e6d44f6771448c0f',
 } as const;
 
 /** dUSDC quote type on testnet. */
@@ -31,7 +33,10 @@ export const TESTNET_ASSETS = {
 } as const;
 
 /** Min/max leverage (basis points). */
-export const MIN_LEVERAGE_BPS = 11_000;
+export const MIN_LEVERAGE_BPS = 10_000;
+
+/** Leveraged mints (>1x) blocked in the final hour before expiry. */
+export const LEVERAGED_MINT_WINDOW_MS = 3_600_000;
 export const MAX_LEVERAGE_BPS = 100_000;
 
 /** Margin-call threshold (95%). */
@@ -64,6 +69,7 @@ export const KEEPER_CRON_DEFAULTS = {
   limitOrder: '*/10 * * * * *',
   liquidation: '*/10 * * * * *',
   trigger: '*/10 * * * * *',
+  forceClose: '*/10 * * * * *',
 } as const;
 
 export const KEEPER_LIMIT_DEFAULTS = {
@@ -71,4 +77,5 @@ export const KEEPER_LIMIT_DEFAULTS = {
   limitFills: 10,
   liquidations: 5,
   triggers: 10,
+  forceCloses: 10,
 } as const;
