@@ -6,6 +6,7 @@ import { pageTitle } from "@/lib/brand";
 import { ui } from "@/lib/copy";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import { pageSimple, pageSimpleTitle } from "@/lib/leverx/tw";
+import { routePendingOptions } from "@/lib/router/route-options";
 
 const KEEPER_IMAGE = "devarogundade/leverx-keeper";
 

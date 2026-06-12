@@ -13,13 +13,6 @@ import { cn } from "@/lib/utils";
 import { loadPointsRoute } from "@/lib/router/route-loaders";
 import { routePendingOptions } from "@/lib/router/route-options";
 
-const EARN = [
-  "Trade leveraged positions on DeepBook Predict markets",
-  "Hold positions longer to accumulate time-weighted points",
-  "Provide liquidity to the LeverageVault pool",
-  "Complete onboarding and refer new traders",
-];
-
 function shortOwner(owner: string): string {
   if (owner.length <= 12) return owner;
   return `${owner.slice(0, 6)}…${owner.slice(-4)}`;
@@ -107,18 +100,6 @@ function PointsPage() {
       ) : (
         <DataTable columns={columns} rows={entries} rowKey={(entry) => entry.owner} />
       )}
-
-      <div className="space-y-3">
-        <h2 className="text-sm font-semibold">How to earn</h2>
-        <ul className="space-y-2">
-          {EARN.map((rule) => (
-            <li key={rule} className="flex gap-2 text-sm text-muted-foreground">
-              <span className="text-accent">•</span>
-              {rule}
-            </li>
-          ))}
-        </ul>
-      </div>
     </section>
   );
 }
