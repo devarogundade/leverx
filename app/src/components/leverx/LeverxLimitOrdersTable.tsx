@@ -49,6 +49,7 @@ export function LeverxLimitOrdersTable({ orders, className }: Props) {
       key: "limit",
       header: "Limit",
       align: "right",
+      mobileTrailing: true,
       cell: (r) => (
         <span className="font-mono text-sm tabular-nums">
           {formatPremiumCents(r.order.limit_premium_per_unit)}
@@ -59,7 +60,7 @@ export function LeverxLimitOrdersTable({ orders, className }: Props) {
       key: "qty",
       header: "Qty",
       align: "right",
-      hideOnMobile: true,
+      mobileLabel: "Qty",
       cell: (r) => (
         <span className="font-mono text-sm tabular-nums">
           {r.order.quantity.toLocaleString()}
@@ -70,7 +71,7 @@ export function LeverxLimitOrdersTable({ orders, className }: Props) {
       key: "margin",
       header: "Margin",
       align: "right",
-      hideOnMobile: true,
+      mobileLabel: "Margin",
       cell: (r) => (
         <span className="font-mono text-sm tabular-nums">
           {scaleQuote(r.order.margin_quote).toFixed(2)} dUSDC
@@ -81,7 +82,7 @@ export function LeverxLimitOrdersTable({ orders, className }: Props) {
       key: "leverage",
       header: "Lev",
       align: "right",
-      hideOnMobile: true,
+      mobileLabel: "Lev",
       cell: (r) => (
         <span className="font-mono text-sm">{(r.order.leverage_bps / 10_000).toFixed(1)}×</span>
       ),
@@ -90,7 +91,7 @@ export function LeverxLimitOrdersTable({ orders, className }: Props) {
       key: "expires",
       header: "Expires",
       align: "right",
-      hideOnMobile: true,
+      mobileLabel: "Expires",
       cell: (r) => (
         <span className="text-xs text-muted-foreground">
           {r.order.order_expires_ms
@@ -108,13 +109,14 @@ export function LeverxLimitOrdersTable({ orders, className }: Props) {
       key: "status",
       header: "Status",
       align: "right",
-      hideOnMobile: true,
+      mobileLabel: "Status",
       cell: (r) => <span className="text-xs capitalize text-muted-foreground">{r.order.status}</span>,
     },
     {
       key: "actions",
       header: "",
       align: "right",
+      mobileFooter: true,
       cell: (r) =>
         r.order.status === "open" ? <CancelOrderTrigger order={r.order} /> : null,
     },

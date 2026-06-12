@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, Inbox } from "lucide-react";
+import { ChevronLeft, ChevronRight, Inbox } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { UnderlineTabs } from "@/components/leverx/UnderlineTabs";
 import { PredictLeveragePanel } from "@/components/leverx/PredictLeveragePanel";
 import { LeverxLimitOrdersTable } from "@/components/leverx/LeverxLimitOrdersTable";
 import { LeverxPositionsTable } from "@/components/leverx/LeverxPositionsTable";
+import { MarketTradesTable } from "@/components/leverx/MarketTradesTable";
 import { usePositionsMarkToMarket } from "@/hooks/usePositionsMarkToMarket";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { PriceChart } from "@/components/PriceChart";
@@ -32,7 +33,6 @@ import { usePredictOracleState } from "@/hooks/usePredictOracleState";
 import {
   buildQuestion,
   catalogToMarketRows,
-  formatPremiumCents,
   formatPremiumOrPlaceholder,
 } from "@/lib/leverx/indexer-markets";
 import {
@@ -325,58 +325,7 @@ function TradePositionsPanel({
           tradesLoading ? (
             <LoadingState label={ui.loadingTrades} compact />
           ) : trades.length > 0 ? (
-            <table className="w-full table-fixed text-left text-xs">
-              <colgroup>
-                <col className="w-[34%]" />
-                <col className="w-[36%]" />
-                <col className="w-[15%]" />
-                <col className="w-[15%]" />
-              </colgroup>
-              <thead>
-                <tr className="border-b border-border/40 text-[0.625rem] font-medium uppercase tracking-wider text-muted-foreground">
-                  <th className="pb-1.5 pr-3 text-left font-medium">Side</th>
-                  <th className="pb-1.5 pr-3 text-left font-medium">Time</th>
-                  <th className="pb-1.5 pr-2 text-right font-medium">Qty</th>
-                  <th className="pb-1.5 text-right font-medium">Price</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/40 font-mono">
-                {trades.slice(0, 12).map((t) => (
-                  <tr key={t.event_digest}>
-                    <td className="py-2 pr-3 align-middle">
-                      <span className="flex min-w-0 items-center gap-1.5">
-                        {t.trade_side === "mint" ? (
-                          <ArrowUpRight className="h-3 w-3 shrink-0 text-success" />
-                        ) : (
-                          <ArrowDownRight className="h-3 w-3 shrink-0 text-destructive" />
-                        )}
-                        <span className={t.is_up ? "text-success" : "text-destructive"}>
-                          {t.trade_side === "mint" ? "OPEN" : "CLOSE"} {t.is_up ? "UP" : "DOWN"}
-                        </span>
-                      </span>
-                    </td>
-                    <td className="py-2 pr-3 align-middle whitespace-nowrap text-muted-foreground">
-                      {new Date(t.timestamp_ms).toLocaleString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}
-                    </td>
-                    <td className="py-2 pr-2 align-middle text-right tabular-nums text-foreground">
-                      {t.quantity.toLocaleString()}
-                    </td>
-                    <td className="py-2 align-middle text-right tabular-nums text-foreground">
-                      {t.ask_price
-                        ? formatPremiumCents(t.ask_price)
-                        : t.bid_price
-                          ? formatPremiumCents(t.bid_price)
-                          : "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <MarketTradesTable trades={trades} />
           ) : (
             <EmptyState
               icon={Inbox}

@@ -1,6 +1,14 @@
 import { type ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import { pageState } from "@/lib/leverx/tw";
+import {
+  dataTableMobileCard,
+  dataTableMobileCardFooter,
+  dataTableMobileCardHeader,
+  dataTableMobileCardStats,
+  dataTableMobileList,
+  dataTableMobileStatLabel,
+  pageState,
+} from "@/lib/leverx/tw";
 
 export interface Column<T> {
   key: string;
@@ -8,9 +16,16 @@ export interface Column<T> {
   cell: (row: T) => ReactNode;
   className?: string;
   align?: "left" | "right" | "center";
+  /** Omit from mobile card body (desktop-only column). */
   hideOnMobile?: boolean;
+  /** Label in mobile stat grid when header is not plain text. */
   mobileLabel?: string;
+  /** Primary content in the mobile card header (left). */
   mobileEmphasis?: boolean;
+  /** Secondary highlight in the mobile card header (right), e.g. P&L. */
+  mobileTrailing?: boolean;
+  /** Full-width row at the bottom of the card, e.g. actions. */
+  mobileFooter?: boolean;
 }
 
 interface Props<T> {
@@ -22,12 +37,18 @@ interface Props<T> {
   rowClassName?: (row: T) => string;
 }
 
+function columnLabel<T>(column: Column<T>): ReactNode {
+  if (column.mobileLabel) return column.mobileLabel;
+  if (typeof column.header === "string") return column.header;
+  return column.key;
+}
+
 export function DataTable<T>({ columns, rows, rowKey, empty, onRowClick, rowClassName }: Props<T>) {
   if (rows.length === 0 && empty) {
-    return (
-      <div className={cn(pageState, "py-8")}>{empty}</div>
-    );
+    return <div className={cn(pageState, "py-8")}>{empty}</div>;
   }
+
+  const desktopColumns = columns;
 
   return (
     <>
@@ -35,7 +56,7 @@ export function DataTable<T>({ columns, rows, rowKey, empty, onRowClick, rowClas
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-[11px] uppercase tracking-wider text-muted-foreground">
-              {columns.map((c) => (
+              {desktopColumns.map((c) => (
                 <th
                   key={c.key}
                   className={cn(
@@ -61,7 +82,7 @@ export function DataTable<T>({ columns, rows, rowKey, empty, onRowClick, rowClas
                   rowClassName?.(row),
                 )}
               >
-                {columns.map((c) => (
+                {desktopColumns.map((c) => (
                   <td
                     key={c.key}
                     className={cn(
@@ -80,40 +101,74 @@ export function DataTable<T>({ columns, rows, rowKey, empty, onRowClick, rowClas
         </table>
       </div>
 
-      <div className="space-y-3 lg:hidden">
+      <div className={dataTableMobileList}>
         {rows.map((row) => {
           const emphasis = columns.filter((c) => c.mobileEmphasis);
-          const rest = columns.filter((c) => !c.mobileEmphasis && !c.hideOnMobile);
+          const trailing = columns.filter((c) => c.mobileTrailing);
+          const footer = columns.filter((c) => c.mobileFooter);
+          const stats = columns.filter(
+            (c) =>
+              !c.mobileEmphasis &&
+              !c.mobileTrailing &&
+              !c.mobileFooter &&
+              !c.hideOnMobile,
+          );
+
           return (
-            <div
+            <article
               key={rowKey(row)}
               onClick={onRowClick ? () => onRowClick(row) : undefined}
               className={cn(
-                "rounded-lg border border-border bg-card/50 p-4",
-                onRowClick && "cursor-pointer active:bg-hover/50",
+                dataTableMobileCard,
+                onRowClick && "cursor-pointer active:bg-hover/30",
                 rowClassName?.(row),
               )}
             >
-              {emphasis.length > 0 && (
-                <div className="mb-3 flex items-start justify-between gap-3 border-b border-border pb-3">
-                  {emphasis.map((c) => (
-                    <div key={c.key} className={cn(c.align === "right" && "text-right")}>
+              {(emphasis.length > 0 || trailing.length > 0) && (
+                <div className={dataTableMobileCardHeader}>
+                  <div className="min-w-0 flex-1 space-y-1">
+                    {emphasis.map((c) => (
+                      <div key={c.key}>{c.cell(row)}</div>
+                    ))}
+                  </div>
+                  {trailing.length > 0 ? (
+                    <div className="shrink-0 text-right">
+                      {trailing.map((c) => (
+                        <div key={c.key}>{c.cell(row)}</div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              )}
+
+              {stats.length > 0 ? (
+                <dl className={dataTableMobileCardStats}>
+                  {stats.map((c) => (
+                    <div key={c.key} className="min-w-0">
+                      <dt className={dataTableMobileStatLabel}>{columnLabel(c)}</dt>
+                      <dd
+                        className={cn(
+                          "mt-0.5 text-sm text-foreground",
+                          c.align === "right" && "text-right font-mono tabular-nums",
+                        )}
+                      >
+                        {c.cell(row)}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : null}
+
+              {footer.length > 0 ? (
+                <div className={dataTableMobileCardFooter}>
+                  {footer.map((c) => (
+                    <div key={c.key} className="flex justify-end">
                       {c.cell(row)}
                     </div>
                   ))}
                 </div>
-              )}
-              <dl className="grid grid-cols-2 gap-x-3 gap-y-2.5 text-sm">
-                {rest.map((c) => (
-                  <div key={c.key} className="flex flex-col gap-0.5">
-                    <dt className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                      {c.mobileLabel ?? c.header}
-                    </dt>
-                    <dd className="text-sm text-foreground">{c.cell(row)}</dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
+              ) : null}
+            </article>
           );
         })}
       </div>

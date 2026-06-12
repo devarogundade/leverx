@@ -188,14 +188,14 @@ export function LeverxPositionsTable({
     {
       key: "strike",
       header: "Strike",
-      hideOnMobile: compact,
+      mobileLabel: "Strike",
       cell: (r) => <span className="font-mono text-xs">{r.strikeLabel}</span>,
     },
     {
       key: "qty",
       header: "Qty",
       align: "right",
-      hideOnMobile: compact,
+      mobileLabel: "Qty",
       cell: (r) => (
         <span className="font-mono text-sm tabular-nums">
           {r.position.open_quantity > 0 ? r.position.open_quantity.toLocaleString() : "—"}
@@ -223,6 +223,7 @@ export function LeverxPositionsTable({
           ) : null}
         </span>
       ),
+      mobileLabel: "Mark",
       align: "right",
       cell: (r) => {
         const closed = r.position.status !== "open";
@@ -247,7 +248,7 @@ export function LeverxPositionsTable({
       key: "pnl",
       header: "Unrealized P&L",
       align: "right",
-      mobileLabel: "P&L",
+      mobileTrailing: true,
       cell: (r) => (
         <PnlCell mtm={r.mtm} closed={r.position.status !== "open"} />
       ),
@@ -256,7 +257,7 @@ export function LeverxPositionsTable({
       key: "margin",
       header: "Margin / Lev",
       align: "right",
-      hideOnMobile: compact,
+      mobileLabel: "Margin",
       cell: (r) => (
         <div className="text-right text-xs tabular-nums">
           <div className="font-medium">{formatUsdc(scaleQuote(r.position.margin_quote))}</div>
@@ -280,7 +281,7 @@ export function LeverxPositionsTable({
       key: "expiry",
       header: "Expiry",
       align: "right",
-      hideOnMobile: true,
+      mobileLabel: "Expiry",
       cell: (r) => (
         <span className="text-xs text-muted-foreground">{formatExpiry(r.position.expiry_ms)}</span>
       ),
@@ -289,6 +290,7 @@ export function LeverxPositionsTable({
       key: "actions",
       header: "",
       align: "right",
+      mobileFooter: true,
       cell: (r) =>
         r.position.status === "open" ? (
           <PositionActionsTrigger position={r.position} />
@@ -312,9 +314,7 @@ export function LeverxPositionsTable({
           ) : null}
         </div>
       ) : null}
-      <div className={cn(!showHeader && "overflow-x-auto")}>
-        <DataTable columns={cols} rows={rows} rowKey={(r) => r.id} />
-      </div>
+      <DataTable columns={cols} rows={rows} rowKey={(r) => r.id} />
     </div>
   );
 }

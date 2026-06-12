@@ -442,7 +442,8 @@ export const marketsTableMobileList = "space-y-3 lg:hidden";
 
 export const marketsTableMobileCard = cn(tradeSurface, "flex flex-col gap-3 p-4");
 
-export const marketsTableMobileCardHeader = "flex items-start gap-2.5 border-b border-border pb-3";
+export const marketsTableMobileCardHeader =
+  "flex items-start justify-between gap-3 border-b border-border pb-3";
 
 export const marketsTableMobileCardStats = "grid grid-cols-2 gap-x-3 gap-y-2.5";
 
@@ -450,6 +451,33 @@ export const marketsTableMobileStatLabel =
   "text-[10px] font-medium uppercase tracking-wider text-muted-foreground";
 
 export const marketsTableMobileStatValue = "text-sm text-foreground";
+
+/** Shared mobile list cards (DataTable, markets, portfolio). */
+export const dataTableMobileList = marketsTableMobileList;
+
+export const dataTableMobileCard = marketsTableMobileCard;
+
+export const dataTableMobileCardHeader = marketsTableMobileCardHeader;
+
+export const dataTableMobileCardStats = marketsTableMobileCardStats;
+
+export const dataTableMobileStatLabel = marketsTableMobileStatLabel;
+
+export const dataTableMobileCardFooter =
+  "flex flex-col gap-2 border-t border-border pt-3";
+
+/** Nested list rows inside settings panels — cards on mobile, compact rows on desktop. */
+export const settingsList = "space-y-3 lg:space-y-0 lg:divide-y lg:divide-border/60";
+
+export const settingsListItem = cn(
+  dataTableMobileCard,
+  "lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:py-2 lg:shadow-none lg:first:pt-0 lg:last:pb-0",
+);
+
+export const settingsListItemHeader = cn(
+  dataTableMobileCardHeader,
+  "lg:border-0 lg:pb-0",
+);
 
 export const marketsTableDesktop = "hidden lg:block";
 

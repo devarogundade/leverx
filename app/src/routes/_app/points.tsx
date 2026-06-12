@@ -28,7 +28,6 @@ const columns: Column<LeaderboardEntry>[] = [
     key: "rank",
     header: "Rank",
     mobileLabel: "Rank",
-    mobileEmphasis: true,
     cell: (entry) => <span className="font-mono font-semibold">#{entry.rank}</span>,
   },
   {
@@ -45,6 +44,7 @@ const columns: Column<LeaderboardEntry>[] = [
     key: "volume",
     header: "Volume",
     align: "right",
+    mobileLabel: "Volume",
     cell: (entry) => (
       <span className="font-mono">
         {formatCompactUsdOrPlaceholder(
@@ -57,12 +57,14 @@ const columns: Column<LeaderboardEntry>[] = [
     key: "trades",
     header: "Trades",
     align: "right",
+    mobileLabel: "Trades",
     cell: (entry) => <span className="font-mono">{entry.trade_count}</span>,
   },
   {
     key: "points",
     header: "Points",
     align: "right",
+    mobileTrailing: true,
     cell: (entry) => (
       <span className="font-mono font-medium">
         {Math.round(scaleQuote(entry.points)).toLocaleString()}
@@ -99,9 +101,7 @@ function PointsPage() {
           description="Open or close leveraged positions on LeverX to appear on the volume leaderboard."
         />
       ) : (
-        <div className="rounded-lg border border-border">
-          <DataTable columns={columns} rows={entries} rowKey={(entry) => entry.owner} />
-        </div>
+        <DataTable columns={columns} rows={entries} rowKey={(entry) => entry.owner} />
       )}
 
       <div className="space-y-3">

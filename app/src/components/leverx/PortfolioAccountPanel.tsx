@@ -18,7 +18,16 @@ import { assetLabelForOracleId } from "@/lib/predict/oracles";
 import { usePredictOracleRows } from "@/hooks/usePredictOracles";
 import { scaleQuote } from "@/lib/predict/scaling";
 import { isValidSuiAddress } from "@/lib/leverx/form-helpers";
-import { inputInField, labelCaps, pillToggleBtn, pillToggleIdle, tradeSurface } from "@/lib/leverx/tw";
+import {
+  inputInField,
+  labelCaps,
+  pillToggleBtn,
+  pillToggleIdle,
+  settingsList,
+  settingsListItem,
+  settingsListItemHeader,
+  tradeSurface,
+} from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -151,22 +160,24 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
         {executors.length === 0 ? (
           <p className="text-xs text-muted-foreground">No trusted traders added.</p>
         ) : (
-          <ul className="divide-y divide-border/60">
+          <ul className={settingsList}>
             {executors.map((ex) => (
-              <li key={ex.executor} className="flex items-center justify-between gap-2 py-2 first:pt-0 last:pb-0">
-                <span className="truncate font-mono text-xs">{ex.executor}</span>
-                {ex.active ? (
-                  <button
-                    type="button"
-                    className={cn(pillToggleBtn, pillToggleIdle, "text-xs")}
-                    disabled={revokeExecutor.isPending}
-                    onClick={() => setRevokeTarget(ex.executor)}
-                  >
-                    Revoke
-                  </button>
-                ) : (
-                  <span className="text-xs text-muted-foreground">Revoked</span>
-                )}
+              <li key={ex.executor} className={settingsListItem}>
+                <div className={settingsListItemHeader}>
+                  <span className="truncate font-mono text-xs">{ex.executor}</span>
+                  {ex.active ? (
+                    <button
+                      type="button"
+                      className={cn(pillToggleBtn, pillToggleIdle, "text-xs")}
+                      disabled={revokeExecutor.isPending}
+                      onClick={() => setRevokeTarget(ex.executor)}
+                    >
+                      Revoke
+                    </button>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Revoked</span>
+                  )}
+                </div>
               </li>
             ))}
           </ul>
@@ -177,34 +188,33 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
         {activeTriggers.length === 0 ? (
           <p className="text-xs text-muted-foreground">No active take-profit or stop-loss rules.</p>
         ) : (
-          <ul className="divide-y divide-border/60">
+          <ul className={settingsList}>
             {activeTriggers.map((t) => {
               const match = positionKeyForTrigger(t, positions);
               const asset = assetLabelForOracleId(t.oracle_id, oracles);
               return (
-                <li
-                  key={`${t.oracle_id}-${t.is_range}`}
-                  className="flex flex-wrap items-center justify-between gap-2 py-2 first:pt-0 last:pb-0"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium">{asset}</p>
-                    <p className="font-mono text-[11px] text-muted-foreground">
-                      TP {premiumRawToCents(BigInt(t.take_profit_premium)).toFixed(1)}¢ · SL{" "}
-                      {premiumRawToCents(BigInt(t.stop_loss_premium)).toFixed(1)}¢
-                    </p>
+                <li key={`${t.oracle_id}-${t.is_range}`} className={settingsListItem}>
+                  <div className={settingsListItemHeader}>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{asset}</p>
+                      <p className="font-mono text-[11px] text-muted-foreground">
+                        TP {premiumRawToCents(BigInt(t.take_profit_premium)).toFixed(1)}¢ · SL{" "}
+                        {premiumRawToCents(BigInt(t.stop_loss_premium)).toFixed(1)}¢
+                      </p>
+                    </div>
+                    {match ? (
+                      <button
+                        type="button"
+                        className={cn(pillToggleBtn, pillToggleIdle, "text-xs")}
+                        disabled={clearTriggers.isPending}
+                        onClick={() => setClearTriggerTarget(match)}
+                      >
+                        Clear
+                      </button>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">No open trade</span>
+                    )}
                   </div>
-                  {match ? (
-                    <button
-                      type="button"
-                      className={cn(pillToggleBtn, pillToggleIdle, "text-xs")}
-                      disabled={clearTriggers.isPending}
-                      onClick={() => setClearTriggerTarget(match)}
-                    >
-                      Clear
-                    </button>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">No open trade</span>
-                  )}
                 </li>
               );
             })}
@@ -216,15 +226,17 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
         {openMargins.length === 0 ? (
           <p className="text-xs text-muted-foreground">No dUSDC margin in open trades.</p>
         ) : (
-          <ul className="divide-y divide-border/60">
+          <ul className={settingsList}>
             {openMargins.slice(0, 12).map((p) => (
-              <li key={p.position_key} className="flex items-center justify-between gap-2 py-2 first:pt-0 last:pb-0">
-                <span className="text-sm font-medium">
-                  {assetLabelForOracleId(p.oracle_id, oracles)}
-                </span>
-                <span className="font-mono text-xs tabular-nums">
-                  {formatUsdcOrPlaceholder(scaleQuote(p.margin_quote))}
-                </span>
+              <li key={p.position_key} className={settingsListItem}>
+                <div className={settingsListItemHeader}>
+                  <span className="text-sm font-medium">
+                    {assetLabelForOracleId(p.oracle_id, oracles)}
+                  </span>
+                  <span className="font-mono text-xs tabular-nums">
+                    {formatUsdcOrPlaceholder(scaleQuote(p.margin_quote))}
+                  </span>
+                </div>
               </li>
             ))}
           </ul>
@@ -235,15 +247,17 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
         {liquidations.length === 0 ? (
           <p className="text-xs text-muted-foreground">No auto-closed trades yet.</p>
         ) : (
-          <ul className="divide-y divide-border/60">
+          <ul className={settingsList}>
             {liquidations.slice(0, 8).map((l) => (
-              <li key={l.event_digest} className="flex items-center justify-between gap-2 py-2 first:pt-0 last:pb-0">
-                <span className="text-xs text-muted-foreground">
-                  Health {(l.health_bps / 100).toFixed(0)}%
-                </span>
-                <span className="font-mono text-xs tabular-nums">
-                  {formatUsdcOrPlaceholder(scaleQuote(l.debt_repaid))} repaid
-                </span>
+              <li key={l.event_digest} className={settingsListItem}>
+                <div className={settingsListItemHeader}>
+                  <span className="text-xs text-muted-foreground">
+                    Health {(l.health_bps / 100).toFixed(0)}%
+                  </span>
+                  <span className="font-mono text-xs tabular-nums">
+                    {formatUsdcOrPlaceholder(scaleQuote(l.debt_repaid))} repaid
+                  </span>
+                </div>
               </li>
             ))}
           </ul>
