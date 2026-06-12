@@ -1,5 +1,6 @@
+import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { predictSideLabel } from "@/lib/predict/instruments";
+import { predictSideLabel, type PredictSide } from "@/lib/predict/instruments";
 import {
   marketSideAction,
   marketSideActionDown,
@@ -13,27 +14,42 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   oracleId: string;
-  strikeRaw: number;
-  rangeLower?: number;
-  rangeUpper?: number;
   className?: string;
   stretch?: boolean;
   plain?: boolean;
   hideRangeOnMobile?: boolean;
 }
 
+function SideLink({
+  oracleId,
+  side,
+  className,
+  children,
+}: {
+  oracleId: string;
+  side: PredictSide;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      to="/predictions/$oracleId"
+      params={{ oracleId }}
+      state={{ predictSide: side }}
+      className={className}
+    >
+      {children}
+    </Link>
+  );
+}
+
 export function MarketSideActions({
   oracleId,
-  strikeRaw,
-  rangeLower,
-  rangeUpper,
   className,
   stretch = false,
   plain = false,
   hideRangeOnMobile = false,
 }: Props) {
-  const resolvedLower = rangeLower ?? strikeRaw;
-  const resolvedUpper = rangeUpper ?? strikeRaw;
   return (
     <div
       className={cn(
@@ -44,30 +60,23 @@ export function MarketSideActions({
       role="group"
       aria-label="Trade side"
     >
-      <Link
-        to="/predictions/$oracleId"
-        params={{ oracleId }}
-        search={{ strike: strikeRaw, side: "up" }}
+      <SideLink
+        oracleId={oracleId}
+        side="up"
         className={cn(marketSideAction, marketSideActionUp)}
       >
         {predictSideLabel.up}
-      </Link>
-      <Link
-        to="/predictions/$oracleId"
-        params={{ oracleId }}
-        search={{ strike: strikeRaw, side: "down" }}
+      </SideLink>
+      <SideLink
+        oracleId={oracleId}
+        side="down"
         className={cn(marketSideAction, marketSideActionDown)}
       >
         {predictSideLabel.down}
-      </Link>
-      <Link
-        to="/predictions/$oracleId"
-        params={{ oracleId }}
-        search={{
-          side: "range",
-          lowerStrike: resolvedLower,
-          upperStrike: resolvedUpper,
-        }}
+      </SideLink>
+      <SideLink
+        oracleId={oracleId}
+        side="range"
         className={cn(
           marketSideAction,
           marketSideActionRange,
@@ -75,7 +84,7 @@ export function MarketSideActions({
         )}
       >
         {predictSideLabel.range}
-      </Link>
+      </SideLink>
     </div>
   );
 }

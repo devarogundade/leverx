@@ -17,7 +17,6 @@ import {
   formatPremiumOrPlaceholder,
   type LeverxMarketRow,
 } from "@/lib/leverx/indexer-markets";
-import { resolveRangeBounds } from "@/lib/leverx/predict-oracle-markets";
 import { ui } from "@/lib/copy";
 import {
   landingCtaSecondary,
@@ -102,25 +101,9 @@ export function PredictMarketsGrid({
     <div className="flex flex-col">
       <div className={marketsGrid}>
         {pageMarkets.map((m) => {
-          const range = resolveRangeBounds({
-            oracleId: m.oracleId,
-            catalogRows: markets,
-            strikeRaw: m.strikeRaw,
-            lowerStrikeRaw: m.isRange ? m.strikeRaw : undefined,
-            upperStrikeRaw: m.isRange ? m.higherStrikeRaw : undefined,
-            oracleSpot: m.spotPrice,
-          });
-          const side = m.isRange ? ("range" as const) : m.isUp ? ("up" as const) : ("down" as const);
           const marketHref = {
             to: "/predictions/$oracleId" as const,
             params: { oracleId: m.oracleId },
-            search: m.isRange
-              ? {
-                  side: "range" as const,
-                  lowerStrike: range?.lower ?? m.strikeRaw,
-                  upperStrike: range?.upper ?? m.higherStrikeRaw,
-                }
-              : { strike: m.strikeRaw, side },
           };
 
           return (
@@ -154,14 +137,7 @@ export function PredictMarketsGrid({
                 </div>
 
                 <div className={marketCardActions}>
-                  <MarketSideActions
-                    oracleId={m.oracleId}
-                    strikeRaw={m.strikeRaw}
-                    rangeLower={range?.lower}
-                    rangeUpper={range?.upper}
-                    stretch
-                    className="w-full"
-                  />
+                  <MarketSideActions oracleId={m.oracleId} stretch className="w-full" />
                 </div>
 
                 <div className={marketCardMeta}>

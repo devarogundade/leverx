@@ -186,3 +186,16 @@ export function groupNearestActiveOraclesByBase(
 
   return byBase;
 }
+
+/** Human-readable base asset (e.g. BTC) for a predict oracle id. */
+export function assetLabelForOracleId(
+  oracleId: string,
+  oracles?: readonly PredictOracleSummary[],
+): string {
+  const oracle = oracles?.find((row) => row.oracle_id === oracleId);
+  if (oracle) {
+    const label = baseFromUnderlying(oracle.underlying_asset ?? "");
+    if (label) return label;
+  }
+  return oracleId.slice(2, 6).toUpperCase() || "MKT";
+}

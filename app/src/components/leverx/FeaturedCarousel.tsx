@@ -47,15 +47,6 @@ export function FeaturedCarousel({ markets, loading }: Props) {
                 key={m.id}
                 to="/predictions/$oracleId"
                 params={{ oracleId: m.oracleId }}
-                search={
-                  m.isRange
-                    ? {
-                        side: "range",
-                        lowerStrike: m.strikeRaw,
-                        upperStrike: m.higherStrikeRaw,
-                      }
-                    : { strike: m.strikeRaw, side: m.isUp ? "up" : "down" }
-                }
                 className={cn(featuredCarouselRow, "transition-colors hover:bg-hover")}
               >
                 <AssetBadge asset={m.asset} size="sm" />

@@ -30,6 +30,12 @@ const MINT_COST_EXCEEDS_POSITION_MESSAGE =
 const SLIPPAGE_EXCEEDED_MESSAGE =
   "Market moved beyond your slippage tolerance before the trade executed. Try again or increase slippage.";
 
+const LIMIT_PRICE_NOT_MET_MESSAGE =
+  "Live contract price is above your limit. Raise the limit or switch to Resting.";
+
+const PLACEMENT_PRICE_NOT_ALIGNED_MESSAGE =
+  "Live contract price is outside your limit ± placement slippage. Adjust the limit or widen placement slippage.";
+
 function formatTxError(error: unknown): string {
   const raw =
     error instanceof Error
@@ -51,6 +57,15 @@ function formatTxError(error: unknown): string {
   }
   if (raw.includes("slippage_exceeded") || (raw.includes("trade") && raw.includes(", 26)"))) {
     return SLIPPAGE_EXCEEDED_MESSAGE;
+  }
+  if (raw.includes("limit_price_not_met") || (raw.includes("trade") && raw.includes(", 25)"))) {
+    return LIMIT_PRICE_NOT_MET_MESSAGE;
+  }
+  if (
+    raw.includes("placement_price_not_aligned") ||
+    (raw.includes("trade") && raw.includes(", 30)"))
+  ) {
+    return PLACEMENT_PRICE_NOT_ALIGNED_MESSAGE;
   }
   return raw;
 }

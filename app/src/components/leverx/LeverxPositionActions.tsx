@@ -1,9 +1,6 @@
-import { Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { PositionRiskMenu } from "@/components/leverx/PositionRiskMenu";
-import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
+import { PositionActionsTrigger } from "@/components/leverx/PositionActionsModal";
+import { CancelOrderTrigger } from "@/components/leverx/CancelOrderModal";
 import type { LimitMintOrder, LeveragedPosition } from "@/lib/leverx/indexer-client";
-import { pillToggleBtn, pillToggleIdle } from "@/lib/leverx/tw";
 
 interface CloseProps {
   position: LeveragedPosition;
@@ -11,9 +8,9 @@ interface CloseProps {
   className?: string;
 }
 
-export function LeverxClosePositionButton({ position, owner, className }: CloseProps) {
+export function LeverxClosePositionButton({ position, className }: CloseProps) {
   if (position.status === "open") {
-    return <PositionRiskMenu position={position} owner={owner} className={className} />;
+    return <PositionActionsTrigger position={position} className={className} />;
   }
   return null;
 }
@@ -24,33 +21,6 @@ interface CancelProps {
   className?: string;
 }
 
-export function LeverxCancelOrderButton({ order, owner, className }: CancelProps) {
-  const { cancelLimitOrder, isProtocolReady, formatTxError } = useLeverxTransactions();
-
-  const pending = cancelLimitOrder.isPending;
-  const disabled = !isProtocolReady || order.status !== "open" || pending;
-
-  return (
-    <button
-      type="button"
-      className={cn(pillToggleBtn, pillToggleIdle, "text-xs", className)}
-      disabled={disabled}
-      onClick={() => {
-        cancelLimitOrder.mutate(order, {
-          onError: (err) => {
-            window.alert(formatTxError(err));
-          },
-        });
-      }}
-    >
-      {pending ? (
-        <>
-          <Loader2 className="mr-1 inline h-3 w-3 animate-spin" />
-          Cancelling…
-        </>
-      ) : (
-        "Cancel"
-      )}
-    </button>
-  );
+export function LeverxCancelOrderButton({ order, className }: CancelProps) {
+  return <CancelOrderTrigger order={order} className={className} />;
 }

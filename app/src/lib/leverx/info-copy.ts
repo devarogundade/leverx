@@ -28,7 +28,7 @@ export const leverxInfo = {
   borrowedQuote: "Amount borrowed from the pool across your account.",
   openPositions: "Number of trades still open.",
   openPositionsTable:
-    "Use the ⋯ menu to close at market, close at a set price, pay back borrowed funds, or settle after expiry.",
+    "Live unrealized P&L and health update from on-chain redeem quotes. Use Manage to close, repay debt, or settle after expiry.",
   accountSettings:
     "Link your trading account and allow trusted addresses to trade on your behalf.",
   predictManager: "Your on-chain trading account that holds positions.",

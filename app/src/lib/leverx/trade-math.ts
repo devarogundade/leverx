@@ -97,6 +97,40 @@ export function applySlippageBps(amount: bigint, slippageBps: number): bigint {
   return (amount * BigInt(10_000 + slippageBps)) / 10_000n;
 }
 
+/** Slippage band on a per-contract premium (matches on-chain `premium_slippage_tolerance`). */
+export function premiumSlippageTolerance(premiumPerUnit: bigint, slippageBps: number): bigint {
+  if (premiumPerUnit <= 0n || slippageBps <= 0) return 0n;
+  return (premiumPerUnit * BigInt(slippageBps)) / 10_000n;
+}
+
+/** Max ask for an immediate limit buy: `limit + slippage`. */
+export function maxAcceptableBuyAsk(limitPremiumPerUnit: bigint, slippageBps: number): bigint {
+  return limitPremiumPerUnit + premiumSlippageTolerance(limitPremiumPerUnit, slippageBps);
+}
+
+/** Immediate limit buy can fill when live ask is at or below limit + slippage. */
+export function isLimitBuyFillableNow(
+  marketAskPerUnit: bigint,
+  limitPremiumPerUnit: bigint,
+  slippageBps: number,
+): boolean {
+  if (limitPremiumPerUnit <= 0n || marketAskPerUnit <= 0n) return false;
+  return marketAskPerUnit <= maxAcceptableBuyAsk(limitPremiumPerUnit, slippageBps);
+}
+
+/** Resting limit placement requires live ask within limit ± placement slippage. */
+export function isPlacementPriceAligned(
+  marketAskPerUnit: bigint,
+  limitPremiumPerUnit: bigint,
+  placementSlippageBps: number,
+): boolean {
+  if (limitPremiumPerUnit <= 0n || marketAskPerUnit <= 0n) return false;
+  const tolerance = premiumSlippageTolerance(limitPremiumPerUnit, placementSlippageBps);
+  const lower = limitPremiumPerUnit > tolerance ? limitPremiumPerUnit - tolerance : 0n;
+  const upper = limitPremiumPerUnit + tolerance;
+  return marketAskPerUnit >= lower && marketAskPerUnit <= upper;
+}
+
 /** Map TP/SL UI value to on-chain premium (1e9 scale). */
 export function tpSlToPremiumRaw(args: {
   value: number;

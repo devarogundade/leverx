@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -9,6 +8,7 @@ import { SlippagePopover } from "@/components/leverx/SlippagePopover";
 import { TradeQuoteSummary } from "@/components/leverx/TradeQuoteSummary";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import { useIndexerProtocol } from "@/hooks/useIndexer";
+import { useLeverxMarketAsk } from "@/hooks/useLeverxMarketAsk";
 import { useLeverxMintQuote } from "@/hooks/useLeverxMintQuote";
 import { useWalletCoinBalance } from "@/hooks/useWalletCoinBalance";
 import { premiumToCents } from "@/lib/leverx/indexer-markets";
@@ -30,9 +30,12 @@ import {
 import type { LimitExecutionMode } from "@/lib/leverx/transactions";
 import {
   centsToPremiumRaw,
+  isLimitBuyFillableNow,
   isLimitCentsWithinPredictBounds,
+  isPlacementPriceAligned,
   isPremiumWithinPredictBounds,
   percentToBps,
+  premiumRawToCents,
   PREDICT_MAX_PREMIUM_CENTS,
   PREDICT_MIN_PREMIUM_CENTS,
   strikeUsdToRaw,
@@ -79,6 +82,7 @@ type OrderType = "market" | "limit";
 interface Props {
   oracleId: string;
   side: PredictSide;
+  onSideChange: (side: PredictSide) => void;
   expiryMs?: number;
   strikeRaw?: number;
   lowerStrikeRaw?: number;
@@ -98,6 +102,7 @@ const ORDER_TYPES: readonly OrderType[] = ["market", "limit"];
 export function PredictLeveragePanel({
   oracleId,
   side,
+  onSideChange,
   expiryMs,
   strikeRaw,
   lowerStrikeRaw,
@@ -230,6 +235,10 @@ export function PredictLeveragePanel({
     [walletQuoteBalance],
   );
 
+  const { data: liveAskPremium, isLoading: liveAskLoading } = useLeverxMarketAsk(
+    orderType === "limit" ? tradeKey : undefined,
+  );
+
   const { data: mintQuote, isLoading: quoteLoading } = useLeverxMintQuote({
     key: tradeKey,
     marginUsd: marginNum,
@@ -239,6 +248,16 @@ export function PredictLeveragePanel({
   });
 
   const tradeQuantity = mintQuote?.tradeQuantity ?? 1n;
+
+  const liveAskCents = useMemo(() => {
+    if (liveAskPremium != null && liveAskPremium > 0n) {
+      return premiumRawToCents(liveAskPremium);
+    }
+    if (lastAskPremium != null && lastAskPremium > 0) {
+      return premiumToCents(lastAskPremium);
+    }
+    return null;
+  }, [liveAskPremium, lastAskPremium]);
 
   const validationErrors = useMemo(() => {
     const errors: string[] = [];
@@ -259,6 +278,28 @@ export function PredictLeveragePanel({
         errors.push(
           `Limit price must be between ${PREDICT_MIN_PREMIUM_CENTS}¢ and ${PREDICT_MAX_PREMIUM_CENTS}¢.`,
         );
+      } else if (liveAskLoading) {
+        errors.push("Waiting for live contract price…");
+      } else if (liveAskPremium == null || liveAskPremium <= 0n) {
+        errors.push(
+          "Live contract price is unavailable. Wait for oracle updates or try another strike.",
+        );
+      } else {
+        const limitPremium = centsToPremiumRaw(cents);
+        const slippageBps = percentToBps(placementSlippagePct);
+        const liveLabel = `${premiumRawToCents(liveAskPremium).toFixed(1)}¢`;
+
+        if (limitExecution === "immediate") {
+          if (!isLimitBuyFillableNow(liveAskPremium, limitPremium, slippageBps)) {
+            errors.push(
+              `Live contract price (${liveLabel}) is above your limit + ${placementSlippagePct}% slippage. Raise the limit or switch to Resting.`,
+            );
+          }
+        } else if (!isPlacementPriceAligned(liveAskPremium, limitPremium, slippageBps)) {
+          errors.push(
+            `Resting orders need the live price (${liveLabel}) within your limit ± ${placementSlippagePct}% placement slippage. Adjust the limit, widen slippage, or wait for the market to move.`,
+          );
+        }
       }
       if (placementSlippagePct < 0.1) {
         errors.push("Slippage must be at least 0.1%.");
@@ -292,7 +333,10 @@ export function PredictLeveragePanel({
     walletQuoteBalance,
     orderType,
     limitPrice,
+    limitExecution,
     placementSlippagePct,
+    liveAskLoading,
+    liveAskPremium,
     isRange,
     rangeFromChart,
     lowerStrike,
@@ -398,10 +442,9 @@ export function PredictLeveragePanel({
         <div className={segTabsClass("stretch", "outcomes")} role="group" aria-label="Outcome">
           {canSwitchOutcome ? (
             <>
-              <Link
-                to="/predictions/$oracleId"
-                params={{ oracleId }}
-                search={{ strike: outcomeStrike, side: "up" }}
+              <button
+                type="button"
+                onClick={() => onSideChange("up")}
                 className={cn(
                   segTabOutcome,
                   side === "up" && segTabActive,
@@ -409,11 +452,10 @@ export function PredictLeveragePanel({
                 )}
               >
                 {predictSideLabel.up}
-              </Link>
-              <Link
-                to="/predictions/$oracleId"
-                params={{ oracleId }}
-                search={{ strike: outcomeStrike, side: "down" }}
+              </button>
+              <button
+                type="button"
+                onClick={() => onSideChange("down")}
                 className={cn(
                   segTabOutcome,
                   side === "down" && segTabActive,
@@ -421,15 +463,10 @@ export function PredictLeveragePanel({
                 )}
               >
                 {predictSideLabel.down}
-              </Link>
-              <Link
-                to="/predictions/$oracleId"
-                params={{ oracleId }}
-                search={{
-                  side: "range",
-                  lowerStrike: rangeLower ?? outcomeStrike,
-                  upperStrike: rangeUpper ?? outcomeStrike,
-                }}
+              </button>
+              <button
+                type="button"
+                onClick={() => onSideChange("range")}
                 className={cn(
                   segTabOutcome,
                   side === "range" && segTabActive,
@@ -437,7 +474,7 @@ export function PredictLeveragePanel({
                 )}
               >
                 {predictSideLabel.range}
-              </Link>
+              </button>
             </>
           ) : (
             <>
@@ -558,6 +595,16 @@ export function PredictLeveragePanel({
               onChange={(e) => setLimitPrice(e.target.value)}
               suffix={<span className="text-sm text-muted-foreground">¢</span>}
             />
+            <p className="mt-2 text-xs text-muted-foreground">
+              Live contract price:{" "}
+              <span className="font-mono text-foreground">
+                {liveAskLoading
+                  ? "…"
+                  : liveAskCents != null && liveAskCents > 0
+                    ? `${liveAskCents.toFixed(1)}¢`
+                    : "—"}
+              </span>
+            </p>
             {strikeRaw ? (
               <p className="mt-2 text-xs text-muted-foreground">
                 Target: <span className="font-mono text-foreground">${(strikeRaw / 1e9).toLocaleString()}</span>

@@ -14,7 +14,6 @@ import {
   paginateSlice,
 } from "@/components/leverx/MarketCatalogPagination";
 import type { LeverxMarketRow } from "@/lib/leverx/indexer-markets";
-import { resolveRangeBounds } from "@/lib/leverx/predict-oracle-markets";
 import { formatCompactUsdOrPlaceholder } from "@/lib/leverx/placeholders";
 import { ui } from "@/lib/copy";
 import {
@@ -105,31 +104,15 @@ function SortHeader({
   );
 }
 
-function rangeBoundsForMarket(m: LeverxMarketRow, catalogRows: LeverxMarketRow[]) {
-  return resolveRangeBounds({
-    oracleId: m.oracleId,
-    catalogRows,
-    strikeRaw: m.strikeRaw,
-    lowerStrikeRaw: m.isRange ? m.strikeRaw : undefined,
-    upperStrikeRaw: m.isRange ? m.higherStrikeRaw : undefined,
-    oracleSpot: m.spotPrice,
-  });
-}
-
 function MarketMobileCard({
   market: m,
-  catalogRows,
   liquidityLabel,
   premiumSeries,
 }: {
   market: LeverxMarketRow;
-  catalogRows: LeverxMarketRow[];
   liquidityLabel: string;
   premiumSeries: readonly number[];
 }) {
-  const range = rangeBoundsForMarket(m, catalogRows);
-  const side = m.isRange ? ("range" as const) : m.isUp ? ("up" as const) : ("down" as const);
-
   return (
     <article className={marketsTableMobileCard}>
       <div className={marketsTableMobileCardHeader}>
@@ -147,15 +130,6 @@ function MarketMobileCard({
           <Link
             to="/predictions/$oracleId"
             params={{ oracleId: m.oracleId }}
-            search={
-              m.isRange
-                ? {
-                    side: "range",
-                    lowerStrike: range?.lower ?? m.strikeRaw,
-                    upperStrike: range?.upper ?? m.higherStrikeRaw,
-                  }
-                : { strike: m.strikeRaw, side }
-            }
             className={cn(marketsMarketLink, "font-medium")}
           >
             {m.question}
@@ -196,13 +170,7 @@ function MarketMobileCard({
         </div>
       </dl>
 
-      <MarketSideActions
-        oracleId={m.oracleId}
-        strikeRaw={m.strikeRaw}
-        rangeLower={range?.lower}
-        rangeUpper={range?.upper}
-        stretch
-      />
+      <MarketSideActions oracleId={m.oracleId} stretch />
     </article>
   );
 }
@@ -290,7 +258,6 @@ export function PredictMarketsTable({
           <MarketMobileCard
             key={m.id}
             market={m}
-            catalogRows={markets}
             liquidityLabel={liquidityLabel}
             premiumSeries={seriesByMarketId.get(m.id) ?? []}
           />
@@ -339,9 +306,6 @@ export function PredictMarketsTable({
           </thead>
           <tbody>
             {pageMarkets.map((m) => {
-              const range = rangeBoundsForMarket(m, markets);
-              const side = m.isRange ? ("range" as const) : m.isUp ? ("up" as const) : ("down" as const);
-
               return (
                 <tr key={m.id} className={marketsRow}>
                   <td className={cn(marketsTd, marketsTdMarket)}>
@@ -360,15 +324,6 @@ export function PredictMarketsTable({
                         <Link
                           to="/predictions/$oracleId"
                           params={{ oracleId: m.oracleId }}
-                          search={
-                            m.isRange
-                              ? {
-                                  side: "range",
-                                  lowerStrike: range?.lower ?? m.strikeRaw,
-                                  upperStrike: range?.upper ?? m.higherStrikeRaw,
-                                }
-                              : { strike: m.strikeRaw, side }
-                          }
                           className={cn(marketsMarketLink, "font-medium")}
                         >
                           {m.question}
@@ -394,12 +349,7 @@ export function PredictMarketsTable({
                   </td>
                   <td className={cn(marketsTd, marketsTdTrade)}>
                     <div className={marketsTradeActions}>
-                      <MarketSideActions
-                        oracleId={m.oracleId}
-                        strikeRaw={m.strikeRaw}
-                        rangeLower={range?.lower}
-                        rangeUpper={range?.upper}
-                      />
+                      <MarketSideActions oracleId={m.oracleId} />
                     </div>
                   </td>
                 </tr>

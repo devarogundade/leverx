@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, Inbox } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { UnderlineTabs } from "@/components/leverx/UnderlineTabs";
 import { PredictLeveragePanel } from "@/components/leverx/PredictLeveragePanel";
-import { LeverxCancelOrderButton } from "@/components/leverx/LeverxPositionActions";
-import { PositionRiskMenu } from "@/components/leverx/PositionRiskMenu";
+import { LeverxLimitOrdersTable } from "@/components/leverx/LeverxLimitOrdersTable";
+import { LeverxPositionsTable } from "@/components/leverx/LeverxPositionsTable";
+import { usePositionsMarkToMarket } from "@/hooks/usePositionsMarkToMarket";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { PriceChart } from "@/components/PriceChart";
 import { PredictOrderBook } from "@/components/leverx/PredictOrderBook";
@@ -271,6 +272,8 @@ function TradePositionsPanel({
   limitOrders = [],
   vaultSummary,
 }: TradePositionsPanelProps) {
+  const { byPositionId, isRefreshing } = usePositionsMarkToMarket(positions);
+
   return (
     <div className={tradeTerminalPositions}>
       <div className={tradeTerminalTabsRow}>
@@ -397,25 +400,14 @@ function TradePositionsPanel({
           ) : positionsLoading ? (
             <LoadingState label="Loading positions…" compact />
           ) : positions.length > 0 ? (
-            <div className="w-full space-y-2 text-left">
-              {positions.map((p) => (
-                <div
-                  key={`${p.position_key}-${p.account_id}`}
-                  className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2 text-xs"
-                >
-                  <span className="font-medium">
-                    {p.is_up ? "UP" : "DOWN"} · qty {p.open_quantity.toLocaleString()}
-                  </span>
-                  <span className="font-mono text-muted-foreground">
-                    margin {formatUsdcOrPlaceholder(scaleQuote(p.margin_quote))}
-                  </span>
-                  <span className="text-muted-foreground">{p.status}</span>
-                  {p.status === "open" ? (
-                    <PositionRiskMenu position={p} owner={address ?? undefined} />
-                  ) : null}
-                </div>
-              ))}
-            </div>
+            <LeverxPositionsTable
+              positions={positions}
+              markToMarket={byPositionId}
+              isRefreshing={isRefreshing}
+              owner={address ?? undefined}
+              compact
+              showHeader={false}
+            />
           ) : (
             <EmptyState
               icon={Inbox}
@@ -435,24 +427,7 @@ function TradePositionsPanel({
           ) : ordersLoading ? (
             <LoadingState label="Loading orders…" compact />
           ) : limitOrders.length > 0 ? (
-            <div className="w-full space-y-2 text-left">
-              {limitOrders.map((o) => (
-                <div
-                  key={o.placed_event_digest}
-                  className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2 text-xs"
-                >
-                  <span>
-                    {o.is_up ? "UP" : "DOWN"} limit @{" "}
-                    {formatPremiumCents(o.limit_premium_per_unit)}
-                  </span>
-                  <span className="font-mono">qty {o.quantity.toLocaleString()}</span>
-                  <span className="text-muted-foreground">{o.status}</span>
-                  {o.status === "open" ? (
-                    <LeverxCancelOrderButton order={o} owner={address ?? undefined} />
-                  ) : null}
-                </div>
-              ))}
-            </div>
+            <LeverxLimitOrdersTable orders={limitOrders} />
           ) : (
             <EmptyState
               icon={Inbox}
@@ -470,9 +445,6 @@ function TradePositionsPanel({
 function oracleSessionKey(args: {
   oracleId: string;
   side: PredictSide;
-  strikeRaw?: number;
-  lowerStrikeRaw?: number;
-  upperStrikeRaw?: number;
   marketStrikeRaw?: number;
   marketHigherStrikeRaw?: number;
   marketExpiry?: number;
@@ -480,30 +452,25 @@ function oracleSessionKey(args: {
   return [
     args.oracleId,
     args.side,
-    args.strikeRaw ?? 0,
-    args.lowerStrikeRaw ?? 0,
-    args.upperStrikeRaw ?? 0,
     args.marketStrikeRaw ?? 0,
     args.marketHigherStrikeRaw ?? 0,
     args.marketExpiry ?? 0,
   ].join(":");
 }
 
+type PredictTradeLocationState = {
+  predictSide?: PredictSide;
+};
+
 interface Props {
   oracleId: string;
-  strikeRaw?: number;
-  lowerStrikeRaw?: number;
-  upperStrikeRaw?: number;
-  side?: PredictSide;
 }
 
-export function PredictTradeTerminal({
-  oracleId,
-  strikeRaw,
-  lowerStrikeRaw,
-  upperStrikeRaw,
-  side = "up",
-}: Props) {
+export function PredictTradeTerminal({ oracleId }: Props) {
+  const navSide = useRouterState({
+    select: (s) => (s.location.state as PredictTradeLocationState | undefined)?.predictSide,
+  });
+  const [activeSide, setActiveSide] = useState<PredictSide>("up");
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>("Positions");
   const [positionsFilter, setPositionsFilter] = useState<"open" | "closed">("open");
   const [mobileWorkspace, setMobileWorkspace] = useState<MobileWorkspaceTab>("trade");
@@ -513,6 +480,14 @@ export function PredictTradeTerminal({
   useEffect(() => {
     setDockMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (navSide === "up" || navSide === "down" || navSide === "range") {
+      setActiveSide(navSide);
+      return;
+    }
+    setActiveSide("up");
+  }, [oracleId, navSide]);
 
   const { data: protocol } = useIndexerProtocol();
   const vaultId = protocol?.vault_id ?? undefined;
@@ -554,8 +529,6 @@ export function PredictTradeTerminal({
     const spot = oracleSpot ?? undefined;
     return rows.map((row) => enrichMarketRow(row, oracleSummary, spot));
   }, [catalog, oracleSummary, oracleSpot]);
-  const activeSide = side ?? "up";
-
   const rangeBounds = useMemo(
     () =>
       resolveRangeBounds({
@@ -563,19 +536,8 @@ export function PredictTradeTerminal({
         catalogRows: marketRows,
         oracle: oracleSummary,
         oracleSpot,
-        strikeRaw,
-        lowerStrikeRaw,
-        upperStrikeRaw,
       }),
-    [
-      oracleId,
-      marketRows,
-      oracleSummary,
-      oracleSpot,
-      strikeRaw,
-      lowerStrikeRaw,
-      upperStrikeRaw,
-    ],
+    [oracleId, marketRows, oracleSummary, oracleSpot],
   );
 
   const market = useMemo(
@@ -585,22 +547,11 @@ export function PredictTradeTerminal({
         oracle: oracleSummary,
         oracleSpot,
         catalogRows: marketRows,
-        strikeRaw,
-        lowerStrikeRaw: rangeBounds?.lower ?? lowerStrikeRaw,
-        upperStrikeRaw: rangeBounds?.upper ?? upperStrikeRaw,
+        lowerStrikeRaw: rangeBounds?.lower,
+        upperStrikeRaw: rangeBounds?.upper,
         side: activeSide,
       }),
-    [
-      oracleId,
-      oracleSummary,
-      oracleSpot,
-      marketRows,
-      strikeRaw,
-      lowerStrikeRaw,
-      upperStrikeRaw,
-      rangeBounds,
-      activeSide,
-    ],
+    [oracleId, oracleSummary, oracleSpot, marketRows, rangeBounds, activeSide],
   );
 
   const { data: trades = [], isLoading: tradesLoading } = useIndexerGlobalTrades(oracleId);
@@ -629,9 +580,8 @@ export function PredictTradeTerminal({
   const rangeUpper = rangeBounds?.upper ?? market?.higherStrikeRaw;
   const binaryStrikeRaw = useMemo(() => {
     if (activeSide !== "range") {
-      return market?.strikeRaw ?? strikeRaw;
+      return market?.strikeRaw;
     }
-    if (strikeRaw) return strikeRaw;
     const up = marketRows.find((m) => m.oracleId === oracleId && !m.isRange && m.isUp);
     if (up?.strikeRaw) return up.strikeRaw;
     if (rangeBounds) {
@@ -649,23 +599,14 @@ export function PredictTradeTerminal({
       return atmStrikeRaw(oracleSpot, minRaw, tickRaw);
     }
     return undefined;
-  }, [
-    activeSide,
-    market?.strikeRaw,
-    strikeRaw,
-    marketRows,
-    oracleId,
-    rangeBounds,
-    oracleSummary,
-    oracleSpot,
-  ]);
+  }, [activeSide, market?.strikeRaw, marketRows, oracleId, rangeBounds, oracleSummary, oracleSpot]);
 
   const question = useMemo(() => {
     if (activeSide === "range" && rangeLower && rangeUpper) {
       return `Will ${asset} settle in ${formatRangeStrikes(rangeLower / 1e9, rangeUpper / 1e9)}?`;
     }
     if (market?.question) return market.question;
-    const strike = binaryStrikeRaw ?? strikeRaw;
+    const strike = binaryStrikeRaw;
     if (strike && expiry) {
       return buildQuestion(
         asset,
@@ -684,7 +625,6 @@ export function PredictTradeTerminal({
     asset,
     market?.question,
     binaryStrikeRaw,
-    strikeRaw,
     expiry,
     rangeUpper,
   ]);
@@ -701,29 +641,16 @@ export function PredictTradeTerminal({
   const chartRangeLower = rangeLower ? scaleSpot(rangeLower) : undefined;
   const chartRangeUpper = rangeUpper ? scaleSpot(rangeUpper) : undefined;
 
-  const oracleNavSearch = { side: activeSide };
   const sessionKey = useMemo(
     () =>
       oracleSessionKey({
         oracleId,
         side: activeSide,
-        strikeRaw,
-        lowerStrikeRaw,
-        upperStrikeRaw,
         marketStrikeRaw: market?.strikeRaw,
         marketHigherStrikeRaw: market?.higherStrikeRaw,
         marketExpiry: market?.expiry,
       }),
-    [
-      oracleId,
-      activeSide,
-      strikeRaw,
-      lowerStrikeRaw,
-      upperStrikeRaw,
-      market?.strikeRaw,
-      market?.higherStrikeRaw,
-      market?.expiry,
-    ],
+    [oracleId, activeSide, market?.strikeRaw, market?.higherStrikeRaw, market?.expiry],
   );
   const showMobileChart = mobileWorkspace === "chart";
   const showMobileTrade = mobileWorkspace === "trade";
@@ -762,7 +689,6 @@ export function PredictTradeTerminal({
               <Link
                 to="/predictions/$oracleId"
                 params={{ oracleId: prevOracle.oracle_id }}
-                search={oracleNavSearch}
                 className={tradeOracleNavBtn}
                 aria-label="Previous market"
               >
@@ -780,7 +706,6 @@ export function PredictTradeTerminal({
               <Link
                 to="/predictions/$oracleId"
                 params={{ oracleId: nextOracle.oracle_id }}
-                search={oracleNavSearch}
                 className={tradeOracleNavBtn}
                 aria-label="Next market"
               >
@@ -860,6 +785,7 @@ export function PredictTradeTerminal({
               key={sessionKey}
               oracleId={oracleId}
               side={activeSide}
+              onSideChange={setActiveSide}
               expiryMs={expiry}
               strikeRaw={binaryStrikeRaw}
               lowerStrikeRaw={rangeLower}
@@ -907,6 +833,7 @@ export function PredictTradeTerminal({
               key={sessionKey}
               oracleId={oracleId}
               side={activeSide}
+              onSideChange={setActiveSide}
               expiryMs={expiry}
               strikeRaw={binaryStrikeRaw}
               lowerStrikeRaw={rangeLower}
