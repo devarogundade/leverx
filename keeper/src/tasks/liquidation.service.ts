@@ -95,6 +95,9 @@ export class LiquidationService {
         const tx = new Transaction();
         this.ptb.buildLiquidation(tx, cfg, position, borrowAmount);
         if (!(await this.sui.devInspect(tx))) {
+          this.logger.warn(
+            `liquidation simulation failed ${target} (flash_liquidate abort — redeem may not cover vault debt)`,
+          );
           results.push({
             kind: 'liquidation',
             target,

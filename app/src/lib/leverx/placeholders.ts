@@ -50,6 +50,17 @@ export function formatUsdcBalance(amount: number | null | undefined, ready: bool
   return formatUsdc(amount);
 }
 
+/** Market settlement time — e.g. "Jun 12, 15:45". */
+export function formatAutoClose(expiry: number): string {
+  return new Date(expiry).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
 /** Compact pill label in the header. */
 export function formatUsdcPill(amount: number | null | undefined, ready: boolean): string {
   if (!ready) return "…";

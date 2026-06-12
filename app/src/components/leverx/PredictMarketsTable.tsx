@@ -15,7 +15,7 @@ import {
   paginateSlice,
 } from "@/components/leverx/MarketCatalogPagination";
 import type { LeverxMarketRow } from "@/lib/leverx/indexer-markets";
-import { formatCompactUsdOrPlaceholder } from "@/lib/leverx/placeholders";
+import { formatAutoClose, formatCompactUsdOrPlaceholder } from "@/lib/leverx/placeholders";
 import { ui } from "@/lib/copy";
 import {
   leverageBadge,
@@ -57,18 +57,6 @@ import { cn } from "@/lib/utils";
 
 type SortKey = "price" | "volume" | "liquidity" | "expiry";
 type SortDir = "asc" | "desc";
-
-function formatAutoClose(expiry: number): string {
-  return new Date(expiry)
-    .toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      hour12: true,
-    })
-    .replace(" AM", "am")
-    .replace(" PM", "pm");
-}
 
 function SortHeader({
   label,

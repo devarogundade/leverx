@@ -4,6 +4,7 @@ import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 import { Transaction } from '@mysten/sui/transactions';
 import type { KeeperConfig } from '../config/keeper.config';
+import { formatError } from '../lib/format-error';
 import type { ProtocolSettings } from '../indexer/indexer.types';
 
 @Injectable()
@@ -44,9 +45,17 @@ export class SuiService implements OnModuleInit {
   }
 
   private async loadIndexerProtocol(): Promise<void> {
+    const url = `${this.cfg.indexerUrl}/v1/protocol`;
     try {
-      const res = await fetch(`${this.cfg.indexerUrl}/v1/protocol`);
-      if (!res.ok) return;
+      const res = await fetch(url);
+      if (!res.ok) {
+        this.logger.warn(
+          formatError('indexer protocol load failed', new Error(`HTTP ${res.status}`), {
+            url,
+          }),
+        );
+        return;
+      }
       const settings = (await res.json()) as ProtocolSettings | null;
       if (!settings) return;
 
@@ -69,7 +78,7 @@ export class SuiService implements OnModuleInit {
         `indexer protocol: registry=${merged.registryId || 'unset'} vault=${merged.vaultId || 'unset'} paused=${this.tradingPaused}`,
       );
     } catch (err) {
-      this.logger.warn(`indexer protocol load failed: ${String(err)}`);
+      this.logger.error(formatError('indexer protocol load failed', err, { url }));
     }
   }
 

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { KeeperConfig } from '../config/keeper.config';
+import { formatError } from '../lib/format-error';
 import type {
   LeveragedPosition,
   LeverxEvent,
@@ -36,12 +37,21 @@ export class IndexerService {
 
   async get<T>(path: string): Promise<T> {
     const url = `${this.baseUrl}${path}`;
-    const res = await fetch(url);
-    if (!res.ok) {
-      const body = await res.text();
-      throw new Error(`indexer ${path}: ${res.status} ${body}`);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`HTTP ${res.status} ${body.slice(0, 500)}`);
+      }
+      return res.json() as Promise<T>;
+    } catch (err) {
+      const message = formatError(`indexer GET ${path}`, err, {
+        url,
+        baseUrl: this.baseUrl,
+      });
+      this.logger.error(message);
+      throw new Error(message);
     }
-    return res.json() as Promise<T>;
   }
 
   /** Walk paginated indexer lists until `has_more` is false or `maxItems` is reached. */

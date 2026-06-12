@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { formatError } from '../lib/format-error';
 import { IndexerService } from '../indexer/indexer.service';
 import type { LeveragedPosition } from '../indexer/indexer.types';
 import type { TaskResult } from '../keeper/keeper.types';
@@ -108,7 +109,9 @@ export class SettlementService {
       if (state.is_settled === true) return true;
       return String(state.status ?? '').toLowerCase() === 'settled';
     } catch (err) {
-      this.logger.warn(`oracle state fetch failed for ${oracleId}: ${String(err)}`);
+      this.logger.warn(
+        formatError(`oracle state fetch failed for ${oracleId}`, err, { url }),
+      );
       return 'unreachable';
     }
   }

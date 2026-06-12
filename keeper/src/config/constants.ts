@@ -60,10 +60,10 @@ export const INDEXER_URL = 'http://127.0.0.1:3100';
 export const DEFAULT_PORT = 3001;
 
 export const KEEPER_CRON_DEFAULTS = {
-  settlement: '*/5 * * * *',
-  limitOrder: '*/1 * * * *',
-  liquidation: '*/2 * * * *',
-  trigger: '*/1 * * * *',
+  settlement: '*/10 * * * * *',
+  limitOrder: '*/10 * * * * *',
+  liquidation: '*/10 * * * * *',
+  trigger: '*/10 * * * * *',
 } as const;
 
 export const KEEPER_LIMIT_DEFAULTS = {

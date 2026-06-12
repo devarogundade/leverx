@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { KeeperConfig } from '../config/keeper.config';
+import { formatError } from '../lib/format-error';
 import type { KeeperRunSummary, TaskResult } from '../keeper/keeper.types';
 import { SuiService } from '../sui/sui.service';
 import { LimitOrderService } from './limit-order.service';
@@ -42,6 +43,7 @@ export class KeeperOrchestratorService {
 
   async run(kind: KeeperTaskKind = 'all'): Promise<KeeperRunSummary> {
     if (this.running) {
+      this.logger.debug(`keeper run skipped (${kind}): already_running`);
       return {
         startedAt: new Date().toISOString(),
         finishedAt: new Date().toISOString(),
@@ -83,15 +85,22 @@ export class KeeperOrchestratorService {
         results.push(...(await this.triggers.run(this.cfg.limits.triggers)));
       }
     } catch (err) {
-      this.logger.error(`keeper run failed: ${String(err)}`);
+      this.logger.error(formatError(`keeper run failed (${kind})`, err));
       results.push({
         kind,
         target: '-',
         success: false,
-        error: String(err),
+        error: formatError('keeper run failed', err),
       });
     } finally {
       this.running = false;
+    }
+
+    for (const result of results) {
+      if (result.success) continue;
+      this.logger.warn(
+        `task failed | kind=${result.kind} target=${result.target} error=${result.error ?? 'unknown'}`,
+      );
     }
 
     const summary: KeeperRunSummary = {

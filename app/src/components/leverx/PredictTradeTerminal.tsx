@@ -43,6 +43,7 @@ import { baseFromUnderlying } from "@/lib/markets";
 import { formatPrice } from "@/lib/copy";
 import {
   DATA_PLACEHOLDER,
+  formatAutoClose,
   formatCountOrPlaceholder,
   formatUsdcOrPlaceholder,
 } from "@/lib/leverx/placeholders";
@@ -149,18 +150,6 @@ function StatItem({
       </span>
     </div>
   );
-}
-
-function formatAutoClose(expiry: number): string {
-  return new Date(expiry)
-    .toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      hour12: true,
-    })
-    .replace(" AM", "am")
-    .replace(" PM", "pm");
 }
 
 function TerminalPriceChart({

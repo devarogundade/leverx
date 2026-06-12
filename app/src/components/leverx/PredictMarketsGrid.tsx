@@ -34,19 +34,8 @@ import {
   marketsGrid,
   pageState,
 } from "@/lib/leverx/tw";
+import { formatAutoClose } from "@/lib/leverx/placeholders";
 import { cn } from "@/lib/utils";
-
-function formatAutoClose(expiry: number): string {
-  return new Date(expiry)
-    .toLocaleString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      hour12: true,
-    })
-    .replace(" AM", "am")
-    .replace(" PM", "pm");
-}
 
 interface Props {
   markets: LeverxMarketRow[];
