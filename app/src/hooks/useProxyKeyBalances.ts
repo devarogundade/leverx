@@ -1,0 +1,86 @@
+import { useMemo } from "react";
+import { useQueries } from "@tanstack/react-query";
+import { useWallet } from "@/context/WalletContext";
+import { useLeverxProtocolConfig } from "@/hooks/useLeverxTransactions";
+import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
+import type { MarketKeyArgs } from "@/lib/leverx/market-keys";
+import { fetchKeyQuoteBalance } from "@/lib/leverx/quotes";
+
+export type ProxyKeyBalanceRow = {
+  position: LeveragedPosition;
+  key: MarketKeyArgs;
+  balanceAtoms: bigint;
+};
+
+function positionToKey(position: LeveragedPosition): MarketKeyArgs {
+  return {
+    oracleId: position.oracle_id,
+    expiryMs: position.expiry_ms,
+    strike: position.strike,
+    higherStrike: position.higher_strike,
+    isUp: position.is_up,
+    isRange: position.is_range,
+  };
+}
+
+/** Unique market keys from position history with on-chain quote ledger balances. */
+export function useProxyKeyBalances(
+  accountId: string | undefined,
+  positions: readonly LeveragedPosition[],
+) {
+  const { client } = useWallet();
+  const cfg = useLeverxProtocolConfig();
+
+  const uniquePositions = useMemo(() => {
+    const byKey = new Map<string, LeveragedPosition>();
+    for (const position of positions) {
+      const existing = byKey.get(position.position_key);
+      const recency = position.closed_at_ms ?? position.opened_at_ms ?? 0;
+      const existingRecency = existing
+        ? (existing.closed_at_ms ?? existing.opened_at_ms ?? 0)
+        : -1;
+      if (!existing || recency >= existingRecency) {
+        byKey.set(position.position_key, position);
+      }
+    }
+    return [...byKey.values()];
+  }, [positions]);
+
+  const queries = useQueries({
+    queries: uniquePositions.map((position) => ({
+      queryKey: [
+        "proxy-key-balance",
+        accountId,
+        position.position_key,
+        cfg?.packageId,
+      ],
+      queryFn: async (): Promise<ProxyKeyBalanceRow> => {
+        const key = positionToKey(position);
+        const balanceAtoms = await fetchKeyQuoteBalance({
+          client,
+          packageId: cfg!.packageId,
+          accountId: accountId!,
+          key,
+        });
+        return { position, key, balanceAtoms };
+      },
+      enabled: Boolean(cfg?.packageId && accountId),
+      staleTime: 10_000,
+      refetchInterval: 15_000,
+      retry: 1,
+    })),
+  });
+
+  const withdrawable = useMemo(
+    () =>
+      queries
+        .map((q) => q.data)
+        .filter((row): row is ProxyKeyBalanceRow => row != null)
+        .filter((row) => row.balanceAtoms > 0n && row.position.borrow_quote <= 0),
+    [queries],
+  );
+
+  const isLoading = queries.some((q) => q.isLoading && q.fetchStatus !== "idle");
+
+  return { rows: withdrawable, isLoading, refetch: () => queries.forEach((q) => void q.refetch()) };
+}

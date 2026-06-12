@@ -39,6 +39,10 @@ export const leverxInfo = {
   collateralBalances: "dUSDC margin allocated to each open market key.",
   marginInTrades: "dUSDC margin allocated to each open market key.",
   liquidations: "Times the pool stepped in to close a trade because margin ran too low.",
+  withdrawTradingBalance:
+    "dUSDC credited to your trading account after closing a trade. Withdraw here to your wallet once key borrow is fully repaid.",
+  estimatedHealth:
+    "Estimated collateral ratio (mark value ÷ borrow). On-chain health also considers accrued interest and per-key ledger state.",
 
   vaultSupply: "Add dUSDC to the pool and receive shares that earn from trading fees.",
   vaultWithdraw: "Cash out your shares back to dUSDC, including any earnings.",

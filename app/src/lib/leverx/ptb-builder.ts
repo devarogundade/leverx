@@ -65,6 +65,10 @@ function depositQuoteFn(isRange: boolean): string {
   return isRange ? "deposit_quote_for_range_market" : "deposit_quote_for_binary_market";
 }
 
+function withdrawQuoteFn(isRange: boolean): string {
+  return isRange ? "withdraw_quote_for_range_market" : "withdraw_quote_for_binary_market";
+}
+
 export function buildDepositQuote(
   cfg: LeverxProtocolConfig,
   accountId: string,
@@ -95,6 +99,21 @@ export function appendDepositQuote(
     target: `${cfg.packageId}::trade::${depositQuoteFn(key.isRange)}`,
     typeArguments: [cfg.quoteType],
     arguments: [tx.object(accountId), marketKey, quoteCoin],
+  });
+}
+
+export function appendWithdrawQuote(
+  tx: Transaction,
+  cfg: LeverxProtocolConfig,
+  accountId: string,
+  key: MarketKeyArgs,
+  amountAtoms: bigint,
+): void {
+  const marketKey = addMarketKey(tx, key);
+  tx.moveCall({
+    target: `${cfg.packageId}::trade::${withdrawQuoteFn(key.isRange)}`,
+    typeArguments: [cfg.quoteType],
+    arguments: [tx.object(accountId), marketKey, tx.pure.u64(amountAtoms)],
   });
 }
 

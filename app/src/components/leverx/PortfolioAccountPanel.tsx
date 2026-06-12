@@ -30,12 +30,14 @@ import {
   settingsListItemHeader,
   tradeSurface,
 } from "@/lib/leverx/tw";
+import { PortfolioWithdrawSection } from "@/components/leverx/PortfolioWithdrawSection";
 import { cn } from "@/lib/utils";
 
 interface Props {
   account: UserProxy;
   owner: string;
   positions?: readonly LeveragedPosition[];
+  allPositions?: readonly LeveragedPosition[];
   className?: string;
 }
 
@@ -70,7 +72,13 @@ function SettingsCard({
   );
 }
 
-export function PortfolioAccountPanel({ account, owner, positions = [], className }: Props) {
+export function PortfolioAccountPanel({
+  account,
+  owner,
+  positions = [],
+  allPositions,
+  className,
+}: Props) {
   const accountId = account.account_id;
   const { data: oracles = [] } = usePredictOracleRows();
   const { data: triggers = [] } = useIndexerTriggers(accountId);
@@ -137,6 +145,11 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
           </div>
         </dl>
       </SettingsCard>
+
+      <PortfolioWithdrawSection
+        accountId={accountId}
+        positions={allPositions ?? positions}
+      />
 
       <SettingsCard
         title="Trusted traders"

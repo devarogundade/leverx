@@ -88,6 +88,26 @@ public fun deposit_quote_for_range_market<Quote>(
     proxy.deposit_quote_for_range(key, quote, ctx);
 }
 
+/// Withdraw free quote from a binary market key to the caller's wallet.
+public fun withdraw_quote_for_binary_market<Quote>(
+    proxy: &mut UserProxy,
+    key: MarketKey,
+    amount: u64,
+    ctx: &mut TxContext,
+) {
+    proxy.withdraw_quote_for_binary<Quote>(key, amount, ctx);
+}
+
+/// Withdraw free quote from a range market key to the caller's wallet.
+public fun withdraw_quote_for_range_market<Quote>(
+    proxy: &mut UserProxy,
+    key: RangeKey,
+    amount: u64,
+    ctx: &mut TxContext,
+) {
+    proxy.withdraw_quote_for_range<Quote>(key, amount, ctx);
+}
+
 /// Market mint at current oracle ask with explicit slippage cap (`max_mint_cost`).
 public fun leveraged_mint_binary_market<Quote>(
     registry: &LeverxRegistry,
@@ -907,6 +927,17 @@ public fun deleverage_binary_account_balance<Quote>(
         coin::destroy_zero(funds);
     };
     events::emit_debt_repaid(object::id(proxy), proxy.owner(), repay_amt, proxy.borrowed_quote());
+    events::emit_key_borrow_updated(
+        object::id(proxy),
+        proxy.owner(),
+        key.oracle_id(),
+        key.expiry(),
+        key.strike(),
+        0,
+        key.is_up(),
+        false,
+        proxy.binary_borrowed_quote(key),
+    );
 }
 
 /// Repay range key vault debt from external quote coins; surplus credited back to the key.
@@ -960,6 +991,17 @@ public fun deleverage_range_account_balance<Quote>(
         coin::destroy_zero(funds);
     };
     events::emit_debt_repaid(object::id(proxy), proxy.owner(), repay_amt, proxy.borrowed_quote());
+    events::emit_key_borrow_updated(
+        object::id(proxy),
+        proxy.owner(),
+        key.oracle_id(),
+        key.expiry(),
+        key.lower_strike(),
+        key.higher_strike(),
+        false,
+        true,
+        proxy.range_borrowed_quote(key),
+    );
 }
 
 /// Repay binary key debt using quote already held on the market key.
@@ -1334,7 +1376,7 @@ fun execute_leveraged_mint_binary<Quote>(
         market_ask,
         max_mint_cost,
     );
-    proxy.set_binary_margin_debt(key, margin_quote, ctx);
+    proxy.add_binary_margin_debt(key, margin_quote, ctx);
 }
 
 /// Core range leveraged mint: borrow, fund Predict manager, mint, and emit `LeveragedPositionOpened`.
@@ -1403,7 +1445,7 @@ fun execute_leveraged_mint_range<Quote>(
         market_ask,
         max_mint_cost,
     );
-    proxy.set_range_margin_debt(key, margin_quote, ctx);
+    proxy.add_range_margin_debt(key, margin_quote, ctx);
 }
 
 fun assert_valid_order_type(order_type: u8) {
@@ -1698,9 +1740,32 @@ fun repay_from_payout_binary<Quote>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
-    if (payout == 0) return;
-
     vault_mod::accrue_interest(vault, clock);
+    let ledger_principal = proxy.binary_borrowed_quote(key);
+    if (payout == 0) {
+        events::emit_leveraged_position_closed(
+            object::id(proxy),
+            proxy.owner(),
+            object::id(manager),
+            key.oracle_id(),
+            key.expiry(),
+            key.strike(),
+            0,
+            key.is_up(),
+            false,
+            quantity,
+            0,
+            0,
+            0,
+            ledger_principal,
+            is_settled,
+        );
+        if (ledger_principal == 0) {
+            proxy.clear_binary_margin_debt(key);
+        };
+        return
+    };
+
     let ledger_principal = proxy.binary_borrowed_quote(key);
     let debt = vault_mod::debt_with_accrued_interest(vault, ledger_principal);
     let repay_amt = if (payout >= debt) { debt } else { payout };
@@ -1774,9 +1839,32 @@ fun repay_from_payout_range<Quote>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
-    if (payout == 0) return;
-
     vault_mod::accrue_interest(vault, clock);
+    let ledger_principal = proxy.range_borrowed_quote(key);
+    if (payout == 0) {
+        events::emit_leveraged_position_closed(
+            object::id(proxy),
+            proxy.owner(),
+            object::id(manager),
+            key.oracle_id(),
+            key.expiry(),
+            key.lower_strike(),
+            key.higher_strike(),
+            false,
+            true,
+            quantity,
+            0,
+            0,
+            0,
+            ledger_principal,
+            is_settled,
+        );
+        if (ledger_principal == 0) {
+            proxy.clear_range_margin_debt(key);
+        };
+        return
+    };
+
     let ledger_principal = proxy.range_borrowed_quote(key);
     let debt = vault_mod::debt_with_accrued_interest(vault, ledger_principal);
     let repay_amt = if (payout >= debt) { debt } else { payout };

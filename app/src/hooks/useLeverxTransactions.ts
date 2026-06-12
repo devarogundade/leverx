@@ -17,8 +17,10 @@ import {
   executeSettleExpired,
   executeVaultSupply,
   executeVaultWithdraw,
+  executeWithdrawQuote,
   type ClosePositionInput,
   type OpenTradeInput,
+  type WithdrawQuoteInput,
 } from "@/lib/leverx/transactions";
 import { formatTxError } from "@/lib/leverx/tx-errors";
 
@@ -205,6 +207,20 @@ export function useLeverxTransactions() {
     onSuccess: () => invalidate(),
   });
 
+  const withdrawQuote = useMutation({
+    mutationFn: async (input: WithdrawQuoteInput) => {
+      const ready = requireReady();
+      return executeWithdrawQuote({
+        client,
+        wallet: ready.wallet,
+        account: ready.account,
+        cfg: ready.cfg,
+        input,
+      });
+    },
+    onSuccess: () => invalidate(),
+  });
+
   return {
     cfg,
     isProtocolReady: Boolean(cfg),
@@ -219,6 +235,7 @@ export function useLeverxTransactions() {
     cancelLimitOrder,
     vaultSupply,
     vaultWithdraw,
+    withdrawQuote,
     formatTxError,
   };
 }

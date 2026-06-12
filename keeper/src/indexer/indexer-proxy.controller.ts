@@ -21,8 +21,10 @@ export class IndexerProxyController {
 
   @All('*path')
   async proxy(@Req() req: Request, @Res() res: Response) {
-    const suffix = req.path.replace(/^\//, '');
-    const url = new URL(`${this.baseUrl}/v1/${suffix}`);
+    const raw = req.params.path;
+    const suffix = Array.isArray(raw) ? raw.join('/') : String(raw ?? '');
+    const base = this.baseUrl.replace(/\/$/, '');
+    const url = new URL(`${base}/v1/${suffix}`);
     for (const [key, value] of Object.entries(req.query)) {
       if (typeof value === 'string') url.searchParams.set(key, value);
     }

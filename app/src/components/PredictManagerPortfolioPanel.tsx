@@ -4,6 +4,7 @@ import { SurfaceSkeleton } from "@/components/ui/market-skeleton";
 import { LeverxPositionsTable } from "@/components/leverx/LeverxPositionsTable";
 import { usePositionsMarkToMarket } from "@/hooks/usePositionsMarkToMarket";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
+import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
 import { pageState } from "@/lib/leverx/tw";
 import { ui } from "@/lib/copy";
 import { cn } from "@/lib/utils";
@@ -21,13 +22,14 @@ export function PredictManagerPortfolioPanel({
   isLoading,
   className,
 }: Props) {
-  const { byPositionId, isRefreshing } = usePositionsMarkToMarket(positions);
+  const activePositions = positions.filter(isActiveOpenPosition);
+  const { byPositionId, isRefreshing } = usePositionsMarkToMarket(activePositions);
 
-  if (isLoading && positions.length === 0) {
+  if (isLoading && activePositions.length === 0) {
     return <SurfaceSkeleton className={className} />;
   }
 
-  if (positions.length === 0) {
+  if (activePositions.length === 0) {
     return (
       <div className={cn(pageState, "py-6", className)}>
         <EmptyState
@@ -43,7 +45,7 @@ export function PredictManagerPortfolioPanel({
   return (
     <LeverxPositionsTable
       className={className}
-      positions={positions}
+      positions={activePositions}
       markToMarket={byPositionId}
       isRefreshing={isRefreshing}
       owner={owner}

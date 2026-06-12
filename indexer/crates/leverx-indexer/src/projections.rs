@@ -9,8 +9,8 @@ use serde_json::Value as JsonValue;
 use sui_types::event::Event;
 
 use crate::handlers::{
-    BorrowRatePatch, DebtRepaidPatch, LeverxBatch, LimitCancelPatch, LimitExecutePatch,
-    LiquidationPositionPatch, PositionClosePatch, TradingPausedPatch,
+    BorrowRatePatch, DebtRepaidPatch, KeyBorrowPatch, LeverxBatch, LimitCancelPatch,
+    LimitExecutePatch, LiquidationPositionPatch, PositionClosePatch, TradingPausedPatch,
 };
 use crate::keys::{limit_order_key, position_key};
 use crate::points::record_volume;
@@ -19,7 +19,7 @@ use crate::move_events::{
     parse_event_json, try_parse, AccountCreated, DebtBorrowed, DebtRepaid, ExecutorRegistered,
     ExecutorRevoked, BorrowRateParamsUpdated, FeeCollectorWithdrawn, FlashLoanBorrowed,
     FlashLoanRepaid, InsuranceFundSkimmed, InterestAccrued, ProtocolFeeDistributed,
-    LeveragedPositionClosed, LeveragedPositionOpened, LimitMintOrderCancelled,
+    KeyBorrowUpdated, LeveragedPositionClosed, LeveragedPositionOpened, LimitMintOrderCancelled,
     LimitMintOrderExecuted, LimitMintOrderPlaced, PositionLiquidated, PredictManagerLinked,
     ProtocolDeployed, ProxyAccountingSynced, RegistryInitialized,
     TradingPausedChanged, TriggersCleared, TriggersUpdated, VaultBorrowed, VaultRepaid,
@@ -560,6 +560,24 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     updated_at_ms: ctx.timestamp_ms,
                 });
                 timeline(batch, ctx, ev.account_id.to_string(), None);
+            }
+        }
+        "KeyBorrowUpdated" => {
+            if let Some(ev) = try_parse::<KeyBorrowUpdated>(ctx.event.contents.as_slice()) {
+                let pk = position_key(
+                    &ev.oracle_id.to_string(),
+                    ev.expiry_ms as i64,
+                    ev.strike as i64,
+                    ev.higher_strike as i64,
+                    ev.is_up,
+                    ev.is_range,
+                );
+                batch.key_borrow_patches.push(KeyBorrowPatch {
+                    position_key: pk,
+                    account_id: ev.account_id.to_string(),
+                    key_borrowed_quote: ev.key_borrowed_quote as i64,
+                });
+                timeline(batch, ctx, ev.account_id.to_string(), Some(ev.owner.to_string()));
             }
         }
         "PositionLiquidated" => {

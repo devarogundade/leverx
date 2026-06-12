@@ -8,8 +8,8 @@ import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { LeverxLimitOrdersTable } from "@/components/leverx/LeverxLimitOrdersTable";
 import { LeverxPositionsTable } from "@/components/leverx/LeverxPositionsTable";
 import { PortfolioAccountPanel } from "@/components/leverx/PortfolioAccountPanel";
-import { usePositionsMarkToMarket } from "@/hooks/usePositionsMarkToMarket";
 import type { LeveragedPosition, LimitMintOrder, UserProxy } from "@/lib/leverx/indexer-client";
+import type { PositionMarkToMarket } from "@/lib/leverx/position-metrics";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import { tradeSurface } from "@/lib/leverx/tw";
 import { ui } from "@/lib/copy";
@@ -32,6 +32,8 @@ interface Props {
   account: UserProxy | null;
   owner: string;
   loading?: boolean;
+  markToMarket: Map<string, PositionMarkToMarket>;
+  isRefreshing?: boolean;
   className?: string;
 }
 
@@ -42,10 +44,12 @@ export function PortfolioWorkspace({
   account,
   owner,
   loading,
+  markToMarket,
+  isRefreshing,
   className,
 }: Props) {
   const [tab, setTab] = useState<PortfolioTab>("positions");
-  const { byPositionId, isRefreshing } = usePositionsMarkToMarket(openPositions);
+  const byPositionId = markToMarket;
 
   const tabOptions = TABS.map((value) => ({
     value,
@@ -142,7 +146,12 @@ export function PortfolioWorkspace({
         ) : null}
 
         {tab === "account" && account ? (
-          <PortfolioAccountPanel account={account} owner={owner} positions={openPositions} />
+          <PortfolioAccountPanel
+            account={account}
+            owner={owner}
+            positions={openPositions}
+            allPositions={[...openPositions, ...closedPositions]}
+          />
         ) : null}
 
         {tab === "account" && !account ? (

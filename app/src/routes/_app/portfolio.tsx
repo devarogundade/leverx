@@ -63,7 +63,7 @@ function PortfolioPage() {
     [openPositions],
   );
 
-  const { byPositionId } = usePositionsMarkToMarket(activeOpenPositions);
+  const { byPositionId, isRefreshing } = usePositionsMarkToMarket(activeOpenPositions);
 
   const account = accounts[0];
   const isLoading = accountsLoading || openLoading || closedLoading || ordersLoading;
@@ -106,6 +106,8 @@ function PortfolioPage() {
             account={account ?? null}
             owner={address!}
             loading={isLoading}
+            markToMarket={byPositionId}
+            isRefreshing={isRefreshing}
           />
         </div>
       )}

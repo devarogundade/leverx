@@ -17,7 +17,7 @@ export const TESTNET_PREDICT = {
 /** Published LeverX package + shared objects (testnet). */
 export const TESTNET_LEVERX = {
   packageId:
-    '0x81e913fc694919d1fca5ebc78c05d996a77d050a9568e6d055825acd339baae1',
+    '0x6e9540e900a6bf28d9b8ab43a706ae24a089586eca90545c2e958dff21838043',
   /** Filled from env or indexer `/v1/protocol` after `deploy_and_share`. */
   registryId: '',
   vaultId: '',

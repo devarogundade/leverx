@@ -32,7 +32,13 @@ use leverx::{
     events,
     proxy_vault::{Self, BalanceManager, DepositCap, WithdrawCap},
 };
-use sui::{clock::Clock, coin::{Self, Coin}, table::{Self, Table}, vec_set::{Self, VecSet}};
+use sui::{
+    clock::Clock,
+    coin::{Self, Coin},
+    table::{Self, Table},
+    transfer,
+    vec_set::{Self, VecSet},
+};
 
 /// Take-profit and stop-loss trigger thresholds for a single market key.
 ///
@@ -362,6 +368,34 @@ public(package) fun withdraw_quote_from_range<Quote>(
     proxy.balance_manager.withdraw_with_cap(&proxy.withdraw_cap, amount, ctx)
 }
 
+/// Withdraw free quote from a binary market key to the transaction sender.
+public fun withdraw_quote_for_binary<Quote>(
+    proxy: &mut UserProxy,
+    key: MarketKey,
+    amount: u64,
+    ctx: &mut TxContext,
+) {
+    proxy.assert_can_act(ctx);
+    assert!(amount > 0, errors::zero_amount());
+    assert!(proxy.binary_borrowed_quote(key) == 0, errors::outstanding_debt());
+    let coin = proxy.withdraw_quote_from_binary<Quote>(key, amount, ctx);
+    transfer::public_transfer(coin, ctx.sender());
+}
+
+/// Withdraw free quote from a range market key to the transaction sender.
+public fun withdraw_quote_for_range<Quote>(
+    proxy: &mut UserProxy,
+    key: RangeKey,
+    amount: u64,
+    ctx: &mut TxContext,
+) {
+    proxy.assert_can_act(ctx);
+    assert!(amount > 0, errors::zero_amount());
+    assert!(proxy.range_borrowed_quote(key) == 0, errors::outstanding_debt());
+    let coin = proxy.withdraw_quote_from_range<Quote>(key, amount, ctx);
+    transfer::public_transfer(coin, ctx.sender());
+}
+
 // === Quote reserve (limit orders) ===
 
 /// Lock quote margin for a resting limit order on this binary market key.
@@ -459,6 +493,17 @@ public(package) fun set_binary_margin_debt(
     ledger.margin_debt = amount;
 }
 
+/// Add posted margin for margin-call health on a binary key (scale-in).
+public(package) fun add_binary_margin_debt(
+    proxy: &mut UserProxy,
+    key: MarketKey,
+    amount: u64,
+    ctx: &mut TxContext,
+) {
+    let ledger = ensure_binary_ledger(proxy, key, ctx);
+    ledger.margin_debt = ledger.margin_debt + amount;
+}
+
 /// Record posted margin for margin-call health on a range key.
 public(package) fun set_range_margin_debt(
     proxy: &mut UserProxy,
@@ -468,6 +513,17 @@ public(package) fun set_range_margin_debt(
 ) {
     let ledger = ensure_range_ledger(proxy, key, ctx);
     ledger.margin_debt = amount;
+}
+
+/// Add posted margin for margin-call health on a range key (scale-in).
+public(package) fun add_range_margin_debt(
+    proxy: &mut UserProxy,
+    key: RangeKey,
+    amount: u64,
+    ctx: &mut TxContext,
+) {
+    let ledger = ensure_range_ledger(proxy, key, ctx);
+    ledger.margin_debt = ledger.margin_debt + amount;
 }
 
 /// Clear posted margin debt on a binary key after the position is closed.

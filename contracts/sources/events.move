@@ -282,6 +282,28 @@ public struct ProxyAccountingSynced has copy, drop {
     borrowed_quote: u64,
 }
 
+/// Emitted when per-market-key vault debt changes (deleverage / partial repay).
+public struct KeyBorrowUpdated has copy, drop {
+    /// `UserProxy` object ID.
+    account_id: ID,
+    /// Proxy owner address.
+    owner: address,
+    /// DeepBook Predict oracle object ID.
+    oracle_id: ID,
+    /// Contract expiry timestamp in milliseconds.
+    expiry_ms: u64,
+    /// Lower/or sole strike in 1e9 USD scale.
+    strike: u64,
+    /// Upper strike in 1e9 USD scale (`0` for binary positions).
+    higher_strike: u64,
+    /// `true` for up/out binary; ignored for range.
+    is_up: bool,
+    /// `true` for range positions; `false` for binary.
+    is_range: bool,
+    /// Remaining key borrowed quote in quote atoms.
+    key_borrowed_quote: u64,
+}
+
 // === Leveraged positions ===
 
 /// Emitted when a leveraged Predict position is opened (mint fill).
@@ -723,6 +745,31 @@ public(package) fun emit_debt_repaid(account_id: ID, owner: address, amount: u64
 /// Emit `ProxyAccountingSynced`.
 public(package) fun emit_proxy_accounting_synced(account_id: ID, borrowed_quote: u64) {
     event::emit(ProxyAccountingSynced { account_id, borrowed_quote });
+}
+
+/// Emit `KeyBorrowUpdated`.
+public(package) fun emit_key_borrow_updated(
+    account_id: ID,
+    owner: address,
+    oracle_id: ID,
+    expiry_ms: u64,
+    strike: u64,
+    higher_strike: u64,
+    is_up: bool,
+    is_range: bool,
+    key_borrowed_quote: u64,
+) {
+    event::emit(KeyBorrowUpdated {
+        account_id,
+        owner,
+        oracle_id,
+        expiry_ms,
+        strike,
+        higher_strike,
+        is_up,
+        is_range,
+        key_borrowed_quote,
+    });
 }
 
 /// Emit `LeveragedPositionOpened`.

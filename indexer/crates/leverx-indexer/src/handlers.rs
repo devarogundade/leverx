@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::Result;
+use diesel::dsl::sql;
+use diesel::sql_types::BigInt;
 use diesel::upsert::excluded;
 use diesel::ExpressionMethods;
 use diesel::QueryDsl;
@@ -50,6 +52,7 @@ pub struct LeverxBatch {
     pub executors: Vec<NewProxyExecutor>,
     pub liquidations: Vec<NewLiquidation>,
     pub liquidation_positions: Vec<LiquidationPositionPatch>,
+    pub key_borrow_patches: Vec<KeyBorrowPatch>,
     pub borrow_rate_patches: Vec<BorrowRatePatch>,
     pub trading_paused_patches: Vec<TradingPausedPatch>,
     pub points_patches: Vec<UserPointsPatch>,
@@ -108,6 +111,12 @@ pub struct LiquidationPositionPatch {
     pub had_position_redeem: bool,
     pub event_digest: String,
     pub keeper: String,
+}
+
+pub struct KeyBorrowPatch {
+    pub position_key: String,
+    pub account_id: String,
+    pub key_borrowed_quote: i64,
 }
 
 pub struct BorrowRatePatch {
@@ -296,6 +305,7 @@ impl Handler for LeverxEventsHandler {
             batch.executors.extend(v.executors);
             batch.liquidations.extend(v.liquidations);
             batch.liquidation_positions.extend(v.liquidation_positions);
+            batch.key_borrow_patches.extend(v.key_borrow_patches);
             batch.borrow_rate_patches.extend(v.borrow_rate_patches);
             batch.trading_paused_patches.extend(v.trading_paused_patches);
             batch.points_patches.extend(v.points_patches);
@@ -449,9 +459,12 @@ impl Handler for LeverxEventsHandler {
                         leveraged_positions::borrow_quote + excluded(leveraged_positions::borrow_quote),
                     ),
                     leveraged_positions::leverage_bps.eq(excluded(leveraged_positions::leverage_bps)),
-                    leveraged_positions::mint_cost.eq(
-                        leveraged_positions::mint_cost + excluded(leveraged_positions::mint_cost),
-                    ),
+                    // After a full close (qty=0) mint_cost must not carry into the next open.
+                    leveraged_positions::mint_cost.eq(sql::<BigInt>(
+                        "CASE WHEN leveraged_positions.open_quantity <= 0 \
+                         THEN excluded.mint_cost \
+                         ELSE leveraged_positions.mint_cost + excluded.mint_cost END",
+                    )),
                     leveraged_positions::last_order_type.eq(excluded(leveraged_positions::last_order_type)),
                     leveraged_positions::status.eq("open"),
                     leveraged_positions::opened_at_ms.eq(excluded(leveraged_positions::opened_at_ms)),
@@ -470,6 +483,10 @@ impl Handler for LeverxEventsHandler {
                  margin_quote = CASE \
                    WHEN open_quantity - $1 <= 0 THEN 0 \
                    ELSE (margin_quote * GREATEST(open_quantity - $1, 0) / GREATEST(open_quantity, 1)) \
+                 END, \
+                 mint_cost = CASE \
+                   WHEN open_quantity - $1 <= 0 THEN 0 \
+                   ELSE (mint_cost * GREATEST(open_quantity - $1, 0) / GREATEST(open_quantity, 1)) \
                  END, \
                  status = CASE \
                    WHEN open_quantity - $1 <= 0 THEN CASE WHEN $7 THEN 'settled' ELSE 'closed' END \
@@ -632,20 +649,34 @@ impl Handler for LeverxEventsHandler {
                 .await?;
         }
 
+        for patch in &batch.key_borrow_patches {
+            rows += diesel::update(
+                leveraged_positions::table
+                    .filter(leveraged_positions::position_key.eq(&patch.position_key))
+                    .filter(leveraged_positions::account_id.eq(&patch.account_id)),
+            )
+            .set(leveraged_positions::borrow_quote.eq(patch.key_borrowed_quote))
+            .execute(conn)
+            .await?;
+        }
+
         for liq in &batch.liquidation_positions {
-            let filter = leveraged_positions::table
-                .filter(leveraged_positions::position_key.eq(&liq.position_key))
-                .filter(leveraged_positions::account_id.eq(&liq.account_id));
-            rows += diesel::update(filter)
-                .set((
-                    leveraged_positions::status.eq("liquidated"),
-                    leveraged_positions::borrow_quote.eq(0),
-                    leveraged_positions::open_quantity.eq(0),
-                    leveraged_positions::margin_quote.eq(0),
-                    leveraged_positions::closed_at_ms.eq(liq.closed_at_ms),
-                ))
-                .execute(conn)
-                .await?;
+            rows += diesel::sql_query(
+                "UPDATE leveraged_positions SET \
+                 status = 'liquidated', \
+                 borrow_quote = 0, \
+                 margin_quote = 0, \
+                 mint_cost = 0, \
+                 closed_at_ms = $1, \
+                 open_quantity = CASE WHEN $2 THEN 0 ELSE open_quantity END \
+                 WHERE position_key = $3 AND account_id = $4",
+            )
+            .bind::<diesel::sql_types::BigInt, _>(liq.closed_at_ms)
+            .bind::<diesel::sql_types::Bool, _>(liq.had_position_redeem)
+            .bind::<diesel::sql_types::Text, _>(&liq.position_key)
+            .bind::<diesel::sql_types::Text, _>(&liq.account_id)
+            .execute(conn)
+            .await?;
 
             // Liquidation prep cancels resting limits on-chain without a separate event.
             rows += diesel::update(

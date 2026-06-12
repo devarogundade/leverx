@@ -4,7 +4,7 @@
  * - https://docs.sui.io/onchain-finance/deepbook-predict/contract-information
  * Predict testnet expirations: 1, 2, 7, 14, 21 days.
  *
- * Defaults mirror `contracts/deploy-testnet.env` (publish tx 866WrEo…).
+ * Defaults mirror `contracts/deploy-testnet.env` (publish tx 724V1TJ…).
  * Shared object IDs (registry, vault, fee collector) come from the indexer
  * `/v1/protocol` after `deploy_and_share`, or optional `VITE_LEVERX_*` env vars.
  */
@@ -22,7 +22,7 @@ const TESTNET_PREDICT = {
 /** Published LeverX package (testnet). Shared objects filled via indexer or .env. */
 const TESTNET_LEVERX = {
   packageId:
-    "0x81e913fc694919d1fca5ebc78c05d996a77d050a9568e6d055825acd339baae1",
+    "0x6e9540e900a6bf28d9b8ab43a706ae24a089586eca90545c2e958dff21838043",
   registryId: "",
   vaultId: "",
   feeCollectorId: "",

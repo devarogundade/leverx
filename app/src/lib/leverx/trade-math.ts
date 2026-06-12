@@ -97,6 +97,13 @@ export function applySlippageBps(amount: bigint, slippageBps: number): bigint {
   return (amount * BigInt(10_000 + slippageBps)) / 10_000n;
 }
 
+/** Minimum acceptable payout after slippage (market redeem floor). */
+export function applySlippageFloor(amount: bigint, slippageBps: number): bigint {
+  if (amount <= 0n || slippageBps <= 0) return amount;
+  const bps = Math.min(Math.max(slippageBps, 0), 9_999);
+  return (amount * BigInt(10_000 - bps)) / 10_000n;
+}
+
 /** Slippage band on a per-contract premium (matches on-chain `premium_slippage_tolerance`). */
 export function premiumSlippageTolerance(premiumPerUnit: bigint, slippageBps: number): bigint {
   if (premiumPerUnit <= 0n || slippageBps <= 0) return 0n;

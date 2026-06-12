@@ -30,12 +30,20 @@ export function isActiveOpenPosition(position: LeveragedPosition): boolean {
   return position.status === "open" && position.open_quantity > 0;
 }
 
+/** Cap ghost mint_cost until indexer migration repairs historical rows. */
+export function effectiveMintCostAtoms(position: LeveragedPosition): number {
+  if (position.mint_cost <= 0) return 0;
+  const cap = position.margin_quote + position.borrow_quote;
+  return cap > 0 ? Math.min(position.mint_cost, cap) : position.mint_cost;
+}
+
+/** Matches on-chain `predict_client::premium_per_unit` (divide-and-round-up). */
 export function entryPremiumPerUnitRaw(position: LeveragedPosition): bigint | null {
-  if (position.open_quantity <= 0 || position.mint_cost <= 0) return null;
-  return (
-    (BigInt(position.mint_cost) * PREDICT_PRICE_SCALE) /
-    BigInt(position.open_quantity)
-  );
+  const mintCost = effectiveMintCostAtoms(position);
+  if (position.open_quantity <= 0 || mintCost <= 0) return null;
+  const numerator = BigInt(mintCost) * PREDICT_PRICE_SCALE;
+  const quantity = BigInt(position.open_quantity);
+  return (numerator + quantity - 1n) / quantity;
 }
 
 export function computePositionMarkToMarket(
@@ -43,7 +51,7 @@ export function computePositionMarkToMarket(
   redeemQuote: RedeemQuote | null | undefined,
   quoteLoading: boolean,
 ): PositionMarkToMarket {
-  const entryCostUsd = scaleQuote(position.mint_cost);
+  const entryCostUsd = scaleQuote(effectiveMintCostAtoms(position));
   const marginUsd = scaleQuote(position.margin_quote);
   const borrowedUsd = scaleQuote(position.borrow_quote);
   const positionSizeUsd = marginUsd + borrowedUsd;
@@ -62,7 +70,7 @@ export function computePositionMarkToMarket(
       entryPremiumCents,
       unrealizedPnlUsd: 0,
       unrealizedPnlPct: null,
-      netEquityUsd: marginUsd - borrowedUsd,
+      netEquityUsd: 0,
       healthBps: null,
       healthLabel: quoteLoading ? "unknown" : "unknown",
       isLive: false,

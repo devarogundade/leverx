@@ -272,7 +272,9 @@ export function LeverxPositionsTable({
     },
     {
       key: "health",
-      header: "Health",
+      header: (
+        <LabelWithInfo label="Health (est.)" labelClassName="text-inherit" info={leverxInfo.estimatedHealth} />
+      ),
       align: "right",
       hideOnMobile: true,
       cell: (r) => <HealthCell mtm={r.mtm} closed={r.position.status !== "open"} />,

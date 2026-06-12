@@ -21,12 +21,14 @@ import {
   appendDeleverageDebt,
   appendRevokeExecutor,
   appendSettleExpired,
+  appendWithdrawQuote,
   type MintOrderParams,
 } from "@/lib/leverx/ptb-builder";
 import { lxplpCoinType, type LeverxProtocolConfig } from "@/lib/leverx/protocol";
-import { fetchMintQuote } from "@/lib/leverx/quotes";
+import { fetchMintQuote, fetchRedeemQuote } from "@/lib/leverx/quotes";
 import {
   applySlippageBps,
+  applySlippageFloor,
   centsToPremiumRaw,
   leverageToBps,
   marginUsdToQuoteAtoms,
@@ -57,6 +59,13 @@ export type ClosePositionInput = {
   redeemMode?: "market" | "limit";
   minPayout?: bigint;
   minPremiumPerUnit?: bigint;
+  marketSlippageBps?: number;
+};
+
+export type WithdrawQuoteInput = {
+  accountId: string;
+  key: MarketKeyArgs;
+  amountAtoms: bigint;
 };
 
 function positionToKey(position: LeveragedPosition): MarketKeyArgs {
@@ -203,6 +212,19 @@ export async function executeClosePosition(params: {
     throw new Error("Position is missing a linked Predict manager.");
   }
   const predictManagerId = position.predict_manager_id;
+  const redeemMode = params.input.redeemMode ?? "market";
+  let minPayout = params.input.minPayout;
+
+  if (redeemMode === "market" && minPayout == null) {
+    const quote = await fetchRedeemQuote({
+      client: params.client,
+      cfg: params.cfg,
+      key: positionToKey(position),
+      quantity: BigInt(position.open_quantity),
+    });
+    const slippageBps = params.input.marketSlippageBps ?? DEFAULT_SLIPPAGE_BPS;
+    minPayout = quote ? applySlippageFloor(quote.expectedPayout, slippageBps) : 0n;
+  }
 
   return executeWalletTransaction(
     params.client,
@@ -214,10 +236,38 @@ export async function executeClosePosition(params: {
         accountId: position.account_id,
         predictManagerId,
         quantity: BigInt(position.open_quantity),
-        redeemMode: params.input.redeemMode ?? "market",
-        minPayout: params.input.minPayout ?? 0n,
+        redeemMode,
+        minPayout: minPayout ?? 0n,
         minPremiumPerUnit: params.input.minPremiumPerUnit,
       });
+    },
+    { gasBudget: TRADE_GAS_BUDGET },
+  );
+}
+
+export async function executeWithdrawQuote(params: {
+  client: SuiJsonRpcClient;
+  wallet: WalletWithRequiredFeatures;
+  account: WalletAccount;
+  cfg: LeverxProtocolConfig;
+  input: WithdrawQuoteInput;
+}): Promise<{ digest: string }> {
+  if (params.input.amountAtoms <= 0n) {
+    throw new Error("Withdraw amount must be greater than zero.");
+  }
+
+  return executeWalletTransaction(
+    params.client,
+    params.wallet,
+    params.account,
+    (tx) => {
+      appendWithdrawQuote(
+        tx,
+        params.cfg,
+        params.input.accountId,
+        params.input.key,
+        params.input.amountAtoms,
+      );
     },
     { gasBudget: TRADE_GAS_BUDGET },
   );

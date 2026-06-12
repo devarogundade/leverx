@@ -41,8 +41,6 @@ export function aggregatePortfolioSummary(
       if (mtm.healthLabel === "margin_call" || mtm.healthLabel === "at_risk") {
         atRiskCount += 1;
       }
-    } else {
-      netEquityUsd += marginUsd - borrowedUsd;
     }
   }
 

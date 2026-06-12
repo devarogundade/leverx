@@ -183,6 +183,19 @@ pub struct ProxyAccountingSynced {
     pub borrowed_quote: u64,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct KeyBorrowUpdated {
+    pub account_id: ObjectID,
+    pub owner: SuiAddress,
+    pub oracle_id: ObjectID,
+    pub expiry_ms: u64,
+    pub strike: u64,
+    pub higher_strike: u64,
+    pub is_up: bool,
+    pub is_range: bool,
+    pub key_borrowed_quote: u64,
+}
+
 // === Positions ===
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -364,6 +377,7 @@ pub fn parse_event_json(event_name: &str, bytes: &[u8]) -> serde_json::Value {
         "DebtBorrowed" => parse_as!(DebtBorrowed),
         "DebtRepaid" => parse_as!(DebtRepaid),
         "ProxyAccountingSynced" => parse_as!(ProxyAccountingSynced),
+        "KeyBorrowUpdated" => parse_as!(KeyBorrowUpdated),
         "LeveragedPositionOpened" => parse_as!(LeveragedPositionOpened),
         "LeveragedPositionClosed" => parse_as!(LeveragedPositionClosed),
         "PositionLiquidated" => parse_as!(PositionLiquidated),
