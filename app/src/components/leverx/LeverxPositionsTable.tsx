@@ -301,7 +301,7 @@ export function LeverxPositionsTable({
   return (
     <div className={cn("space-y-2", className)}>
       {showHeader ? (
-        <div className="flex items-center justify-between gap-2 px-1">
+        <div className="flex items-center justify-between gap-2 border-b border-border px-1 pb-2">
           <LabelWithInfo
             labelClassName={labelCaps}
             label={ui.predictManagerOpenPositions}
@@ -312,7 +312,9 @@ export function LeverxPositionsTable({
           ) : null}
         </div>
       ) : null}
-      <DataTable columns={cols} rows={rows} rowKey={(r) => r.id} />
+      <div className={cn(!showHeader && "overflow-x-auto")}>
+        <DataTable columns={cols} rows={rows} rowKey={(r) => r.id} />
+      </div>
     </div>
   );
 }

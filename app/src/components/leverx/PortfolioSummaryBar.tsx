@@ -1,0 +1,129 @@
+import { AlertTriangle, TrendingDown, TrendingUp } from "lucide-react";
+import { LabelWithInfo } from "@/components/leverx/InfoPopover";
+import { leverxInfo } from "@/lib/leverx/info-copy";
+import type { PortfolioSummary } from "@/lib/leverx/portfolio-summary";
+import { formatPnlUsd } from "@/lib/leverx/position-metrics";
+import { formatUsdcOrPlaceholder } from "@/lib/leverx/placeholders";
+import { labelCaps, statValue, tradeSurface } from "@/lib/leverx/tw";
+import { cn } from "@/lib/utils";
+
+interface Props {
+  summary: PortfolioSummary | null;
+  loading?: boolean;
+  className?: string;
+}
+
+function SummaryStat({
+  label,
+  value,
+  info,
+  tone,
+  sub,
+}: {
+  label: string;
+  value: string;
+  info?: string;
+  tone?: "success" | "destructive" | "muted";
+  sub?: string;
+}) {
+  return (
+    <div className="min-w-0 px-4 py-3.5">
+      {info ? (
+        <LabelWithInfo label={label} labelClassName={labelCaps} info={info} />
+      ) : (
+        <div className={labelCaps}>{label}</div>
+      )}
+      <div
+        className={cn(
+          statValue,
+          "mt-1 truncate text-xl sm:text-2xl",
+          tone === "success" && "text-success",
+          tone === "destructive" && "text-destructive",
+          tone === "muted" && "text-muted-foreground",
+        )}
+      >
+        {value}
+      </div>
+      {sub ? <p className="mt-0.5 text-[11px] text-muted-foreground">{sub}</p> : null}
+    </div>
+  );
+}
+
+export function PortfolioSummaryBar({ summary, loading, className }: Props) {
+  const pnlTone =
+    summary == null
+      ? undefined
+      : summary.unrealizedPnlUsd > 0
+        ? "success"
+        : summary.unrealizedPnlUsd < 0
+          ? "destructive"
+          : "muted";
+
+  const pnlValue =
+    loading || !summary
+      ? "…"
+      : summary.liveMarkCount > 0
+        ? formatPnlUsd(summary.unrealizedPnlUsd)
+        : "—";
+
+  return (
+    <div className={cn(tradeSurface, className)}>
+      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
+        <div>
+          <p className={labelCaps}>Portfolio overview</p>
+          <p className="text-xs text-muted-foreground">
+            Live marks refresh every ~12s across open positions
+          </p>
+        </div>
+        {summary && summary.atRiskCount > 0 ? (
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            {summary.atRiskCount} at risk
+          </span>
+        ) : null}
+      </div>
+      <div className="grid divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
+        <SummaryStat
+          label="Net equity"
+          info={leverxInfo.balanceTotal}
+          value={loading || !summary ? "…" : formatUsdcOrPlaceholder(summary.netEquityUsd)}
+          sub={
+            summary
+              ? `${summary.positionCount} open · ${formatUsdcOrPlaceholder(summary.notionalUsd)} exposure`
+              : undefined
+          }
+        />
+        <SummaryStat
+          label="Unrealized P&L"
+          info={leverxInfo.unrealizedPnl}
+          value={pnlValue}
+          tone={pnlTone}
+          sub={
+            summary && summary.liveMarkCount > 0 ? (
+              <span className="inline-flex items-center gap-1">
+                {summary.unrealizedPnlUsd >= 0 ? (
+                  <TrendingUp className="h-3 w-3" />
+                ) : (
+                  <TrendingDown className="h-3 w-3" />
+                )}
+                Mark-to-market
+              </span>
+            ) : (
+              "Awaiting live marks"
+            )
+          }
+        />
+        <SummaryStat
+          label="Margin posted"
+          info={leverxInfo.marginOpen}
+          value={loading || !summary ? "…" : formatUsdcOrPlaceholder(summary.marginTotalUsd)}
+        />
+        <SummaryStat
+          label="Borrowed"
+          info={leverxInfo.borrowedQuote}
+          value={loading || !summary ? "…" : formatUsdcOrPlaceholder(summary.borrowedTotalUsd)}
+        />
+      </div>
+    </div>
+  );
+}

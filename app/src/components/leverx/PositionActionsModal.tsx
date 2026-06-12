@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ChevronLeft, Loader2 } from "lucide-react";
+import { ConfirmDialog } from "@/components/leverx/ConfirmDialog";
 import { ResponsiveModal } from "@/components/leverx/ResponsiveModal";
 import { InfoPopover } from "@/components/leverx/InfoPopover";
 import { Input } from "@/components/ui/input";
@@ -15,11 +16,35 @@ import { cn } from "@/lib/utils";
 import { pillToggleBtn, pillToggleIdle } from "@/lib/leverx/tw";
 
 type ActionView = "menu" | "close_limit" | "repay_debt";
+type ConfirmAction = "market_close" | "settle" | null;
 
 interface Props {
   position: LeveragedPosition;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+function PositionDetailGrid({ position }: { position: LeveragedPosition }) {
+  return (
+    <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+      <dt className="text-muted-foreground">Quantity</dt>
+      <dd className="text-right font-mono tabular-nums">
+        {position.open_quantity.toLocaleString()}
+      </dd>
+      <dt className="text-muted-foreground">Margin</dt>
+      <dd className="text-right font-mono tabular-nums">
+        {scaleQuote(position.margin_quote).toFixed(2)} dUSDC
+      </dd>
+      <dt className="text-muted-foreground">Borrowed</dt>
+      <dd className="text-right font-mono tabular-nums">
+        {scaleQuote(position.borrow_quote).toFixed(2)} dUSDC
+      </dd>
+      <dt className="text-muted-foreground">Leverage</dt>
+      <dd className="text-right font-mono tabular-nums">
+        {(position.leverage_bps / 10_000).toFixed(1)}×
+      </dd>
+    </dl>
+  );
 }
 
 export function PositionActionsModal({ position, open, onOpenChange }: Props) {
@@ -33,6 +58,7 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
   } = useLeverxTransactions();
 
   const [view, setView] = useState<ActionView>("menu");
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [limitCents, setLimitCents] = useState("");
   const [repayUsd, setRepayUsd] = useState("");
   const [txError, setTxError] = useState<string | null>(null);
@@ -47,6 +73,7 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
 
   const reset = () => {
     setView("menu");
+    setConfirmAction(null);
     setTxError(null);
   };
 
@@ -56,7 +83,6 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
   };
 
   const onError = (err: unknown) => setTxError(formatTxError(err));
-
   const onSuccess = () => closeModal();
 
   const asset = assetLabelForOracleId(position.oracle_id, oracles);
@@ -71,160 +97,215 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
 
   const description =
     view === "menu"
-      ? `Qty ${position.open_quantity.toLocaleString()} · margin ${scaleQuote(position.margin_quote).toFixed(2)} dUSDC`
+      ? "Choose how to manage this position."
       : view === "close_limit"
         ? leverxInfo.closeLimit
         : leverxInfo.repayDebt;
 
   return (
-    <ResponsiveModal
-      open={open}
-      onOpenChange={(next) => {
-        if (!next) closeModal();
-        else onOpenChange(true);
-      }}
-      title={title}
-      description={description}
-    >
-      {view !== "menu" ? (
-        <button
-          type="button"
-          className="mb-3 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-          onClick={() => {
-            setView("menu");
-            setTxError(null);
-          }}
-        >
-          <ChevronLeft className="h-3.5 w-3.5" />
-          Back
-        </button>
-      ) : null}
-
-      {view === "menu" ? (
-        <div className="space-y-2">
-          <ActionButton
-            label="Close at market"
-            hint="Redeem now at the best available bid"
-            info={leverxInfo.closeMarket}
-            disabled={!isProtocolReady || pending}
-            onClick={() =>
-              closePosition.mutate(
-                { position, redeemMode: "market" },
-                { onError, onSuccess },
-              )
-            }
-            pending={closePosition.isPending}
-          />
-          <ActionButton
-            label="Close at limit"
-            hint="Set a minimum bid per contract"
-            info={leverxInfo.closeLimit}
-            disabled={!isProtocolReady || pending}
-            onClick={() => setView("close_limit")}
-          />
-          {hasDebt ? (
-            <ActionButton
-              label="Repay debt"
-              hint={`${borrowedUsd.toFixed(2)} dUSDC borrowed`}
-              info={leverxInfo.repayDebt}
-              disabled={!isProtocolReady || pending}
-              onClick={() => setView("repay_debt")}
-            />
-          ) : null}
-          {expired ? (
-            <ActionButton
-              label="Settle expired"
-              hint="Redeem after oracle settlement"
-              info={leverxInfo.settleExpired}
-              disabled={!isProtocolReady || pending}
-              onClick={() => settleExpired.mutate(position, { onError, onSuccess })}
-              pending={settleExpired.isPending}
-            />
-          ) : null}
-        </div>
-      ) : null}
-
-      {view === "close_limit" ? (
-        <div className="space-y-3">
-          <Input
-            type="number"
-            inputMode="decimal"
-            min={0.1}
-            step={0.1}
-            placeholder="Min bid (¢)"
-            value={limitCents}
-            onChange={(e) => setLimitCents(e.target.value)}
-            className="font-mono"
-          />
+    <>
+      <ResponsiveModal
+        open={open && confirmAction == null}
+        onOpenChange={(next) => {
+          if (!next) closeModal();
+          else onOpenChange(true);
+        }}
+        title={title}
+        description={description}
+      >
+        {view !== "menu" ? (
           <button
             type="button"
-            className={cn(pillToggleBtn, pillToggleIdle, "w-full")}
-            disabled={pending}
+            className="mb-3 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
             onClick={() => {
-              const cents = parseFloat(limitCents);
-              if (!Number.isFinite(cents) || cents <= 0) return;
-              closePosition.mutate(
-                {
-                  position,
-                  redeemMode: "limit",
-                  minPremiumPerUnit: centsToPremiumRaw(cents),
-                },
-                { onError, onSuccess },
-              );
+              setView("menu");
+              setTxError(null);
             }}
           >
-            {closePosition.isPending ? (
-              <Loader2 className="mx-auto h-4 w-4 animate-spin" />
-            ) : (
-              "Confirm limit close"
-            )}
+            <ChevronLeft className="h-3.5 w-3.5" />
+            Back
           </button>
-        </div>
-      ) : null}
+        ) : null}
 
-      {view === "repay_debt" ? (
-        <div className="space-y-3">
-          <p className="text-xs text-muted-foreground">
-            Outstanding borrow:{" "}
-            <span className="font-mono text-foreground">{borrowedUsd.toFixed(2)} dUSDC</span>
-          </p>
-          <Input
-            type="number"
-            inputMode="decimal"
-            min={0}
-            step={0.01}
-            placeholder="Repay amount (dUSDC)"
-            value={repayUsd}
-            onChange={(e) => setRepayUsd(e.target.value)}
-            className="font-mono"
-          />
-          {repayExceedsDebt ? (
-            <p className="text-xs text-destructive">Amount exceeds borrowed balance.</p>
-          ) : null}
-          <button
-            type="button"
-            className={cn(pillToggleBtn, pillToggleIdle, "w-full")}
-            disabled={pending || repayExceedsDebt}
-            onClick={() => {
-              const usd = parseFloat(repayUsd);
-              if (!Number.isFinite(usd) || usd <= 0 || usd > borrowedUsd + 1e-6) return;
-              repayDebt.mutate(
-                { position, amountAtoms: marginUsdToQuoteAtoms(usd) },
-                { onError, onSuccess },
-              );
-            }}
-          >
-            {repayDebt.isPending ? (
-              <Loader2 className="mx-auto h-4 w-4 animate-spin" />
-            ) : (
-              "Confirm repay"
-            )}
-          </button>
-        </div>
-      ) : null}
+        {view === "menu" ? (
+          <div className="space-y-3">
+            <PositionDetailGrid position={position} />
+            <div className="space-y-2">
+              <ActionButton
+                label="Close at market"
+                hint="Redeem now at the best available bid"
+                info={leverxInfo.closeMarket}
+                disabled={!isProtocolReady || pending}
+                onClick={() => {
+                  setTxError(null);
+                  setConfirmAction("market_close");
+                }}
+              />
+              <ActionButton
+                label="Close at limit"
+                hint="Set a minimum bid per contract"
+                info={leverxInfo.closeLimit}
+                disabled={!isProtocolReady || pending}
+                onClick={() => setView("close_limit")}
+              />
+              {hasDebt ? (
+                <ActionButton
+                  label="Repay debt"
+                  hint={`${borrowedUsd.toFixed(2)} dUSDC borrowed`}
+                  info={leverxInfo.repayDebt}
+                  disabled={!isProtocolReady || pending}
+                  onClick={() => setView("repay_debt")}
+                />
+              ) : null}
+              {expired ? (
+                <ActionButton
+                  label="Settle expired"
+                  hint="Redeem after oracle settlement"
+                  info={leverxInfo.settleExpired}
+                  disabled={!isProtocolReady || pending}
+                  onClick={() => {
+                    setTxError(null);
+                    setConfirmAction("settle");
+                  }}
+                />
+              ) : null}
+            </div>
+          </div>
+        ) : null}
 
-      {txError ? <p className="mt-3 text-xs text-destructive">{txError}</p> : null}
-    </ResponsiveModal>
+        {view === "close_limit" ? (
+          <div className="space-y-3">
+            <Input
+              type="number"
+              inputMode="decimal"
+              min={0.1}
+              step={0.1}
+              placeholder="Min bid (¢)"
+              value={limitCents}
+              onChange={(e) => setLimitCents(e.target.value)}
+              className="font-mono"
+            />
+            <button
+              type="button"
+              className={cn(pillToggleBtn, pillToggleIdle, "w-full")}
+              disabled={pending}
+              onClick={() => {
+                const cents = parseFloat(limitCents);
+                if (!Number.isFinite(cents) || cents <= 0) return;
+                closePosition.mutate(
+                  {
+                    position,
+                    redeemMode: "limit",
+                    minPremiumPerUnit: centsToPremiumRaw(cents),
+                  },
+                  { onError, onSuccess },
+                );
+              }}
+            >
+              {closePosition.isPending ? (
+                <Loader2 className="mx-auto h-4 w-4 animate-spin" />
+              ) : (
+                "Confirm limit close"
+              )}
+            </button>
+          </div>
+        ) : null}
+
+        {view === "repay_debt" ? (
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Outstanding borrow:{" "}
+              <span className="font-mono text-foreground">{borrowedUsd.toFixed(2)} dUSDC</span>
+            </p>
+            <Input
+              type="number"
+              inputMode="decimal"
+              min={0}
+              step={0.01}
+              placeholder="Repay amount (dUSDC)"
+              value={repayUsd}
+              onChange={(e) => setRepayUsd(e.target.value)}
+              className="font-mono"
+            />
+            {repayExceedsDebt ? (
+              <p className="text-xs text-destructive">Amount exceeds borrowed balance.</p>
+            ) : null}
+            <button
+              type="button"
+              className={cn(pillToggleBtn, pillToggleIdle, "w-full")}
+              disabled={pending || repayExceedsDebt}
+              onClick={() => {
+                const usd = parseFloat(repayUsd);
+                if (!Number.isFinite(usd) || usd <= 0 || usd > borrowedUsd + 1e-6) return;
+                repayDebt.mutate(
+                  { position, amountAtoms: marginUsdToQuoteAtoms(usd) },
+                  { onError, onSuccess },
+                );
+              }}
+            >
+              {repayDebt.isPending ? (
+                <Loader2 className="mx-auto h-4 w-4 animate-spin" />
+              ) : (
+                "Confirm repay"
+              )}
+            </button>
+          </div>
+        ) : null}
+
+        {txError ? <p className="mt-3 text-xs text-destructive">{txError}</p> : null}
+      </ResponsiveModal>
+
+      <ConfirmDialog
+        open={confirmAction === "market_close"}
+        onOpenChange={(next) => {
+          if (!next) setConfirmAction(null);
+        }}
+        title={`Close ${asset} ${side} at market?`}
+        description="Your position will be redeemed at the best available bid. This cannot be undone."
+        confirmLabel="Close position"
+        variant="destructive"
+        pending={closePosition.isPending}
+        onConfirm={() =>
+          closePosition.mutate(
+            { position, redeemMode: "market" },
+            {
+              onError: (err) => {
+                setTxError(formatTxError(err));
+                setConfirmAction(null);
+              },
+              onSuccess,
+            },
+          )
+        }
+        error={txError}
+      >
+        <PositionDetailGrid position={position} />
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={confirmAction === "settle"}
+        onOpenChange={(next) => {
+          if (!next) setConfirmAction(null);
+        }}
+        title={`Settle expired ${asset} ${side}?`}
+        description="Finalize redemption after oracle settlement."
+        confirmLabel="Settle position"
+        variant="destructive"
+        pending={settleExpired.isPending}
+        onConfirm={() =>
+          settleExpired.mutate(position, {
+            onError: (err) => {
+              setTxError(formatTxError(err));
+              setConfirmAction(null);
+            },
+            onSuccess,
+          })
+        }
+        error={txError}
+      >
+        <PositionDetailGrid position={position} />
+      </ConfirmDialog>
+    </>
   );
 }
 
@@ -281,7 +362,12 @@ export function PositionActionsTrigger({ position, className }: TriggerProps) {
     <>
       <button
         type="button"
-        className={cn(pillToggleBtn, pillToggleIdle, "px-3 text-xs", className)}
+        className={cn(
+          pillToggleBtn,
+          pillToggleIdle,
+          "px-3 text-xs font-medium",
+          className,
+        )}
         disabled={!isProtocolReady || pending}
         onClick={() => setOpen(true)}
       >

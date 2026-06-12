@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { Plus, UserCog } from "lucide-react";
+import { ConfirmDialog } from "@/components/leverx/ConfirmDialog";
+import { ResponsiveModal } from "@/components/leverx/ResponsiveModal";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { Input } from "@/components/ui/input";
 import { leverxInfo } from "@/lib/leverx/info-copy";
@@ -11,6 +14,8 @@ import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
 import type { LeveragedPosition, UserProxy } from "@/lib/leverx/indexer-client";
 import { premiumRawToCents } from "@/lib/leverx/trade-math";
 import { formatUsdcOrPlaceholder } from "@/lib/leverx/placeholders";
+import { assetLabelForOracleId } from "@/lib/predict/oracles";
+import { usePredictOracleRows } from "@/hooks/usePredictOracles";
 import { scaleQuote } from "@/lib/predict/scaling";
 import { isValidSuiAddress } from "@/lib/leverx/form-helpers";
 import { inputInField, labelCaps, pillToggleBtn, pillToggleIdle, tradeSurface } from "@/lib/leverx/tw";
@@ -32,8 +37,31 @@ function positionKeyForTrigger(
   );
 }
 
+function SettingsCard({
+  title,
+  info,
+  action,
+  children,
+}: {
+  title: string;
+  info: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className={cn(tradeSurface, "overflow-hidden")}>
+      <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
+        <LabelWithInfo label={title} labelClassName={labelCaps} info={info} />
+        {action}
+      </div>
+      <div className="px-4 py-3">{children}</div>
+    </section>
+  );
+}
+
 export function PortfolioAccountPanel({ account, owner, positions = [], className }: Props) {
   const accountId = account.account_id;
+  const { data: oracles = [] } = usePredictOracleRows();
   const { data: triggers = [] } = useIndexerTriggers(accountId);
   const { data: executors = [] } = useIndexerExecutors(accountId);
   const { data: liquidations = [] } = useIndexerLiquidations({ accountId, owner });
@@ -47,220 +75,322 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
     formatTxError,
   } = useLeverxTransactions();
 
-  const [executorAddress, setExecutorAddress] = useState("");
+  const [managerOpen, setManagerOpen] = useState(false);
+  const [executorOpen, setExecutorOpen] = useState(false);
+  const [revokeTarget, setRevokeTarget] = useState<string | null>(null);
+  const [clearTriggerTarget, setClearTriggerTarget] = useState<LeveragedPosition | null>(null);
+
   const [managerId, setManagerId] = useState(account.predict_manager_id ?? "");
+  const [executorAddress, setExecutorAddress] = useState("");
+  const [txError, setTxError] = useState<string | null>(null);
+
   const managerValid = !managerId || isValidSuiAddress(managerId);
   const executorValid = !executorAddress || isValidSuiAddress(executorAddress);
+  const activeTriggers = triggers.filter((t) => t.active);
 
   return (
     <div className={cn("space-y-4", className)}>
-      <section className={cn(tradeSurface, "space-y-3 p-4")}>
-        <LabelWithInfo
-          label="Account settings"
-          labelClassName={labelCaps}
-          info={leverxInfo.accountSettings}
-        />
-        <div className="space-y-2">
-          <LabelWithInfo
-            label="Trading account"
-            labelClassName="text-xs text-muted-foreground"
-            info={leverxInfo.predictManager}
-          />
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Input
-              value={managerId}
-              onChange={(e) => setManagerId(e.target.value)}
-              placeholder="0x…"
-              className={cn(inputInField, "min-w-0 h-9 rounded-md border border-border px-3 font-mono text-xs")}
-            />
-            {!managerValid ? (
-              <p className="text-xs text-destructive">Enter a valid Sui address (0x + 64 hex chars).</p>
-            ) : null}
-            <button
-              type="button"
-              className={cn(pillToggleBtn, pillToggleIdle, "shrink-0 px-3 sm:self-start")}
-              disabled={!isProtocolReady || !managerId || !managerValid || linkManager.isPending}
-              onClick={() =>
-                linkManager.mutate(
-                  { accountId, managerId },
-                  { onError: (e) => window.alert(formatTxError(e)) },
-                )
-              }
-            >
-              {linkManager.isPending ? "…" : "Link"}
-            </button>
+      <SettingsCard
+        title="Trading account"
+        info={leverxInfo.accountSettings}
+        action={
+          <button
+            type="button"
+            className={cn(pillToggleBtn, pillToggleIdle, "gap-1 px-2.5 text-xs")}
+            onClick={() => {
+              setManagerId(account.predict_manager_id ?? "");
+              setTxError(null);
+              setManagerOpen(true);
+            }}
+          >
+            <UserCog className="h-3.5 w-3.5" />
+            {account.predict_manager_id ? "Change" : "Link"}
+          </button>
+        }
+      >
+        <dl className="grid gap-2 text-xs">
+          <div className="flex justify-between gap-3">
+            <dt className="text-muted-foreground">Account ID</dt>
+            <dd className="truncate font-mono">{account.account_id.slice(0, 18)}…</dd>
           </div>
-        </div>
-        <div className="space-y-2">
-          <LabelWithInfo
-            label="Trusted trader"
-            labelClassName="text-xs text-muted-foreground"
-            info={leverxInfo.sessionExecutor}
-          />
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Input
-              value={executorAddress}
-              onChange={(e) => setExecutorAddress(e.target.value)}
-              placeholder="Wallet address"
-              className={cn(inputInField, "min-w-0 h-9 rounded-md border border-border px-3 font-mono text-xs")}
-            />
-            {!executorValid ? (
-              <p className="text-xs text-destructive">Enter a valid Sui address (0x + 64 hex chars).</p>
-            ) : null}
-            <button
-              type="button"
-              className={cn(pillToggleBtn, pillToggleIdle, "shrink-0 px-3 sm:self-start")}
-              disabled={!isProtocolReady || !executorAddress || !executorValid || registerExecutor.isPending}
-              onClick={() =>
-                registerExecutor.mutate(
-                  { accountId, executor: executorAddress },
-                  {
-                    onSuccess: () => setExecutorAddress(""),
-                    onError: (e) => window.alert(formatTxError(e)),
-                  },
-                )
-              }
-            >
-              Register
-            </button>
+          <div className="flex justify-between gap-3">
+            <dt className="text-muted-foreground">Predict manager</dt>
+            <dd className="truncate font-mono">
+              {account.predict_manager_id
+                ? `${account.predict_manager_id.slice(0, 10)}…`
+                : "Not linked"}
+            </dd>
           </div>
-        </div>
-        {executors.length > 0 ? (
-          <ul className="space-y-1 text-xs">
+          <div className="flex justify-between gap-3">
+            <dt className="text-muted-foreground">Total borrowed</dt>
+            <dd className="font-mono tabular-nums">
+              {formatUsdcOrPlaceholder(scaleQuote(account.borrowed_quote))}
+            </dd>
+          </div>
+        </dl>
+      </SettingsCard>
+
+      <SettingsCard
+        title="Trusted traders"
+        info={leverxInfo.sessionExecutor}
+        action={
+          <button
+            type="button"
+            className={cn(pillToggleBtn, pillToggleIdle, "gap-1 px-2.5 text-xs")}
+            onClick={() => {
+              setExecutorAddress("");
+              setTxError(null);
+              setExecutorOpen(true);
+            }}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add
+          </button>
+        }
+      >
+        {executors.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No trusted traders added.</p>
+        ) : (
+          <ul className="divide-y divide-border/60">
             {executors.map((ex) => (
-              <li key={ex.executor} className="flex items-center justify-between gap-2">
-                <span className="truncate font-mono">{ex.executor}</span>
+              <li key={ex.executor} className="flex items-center justify-between gap-2 py-2 first:pt-0 last:pb-0">
+                <span className="truncate font-mono text-xs">{ex.executor}</span>
                 {ex.active ? (
                   <button
                     type="button"
-                    className={cn(pillToggleBtn, pillToggleIdle)}
+                    className={cn(pillToggleBtn, pillToggleIdle, "text-xs")}
                     disabled={revokeExecutor.isPending}
-                    onClick={() =>
-                      revokeExecutor.mutate(
-                        { accountId, executor: ex.executor },
-                        { onError: (e) => window.alert(formatTxError(e)) },
-                      )
-                    }
+                    onClick={() => setRevokeTarget(ex.executor)}
                   >
                     Revoke
                   </button>
                 ) : (
-                  <span className="text-muted-foreground">revoked</span>
+                  <span className="text-xs text-muted-foreground">Revoked</span>
                 )}
               </li>
             ))}
           </ul>
-        ) : (
-          <p className="text-xs text-muted-foreground">No trusted traders added.</p>
         )}
-      </section>
+      </SettingsCard>
 
-      <section className={cn(tradeSurface, "space-y-2 p-4")}>
-        <LabelWithInfo
-          label="Auto-exit rules"
-          labelClassName={labelCaps}
-          info={leverxInfo.triggers}
-        />
-        {triggers.filter((t) => t.active).length === 0 ? (
+      <SettingsCard title="Auto-exit rules" info={leverxInfo.triggers}>
+        {activeTriggers.length === 0 ? (
           <p className="text-xs text-muted-foreground">No active take-profit or stop-loss rules.</p>
         ) : (
-          <ul className="space-y-2 text-xs">
-            {triggers
-              .filter((t) => t.active)
-              .map((t) => (
+          <ul className="divide-y divide-border/60">
+            {activeTriggers.map((t) => {
+              const match = positionKeyForTrigger(t, positions);
+              const asset = assetLabelForOracleId(t.oracle_id, oracles);
+              return (
                 <li
                   key={`${t.oracle_id}-${t.is_range}`}
-                  className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2"
+                  className="flex flex-wrap items-center justify-between gap-2 py-2 first:pt-0 last:pb-0"
                 >
-                  <span>
-                    {t.is_range ? "RANGE" : "UP/DOWN"} · market
-                  </span>
-                  <span className="font-mono text-muted-foreground">
-                    TP {premiumRawToCents(BigInt(t.take_profit_premium)).toFixed(1)}¢ · SL{" "}
-                    {premiumRawToCents(BigInt(t.stop_loss_premium)).toFixed(1)}¢
-                  </span>
-                  {(() => {
-                    const match = positionKeyForTrigger(t, positions);
-                    if (!match) {
-                      return (
-                        <span className="text-muted-foreground">no open trade</span>
-                      );
-                    }
-                    return (
-                      <button
-                        type="button"
-                        className={cn(pillToggleBtn, pillToggleIdle)}
-                        disabled={clearTriggers.isPending}
-                        onClick={() =>
-                          clearTriggers.mutate(
-                            {
-                              accountId,
-                              key: {
-                                oracleId: match.oracle_id,
-                                expiryMs: match.expiry_ms,
-                                strike: match.strike,
-                                higherStrike: match.higher_strike,
-                                isUp: match.is_up,
-                                isRange: match.is_range,
-                              },
-                            },
-                            { onError: (e) => window.alert(formatTxError(e)) },
-                          )
-                        }
-                      >
-                        Clear
-                      </button>
-                    );
-                  })()}
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{asset}</p>
+                    <p className="font-mono text-[11px] text-muted-foreground">
+                      TP {premiumRawToCents(BigInt(t.take_profit_premium)).toFixed(1)}¢ · SL{" "}
+                      {premiumRawToCents(BigInt(t.stop_loss_premium)).toFixed(1)}¢
+                    </p>
+                  </div>
+                  {match ? (
+                    <button
+                      type="button"
+                      className={cn(pillToggleBtn, pillToggleIdle, "text-xs")}
+                      disabled={clearTriggers.isPending}
+                      onClick={() => setClearTriggerTarget(match)}
+                    >
+                      Clear
+                    </button>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">No open trade</span>
+                  )}
                 </li>
-              ))}
+              );
+            })}
           </ul>
         )}
-      </section>
+      </SettingsCard>
 
-      <section className={cn(tradeSurface, "space-y-2 p-4")}>
-        <LabelWithInfo
-          label="dUSDC in open trades"
-          labelClassName={labelCaps}
-          info={leverxInfo.marginInTrades}
-        />
+      <SettingsCard title="Margin allocation" info={leverxInfo.marginInTrades}>
         {openMargins.length === 0 ? (
           <p className="text-xs text-muted-foreground">No dUSDC margin in open trades.</p>
         ) : (
-          <ul className="space-y-1 text-xs">
-            {openMargins.slice(0, 8).map((p) => (
-              <li key={p.position_key} className="flex justify-between gap-2">
-                <span className="truncate font-mono">{p.oracle_id.slice(0, 10)}…</span>
-                <span>{formatUsdcOrPlaceholder(scaleQuote(p.margin_quote))}</span>
+          <ul className="divide-y divide-border/60">
+            {openMargins.slice(0, 12).map((p) => (
+              <li key={p.position_key} className="flex items-center justify-between gap-2 py-2 first:pt-0 last:pb-0">
+                <span className="text-sm font-medium">
+                  {assetLabelForOracleId(p.oracle_id, oracles)}
+                </span>
+                <span className="font-mono text-xs tabular-nums">
+                  {formatUsdcOrPlaceholder(scaleQuote(p.margin_quote))}
+                </span>
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </SettingsCard>
 
-      <section className={cn(tradeSurface, "space-y-2 p-4")}>
-        <LabelWithInfo
-          label="Auto-closed trades"
-          labelClassName={labelCaps}
-          info={leverxInfo.liquidations}
-        />
+      <SettingsCard title="Auto-closed trades" info={leverxInfo.liquidations}>
         {liquidations.length === 0 ? (
           <p className="text-xs text-muted-foreground">No auto-closed trades yet.</p>
         ) : (
-          <ul className="space-y-1 text-xs">
-            {liquidations.slice(0, 5).map((l) => (
-              <li key={l.event_digest} className="flex justify-between gap-2">
-                <span className="text-muted-foreground">
-                  Safety {(l.health_bps / 100).toFixed(0)}%
+          <ul className="divide-y divide-border/60">
+            {liquidations.slice(0, 8).map((l) => (
+              <li key={l.event_digest} className="flex items-center justify-between gap-2 py-2 first:pt-0 last:pb-0">
+                <span className="text-xs text-muted-foreground">
+                  Health {(l.health_bps / 100).toFixed(0)}%
                 </span>
-                <span className="font-mono">
+                <span className="font-mono text-xs tabular-nums">
                   {formatUsdcOrPlaceholder(scaleQuote(l.debt_repaid))} repaid
                 </span>
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </SettingsCard>
+
+      <ResponsiveModal
+        open={managerOpen}
+        onOpenChange={setManagerOpen}
+        title="Link trading account"
+        description={leverxInfo.predictManager}
+      >
+        <div className="space-y-3">
+          <Input
+            value={managerId}
+            onChange={(e) => setManagerId(e.target.value)}
+            placeholder="0x… predict manager ID"
+            className={cn(inputInField, "h-9 rounded-md border border-border px-3 font-mono text-xs")}
+          />
+          {!managerValid ? (
+            <p className="text-xs text-destructive">Enter a valid Sui address.</p>
+          ) : null}
+          <button
+            type="button"
+            className={cn(pillToggleBtn, pillToggleIdle, "w-full")}
+            disabled={!isProtocolReady || !managerId || !managerValid || linkManager.isPending}
+            onClick={() =>
+              linkManager.mutate(
+                { accountId, managerId },
+                {
+                  onSuccess: () => setManagerOpen(false),
+                  onError: (e) => setTxError(formatTxError(e)),
+                },
+              )
+            }
+          >
+            {linkManager.isPending ? "Linking…" : "Confirm link"}
+          </button>
+          {txError ? <p className="text-xs text-destructive">{txError}</p> : null}
+        </div>
+      </ResponsiveModal>
+
+      <ResponsiveModal
+        open={executorOpen}
+        onOpenChange={setExecutorOpen}
+        title="Add trusted trader"
+        description={leverxInfo.sessionExecutor}
+      >
+        <div className="space-y-3">
+          <Input
+            value={executorAddress}
+            onChange={(e) => setExecutorAddress(e.target.value)}
+            placeholder="Wallet address (0x…)"
+            className={cn(inputInField, "h-9 rounded-md border border-border px-3 font-mono text-xs")}
+          />
+          {!executorValid ? (
+            <p className="text-xs text-destructive">Enter a valid Sui address.</p>
+          ) : null}
+          <button
+            type="button"
+            className={cn(pillToggleBtn, pillToggleIdle, "w-full")}
+            disabled={
+              !isProtocolReady ||
+              !executorAddress ||
+              !executorValid ||
+              registerExecutor.isPending
+            }
+            onClick={() =>
+              registerExecutor.mutate(
+                { accountId, executor: executorAddress },
+                {
+                  onSuccess: () => {
+                    setExecutorOpen(false);
+                    setExecutorAddress("");
+                  },
+                  onError: (e) => setTxError(formatTxError(e)),
+                },
+              )
+            }
+          >
+            {registerExecutor.isPending ? "Registering…" : "Confirm registration"}
+          </button>
+          {txError ? <p className="text-xs text-destructive">{txError}</p> : null}
+        </div>
+      </ResponsiveModal>
+
+      <ConfirmDialog
+        open={revokeTarget != null}
+        onOpenChange={(open) => {
+          if (!open) setRevokeTarget(null);
+        }}
+        title="Revoke trusted trader?"
+        description="This wallet will no longer be able to trade on your behalf."
+        confirmLabel="Revoke access"
+        variant="destructive"
+        pending={revokeExecutor.isPending}
+        onConfirm={() => {
+          if (!revokeTarget) return;
+          revokeExecutor.mutate(
+            { accountId, executor: revokeTarget },
+            {
+              onSuccess: () => setRevokeTarget(null),
+              onError: (e) => setTxError(formatTxError(e)),
+            },
+          );
+        }}
+      >
+        <p className="font-mono text-xs">{revokeTarget}</p>
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={clearTriggerTarget != null}
+        onOpenChange={(open) => {
+          if (!open) setClearTriggerTarget(null);
+        }}
+        title="Clear auto-exit rules?"
+        description="Take-profit and stop-loss triggers for this position will be removed."
+        confirmLabel="Clear rules"
+        variant="destructive"
+        pending={clearTriggers.isPending}
+        onConfirm={() => {
+          if (!clearTriggerTarget) return;
+          clearTriggers.mutate(
+            {
+              accountId,
+              key: {
+                oracleId: clearTriggerTarget.oracle_id,
+                expiryMs: clearTriggerTarget.expiry_ms,
+                strike: clearTriggerTarget.strike,
+                higherStrike: clearTriggerTarget.higher_strike,
+                isUp: clearTriggerTarget.is_up,
+                isRange: clearTriggerTarget.is_range,
+              },
+            },
+            {
+              onSuccess: () => setClearTriggerTarget(null),
+              onError: (e) => setTxError(formatTxError(e)),
+            },
+          );
+        }}
+      >
+        {clearTriggerTarget ? (
+          <p className="text-sm">
+            {assetLabelForOracleId(clearTriggerTarget.oracle_id, oracles)} position
+          </p>
+        ) : null}
+      </ConfirmDialog>
     </div>
   );
 }

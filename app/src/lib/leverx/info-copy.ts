@@ -56,10 +56,13 @@ export const leverxInfo = {
   orderBookSide: "Switch outcome to view limits and LP pricing for UP, DOWN, or RANGE.",
   spread: "Gap between the best limit bid and the live LP mint price.",
 
-  balanceTotal: "Everything locked in your open trades.",
+  balanceTotal: "Estimated net equity across open trades (mark value minus borrow).",
   balanceMargin: "Your own funds posted in open trades.",
   balanceBorrowed: "Amount borrowed from the pool.",
   balancePositions: "Number of open trades.",
+  unrealizedPnl: "Profit or loss if you closed all open trades at the current redeem bid.",
+  openOrders: "Resting limit orders waiting to be filled.",
+  closedPositions: "Trades that have been closed or settled.",
 
   closeMarket: "Close now at the best available price.",
   closeLimit: "Close only if the price meets your minimum.",

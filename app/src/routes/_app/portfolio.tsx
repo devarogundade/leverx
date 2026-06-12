@@ -1,20 +1,20 @@
+import { useMemo } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { WalletConnectPrompt } from "@/components/WalletConnectPrompt";
-import { PortfolioAccountPanel } from "@/components/leverx/PortfolioAccountPanel";
-import { PredictManagerPortfolioPanel } from "@/components/PredictManagerPortfolioPanel";
+import { PortfolioSummaryBar } from "@/components/leverx/PortfolioSummaryBar";
+import { PortfolioWorkspace } from "@/components/leverx/PortfolioWorkspace";
 import { SurfaceSkeleton } from "@/components/ui/market-skeleton";
 import { useWallet } from "@/context/WalletContext";
-import { useIndexerAccounts, useIndexerPositions } from "@/hooks/useIndexer";
+import {
+  useIndexerAccounts,
+  useIndexerLimitOrders,
+  useIndexerPositions,
+} from "@/hooks/useIndexer";
+import { usePositionsMarkToMarket } from "@/hooks/usePositionsMarkToMarket";
 import { pageTitle } from "@/lib/brand";
 import { ui } from "@/lib/copy";
-import {
-  formatCountOrPlaceholder,
-  formatUsdcOrPlaceholder,
-} from "@/lib/leverx/placeholders";
-import { scaleQuote } from "@/lib/predict/scaling";
-import { LabelWithInfo } from "@/components/leverx/InfoPopover";
-import { leverxInfo } from "@/lib/leverx/info-copy";
-import { labelCaps, pageSimple, pageSimpleTitle, statValue, tradeSurface } from "@/lib/leverx/tw";
+import { aggregatePortfolioSummary } from "@/lib/leverx/portfolio-summary";
+import { pageSimple, pageSimpleTitle } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/portfolio")({
@@ -39,77 +39,65 @@ function PortfolioPage() {
   } = useIndexerAccounts(address ?? undefined);
   const {
     data: openPositions = [],
-    isLoading: positionsLoading,
-    isFetched: positionsFetched,
+    isLoading: openLoading,
+    isFetched: openFetched,
   } = useIndexerPositions(address ?? undefined, { status: "open" });
+  const {
+    data: closedPositions = [],
+    isLoading: closedLoading,
+    isFetched: closedFetched,
+  } = useIndexerPositions(address ?? undefined, { status: "closed" });
+  const {
+    data: limitOrders = [],
+    isLoading: ordersLoading,
+    isFetched: ordersFetched,
+  } = useIndexerLimitOrders(address ?? undefined);
+
+  const { byPositionId } = usePositionsMarkToMarket(openPositions);
 
   const account = accounts[0];
-  const borrowed = account ? scaleQuote(account.borrowed_quote) : null;
-  const marginTotal =
-    openPositions.length > 0
-      ? openPositions.reduce((sum, p) => sum + scaleQuote(p.margin_quote), 0)
-      : null;
-  const isLoading = accountsLoading || positionsLoading;
-  const statsReady = accountsFetched && positionsFetched && !isLoading;
+  const isLoading = accountsLoading || openLoading || closedLoading || ordersLoading;
+  const statsReady = accountsFetched && openFetched && closedFetched && ordersFetched && !isLoading;
+
+  const summary = useMemo(() => {
+    if (openPositions.length === 0) return null;
+    return aggregatePortfolioSummary(openPositions, byPositionId);
+  }, [openPositions, byPositionId]);
 
   return (
-    <section className={cn(pageSimple, "animate-page-in")}>
-      <div>
-        <h1 className={pageSimpleTitle}>Portfolio</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{ui.portfolioHint}</p>
+    <section className={cn(pageSimple, "mx-auto max-w-[var(--page-max)] animate-page-in")}>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className={pageSimpleTitle}>Portfolio</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{ui.portfolioHint}</p>
+        </div>
+        {isWalletConnected && address ? (
+          <p className="font-mono text-[11px] text-muted-foreground sm:text-right">
+            {address.slice(0, 8)}…{address.slice(-6)}
+          </p>
+        ) : null}
       </div>
 
       {!isWalletConnected ? (
         <WalletConnectPrompt
           title="Connect for portfolio"
-          description="Connect your wallet to see your trades and balance."
+          description="Connect your wallet to see your trades, orders, and account settings."
         />
       ) : isLoading && !account && openPositions.length === 0 ? (
-        <SurfaceSkeleton lines={4} />
+        <SurfaceSkeleton lines={6} />
       ) : (
-        <>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <PersonalStat
-              label="In trades"
-              info={leverxInfo.marginOpen}
-              value={
-                !statsReady && marginTotal == null
-                  ? "…"
-                  : formatUsdcOrPlaceholder(marginTotal)
-              }
-            />
-            <PersonalStat
-              label="Borrowed"
-              info={leverxInfo.borrowedQuote}
-              value={
-                !statsReady && borrowed == null ? "…" : formatUsdcOrPlaceholder(borrowed)
-              }
-            />
-            <PersonalStat
-              label="Open trades"
-              info={leverxInfo.openPositions}
-              value={
-                !statsReady
-                  ? "…"
-                  : formatCountOrPlaceholder(openPositions.length)
-              }
-            />
-          </div>
+        <div className="space-y-4">
+          <PortfolioSummaryBar summary={summary} loading={!statsReady && openPositions.length > 0} />
 
-          <PredictManagerPortfolioPanel
-            positions={openPositions}
-            owner={address ?? undefined}
-            isLoading={isLoading}
+          <PortfolioWorkspace
+            openPositions={openPositions}
+            closedPositions={closedPositions}
+            limitOrders={limitOrders}
+            account={account ?? null}
+            owner={address!}
+            loading={isLoading}
           />
-
-          {account ? (
-            <PortfolioAccountPanel
-              account={account}
-              owner={address!}
-              positions={openPositions}
-            />
-          ) : null}
-        </>
+        </div>
       )}
 
       <div className="flex flex-wrap items-center justify-center gap-4 pt-2 text-sm">
@@ -121,37 +109,5 @@ function PortfolioPage() {
         </Link>
       </div>
     </section>
-  );
-}
-
-function PersonalStat({
-  label,
-  value,
-  info,
-  tone,
-}: {
-  label: string;
-  value: string;
-  info?: string;
-  tone?: "success" | "destructive";
-}) {
-  return (
-    <div className={cn(tradeSurface, "px-4 py-3")}>
-      {info ? (
-        <LabelWithInfo label={label} labelClassName={labelCaps} info={info} />
-      ) : (
-        <div className={labelCaps}>{label}</div>
-      )}
-      <div
-        className={cn(
-          statValue,
-          "mt-1 text-xl",
-          tone === "success" && "text-success",
-          tone === "destructive" && "text-destructive",
-        )}
-      >
-        {value}
-      </div>
-    </div>
   );
 }
