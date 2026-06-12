@@ -4,7 +4,7 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
-import { useQuery, type UseQueryResult } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   getPredictOracleRows,
   PREDICT_ORACLES_QUERY_KEY,
@@ -16,8 +16,16 @@ import {
 import { sortOracleRows } from "@/lib/predict/other-oracles";
 import type { PredictOracleSummary } from "@/lib/predict/types";
 
-type PredictOracleContextValue = UseQueryResult<PredictOracleSummary[], Error> & {
+type PredictOracleContextValue = {
   oracles: PredictOracleSummary[];
+  data: PredictOracleSummary[];
+  isLoading: boolean;
+  isPending: boolean;
+  isError: boolean;
+  isSuccess: boolean;
+  isFetched: boolean;
+  error: Error | null;
+  refetch: () => void;
   getNeighbors: (
     oracleId: string,
     options?: OracleNeighborOptions,
@@ -38,9 +46,17 @@ export function PredictOracleProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     (): PredictOracleContextValue => ({
-      ...query,
-      data: oracles,
       oracles,
+      data: oracles,
+      isLoading: query.isLoading,
+      isPending: query.isPending,
+      isError: query.isError,
+      isSuccess: query.isSuccess,
+      isFetched: query.isFetched,
+      error: query.error,
+      refetch: () => {
+        void query.refetch();
+      },
       getNeighbors: (oracleId, options) => resolveOracleNeighbors(oracles, oracleId, options),
     }),
     [query, oracles],

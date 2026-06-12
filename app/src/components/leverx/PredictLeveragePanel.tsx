@@ -6,7 +6,7 @@ import { InfoPopover, LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { SlippagePopover } from "@/components/leverx/SlippagePopover";
 import { TradeQuoteSummary } from "@/components/leverx/TradeQuoteSummary";
 import { leverxInfo } from "@/lib/leverx/info-copy";
-import { useIndexerProtocol } from "@/hooks/useIndexer";
+import { useIndexerProtocol, useIndexerAccounts } from "@/hooks/useIndexer";
 import { useLeverxMarketAsk } from "@/hooks/useLeverxMarketAsk";
 import { useLeverxMintQuote } from "@/hooks/useLeverxMintQuote";
 import { useWalletCoinBalance } from "@/hooks/useWalletCoinBalance";
@@ -127,6 +127,8 @@ export function PredictLeveragePanel({
     useState<LimitOrderExpiryHours>(DEFAULT_LIMIT_ORDER_EXPIRY_HOURS);
   const [limitExecution, setLimitExecution] = useState<LimitExecutionMode>("resting");
   const { data: protocol } = useIndexerProtocol();
+  const { data: leverxAccounts = [] } = useIndexerAccounts(address ?? undefined);
+  const hasLinkedManager = Boolean(leverxAccounts[0]?.predict_manager_id);
   const tradeContextKey = `${oracleId}:${side}`;
 
   useEffect(() => {
@@ -206,7 +208,6 @@ export function PredictLeveragePanel({
     () =>
       tradeNeedsDeposit({
         marginUsd: marginNum,
-        depositedQuoteAtoms: 0n,
         walletQuoteBalance,
       }),
     [marginNum, walletQuoteBalance],
@@ -342,6 +343,11 @@ export function PredictLeveragePanel({
     if (marginNum > 0 && walletQuoteBalance != null && marginNum > walletQuoteBalance + 1e-6) {
       errors.push("Deposit exceeds available USDC balance.");
     }
+    if (isWalletConnected && leverxAccounts.length > 0 && !hasLinkedManager) {
+      errors.push(
+        "Predict manager is not linked. Open Portfolio → Account to link your manager before trading.",
+      );
+    }
     if (orderType === "limit") {
       const cents = parseFloat(limitPrice);
       if (!Number.isFinite(cents) || cents <= 0) {
@@ -462,6 +468,9 @@ export function PredictLeveragePanel({
     tp,
     sl,
     entryCents,
+    isWalletConnected,
+    leverxAccounts.length,
+    hasLinkedManager,
   ]);
 
   const canSubmit =

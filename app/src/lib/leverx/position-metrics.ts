@@ -85,8 +85,8 @@ export function computePositionMarkToMarket(
 
   let healthLabel: PositionMarkToMarket["healthLabel"] = "unknown";
   if (healthBps != null) {
-    if (healthBps >= MARGIN_CALL_BPS) healthLabel = "healthy";
-    else if (healthBps >= 8_000) healthLabel = "margin_call";
+    if (healthBps >= MARGIN_CALL_BPS + 500) healthLabel = "healthy";
+    else if (healthBps >= MARGIN_CALL_BPS) healthLabel = "margin_call";
     else healthLabel = "at_risk";
   }
 

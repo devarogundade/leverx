@@ -32,7 +32,10 @@ async function findOwnedObjectId(
 }
 
 function extractCreatedId(
-  objectChanges: Array<{ type?: string; objectType?: string; objectId?: string }> | undefined,
+  objectChanges:
+    | Array<{ type?: string; objectType?: string; objectId?: string }>
+    | null
+    | undefined,
   typeFragment: string,
 ): string | null {
   for (const change of objectChanges ?? []) {
@@ -127,6 +130,11 @@ export async function ensureLeverxAccount(params: {
   }
 
   if (existing?.accountId) {
+    if (!existing.predictManagerId) {
+      throw new LeverxOnboardingError(
+        "Trading account exists but Predict manager is not linked. Link your manager from Portfolio settings.",
+      );
+    }
     return existing;
   }
 

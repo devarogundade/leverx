@@ -1,4 +1,5 @@
 import { AlertTriangle, TrendingDown, TrendingUp } from "lucide-react";
+import type { ReactNode } from "react";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import type { PortfolioSummary } from "@/lib/leverx/portfolio-summary";
@@ -24,7 +25,7 @@ function SummaryStat({
   value: string;
   info?: string;
   tone?: "success" | "destructive" | "muted";
-  sub?: string;
+  sub?: ReactNode;
 }) {
   return (
     <div className="min-w-0 px-4 py-3.5">

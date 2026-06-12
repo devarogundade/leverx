@@ -202,6 +202,7 @@ export async function executeClosePosition(params: {
   if (!position.predict_manager_id) {
     throw new Error("Position is missing a linked Predict manager.");
   }
+  const predictManagerId = position.predict_manager_id;
 
   return executeWalletTransaction(
     params.client,
@@ -211,7 +212,7 @@ export async function executeClosePosition(params: {
       appendRedeem(tx, params.cfg, {
         key: positionToKey(position),
         accountId: position.account_id,
-        predictManagerId: position.predict_manager_id,
+        predictManagerId,
         quantity: BigInt(position.open_quantity),
         redeemMode: params.input.redeemMode ?? "market",
         minPayout: params.input.minPayout ?? 0n,
@@ -232,6 +233,7 @@ export async function executeSettleExpired(params: {
   if (!params.position.predict_manager_id) {
     throw new Error("Position is missing a linked Predict manager.");
   }
+  const predictManagerId = params.position.predict_manager_id;
 
   return executeWalletTransaction(
     params.client,
@@ -241,7 +243,7 @@ export async function executeSettleExpired(params: {
       appendSettleExpired(tx, params.cfg, {
         key: positionToKey(params.position),
         accountId: params.position.account_id,
-        predictManagerId: params.position.predict_manager_id,
+        predictManagerId,
         quantity: BigInt(params.position.open_quantity),
       });
     },

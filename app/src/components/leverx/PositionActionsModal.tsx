@@ -10,7 +10,7 @@ import { usePredictOracleRows } from "@/hooks/usePredictOracles";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
 import { assetLabelForOracleId } from "@/lib/predict/oracles";
-import { centsToPremiumRaw, marginUsdToQuoteAtoms } from "@/lib/leverx/trade-math";
+import { centsToPremiumRaw, marginUsdToQuoteAtoms, isLimitCentsWithinPredictBounds, PREDICT_MAX_PREMIUM_CENTS, PREDICT_MIN_PREMIUM_CENTS } from "@/lib/leverx/trade-math";
 import { scaleQuote } from "@/lib/predict/scaling";
 import { cn } from "@/lib/utils";
 import { pillToggleBtn, pillToggleIdle } from "@/lib/leverx/tw";
@@ -67,9 +67,16 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
     closePosition.isPending || settleExpired.isPending || repayDebt.isPending;
   const expired = position.expiry_ms > 0 && position.expiry_ms < Date.now();
   const hasDebt = position.borrow_quote > 0;
+  const hasOpenQuantity = position.open_quantity > 0;
   const borrowedUsd = scaleQuote(position.borrow_quote);
   const repayNum = parseFloat(repayUsd) || 0;
   const repayExceedsDebt = repayNum > borrowedUsd + 1e-6;
+  const limitCentsNum = parseFloat(limitCents);
+  const limitCentsInvalid =
+    !Number.isFinite(limitCentsNum) ||
+    limitCentsNum <= 0 ||
+    !isLimitCentsWithinPredictBounds(limitCentsNum);
+  const repayInvalid = !Number.isFinite(repayNum) || repayNum <= 0;
 
   const reset = () => {
     setView("menu");
@@ -135,7 +142,7 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
                 label="Close at market"
                 hint="Redeem now at the best available bid"
                 info={leverxInfo.closeMarket}
-                disabled={!isProtocolReady || pending}
+                disabled={!isProtocolReady || pending || !hasOpenQuantity}
                 onClick={() => {
                   setTxError(null);
                   setConfirmAction("market_close");
@@ -145,7 +152,7 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
                 label="Close at limit"
                 hint="Set a minimum bid per contract"
                 info={leverxInfo.closeLimit}
-                disabled={!isProtocolReady || pending}
+                disabled={!isProtocolReady || pending || !hasOpenQuantity}
                 onClick={() => setView("close_limit")}
               />
               {hasDebt ? (
@@ -162,7 +169,7 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
                   label="Settle expired"
                   hint="Redeem after oracle settlement"
                   info={leverxInfo.settleExpired}
-                  disabled={!isProtocolReady || pending}
+                  disabled={!isProtocolReady || pending || !hasOpenQuantity}
                   onClick={() => {
                     setTxError(null);
                     setConfirmAction("settle");
@@ -185,13 +192,20 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
               onChange={(e) => setLimitCents(e.target.value)}
               className="font-mono"
             />
+            {limitCentsInvalid && limitCents ? (
+              <p className="text-xs text-destructive">
+                Min bid must be between {PREDICT_MIN_PREMIUM_CENTS}¢ and {PREDICT_MAX_PREMIUM_CENTS}¢.
+              </p>
+            ) : null}
             <button
               type="button"
               className={cn(pillToggleBtn, pillToggleIdle, "w-full")}
-              disabled={pending}
+              disabled={pending || limitCentsInvalid}
               onClick={() => {
                 const cents = parseFloat(limitCents);
-                if (!Number.isFinite(cents) || cents <= 0) return;
+                if (!Number.isFinite(cents) || cents <= 0 || !isLimitCentsWithinPredictBounds(cents)) {
+                  return;
+                }
                 closePosition.mutate(
                   {
                     position,
@@ -233,7 +247,7 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
             <button
               type="button"
               className={cn(pillToggleBtn, pillToggleIdle, "w-full")}
-              disabled={pending || repayExceedsDebt}
+              disabled={pending || repayExceedsDebt || repayInvalid}
               onClick={() => {
                 const usd = parseFloat(repayUsd);
                 if (!Number.isFinite(usd) || usd <= 0 || usd > borrowedUsd + 1e-6) return;

@@ -12,6 +12,7 @@ import {
 } from "@/hooks/useIndexer";
 import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
 import type { LeveragedPosition, UserProxy } from "@/lib/leverx/indexer-client";
+import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
 import { premiumRawToCents } from "@/lib/leverx/trade-math";
 import { formatUsdcOrPlaceholder } from "@/lib/leverx/placeholders";
 import { assetLabelForOracleId } from "@/lib/predict/oracles";
@@ -74,7 +75,7 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
   const { data: triggers = [] } = useIndexerTriggers(accountId);
   const { data: executors = [] } = useIndexerExecutors(accountId);
   const { data: liquidations = [] } = useIndexerLiquidations({ accountId, owner });
-  const openMargins = positions.filter((p) => p.status === "open" && p.margin_quote > 0);
+  const openMargins = positions.filter(isActiveOpenPosition);
   const {
     clearTriggers,
     registerExecutor,

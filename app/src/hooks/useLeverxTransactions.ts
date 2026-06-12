@@ -73,6 +73,18 @@ function formatTxError(error: unknown): string {
   if (raw.includes("slippage_too_high") || (raw.includes("predict_client") && raw.includes(", 32)"))) {
     return SLIPPAGE_TOO_HIGH_MESSAGE;
   }
+  if (raw.includes("Predict manager is not linked")) {
+    return "Predict manager is not linked. Open Portfolio → Account to link your manager.";
+  }
+  if (raw.includes("LeverxOnboardingError") || raw.includes("Predict manager is not linked to your trading account")) {
+    return "Trading account setup is incomplete. Open Portfolio → Account to link your Predict manager.";
+  }
+  if (
+    raw.includes("InsufficientCoinBalanceError") ||
+    (raw.includes("Insufficient") && raw.includes("balance"))
+  ) {
+    return "Insufficient dUSDC in your wallet for this transaction.";
+  }
   return raw;
 }
 
