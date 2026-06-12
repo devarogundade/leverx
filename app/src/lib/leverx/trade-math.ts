@@ -17,6 +17,22 @@ export function isLimitCentsWithinPredictBounds(cents: number): boolean {
   return cents >= PREDICT_MIN_PREMIUM_CENTS && cents <= PREDICT_MAX_PREMIUM_CENTS;
 }
 
+/** Total mint cost from per-contract premium (matches on-chain `cost_from_premium_per_unit`). */
+export function costFromPremiumPerUnit(premiumPerUnit: bigint, quantity: bigint): bigint {
+  if (premiumPerUnit <= 0n || quantity <= 0n) return 0n;
+  return (premiumPerUnit * quantity) / PREDICT_PRICE_SCALE;
+}
+
+/** Classify a live per-contract ask returned from Predict (1e9 scale). */
+export function classifyPredictPremium(
+  premium: bigint,
+): "ok" | "zero" | "expired" | "out_of_bounds" {
+  if (premium <= 0n) return "zero";
+  if (premium >= PREDICT_PRICE_SCALE) return "expired";
+  if (!isPremiumWithinPredictBounds(premium)) return "out_of_bounds";
+  return "ok";
+}
+
 /** USD margin → quote atoms (6-decimal dUSDC). */
 export function marginUsdToQuoteAtoms(marginUsd: number): bigint {
   if (!Number.isFinite(marginUsd) || marginUsd <= 0) return 0n;

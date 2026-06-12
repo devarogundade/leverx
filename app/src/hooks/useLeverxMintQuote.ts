@@ -1,37 +1,64 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useWallet } from "@/context/WalletContext";
-import { useIndexerAccounts } from "@/hooks/useIndexer";
+import { useIndexerAccounts, useIndexerProtocol } from "@/hooks/useIndexer";
 import { useLeverxProtocolConfig } from "@/hooks/useLeverxTransactions";
+import { appConfig } from "@/lib/config";
 import type { MarketKeyArgs } from "@/lib/leverx/market-keys";
 import { fetchMintQuote } from "@/lib/leverx/quotes";
+import type { LeverxProtocolConfig } from "@/lib/leverx/protocol";
 import { leverageToBps, marginUsdToQuoteAtoms } from "@/lib/leverx/trade-math";
+
+function quoteReadyConfig(
+  full: LeverxProtocolConfig | null | undefined,
+): LeverxProtocolConfig | null {
+  if (full?.packageId && full.predictId) return full;
+  const packageId = appConfig.leverxPackageId;
+  if (!packageId) return null;
+  return {
+    packageId,
+    registryId: full?.registryId ?? "",
+    vaultId: full?.vaultId ?? "",
+    feeCollectorId: full?.feeCollectorId ?? "",
+    predictId: full?.predictId ?? appConfig.predictId,
+    predictPackageId: appConfig.predictPackageId,
+    predictRegistryId: full?.predictRegistryId ?? appConfig.predictRegistryId,
+    quoteType: appConfig.quoteType,
+  };
+}
 
 export function useLeverxMintQuote(args: {
   key?: MarketKeyArgs;
   marginUsd?: number;
   leverage?: number;
-  quantity?: bigint;
   owner?: string;
   enabled?: boolean;
 }) {
   const { client } = useWallet();
-  const cfg = useLeverxProtocolConfig();
+  const fullCfg = useLeverxProtocolConfig();
+  const { data: protocol } = useIndexerProtocol();
+  const cfg = useMemo(
+    () => quoteReadyConfig(fullCfg),
+    [fullCfg, protocol?.predict_id],
+  );
   const { data: accounts = [] } = useIndexerAccounts(args.owner);
   const accountId = accounts[0]?.account_id;
 
   const marginAtoms = marginUsdToQuoteAtoms(args.marginUsd ?? 0);
   const leverageBps = leverageToBps(args.leverage ?? 1.1);
-  const quantity = args.quantity && args.quantity > 0n ? args.quantity : 1n;
 
-  return useQuery({
+  const query = useQuery({
     queryKey: [
       "leverx-mint-quote",
       args.key?.oracleId,
       args.key?.strike,
+      args.key?.expiryMs,
+      args.key?.isUp,
+      args.key?.isRange,
       marginAtoms.toString(),
       leverageBps.toString(),
-      quantity.toString(),
       accountId,
+      cfg?.packageId,
     ],
     queryFn: async () => {
       if (!cfg || !args.key) return null;
@@ -42,7 +69,6 @@ export function useLeverxMintQuote(args: {
         key: args.key,
         marginQuoteAtoms: marginAtoms,
         leverageBps,
-        quantity,
       });
     },
     enabled:
@@ -55,4 +81,9 @@ export function useLeverxMintQuote(args: {
     refetchInterval: 15_000,
     retry: 1,
   });
+
+  return {
+    ...query,
+    isLoading: query.isLoading || query.isFetching,
+  };
 }

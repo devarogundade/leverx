@@ -4,6 +4,12 @@ export const SUI_CLOCK_OBJECT_ID = "0x6";
 /** DeepBook Predict premium scale (1.0 = 1e9). */
 export const PREDICT_PRICE_SCALE = 1_000_000_000n;
 
+/**
+ * Quantity used when simulating per-contract ask via dev-inspect.
+ * Predict mint costs are integer quote atoms; qty=1 often rounds to 0 and reads as untradeable.
+ */
+export const PREDICT_QUOTE_REFERENCE_QUANTITY = 1_000_000n;
+
 /** Default slippage for market mint/redeem (5%). */
 export const DEFAULT_SLIPPAGE_BPS = 500;
 

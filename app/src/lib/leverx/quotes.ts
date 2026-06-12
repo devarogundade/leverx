@@ -1,15 +1,26 @@
 import { Transaction } from "@mysten/sui/transactions";
 import type { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
 import { READONLY_SENDER } from "@/context/WalletContext";
-import { SUI_CLOCK_OBJECT_ID } from "@/lib/leverx/constants";
+import {
+  PREDICT_QUOTE_REFERENCE_QUANTITY,
+  SUI_CLOCK_OBJECT_ID,
+} from "@/lib/leverx/constants";
 import { addMarketKey, type MarketKeyArgs } from "@/lib/leverx/market-keys";
 import type { LeverxProtocolConfig } from "@/lib/leverx/protocol";
-import { isPremiumWithinPredictBounds } from "@/lib/leverx/trade-math";
+import {
+  classifyPredictPremium,
+  costFromPremiumPerUnit,
+  estimateQuantity,
+} from "@/lib/leverx/trade-math";
+
+export type PredictQuoteConfig = Pick<LeverxProtocolConfig, "packageId" | "predictId">;
 
 export type MintQuote = {
   marketAskPerUnit: bigint;
   mintCost: bigint;
   borrowQuote: bigint;
+  /** Contracts implied by margin, leverage, and live ask. */
+  tradeQuantity: bigint;
 };
 
 export type RedeemQuote = {
@@ -41,10 +52,9 @@ function findReturnTuple(
 /** Live Predict ask — no LeverX account required (same path as on-chain mint validation). */
 export async function fetchPredictMarketAsk(params: {
   client: SuiJsonRpcClient;
-  cfg: LeverxProtocolConfig;
+  cfg: PredictQuoteConfig;
   key: MarketKeyArgs;
-  quantity: bigint;
-}): Promise<Pick<MintQuote, "marketAskPerUnit" | "mintCost"> | null> {
+}): Promise<bigint | null> {
   const tx = new Transaction();
   tx.setSender(READONLY_SENDER);
   const marketKey = addMarketKey(tx, params.key);
@@ -56,7 +66,7 @@ export async function fetchPredictMarketAsk(params: {
       tx.object(params.cfg.predictId),
       tx.object(params.key.oracleId),
       marketKey,
-      tx.pure.u64(params.quantity),
+      tx.pure.u64(PREDICT_QUOTE_REFERENCE_QUANTITY),
       tx.object(SUI_CLOCK_OBJECT_ID),
     ],
   });
@@ -69,9 +79,9 @@ export async function fetchPredictMarketAsk(params: {
     if (inspect.effects?.status?.status !== "success") return null;
     const tuple = findReturnTuple(inspect.results, 2);
     if (!tuple) return null;
-    const [marketAskPerUnit, mintCost] = tuple;
-    if (!isPremiumWithinPredictBounds(marketAskPerUnit)) return null;
-    return { marketAskPerUnit, mintCost };
+    const [marketAskPerUnit] = tuple;
+    if (classifyPredictPremium(marketAskPerUnit) !== "ok") return null;
+    return marketAskPerUnit;
   } catch {
     return null;
   }
@@ -129,18 +139,23 @@ export async function fetchMintQuote(params: {
   key: MarketKeyArgs;
   marginQuoteAtoms: bigint;
   leverageBps: bigint;
-  quantity: bigint;
 }): Promise<MintQuote | null> {
-  const market = await fetchPredictMarketAsk({
+  const marketAskPerUnit = await fetchPredictMarketAsk({
     client: params.client,
     cfg: params.cfg,
     key: params.key,
-    quantity: params.quantity,
   });
-  if (!market) return null;
+  if (marketAskPerUnit == null) return null;
+
+  const tradeQuantity = estimateQuantity(
+    params.marginQuoteAtoms,
+    params.leverageBps,
+    marketAskPerUnit,
+  );
+  const mintCost = costFromPremiumPerUnit(marketAskPerUnit, tradeQuantity);
 
   let borrowQuote = 0n;
-  if (params.accountId) {
+  if (params.accountId && params.cfg.registryId) {
     const borrow = await fetchMintBorrowQuote({
       client: params.client,
       cfg: params.cfg,
@@ -148,12 +163,12 @@ export async function fetchMintQuote(params: {
       key: params.key,
       marginQuoteAtoms: params.marginQuoteAtoms,
       leverageBps: params.leverageBps,
-      quantity: params.quantity,
+      quantity: tradeQuantity,
     });
     if (borrow != null) borrowQuote = borrow;
   }
 
-  return { ...market, borrowQuote };
+  return { marketAskPerUnit, mintCost, borrowQuote, tradeQuantity };
 }
 
 export async function fetchRedeemQuote(params: {

@@ -618,6 +618,8 @@ export function PredictTradeTerminal({
     market?.asset ||
     oracleId.slice(2, 6).toUpperCase();
   const expiry = market?.expiry ?? oracleSummary?.expiry ?? oracleState?.expiry;
+  const isOracleExpired =
+    expiry != null && expiry > 0 && expiry <= Date.now();
   const liquidity = vaultSummary?.snapshot?.nav
     ? scaleQuote(vaultSummary.snapshot.nav)
     : null;
@@ -863,7 +865,7 @@ export function PredictTradeTerminal({
               lowerStrikeRaw={rangeLower}
               upperStrikeRaw={rangeUpper}
               lastAskPremium={market?.lastAskPremium ?? undefined}
-              disabled={isOracleSettled}
+              disabled={isOracleSettled || isOracleExpired}
             />
           </div>
           <TradePositionsPanel {...positionsPanelProps} />
@@ -910,7 +912,7 @@ export function PredictTradeTerminal({
               lowerStrikeRaw={rangeLower}
               upperStrikeRaw={rangeUpper}
               lastAskPremium={market?.lastAskPremium ?? undefined}
-              disabled={isOracleSettled}
+              disabled={isOracleSettled || isOracleExpired}
             />
           </div>
           <TradePositionsPanel {...positionsPanelProps} />

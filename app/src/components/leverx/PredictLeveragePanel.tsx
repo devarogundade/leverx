@@ -164,7 +164,6 @@ export function PredictLeveragePanel({
     strikeRaw ??
     (rangeLower && rangeUpper ? Math.round((rangeLower + rangeUpper) / 2) : undefined);
   const canSwitchOutcome = !!(outcomeStrike || (rangeLower && rangeUpper));
-  const quantityNum = 1;
   const rangeFromChart = isRange && lowerStrikeRaw != null && upperStrikeRaw != null;
   const tradeKey: MarketKeyArgs | undefined = useMemo(() => {
     if (!expiryMs) return undefined;
@@ -235,10 +234,11 @@ export function PredictLeveragePanel({
     key: tradeKey,
     marginUsd: marginNum,
     leverage: lev,
-    quantity: BigInt(Math.max(1, quantityNum)),
     owner: address ?? undefined,
-    enabled: marginNum > 0 && quantityNum > 0,
+    enabled: marginNum > 0,
   });
+
+  const tradeQuantity = mintQuote?.tradeQuantity ?? 1n;
 
   const validationErrors = useMemo(() => {
     const errors: string[] = [];
@@ -267,6 +267,8 @@ export function PredictLeveragePanel({
     if (orderType === "market" && marginNum > 0) {
       if (quoteLoading) {
         errors.push("Waiting for live contract price…");
+      } else if (expiryMs && expiryMs > 0 && expiryMs <= Date.now()) {
+        errors.push("This market has expired. Pick a live expiry or another strike.");
       } else if (mintQuote == null) {
         errors.push(
           "Live contract price is unavailable or outside 1¢–99¢ (common near oracle expiry). Try another strike or wait for oracle updates.",
@@ -298,6 +300,7 @@ export function PredictLeveragePanel({
     address,
     quoteLoading,
     mintQuote,
+    expiryMs,
   ]);
 
   const canSubmit =
@@ -358,7 +361,7 @@ export function PredictLeveragePanel({
         orderType,
         limitExecution,
         limitCents: orderType === "limit" ? parseFloat(limitPrice) || undefined : undefined,
-        quantity: BigInt(quantityNum),
+        quantity: tradeQuantity,
         placementSlippageBps:
           orderType === "limit" ? percentToBps(placementSlippagePct) : undefined,
         orderExpiresMs:
@@ -385,7 +388,9 @@ export function PredictLeveragePanel({
           className="border-b border-border bg-muted/40 px-4 py-2.5 text-center text-xs text-muted-foreground"
           role="status"
         >
-          This market has settled. New orders are not accepted.
+          {expiryMs && expiryMs > 0 && expiryMs <= Date.now()
+            ? "This market has expired. New orders are not accepted."
+            : "This market has settled. New orders are not accepted."}
         </div>
       ) : null}
       <div className={cn(disabled && "pointer-events-none select-none opacity-50")}>
