@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { useMarketCatalog } from "@/hooks/useIndexer";
-import { useOracleSpotMap } from "@/hooks/useOracleSpotMap";
 import { usePredictOracleRows } from "@/hooks/usePredictOracles";
 import type { LeverxMarketRow } from "@/lib/leverx/indexer-markets";
 import {
@@ -23,35 +22,25 @@ export function useMergedMarkets(args: {
     limit: 1000,
   });
 
-  const spotOracleIds = useMemo(
-    () => oracles.filter((o) => o.oracle_id).map((o) => o.oracle_id),
-    [oracles],
-  );
-
-  const { data: spotMap } = useOracleSpotMap(spotOracleIds);
-
   const categoryCounts = useMemo(
     () => ({
       All: mergeOracleMarkets({
         oracles,
         catalog,
-        spotByOracle: spotMap,
         category: "All",
       }).length,
       Live: mergeOracleMarkets({
         oracles,
         catalog,
-        spotByOracle: spotMap,
         category: "Live",
       }).length,
       Closed: mergeOracleMarkets({
         oracles,
         catalog,
-        spotByOracle: spotMap,
         category: "Closed",
       }).length,
     }),
-    [oracles, catalog, spotMap],
+    [oracles, catalog],
   );
 
   const markets = useMemo(
@@ -59,11 +48,10 @@ export function useMergedMarkets(args: {
       mergeOracleMarkets({
         oracles,
         catalog,
-        spotByOracle: spotMap,
         category: args.category,
         search: args.search,
       }),
-    [oracles, catalog, spotMap, args.category, args.search],
+    [oracles, catalog, args.category, args.search],
   );
 
   return {

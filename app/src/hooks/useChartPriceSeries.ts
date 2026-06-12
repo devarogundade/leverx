@@ -1,13 +1,16 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import type { CandlestickData, UTCTimestamp } from "lightweight-charts";
+import {
+  ohlcvToCandlestickData,
+  patchLatestCandleWithOracle,
+} from "@/lib/charts/candle-data";
 import {
   CHART_OHLCV_INTERVAL,
   CHART_OHLCV_INTERVAL_MS,
   CHART_OHLCV_LOOKBACK_MS,
   deepbookPairForAsset,
   fetchDeepbookOhlcv,
-  ohlcvCandlesToPricePoints,
-  patchLatestPriceWithOracle,
 } from "@/lib/deepbook/ohlcv";
 import type { PricePoint } from "@/lib/predict/price-point";
 import { useOraclePriceLatest, useOracleSpotPriceSeries } from "@/hooks/useOracleSpotPriceSeries";
@@ -16,20 +19,26 @@ const OHLCV_REFETCH_MS = 60_000;
 
 export { CHART_OHLCV_INTERVAL_MS };
 
+export type ChartPriceSeriesMode = "candlestick" | "line";
+
+export type ChartPriceSeriesResult = {
+  mode: ChartPriceSeriesMode;
+  candles: CandlestickData<UTCTimestamp>[];
+  linePoints: PricePoint[];
+  isLoading: boolean;
+  isError: boolean;
+  refetch: () => void;
+};
+
 function useDeepbookChartSeries(
   pair: string,
   oracleId: string,
   enabled: boolean,
-): {
-  data: PricePoint[];
-  isLoading: boolean;
-  isError: boolean;
-  refetch: () => void;
-} {
+): ChartPriceSeriesResult {
   const { data: latest } = useOraclePriceLatest(oracleId, { enabled });
 
   const {
-    data: candles,
+    data: rawCandles,
     isLoading,
     isError,
     isFetched,
@@ -48,17 +57,20 @@ function useDeepbookChartSeries(
     retry: 1,
   });
 
-  const data = useMemo(() => {
-    if (!candles?.length) return [];
-    const points = ohlcvCandlesToPricePoints(candles);
-    if (!latest?.spot) return points;
-    return patchLatestPriceWithOracle(points, latest.spot);
-  }, [candles, latest]);
+  const candles = useMemo(() => {
+    if (!rawCandles?.length) return [];
+    const patched = latest?.spot
+      ? patchLatestCandleWithOracle(rawCandles, latest.spot)
+      : rawCandles;
+    return ohlcvToCandlestickData(patched);
+  }, [rawCandles, latest]);
 
   return {
-    data,
-    isLoading: enabled && isLoading && !isFetched && data.length === 0,
-    isError: enabled && isError && data.length === 0,
+    mode: "candlestick",
+    candles,
+    linePoints: [],
+    isLoading: enabled && isLoading && !isFetched && candles.length === 0,
+    isError: enabled && isError && candles.length === 0,
     refetch: () => {
       void refetch();
     },
@@ -66,15 +78,14 @@ function useDeepbookChartSeries(
 }
 
 /**
- * Chart-only price series: DeepBook OHLCV when a pair exists, with the newest
- * candle close patched to the predict oracle latest spot. Falls back to live
- * oracle polls for assets without a DeepBook pair mapping.
+ * Chart price feed: DeepBook OHLCV candlesticks when a pair exists (latest bar
+ * patched to predict oracle spot), otherwise live oracle line polls.
  */
 export function useChartPriceSeries(
   oracleId: string,
   asset: string,
   options?: { enabled?: boolean },
-) {
+): ChartPriceSeriesResult {
   const enabled = Boolean(oracleId) && (options?.enabled ?? true);
   const pair = deepbookPairForAsset(asset);
   const useOhlcv = Boolean(pair);
@@ -83,5 +94,13 @@ export function useChartPriceSeries(
   const oracle = useOracleSpotPriceSeries(oracleId, { enabled: enabled && !useOhlcv });
 
   if (useOhlcv) return ohlcv;
-  return oracle;
+
+  return {
+    mode: "line",
+    candles: [],
+    linePoints: oracle.data,
+    isLoading: oracle.isLoading,
+    isError: oracle.isError,
+    refetch: oracle.refetch,
+  };
 }

@@ -8,6 +8,7 @@ import { AssetBadge } from "@/components/AssetBadge";
 import { MarketPremiumQuote } from "@/components/leverx/MarketPremiumQuote";
 import { MarketSideActions } from "@/components/leverx/MarketSideActions";
 import { useMarketPremiumSparklines } from "@/hooks/useMarketPremiumSparklines";
+import { useVisibleOracleSpots } from "@/hooks/useVisibleOracleSpots";
 import {
   MARKETS_TABLE_PAGE_SIZE,
   MarketCatalogPagination,
@@ -229,7 +230,8 @@ export function PredictMarketsTable({
     () => paginateSlice(sortedMarkets, page, MARKETS_TABLE_PAGE_SIZE),
     [sortedMarkets, page],
   );
-  const { seriesByMarketId } = useMarketPremiumSparklines(pageMarkets);
+  const { markets: visibleMarkets } = useVisibleOracleSpots(pageMarkets);
+  const { seriesByMarketId } = useMarketPremiumSparklines(visibleMarkets);
 
   if (loading) {
     return <MarketTableSkeleton />;
@@ -254,7 +256,7 @@ export function PredictMarketsTable({
   return (
     <div className={marketsTableShell}>
       <div className={marketsTableMobileList}>
-        {pageMarkets.map((m) => (
+        {visibleMarkets.map((m) => (
           <MarketMobileCard
             key={m.id}
             market={m}
@@ -305,7 +307,7 @@ export function PredictMarketsTable({
             </tr>
           </thead>
           <tbody>
-            {pageMarkets.map((m) => {
+            {visibleMarkets.map((m) => {
               return (
                 <tr key={m.id} className={marketsRow}>
                   <td className={cn(marketsTd, marketsTdMarket)}>

@@ -170,10 +170,7 @@ function TerminalPriceChart({
   chartRangeLower,
   chartRangeUpper,
   layoutActive = true,
-  spotSeries,
-  spotSeriesLoading,
-  spotSeriesError,
-  onSpotSeriesRefetch,
+  chartSeries,
 }: {
   asset: string;
   oracleId: string;
@@ -182,20 +179,14 @@ function TerminalPriceChart({
   chartRangeLower?: number;
   chartRangeUpper?: number;
   layoutActive?: boolean;
-  spotSeries: ReturnType<typeof useChartPriceSeries>["data"];
-  spotSeriesLoading: boolean;
-  spotSeriesError: boolean;
-  onSpotSeriesRefetch: () => void;
+  chartSeries: ReturnType<typeof useChartPriceSeries>;
 }) {
   return (
     <div className={tradeTerminalChart}>
       <PriceChart
         asset={asset}
         oracleId={oracleId}
-        spotSeries={spotSeries}
-        spotSeriesLoading={spotSeriesLoading}
-        spotSeriesError={spotSeriesError}
-        onSpotSeriesRefetch={onSpotSeriesRefetch}
+        chartSeries={chartSeries}
         strikePrice={chartStrikePrice}
         activeSide={activeSide}
         rangeLower={chartRangeLower}
@@ -441,12 +432,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
     baseFromUnderlying(oracleSummary?.underlying_asset ?? oracleState?.underlying_asset ?? "") ||
     oracleId.slice(2, 6).toUpperCase();
 
-  const {
-    data: spotSeries,
-    isLoading: spotSeriesLoading,
-    isError: spotSeriesError,
-    refetch: refetchSpotSeries,
-  } = useChartPriceSeries(oracleId, chartAsset);
+  const chartSeries = useChartPriceSeries(oracleId, chartAsset);
 
   const isOracleSettled = useMemo(
     () => isOracleSettledForTrade(oracleSummary, oracleState),
@@ -695,10 +681,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
             activeSide={activeSide}
             chartRangeLower={chartRangeLower}
             chartRangeUpper={chartRangeUpper}
-            spotSeries={spotSeries}
-            spotSeriesLoading={spotSeriesLoading}
-            spotSeriesError={spotSeriesError}
-            onSpotSeriesRefetch={refetchSpotSeries}
+            chartSeries={chartSeries}
           />
           <TerminalOrderBook
             oracleId={oracleId}
@@ -735,10 +718,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
             chartRangeLower={chartRangeLower}
             chartRangeUpper={chartRangeUpper}
             layoutActive={showMobileChart}
-            spotSeries={spotSeries}
-            spotSeriesLoading={spotSeriesLoading}
-            spotSeriesError={spotSeriesError}
-            onSpotSeriesRefetch={refetchSpotSeries}
+            chartSeries={chartSeries}
           />
           <TerminalOrderBook
             oracleId={oracleId}

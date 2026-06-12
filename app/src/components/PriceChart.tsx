@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { LineSeries, createChart, type IChartApi, type ISeriesApi } from "lightweight-charts";
+import {
+  CandlestickSeries,
+  LineSeries,
+  createChart,
+  type CandlestickData,
+  type IChartApi,
+  type ISeriesApi,
+  type LineData,
+  type UTCTimestamp,
+} from "lightweight-charts";
 import { LineChart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -7,6 +16,8 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { ui } from "@/lib/copy";
 import { buildStrikeChartLevels } from "@/lib/charts/predict-chart-levels";
 import {
+  candlestickDownColor,
+  candlestickUpColor,
   levelLineColor,
   levelLineStyle,
   lineSeriesWinColor,
@@ -15,15 +26,16 @@ import {
 import { buildStrikeAnchoredSpotLineData } from "@/lib/charts/line-data";
 import {
   applyPredictChartViewport,
+  buildCandleAutoscaleInfo,
   buildPredictAutoscaleInfo,
   PREDICT_CHART_SCALE_MARGINS,
 } from "@/lib/charts/predict-chart-view";
 import {
   CHART_OHLCV_INTERVAL_MS,
   useChartPriceSeries,
+  type ChartPriceSeriesResult,
 } from "@/hooks/useChartPriceSeries";
 import type { PredictSide } from "@/lib/predict/instruments";
-import type { PricePoint } from "@/lib/predict/price-point";
 import { cn } from "@/lib/utils";
 import { tradeSurface } from "@/lib/leverx/tw";
 
@@ -31,11 +43,8 @@ interface Props {
   asset: string;
   pair?: string;
   oracleId: string;
-  /** When provided, skips internal predict-server polling (share one series per page). */
-  spotSeries?: PricePoint[];
-  spotSeriesLoading?: boolean;
-  spotSeriesError?: boolean;
-  onSpotSeriesRefetch?: () => void;
+  /** When provided, skips internal chart data hook (share one series per page). */
+  chartSeries?: ChartPriceSeriesResult;
   /** Scaled strike for UP/DOWN. */
   strikePrice?: number;
   activeSide?: PredictSide;
@@ -60,10 +69,7 @@ export function PriceChart({
   asset,
   pair,
   oracleId,
-  spotSeries,
-  spotSeriesLoading,
-  spotSeriesError,
-  onSpotSeriesRefetch,
+  chartSeries: chartSeriesProp,
   strikePrice,
   activeSide = "up",
   rangeLower,
@@ -75,30 +81,34 @@ export function PriceChart({
   const [mounted, setMounted] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const priceSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
-  const lineDataLenRef = useRef(0);
+  const priceSeriesRef = useRef<ISeriesApi<"Line"> | ISeriesApi<"Candlestick"> | null>(null);
+  const seriesModeRef = useRef<"line" | "candlestick" | null>(null);
+  const dataLenRef = useRef(0);
   const strikeKeyRef = useRef("");
-  const lineDataRef = useRef<ReturnType<typeof buildStrikeAnchoredSpotLineData>>([]);
+  const lineDataRef = useRef<LineData<UTCTimestamp>[]>([]);
+  const candleDataRef = useRef<CandlestickData<UTCTimestamp>[]>([]);
   const strikeLevelsRef = useRef<ReturnType<typeof buildStrikeChartLevels>>([]);
 
   const internalSeries = useChartPriceSeries(oracleId, asset, {
-    enabled: spotSeries === undefined,
+    enabled: chartSeriesProp === undefined,
   });
-  const history = spotSeries ?? internalSeries.data;
-  const isLoading = spotSeriesLoading ?? internalSeries.isLoading;
-  const isError = spotSeriesError ?? internalSeries.isError;
-  const refetch = onSpotSeriesRefetch ?? internalSeries.refetch;
+  const chartSeries = chartSeriesProp ?? internalSeries;
+  const { mode, candles, linePoints, isLoading, isError, refetch } = chartSeries;
 
   const lineData = useMemo(() => {
-    if (!history?.length) return [];
+    if (mode !== "line" || !linePoints.length) return [];
 
     const anchorStrike = activeSide === "range" ? undefined : strikePrice;
     return buildStrikeAnchoredSpotLineData(
-      history,
+      linePoints,
       anchorStrike,
       CHART_OHLCV_INTERVAL_MS,
     );
-  }, [history, strikePrice, activeSide]);
+  }, [mode, linePoints, strikePrice, activeSide]);
+
+  const candleData = mode === "candlestick" ? candles : [];
+  const hasData = mode === "candlestick" ? candleData.length > 0 : lineData.length > 0;
+  const dataLength = mode === "candlestick" ? candleData.length : lineData.length;
 
   const strikeLevels = useMemo(
     () =>
@@ -112,6 +122,7 @@ export function PriceChart({
   );
 
   lineDataRef.current = lineData;
+  candleDataRef.current = candleData;
   strikeLevelsRef.current = strikeLevels;
 
   useEffect(() => {
@@ -132,6 +143,7 @@ export function PriceChart({
     );
     chartRef.current = chart;
     priceSeriesRef.current = null;
+    seriesModeRef.current = null;
 
     const ro = new ResizeObserver(() => {
       if (chartRef.current) applyChartSize(chartRef.current, el);
@@ -153,7 +165,8 @@ export function PriceChart({
       chart.remove();
       chartRef.current = null;
       priceSeriesRef.current = null;
-      lineDataLenRef.current = 0;
+      seriesModeRef.current = null;
+      dataLenRef.current = 0;
       strikeKeyRef.current = "";
     };
   }, [mounted, oracleId]);
@@ -172,51 +185,91 @@ export function PriceChart({
       cancelAnimationFrame(raf);
       window.clearTimeout(timer);
     };
-  }, [layoutActive, mounted, lineData.length]);
+  }, [layoutActive, mounted, dataLength]);
 
   useEffect(() => {
     const chart = chartRef.current;
-    if (!chart || lineData.length === 0) return;
+    if (!chart || !hasData) return;
 
     const strikeKey = `${activeSide}:${strikePrice ?? 0}:${rangeLower ?? 0}:${rangeUpper ?? 0}`;
     const strikeChanged = strikeKeyRef.current !== strikeKey;
     strikeKeyRef.current = strikeKey;
 
-    const prevLen = lineDataLenRef.current;
-    const grew = lineData.length > prevLen;
-    const canStreamUpdate = !strikeChanged && grew && prevLen > 0 && priceSeriesRef.current;
+    const prevLen = dataLenRef.current;
+    const grew = dataLength > prevLen;
+    const sameMode = seriesModeRef.current === mode;
+    const canLineStreamUpdate =
+      sameMode &&
+      !strikeChanged &&
+      grew &&
+      prevLen > 0 &&
+      priceSeriesRef.current &&
+      mode === "line";
 
-    if (canStreamUpdate) {
-      const series = priceSeriesRef.current!;
+    if (canLineStreamUpdate) {
+      const series = priceSeriesRef.current as ISeriesApi<"Line">;
       for (const point of lineData.slice(prevLen)) {
         series.update(point);
       }
-      lineDataLenRef.current = lineData.length;
-      applyPredictChartViewport(chart, lineData.length);
+      dataLenRef.current = dataLength;
+      applyPredictChartViewport(chart, dataLength, mode);
+      return;
+    }
+
+    const canCandleStreamUpdate =
+      sameMode &&
+      !strikeChanged &&
+      mode === "candlestick" &&
+      priceSeriesRef.current &&
+      dataLength > 0 &&
+      dataLength === prevLen;
+
+    if (canCandleStreamUpdate) {
+      const series = priceSeriesRef.current as ISeriesApi<"Candlestick">;
+      series.update(candleData[candleData.length - 1]!);
       return;
     }
 
     if (priceSeriesRef.current) {
       chart.removeSeries(priceSeriesRef.current);
       priceSeriesRef.current = null;
+      seriesModeRef.current = null;
     }
 
-    const series = chart.addSeries(LineSeries, {
-      color: lineSeriesWinColor(),
-      lineWidth: 2,
-      crosshairMarkerVisible: true,
-      lastValueVisible: true,
-      priceLineVisible: false,
-      autoscaleInfoProvider: () =>
-        buildPredictAutoscaleInfo(lineDataRef.current, strikeLevelsRef.current),
-    });
-    series.setData(lineData);
-    priceSeriesRef.current = series;
-    lineDataLenRef.current = lineData.length;
+    if (mode === "candlestick") {
+      const series = chart.addSeries(CandlestickSeries, {
+        upColor: candlestickUpColor(),
+        downColor: candlestickDownColor(),
+        borderVisible: false,
+        wickUpColor: candlestickUpColor(),
+        wickDownColor: candlestickDownColor(),
+        lastValueVisible: true,
+        priceLineVisible: false,
+        autoscaleInfoProvider: () =>
+          buildCandleAutoscaleInfo(candleDataRef.current, strikeLevelsRef.current),
+      });
+      series.setData(candleData);
+      priceSeriesRef.current = series;
+      seriesModeRef.current = "candlestick";
+    } else {
+      const series = chart.addSeries(LineSeries, {
+        color: lineSeriesWinColor(),
+        lineWidth: 2,
+        crosshairMarkerVisible: true,
+        lastValueVisible: true,
+        priceLineVisible: false,
+        autoscaleInfoProvider: () =>
+          buildPredictAutoscaleInfo(lineDataRef.current, strikeLevelsRef.current),
+      });
+      series.setData(lineData);
+      priceSeriesRef.current = series;
+      seriesModeRef.current = "line";
+    }
 
-    applyPredictChartViewport(chart, lineData.length);
+    dataLenRef.current = dataLength;
+    applyPredictChartViewport(chart, dataLength, mode);
     chart.priceScale("right").applyOptions({ autoScale: true });
-  }, [lineData, activeSide, strikePrice, rangeLower, rangeUpper]);
+  }, [mode, lineData, candleData, dataLength, hasData, activeSide, strikePrice, rangeLower, rangeUpper]);
 
   useEffect(() => {
     const series = priceSeriesRef.current;
@@ -240,10 +293,10 @@ export function PriceChart({
         series.removePriceLine(line);
       }
     };
-  }, [strikeLevels, lineData]);
+  }, [strikeLevels, lineData, candleData]);
 
-  const chartLabel = pair ?? `${asset}/USDT`;
-  const showChart = mounted && !isLoading && !isError && lineData.length > 0;
+  const chartLabel = pair ?? `${asset}/USDC`;
+  const showChart = mounted && !isLoading && !isError && hasData;
 
   return (
     <div

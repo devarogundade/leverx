@@ -119,3 +119,11 @@ export function lineSeriesWinColor(): string {
 export function lineSeriesLossColor(): string {
   return readCssVar("--short-text", "#ef5350");
 }
+
+export function candlestickUpColor(): string {
+  return readCssVar("--long-text", "#38ef7d");
+}
+
+export function candlestickDownColor(): string {
+  return readCssVar("--short-text", "#ef5350");
+}

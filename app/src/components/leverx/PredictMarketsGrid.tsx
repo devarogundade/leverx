@@ -8,6 +8,7 @@ import { AssetBadge } from "@/components/AssetBadge";
 import { MarketPremiumQuote } from "@/components/leverx/MarketPremiumQuote";
 import { MarketSideActions } from "@/components/leverx/MarketSideActions";
 import { useMarketPremiumSparklines } from "@/hooks/useMarketPremiumSparklines";
+import { useVisibleOracleSpots } from "@/hooks/useVisibleOracleSpots";
 import {
   MARKETS_GRID_PAGE_SIZE,
   MarketCatalogPagination,
@@ -70,7 +71,8 @@ export function PredictMarketsGrid({
     () => paginateSlice(markets, page, MARKETS_GRID_PAGE_SIZE),
     [markets, page],
   );
-  const { seriesByMarketId } = useMarketPremiumSparklines(pageMarkets);
+  const { markets: visibleMarkets } = useVisibleOracleSpots(pageMarkets);
+  const { seriesByMarketId } = useMarketPremiumSparklines(visibleMarkets);
 
   if (loading) {
     return <MarketGridSkeleton />;
@@ -100,7 +102,7 @@ export function PredictMarketsGrid({
   return (
     <div className="flex flex-col">
       <div className={marketsGrid}>
-        {pageMarkets.map((m) => {
+        {visibleMarkets.map((m) => {
           const marketHref = {
             to: "/predictions/$oracleId" as const,
             params: { oracleId: m.oracleId },
