@@ -216,12 +216,14 @@ function TerminalOrderBook({
   oracleId,
   market,
   activeSide,
+  onSideChange,
   compact = false,
 }: {
   sessionKey: string;
   oracleId: string;
   market: ReturnType<typeof resolveTradeMarket> | undefined;
   activeSide: PredictSide;
+  onSideChange: (side: PredictSide) => void;
   compact?: boolean;
 }) {
   return (
@@ -232,8 +234,8 @@ function TerminalOrderBook({
         expiryMs={market?.expiry ?? 0}
         strike={market?.strikeRaw ?? 0}
         higherStrike={market?.higherStrikeRaw ?? 0}
-        isUp={market?.isUp ?? activeSide === "up"}
-        isRange={market?.isRange ?? activeSide === "range"}
+        side={activeSide}
+        onSideChange={onSideChange}
         placeholder={!market || market.strikeRaw <= 0 || !market.expiry}
         compact={compact}
       />
@@ -779,6 +781,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
             oracleId={oracleId}
             market={market}
             activeSide={activeSide}
+            onSideChange={setActiveSide}
           />
           <div className={tradeTerminalSidebar}>
             <PredictLeveragePanel
@@ -820,6 +823,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
             oracleId={oracleId}
             market={market}
             activeSide={activeSide}
+            onSideChange={setActiveSide}
             compact
           />
         </div>

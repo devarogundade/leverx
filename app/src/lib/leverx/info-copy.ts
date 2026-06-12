@@ -51,9 +51,10 @@ export const leverxInfo = {
   vaultNav: "Total value in the pool backing leveraged trades.",
   autoClose: "When this market settles and your position closes.",
 
-  orderBook: "Prices people are willing to buy and sell at right now.",
-  orderBookSide: "Long side shows prices to bet price goes up; short side shows prices to bet it goes down.",
-  spread: "Gap between the best buy and sell prices.",
+  orderBook:
+    "Resting limit bids from traders and the live LP mint price. Bids are real open limits; the ask is the current vault mint quote.",
+  orderBookSide: "Switch outcome to view limits and LP pricing for UP, DOWN, or RANGE.",
+  spread: "Gap between the best limit bid and the live LP mint price.",
 
   balanceTotal: "Everything locked in your open trades.",
   balanceMargin: "Your own funds posted in open trades.",
