@@ -10,19 +10,24 @@ import { cn } from "@/lib/utils";
 interface Props {
   quote: MintQuote | null | undefined;
   isLoading?: boolean;
+  isRefreshing?: boolean;
   className?: string;
 }
 
-export function TradeQuoteSummary({ quote, isLoading, className }: Props) {
-  if (isLoading) {
-    return (
-      <div className={cn("rounded-md border border-border/60 bg-card/40 p-3 text-xs text-muted-foreground", className)}>
-        Calculating cost…
-      </div>
-    );
-  }
-
+export function TradeQuoteSummary({ quote, isLoading, isRefreshing, className }: Props) {
   if (!quote) {
+    if (isLoading) {
+      return (
+        <div
+          className={cn(
+            "rounded-md border border-border/60 bg-card/40 p-3 text-xs text-muted-foreground",
+            className,
+          )}
+        >
+          Calculating cost…
+        </div>
+      );
+    }
     return null;
   }
 
@@ -30,7 +35,13 @@ export function TradeQuoteSummary({ quote, isLoading, className }: Props) {
   const outOfBounds = !isPremiumWithinPredictBounds(quote.marketAskPerUnit);
 
   return (
-    <div className={cn("space-y-2 rounded-md border border-border/60 bg-card/40 p-3", className)}>
+    <div
+      className={cn(
+        "space-y-2 rounded-md border border-border/60 bg-card/40 p-3 transition-opacity",
+        isRefreshing && "opacity-80",
+        className,
+      )}
+    >
       <LabelWithInfo
         label="Estimated cost"
         labelClassName={labelCaps}

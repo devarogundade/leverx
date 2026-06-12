@@ -165,7 +165,6 @@ function formatAutoClose(expiry: number): string {
 }
 
 function TerminalPriceChart({
-  sessionKey,
   asset,
   oracleId,
   chartStrikePrice,
@@ -178,7 +177,6 @@ function TerminalPriceChart({
   spotSeriesError,
   onSpotSeriesRefetch,
 }: {
-  sessionKey: string;
   asset: string;
   oracleId: string;
   chartStrikePrice?: number;
@@ -194,7 +192,6 @@ function TerminalPriceChart({
   return (
     <div className={tradeTerminalChart}>
       <PriceChart
-        key={sessionKey}
         asset={asset}
         oracleId={oracleId}
         spotSeries={spotSeries}
@@ -212,14 +209,12 @@ function TerminalPriceChart({
 }
 
 function TerminalOrderBook({
-  sessionKey,
   oracleId,
   market,
   activeSide,
   onSideChange,
   compact = false,
 }: {
-  sessionKey: string;
   oracleId: string;
   market: ReturnType<typeof resolveTradeMarket> | undefined;
   activeSide: PredictSide;
@@ -229,7 +224,6 @@ function TerminalOrderBook({
   return (
     <div className={cn(tradeTerminalOrderbook, compact ? "min-h-0" : "min-h-[280px]")}>
       <PredictOrderBook
-        key={sessionKey}
         oracleId={oracleId}
         expiryMs={market?.expiry ?? 0}
         strike={market?.strikeRaw ?? 0}
@@ -444,20 +438,9 @@ function TradePositionsPanel({
   );
 }
 
-function oracleSessionKey(args: {
-  oracleId: string;
-  side: PredictSide;
-  marketStrikeRaw?: number;
-  marketHigherStrikeRaw?: number;
-  marketExpiry?: number;
-}): string {
-  return [
-    args.oracleId,
-    args.side,
-    args.marketStrikeRaw ?? 0,
-    args.marketHigherStrikeRaw ?? 0,
-    args.marketExpiry ?? 0,
-  ].join(":");
+/** Stable key for trade UI state — avoids remounting forms on catalog/mark poll updates. */
+function tradeContextKey(oracleId: string, side: PredictSide): string {
+  return `${oracleId}:${side}`;
 }
 
 type PredictTradeLocationState = {
@@ -644,15 +627,8 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   const chartRangeUpper = rangeUpper ? scaleSpot(rangeUpper) : undefined;
 
   const sessionKey = useMemo(
-    () =>
-      oracleSessionKey({
-        oracleId,
-        side: activeSide,
-        marketStrikeRaw: market?.strikeRaw,
-        marketHigherStrikeRaw: market?.higherStrikeRaw,
-        marketExpiry: market?.expiry,
-      }),
-    [oracleId, activeSide, market?.strikeRaw, market?.higherStrikeRaw, market?.expiry],
+    () => tradeContextKey(oracleId, activeSide),
+    [oracleId, activeSide],
   );
   const showMobileChart = mobileWorkspace === "chart";
   const showMobileTrade = mobileWorkspace === "trade";
@@ -764,7 +740,6 @@ export function PredictTradeTerminal({ oracleId }: Props) {
       <div className={cn(tradeTerminalBody, tradeTerminalMobileBody)}>
         <div className={cn(tradeTerminalWorkspace, "trade-terminal-workspace-desktop")}>
           <TerminalPriceChart
-            sessionKey={sessionKey}
             asset={asset}
             oracleId={oracleId}
             chartStrikePrice={chartStrikePrice}
@@ -777,7 +752,6 @@ export function PredictTradeTerminal({ oracleId }: Props) {
             onSpotSeriesRefetch={refetchSpotSeries}
           />
           <TerminalOrderBook
-            sessionKey={sessionKey}
             oracleId={oracleId}
             market={market}
             activeSide={activeSide}
@@ -805,7 +779,6 @@ export function PredictTradeTerminal({ oracleId }: Props) {
           data-active={showMobileChart ? "true" : "false"}
         >
           <TerminalPriceChart
-            sessionKey={sessionKey}
             asset={asset}
             oracleId={oracleId}
             chartStrikePrice={chartStrikePrice}
@@ -819,7 +792,6 @@ export function PredictTradeTerminal({ oracleId }: Props) {
             onSpotSeriesRefetch={refetchSpotSeries}
           />
           <TerminalOrderBook
-            sessionKey={sessionKey}
             oracleId={oracleId}
             market={market}
             activeSide={activeSide}

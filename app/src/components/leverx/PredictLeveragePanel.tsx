@@ -128,6 +128,8 @@ export function PredictLeveragePanel({
     useState<LimitOrderExpiryHours>(DEFAULT_LIMIT_ORDER_EXPIRY_HOURS);
   const [limitExecution, setLimitExecution] = useState<LimitExecutionMode>("immediate");
   const { data: protocol } = useIndexerProtocol();
+  const tradeContextKey = `${oracleId}:${side}`;
+
   useEffect(() => {
     setTxError(null);
     setOrderType("market");
@@ -144,14 +146,19 @@ export function PredictLeveragePanel({
     setSl("");
     setTpUnit("pct");
     setSlUnit("pct");
-  }, [oracleId, side, strikeRaw, lowerStrikeRaw, upperStrikeRaw]);
+    // Only reset the trade form when the user changes market or outcome — not on background catalog refreshes.
+  }, [tradeContextKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (orderType !== "limit") return;
-    if (lastAskPremium && lastAskPremium > 0) {
-      setLimitPrice(premiumToCents(lastAskPremium).toFixed(1));
-    }
-  }, [lastAskPremium, orderType]);
+    setLimitPrice((prev) => {
+      if (prev) return prev;
+      if (lastAskPremium && lastAskPremium > 0) {
+        return premiumToCents(lastAskPremium).toFixed(1);
+      }
+      return prev;
+    });
+  }, [orderType, tradeContextKey, lastAskPremium]);
   const { data: walletQuoteBalance } = useWalletCoinBalance(appConfig.quoteType, 6);
   const [tpSl, setTpSl] = useState(false);
   const [tp, setTp] = useState("");
@@ -239,7 +246,11 @@ export function PredictLeveragePanel({
     orderType === "limit" ? tradeKey : undefined,
   );
 
-  const { data: mintQuote, isLoading: quoteLoading } = useLeverxMintQuote({
+  const {
+    data: mintQuote,
+    isLoading: quoteLoading,
+    isFetching: quoteRefreshing,
+  } = useLeverxMintQuote({
     key: tradeKey,
     marginUsd: marginNum,
     leverage: lev,
@@ -652,7 +663,11 @@ export function PredictLeveragePanel({
 
         <LeverageSlider value={leverage} onChange={setLeverage} />
 
-        <TradeQuoteSummary quote={mintQuote} isLoading={quoteLoading} />
+        <TradeQuoteSummary
+          quote={mintQuote}
+          isLoading={quoteLoading}
+          isRefreshing={quoteRefreshing && !quoteLoading}
+        />
 
         <div className={tpSlBlock}>
           <div className={tpSlHeader}>

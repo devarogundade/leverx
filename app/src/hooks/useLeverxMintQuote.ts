@@ -79,11 +79,10 @@ export function useLeverxMintQuote(args: {
       (args.marginUsd ?? 0) > 0,
     staleTime: 10_000,
     refetchInterval: 15_000,
+    refetchIntervalInBackground: false,
+    placeholderData: (previous) => previous,
     retry: 1,
   });
 
-  return {
-    ...query,
-    isLoading: query.isLoading || query.isFetching,
-  };
+  return query;
 }
