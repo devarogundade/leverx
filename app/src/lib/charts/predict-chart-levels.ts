@@ -15,10 +15,10 @@ export function buildStrikeChartLevels(input: StrikeChartLevelInput): PriceLevel
   if (activeSide === "range") {
     const levels: PriceLevel[] = [];
     if (rangeLower != null && rangeLower > 0) {
-      levels.push({ label: "Range low", price: rangeLower, tone: "entry-range" });
+      levels.push({ label: "Lower strike", price: rangeLower, tone: "strike" });
     }
     if (rangeUpper != null && rangeUpper > 0) {
-      levels.push({ label: "Range high", price: rangeUpper, tone: "entry-range" });
+      levels.push({ label: "Upper strike", price: rangeUpper, tone: "strike" });
     }
     return levels;
   }

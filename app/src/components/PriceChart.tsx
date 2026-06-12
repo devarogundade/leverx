@@ -95,30 +95,16 @@ export function PriceChart({
   const chartSeries = chartSeriesProp ?? internalSeries;
   const { mode, candles, linePoints, isLoading, isError, refetch } = chartSeries;
 
-  const anchorStrike = useMemo(() => {
-    if (activeSide === "range") {
-      if (
-        rangeLower != null &&
-        rangeUpper != null &&
-        rangeLower > 0 &&
-        rangeUpper > rangeLower
-      ) {
-        return (rangeLower + rangeUpper) / 2;
-      }
-      return undefined;
-    }
-    return strikePrice;
-  }, [activeSide, strikePrice, rangeLower, rangeUpper]);
-
   const lineData = useMemo(() => {
     if (mode !== "line" || !linePoints.length) return [];
 
+    const anchorStrike = activeSide === "range" ? undefined : strikePrice;
     return buildStrikeAnchoredSpotLineData(
       linePoints,
       anchorStrike,
       CHART_OHLCV_INTERVAL_MS,
     );
-  }, [mode, linePoints, anchorStrike]);
+  }, [mode, linePoints, strikePrice, activeSide]);
 
   const candleData = mode === "candlestick" ? candles : [];
   const hasData = mode === "candlestick" ? candleData.length > 0 : lineData.length > 0;
@@ -293,7 +279,7 @@ export function PriceChart({
       series.createPriceLine({
         price: level.price,
         color: levelLineColor(level.tone),
-        lineWidth: activeSide === "range" ? 3 : 2,
+        lineWidth: 2,
         lineStyle: levelLineStyle(level.tone),
         axisLabelVisible: true,
         title: level.label,
@@ -307,7 +293,7 @@ export function PriceChart({
         series.removePriceLine(line);
       }
     };
-  }, [strikeLevels, lineData, candleData, activeSide]);
+  }, [strikeLevels, lineData, candleData]);
 
   const chartLabel = pair ?? `${asset}/USDC`;
   const showChart = mounted && !isLoading && !isError && hasData;

@@ -7,142 +7,70 @@ import type {
 } from "lightweight-charts";
 import type { PriceLevel } from "@/lib/charts/price-level";
 
-/** ~7.5 minutes of 5s polls — recent window for a zoomed detail view. */
+/** Default line viewport when not using fitContent (recent polls only). */
 export const PREDICT_DETAIL_VISIBLE_BARS = 90;
 
-/** ~16 hours of 15m OHLCV candles in the default viewport. */
+/** ~16 hours of 15m OHLCV candles when using a fixed window. */
 export const PREDICT_CANDLE_VISIBLE_BARS = 64;
 
-/** Vertical breathing room on the price scale (lightweight-charts scaleMargins). */
-export const PREDICT_CHART_SCALE_MARGINS = { top: 0.14, bottom: 0.14 };
+/** Keep price action using most of the plot height. */
+export const PREDICT_CHART_SCALE_MARGINS = { top: 0.02, bottom: 0.02 };
 
-/** Extra Y padding as a fraction of the computed span. */
-const PREDICT_LINE_Y_PAD_RATIO = 0.28;
-const PREDICT_CANDLE_Y_PAD_RATIO = 0.18;
+/** Tight Y padding so spot movement spreads across the chart. */
+const PREDICT_LINE_Y_PAD_RATIO = 0.06;
+const PREDICT_CANDLE_Y_PAD_RATIO = 0.05;
 
-/** Minimum half-height around a range band so lower/upper strikes do not collapse. */
-const RANGE_BAND_HALF_SPAN_MULT = 5;
-const RANGE_BAND_MIN_HALF_SPAN_PCT = 0.003;
-
-/** Minimum half-height around a single strike vs spot. */
-const STRIKE_MIN_HALF_SPAN_PCT = 0.004;
-
-/** Recent polls used for Y-axis when a range band is shown (ignore older spot history). */
-const RANGE_AUTOSCALE_RECENT_POINTS = 24;
-
-function positiveValues(values: readonly number[]): number[] {
-  return values.filter((value) => Number.isFinite(value) && value > 0);
+export function predictChartTimeScaleOptions(mode: "line" | "candlestick" = "line") {
+  return {
+    timeVisible: true,
+    secondsVisible: mode === "line",
+    // Wider bar spacing spreads candles/points horizontally.
+    barSpacing: mode === "candlestick" ? 12 : 18,
+    minBarSpacing: mode === "candlestick" ? 4 : 8,
+    rightOffset: 8,
+    fixLeftEdge: false,
+    fixRightEdge: false,
+  };
 }
 
-function rangeBandFromLevels(strikeLevels: readonly PriceLevel[]): { lower: number; upper: number } | null {
-  const strikes = positiveValues(strikeLevels.map((level) => level.price));
-  if (strikes.length < 2) return null;
-  return { lower: Math.min(...strikes), upper: Math.max(...strikes) };
-}
+function yBoundsFromValues(
+  values: readonly number[],
+  strikeLevels: readonly PriceLevel[],
+): { min: number; max: number } | null {
+  const strikes = strikeLevels.map((level) => level.price);
+  const all = [...values, ...strikes].filter((value) => Number.isFinite(value) && value > 0);
+  if (all.length === 0) return null;
 
-function expandBounds(min: number, max: number, padRatio: number): { minValue: number; maxValue: number } {
+  let min = Math.min(...all);
+  let max = Math.max(...all);
   if (min === max) {
     const bump = Math.max(min * 0.0015, 0.5);
     min -= bump;
     max += bump;
   }
-  const span = max - min;
-  const pad = Math.max(span * padRatio, max * 0.0008);
-  return { minValue: min - pad, maxValue: max + pad };
+  return { min, max };
 }
 
-/**
- * Y-axis bounds that keep prediction strikes readable.
- * Range markets zoom in on the band; binary markets keep strike near center.
- */
-function computePredictYBounds(
-  values: readonly number[],
-  strikeLevels: readonly PriceLevel[],
-): { min: number; max: number } | null {
-  const band = rangeBandFromLevels(strikeLevels);
-  const scopedValues =
-    band && values.length > RANGE_AUTOSCALE_RECENT_POINTS
-      ? values.slice(-RANGE_AUTOSCALE_RECENT_POINTS)
-      : values;
-  const spots = positiveValues(scopedValues);
-  const strikes = positiveValues(strikeLevels.map((level) => level.price));
-
-  if (band) {
-    const { lower, upper } = band;
-    const width = upper - lower;
-    const center = (lower + upper) / 2;
-    const minHalfSpan = Math.max(
-      width * RANGE_BAND_HALF_SPAN_MULT,
-      center * RANGE_BAND_MIN_HALF_SPAN_PCT,
-      width + Math.max(center * 0.001, 1),
-    );
-
-    let min = lower - minHalfSpan;
-    let max = upper + minHalfSpan;
-
-    const latestSpot = spots.length > 0 ? spots[spots.length - 1] : null;
-    if (latestSpot != null) {
-      min = Math.min(min, latestSpot);
-      max = Math.max(max, latestSpot);
-    }
-
-    const minSpan = width + minHalfSpan * 2;
-    const span = max - min;
-    if (span < minSpan) {
-      min = center - minSpan / 2;
-      max = center + minSpan / 2;
-    } else if (span > minSpan * 1.4) {
-      min = center - minSpan / 2;
-      max = center + minSpan / 2;
-      if (latestSpot != null) {
-        if (latestSpot < min) min = latestSpot - width * 0.5;
-        if (latestSpot > max) max = latestSpot + width * 0.5;
-      }
-    }
-
-    return { min, max };
-  }
-
-  if (strikes.length === 1) {
-    const strike = strikes[0]!;
-    const spotMid =
-      spots.length > 0 ? (Math.min(...spots) + Math.max(...spots)) / 2 : strike;
-    const minHalfSpan = Math.max(
-      strike * STRIKE_MIN_HALF_SPAN_PCT,
-      Math.abs(spotMid - strike) * 1.75 + strike * 0.001,
-      2,
-    );
-
-    let min = Math.min(strike, ...(spots.length ? spots : [strike])) - minHalfSpan;
-    let max = Math.max(strike, ...(spots.length ? spots : [strike])) + minHalfSpan;
-
-    const span = max - min;
-    const minSpan = minHalfSpan * 2;
-    if (span < minSpan) {
-      const mid = (min + max) / 2;
-      min = mid - minSpan / 2;
-      max = mid + minSpan / 2;
-    }
-
-    return { min, max };
-  }
-
-  const all = [...spots, ...strikes];
-  if (all.length === 0) return null;
-
-  return { min: Math.min(...all), max: Math.max(...all) };
+function withYPadding(
+  min: number,
+  max: number,
+  padRatio: number,
+): { minValue: number; maxValue: number } {
+  const span = max - min;
+  const pad = Math.max(span * padRatio, max * 0.0005);
+  return { minValue: min - pad, maxValue: max + pad };
 }
 
 export function buildPredictAutoscaleInfo(
   lineData: readonly LineData<UTCTimestamp>[],
   strikeLevels: readonly PriceLevel[],
 ): AutoscaleInfo | null {
-  const values = lineData.map((point) => point.value);
-  const bounds = computePredictYBounds(values, strikeLevels);
+  const bounds = yBoundsFromValues(
+    lineData.map((point) => point.value),
+    strikeLevels,
+  );
   if (!bounds) return null;
-
-  const range = expandBounds(bounds.min, bounds.max, PREDICT_LINE_Y_PAD_RATIO);
-  return { priceRange: range };
+  return { priceRange: withYPadding(bounds.min, bounds.max, PREDICT_LINE_Y_PAD_RATIO) };
 }
 
 export function buildCandleAutoscaleInfo(
@@ -151,14 +79,12 @@ export function buildCandleAutoscaleInfo(
 ): AutoscaleInfo | null {
   const lows = candles.map((bar) => bar.low);
   const highs = candles.map((bar) => bar.high);
-  const bounds = computePredictYBounds([...lows, ...highs], strikeLevels);
+  const bounds = yBoundsFromValues([...lows, ...highs], strikeLevels);
   if (!bounds) return null;
-
-  const range = expandBounds(bounds.min, bounds.max, PREDICT_CANDLE_Y_PAD_RATIO);
-  return { priceRange: range };
+  return { priceRange: withYPadding(bounds.min, bounds.max, PREDICT_CANDLE_Y_PAD_RATIO) };
 }
 
-/** Zoom the time axis to the most recent bars. */
+/** Spread the full series across the time axis. */
 export function applyPredictChartViewport(
   chart: IChartApi,
   dataLength: number,
@@ -171,21 +97,5 @@ export function applyPredictChartViewport(
     return;
   }
 
-  const window =
-    mode === "candlestick" ? PREDICT_CANDLE_VISIBLE_BARS : PREDICT_DETAIL_VISIBLE_BARS;
-  const to = dataLength - 0.5;
-  const from = Math.max(0, dataLength - window);
-  chart.timeScale().setVisibleLogicalRange({ from, to });
-}
-
-export function predictChartTimeScaleOptions(mode: "line" | "candlestick" = "line") {
-  return {
-    timeVisible: true,
-    secondsVisible: mode === "line",
-    barSpacing: mode === "candlestick" ? 9 : 14,
-    minBarSpacing: mode === "candlestick" ? 4 : 10,
-    rightOffset: 6,
-    fixLeftEdge: false,
-    fixRightEdge: false,
-  };
+  chart.timeScale().fitContent();
 }
