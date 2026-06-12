@@ -3,8 +3,11 @@ import { SiteShell } from "@/components/SiteShell";
 import { PageHeader } from "@/components/PageHeader";
 import { APP_NAME, pageTitle } from "@/lib/brand";
 import { ScrollText } from "lucide-react";
+import { routePendingOptions } from "@/lib/router/route-options";
 
 export const Route = createFileRoute("/terms")({
+  ...routePendingOptions,
+  loader: () => null,
   head: () => ({
     meta: [
       { title: pageTitle("Terms of Service") },

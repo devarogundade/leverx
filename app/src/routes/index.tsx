@@ -5,8 +5,11 @@ import { LandingHeader } from "@/components/landing/LandingHeader";
 import { LandingChartIllustration } from "@/components/landing/LandingIllustrations";
 import { APP_NAME } from "@/lib/brand";
 import { landingCopy } from "@/lib/landing-copy";
+import { routePendingOptions } from "@/lib/router/route-options";
 
 export const Route = createFileRoute("/")({
+  ...routePendingOptions,
+  loader: () => null,
   component: LandingPage,
 });
 

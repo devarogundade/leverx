@@ -24,10 +24,8 @@ import {
   useIndexerVaultSummary,
   useMarketCatalog,
 } from "@/hooks/useIndexer";
-import {
-  useOraclePriceLatest,
-  useOracleSpotPriceSeries,
-} from "@/hooks/useOracleSpotPriceSeries";
+import { useChartPriceSeries } from "@/hooks/useChartPriceSeries";
+import { useOraclePriceLatest } from "@/hooks/useOracleSpotPriceSeries";
 import { useOracleNeighbors, usePredictOracleRows } from "@/hooks/usePredictOracles";
 import { usePredictOracleState } from "@/hooks/usePredictOracleState";
 import {
@@ -184,7 +182,7 @@ function TerminalPriceChart({
   chartRangeLower?: number;
   chartRangeUpper?: number;
   layoutActive?: boolean;
-  spotSeries: ReturnType<typeof useOracleSpotPriceSeries>["data"];
+  spotSeries: ReturnType<typeof useChartPriceSeries>["data"];
   spotSeriesLoading: boolean;
   spotSeriesError: boolean;
   onSpotSeriesRefetch: () => void;
@@ -433,17 +431,22 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   });
   const { data: oracleState } = usePredictOracleState(oracleId);
   const { data: latestPrice } = useOraclePriceLatest(oracleId);
-  const {
-    data: spotSeries,
-    isLoading: spotSeriesLoading,
-    isError: spotSeriesError,
-    refetch: refetchSpotSeries,
-  } = useOracleSpotPriceSeries(oracleId);
 
   const oracleSummary = useMemo(
     () => oracles.find((o) => o.oracle_id === oracleId),
     [oracles, oracleId],
   );
+
+  const chartAsset =
+    baseFromUnderlying(oracleSummary?.underlying_asset ?? oracleState?.underlying_asset ?? "") ||
+    oracleId.slice(2, 6).toUpperCase();
+
+  const {
+    data: spotSeries,
+    isLoading: spotSeriesLoading,
+    isError: spotSeriesError,
+    refetch: refetchSpotSeries,
+  } = useChartPriceSeries(oracleId, chartAsset);
 
   const isOracleSettled = useMemo(
     () => isOracleSettledForTrade(oracleSummary, oracleState),
@@ -498,10 +501,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
     oracleId,
   );
 
-  const asset =
-    baseFromUnderlying(oracleSummary?.underlying_asset ?? oracleState?.underlying_asset ?? "") ||
-    market?.asset ||
-    oracleId.slice(2, 6).toUpperCase();
+  const asset = chartAsset || market?.asset || oracleId.slice(2, 6).toUpperCase();
   const expiry = market?.expiry ?? oracleSummary?.expiry ?? oracleState?.expiry;
   const isOracleExpired =
     expiry != null && expiry > 0 && expiry <= Date.now();

@@ -3,8 +3,11 @@ import { SiteShell } from "@/components/SiteShell";
 import { PageHeader } from "@/components/PageHeader";
 import { APP_NAME, pageTitle } from "@/lib/brand";
 import { Lock } from "lucide-react";
+import { routePendingOptions } from "@/lib/router/route-options";
 
 export const Route = createFileRoute("/privacy")({
+  ...routePendingOptions,
+  loader: () => null,
   head: () => ({
     meta: [
       { title: pageTitle("Privacy Policy") },

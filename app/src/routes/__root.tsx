@@ -16,6 +16,8 @@ import { APP_NAME } from "../lib/brand";
 import { IndexerStreamProvider } from "../context/IndexerStreamContext";
 import { PredictOracleProvider } from "../context/PredictOracleContext";
 import { WalletProvider } from "../context/WalletContext";
+import { ensurePredictOracles } from "@/lib/router/route-loaders";
+import { routePendingOptions } from "@/lib/router/route-options";
 
 function NotFoundComponent() {
   return (
@@ -78,6 +80,8 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  ...routePendingOptions,
+  loader: ({ context }) => ensurePredictOracles(context.queryClient),
   head: () => ({
     meta: [
       { charSet: "utf-8" },

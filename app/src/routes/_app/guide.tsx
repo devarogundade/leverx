@@ -2,8 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { GuideStorybook } from "@/components/GuideStorybook";
 import { pageTitle } from "@/lib/brand";
 import { ui } from "@/lib/copy";
+import { routePendingOptions } from "@/lib/router/route-options";
 
 export const Route = createFileRoute("/_app/guide")({
+  ...routePendingOptions,
+  loader: () => null,
   head: () => ({
     meta: [
       { title: pageTitle("How it works") },

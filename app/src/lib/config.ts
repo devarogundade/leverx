@@ -54,4 +54,9 @@ export const appConfig = {
   /** LeverX on-chain indexer (order book, positions, limits). */
   leverxIndexerUrl:
     import.meta.env.VITE_LEVERX_INDEXER_URL ?? "http://localhost:3100",
+
+  /** DeepBook spot OHLCV (chart visualization only). */
+  deepbookIndexerUrl:
+    viteEnv("VITE_DEEPBOOK_INDEXER_URL") ||
+    "https://deepbook-indexer.mainnet.mystenlabs.com",
 } as const;

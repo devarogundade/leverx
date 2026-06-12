@@ -18,9 +18,11 @@ import {
   buildPredictAutoscaleInfo,
   PREDICT_CHART_SCALE_MARGINS,
 } from "@/lib/charts/predict-chart-view";
-import { ORACLE_SPOT_POLL_INTERVAL_MS } from "@/hooks/useOracleSpotPriceSeries";
+import {
+  CHART_OHLCV_INTERVAL_MS,
+  useChartPriceSeries,
+} from "@/hooks/useChartPriceSeries";
 import type { PredictSide } from "@/lib/predict/instruments";
-import { useOracleSpotPriceSeries } from "@/hooks/useOracleSpotPriceSeries";
 import type { PricePoint } from "@/lib/predict/price-point";
 import { cn } from "@/lib/utils";
 import { tradeSurface } from "@/lib/leverx/tw";
@@ -79,7 +81,7 @@ export function PriceChart({
   const lineDataRef = useRef<ReturnType<typeof buildStrikeAnchoredSpotLineData>>([]);
   const strikeLevelsRef = useRef<ReturnType<typeof buildStrikeChartLevels>>([]);
 
-  const internalSeries = useOracleSpotPriceSeries(oracleId, {
+  const internalSeries = useChartPriceSeries(oracleId, asset, {
     enabled: spotSeries === undefined,
   });
   const history = spotSeries ?? internalSeries.data;
@@ -94,7 +96,7 @@ export function PriceChart({
     return buildStrikeAnchoredSpotLineData(
       history,
       anchorStrike,
-      ORACLE_SPOT_POLL_INTERVAL_MS,
+      CHART_OHLCV_INTERVAL_MS,
     );
   }, [history, strikePrice, activeSide]);
 

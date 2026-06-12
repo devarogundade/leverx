@@ -23,10 +23,14 @@ import {
   segTabsClass,
 } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
+import { loadMarketsRoute } from "@/lib/router/route-loaders";
+import { routePendingOptions } from "@/lib/router/route-options";
 
 const CATEGORIES = ["All", "Live", "Closed"] as const;
 
 export const Route = createFileRoute("/_app/markets")({
+  ...routePendingOptions,
+  loader: ({ context }) => loadMarketsRoute(context.queryClient),
   head: () => ({
     meta: [
       { title: pageTitle("Markets") },

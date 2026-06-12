@@ -10,6 +10,8 @@ import { formatCompactUsdOrPlaceholder } from "@/lib/leverx/placeholders";
 import { pageSimple, pageSimpleTitle } from "@/lib/leverx/tw";
 import { scaleQuote } from "@/lib/predict/scaling";
 import { cn } from "@/lib/utils";
+import { loadPointsRoute } from "@/lib/router/route-loaders";
+import { routePendingOptions } from "@/lib/router/route-options";
 
 const EARN = [
   "Trade leveraged positions on DeepBook Predict markets",
@@ -74,6 +76,8 @@ const columns: Column<LeaderboardEntry>[] = [
 ];
 
 export const Route = createFileRoute("/_app/points")({
+  ...routePendingOptions,
+  loader: ({ context }) => loadPointsRoute(context.queryClient),
   head: () => ({
     meta: [{ title: pageTitle("Points") }],
   }),

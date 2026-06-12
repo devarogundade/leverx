@@ -16,8 +16,12 @@ import { ui } from "@/lib/copy";
 import { aggregatePortfolioSummary } from "@/lib/leverx/portfolio-summary";
 import { pageSimple, pageSimpleTitle } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
+import { loadAppShell } from "@/lib/router/route-loaders";
+import { routePendingOptions } from "@/lib/router/route-options";
 
 export const Route = createFileRoute("/_app/portfolio")({
+  ...routePendingOptions,
+  loader: ({ context }) => loadAppShell(context.queryClient),
   head: () => ({
     meta: [
       { title: pageTitle("Portfolio") },

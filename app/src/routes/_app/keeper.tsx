@@ -18,6 +18,8 @@ const DOCKER_RUN = `docker run -d \\
 const DOCKER_PULL = `docker pull ${KEEPER_IMAGE}`;
 
 export const Route = createFileRoute("/_app/keeper")({
+  ...routePendingOptions,
+  loader: () => null,
   head: () => ({
     meta: [
       { title: pageTitle("Helper") },

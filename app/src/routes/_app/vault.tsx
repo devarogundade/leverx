@@ -19,8 +19,12 @@ import {
   vaultWorkspace,
 } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
+import { loadVaultRoute } from "@/lib/router/route-loaders";
+import { routePendingOptions } from "@/lib/router/route-options";
 
 export const Route = createFileRoute("/_app/vault")({
+  ...routePendingOptions,
+  loader: ({ context }) => loadVaultRoute(context.queryClient),
   head: () => ({
     meta: [
       { title: pageTitle("Vault") },
