@@ -25,6 +25,11 @@ export function positionRowId(position: LeveragedPosition): string {
   return `${position.position_key}-${position.account_id}`;
 }
 
+/** Open indexer rows with zero quantity are stale keys — not live positions. */
+export function isActiveOpenPosition(position: LeveragedPosition): boolean {
+  return position.status === "open" && position.open_quantity > 0;
+}
+
 export function entryPremiumPerUnitRaw(position: LeveragedPosition): bigint | null {
   if (position.open_quantity <= 0 || position.mint_cost <= 0) return null;
   return (
@@ -70,10 +75,13 @@ export function computePositionMarkToMarket(
     entryCostUsd > 0 ? (unrealizedPnlUsd / entryCostUsd) * 100 : null;
 
   const netEquityUsd = markValueUsd - borrowedUsd;
+  // Match on-chain ltv::evaluate_account_health: collateral vs debt (mark value / borrow).
   const healthBps =
-    positionSizeUsd > 0
-      ? Math.round((netEquityUsd / positionSizeUsd) * 10_000)
-      : null;
+    borrowedUsd > 0
+      ? Math.round((markValueUsd / borrowedUsd) * 10_000)
+      : positionSizeUsd > 0
+        ? 100_000
+        : null;
 
   let healthLabel: PositionMarkToMarket["healthLabel"] = "unknown";
   if (healthBps != null) {

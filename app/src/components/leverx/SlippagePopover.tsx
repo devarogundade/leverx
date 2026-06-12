@@ -63,21 +63,21 @@ export function SlippagePopover({
               type="button"
               className={cn(
                 pillToggleBtn,
-                limitExecution === "immediate" ? pillToggleActive : pillToggleIdle,
-              )}
-              onClick={() => onLimitExecutionChange("immediate")}
-            >
-              Fill now
-            </button>
-            <button
-              type="button"
-              className={cn(
-                pillToggleBtn,
                 limitExecution === "resting" ? pillToggleActive : pillToggleIdle,
               )}
               onClick={() => onLimitExecutionChange("resting")}
             >
               Resting
+            </button>
+            <button
+              type="button"
+              className={cn(
+                pillToggleBtn,
+                limitExecution === "immediate" ? pillToggleActive : pillToggleIdle,
+              )}
+              onClick={() => onLimitExecutionChange("immediate")}
+            >
+              Fill now
             </button>
           </div>
         </div>

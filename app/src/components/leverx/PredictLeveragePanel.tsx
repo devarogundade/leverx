@@ -88,6 +88,11 @@ interface Props {
   lastAskPremium?: number;
   /** Set when oracle has settled — blocks new orders */
   disabled?: boolean;
+  /** Called after a trade tx succeeds (e.g. switch to Open Orders on resting limit). */
+  onTradeSuccess?: (meta: {
+    orderType: OrderType;
+    limitExecution: LimitExecutionMode;
+  }) => void;
 }
 
 const ORDER_TYPES: readonly OrderType[] = ["market", "limit"];
@@ -102,6 +107,7 @@ export function PredictLeveragePanel({
   upperStrikeRaw,
   lastAskPremium,
   disabled = false,
+  onTradeSuccess,
 }: Props) {
   const { isWalletConnected, address } = useWallet();
   const { openTrade, isProtocolReady, formatTxError } = useLeverxTransactions();
@@ -119,7 +125,7 @@ export function PredictLeveragePanel({
   const [placementSlippagePct, setPlacementSlippagePct] = useState(5);
   const [orderExpiresHours, setOrderExpiresHours] =
     useState<LimitOrderExpiryHours>(DEFAULT_LIMIT_ORDER_EXPIRY_HOURS);
-  const [limitExecution, setLimitExecution] = useState<LimitExecutionMode>("immediate");
+  const [limitExecution, setLimitExecution] = useState<LimitExecutionMode>("resting");
   const { data: protocol } = useIndexerProtocol();
   const tradeContextKey = `${oracleId}:${side}`;
 
@@ -133,7 +139,7 @@ export function PredictLeveragePanel({
     setLeverage(DEFAULT_LEVERAGE);
     setPlacementSlippagePct(5);
     setOrderExpiresHours(DEFAULT_LIMIT_ORDER_EXPIRY_HOURS);
-    setLimitExecution("immediate");
+    setLimitExecution("resting");
     setTpSl(false);
     setTp("");
     setSl("");
@@ -207,8 +213,8 @@ export function PredictLeveragePanel({
   );
 
   const submitLabel = useMemo(
-    () => tradeCtaLabel({ side, orderType, needsDeposit }),
-    [side, orderType, needsDeposit],
+    () => tradeCtaLabel({ side, orderType, limitExecution, needsDeposit }),
+    [side, orderType, limitExecution, needsDeposit],
   );
 
   const quoteBalanceLabel = useMemo(() => {
@@ -521,6 +527,7 @@ export function PredictLeveragePanel({
         onSuccess: () => {
           setMargin("");
           setTxError(null);
+          onTradeSuccess?.({ orderType, limitExecution });
         },
       },
     );

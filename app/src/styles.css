@@ -703,8 +703,6 @@ select {
     position: sticky;
     top: calc(var(--site-header-h) + var(--trade-gap));
     z-index: 1;
-    max-height: calc(100dvh - var(--site-header-h) - var(--space-8));
-    overflow-y: auto;
   }
 
   .trade-terminal-positions {

@@ -14,6 +14,7 @@ import { usePositionsMarkToMarket } from "@/hooks/usePositionsMarkToMarket";
 import { pageTitle } from "@/lib/brand";
 import { ui } from "@/lib/copy";
 import { aggregatePortfolioSummary } from "@/lib/leverx/portfolio-summary";
+import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
 import { pageSimple, pageSimpleTitle } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
 import { loadAppShell } from "@/lib/router/route-loaders";
@@ -57,16 +58,21 @@ function PortfolioPage() {
     isFetched: ordersFetched,
   } = useIndexerLimitOrders(address ?? undefined);
 
-  const { byPositionId } = usePositionsMarkToMarket(openPositions);
+  const activeOpenPositions = useMemo(
+    () => openPositions.filter(isActiveOpenPosition),
+    [openPositions],
+  );
+
+  const { byPositionId } = usePositionsMarkToMarket(activeOpenPositions);
 
   const account = accounts[0];
   const isLoading = accountsLoading || openLoading || closedLoading || ordersLoading;
   const statsReady = accountsFetched && openFetched && closedFetched && ordersFetched && !isLoading;
 
   const summary = useMemo(() => {
-    if (openPositions.length === 0) return null;
-    return aggregatePortfolioSummary(openPositions, byPositionId);
-  }, [openPositions, byPositionId]);
+    if (activeOpenPositions.length === 0) return null;
+    return aggregatePortfolioSummary(activeOpenPositions, byPositionId);
+  }, [activeOpenPositions, byPositionId]);
 
   return (
     <section className={cn(pageSimple, "mx-auto max-w-[var(--page-max)] animate-page-in")}>
@@ -87,14 +93,14 @@ function PortfolioPage() {
           title="Connect for portfolio"
           description="Connect your wallet to see your trades, orders, and account settings."
         />
-      ) : isLoading && !account && openPositions.length === 0 ? (
+      ) : isLoading && !account && activeOpenPositions.length === 0 ? (
         <SurfaceSkeleton lines={6} />
       ) : (
         <div className="space-y-4">
-          <PortfolioSummaryBar summary={summary} loading={!statsReady && openPositions.length > 0} />
+          <PortfolioSummaryBar summary={summary} loading={!statsReady && activeOpenPositions.length > 0} />
 
           <PortfolioWorkspace
-            openPositions={openPositions}
+            openPositions={activeOpenPositions}
             closedPositions={closedPositions}
             limitOrders={limitOrders}
             account={account ?? null}

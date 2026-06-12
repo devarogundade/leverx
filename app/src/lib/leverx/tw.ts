@@ -307,7 +307,6 @@ export const tradeTerminalSidebar = cn(
   "md:col-span-2 md:row-start-2",
   "lg:order-none lg:col-span-1 lg:col-start-3 lg:row-span-2 lg:row-start-1 lg:w-[var(--trade-sidebar-w)] lg:self-start",
   "lg:sticky lg:top-[calc(var(--site-header-h)+var(--trade-gap))] lg:z-[1]",
-  "lg:max-h-[calc(100dvh-var(--site-header-h)-var(--space-8))] lg:overflow-y-auto",
 );
 
 export const tradeTerminalPositions = cn(

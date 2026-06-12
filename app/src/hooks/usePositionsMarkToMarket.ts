@@ -6,6 +6,7 @@ import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { positionKeyFromArgs } from "@/lib/leverx/market-keys";
 import {
   computePositionMarkToMarket,
+  isActiveOpenPosition,
   positionRowId,
   type PositionMarkToMarket,
 } from "@/lib/leverx/position-metrics";
@@ -27,7 +28,7 @@ export function usePositionsMarkToMarket(positions: readonly LeveragedPosition[]
   const cfg = useLeverxProtocolConfig();
 
   const openPositions = useMemo(
-    () => positions.filter((p) => p.status === "open" && p.open_quantity > 0),
+    () => positions.filter(isActiveOpenPosition),
     [positions],
   );
 

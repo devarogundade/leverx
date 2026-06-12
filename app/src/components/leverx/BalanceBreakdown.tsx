@@ -1,8 +1,10 @@
+import { useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import { ChevronDown, Wallet } from "lucide-react";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { leverxInfo } from "@/lib/leverx/info-copy";
+import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
 import { useWallet } from "@/context/WalletContext";
 import { useIndexerAccounts, useIndexerPositions } from "@/hooks/useIndexer";
 import { ui } from "@/lib/copy";
@@ -51,11 +53,16 @@ export function BalanceBreakdown({ className }: Props) {
   const ready =
     isWalletConnected && accountsFetched && positionsFetched && !accountsLoading && !positionsLoading;
 
+  const activePositions = useMemo(
+    () => positions.filter(isActiveOpenPosition),
+    [positions],
+  );
+
   const margin = ready
-    ? positions.reduce((sum, p) => sum + scaleQuote(p.margin_quote), 0)
+    ? activePositions.reduce((sum, p) => sum + scaleQuote(p.margin_quote), 0)
     : null;
   const borrowed = ready ? scaleQuote(accounts[0]?.borrowed_quote ?? 0) : null;
-  const positionCount = ready ? positions.length : null;
+  const positionCount = ready ? activePositions.length : null;
 
   const pillLabel = !isWalletConnected
     ? DATA_PLACEHOLDER

@@ -1,4 +1,5 @@
 import type { PredictSide } from "@/lib/predict/instruments";
+import type { LimitExecutionMode } from "@/lib/leverx/transactions";
 import { marginUsdToQuoteAtoms } from "@/lib/leverx/trade-math";
 
 export type TradeOrderType = "market" | "limit";
@@ -12,18 +13,28 @@ const sideCtaLabel: Record<PredictSide, string> = {
 export function tradeActionLabel(
   side: PredictSide,
   orderType: TradeOrderType,
+  limitExecution: LimitExecutionMode = "resting",
 ): string {
   const sideLabel = sideCtaLabel[side];
-  if (orderType === "limit") return `Place ${sideLabel} limit`;
+  if (orderType === "limit") {
+    return limitExecution === "immediate"
+      ? `Fill ${sideLabel} limit now`
+      : `Place ${sideLabel} limit`;
+  }
   return `Open ${sideLabel}`;
 }
 
 export function tradeCtaLabel(args: {
   side: PredictSide;
   orderType: TradeOrderType;
+  limitExecution?: LimitExecutionMode;
   needsDeposit: boolean;
 }): string {
-  const action = tradeActionLabel(args.side, args.orderType);
+  const action = tradeActionLabel(
+    args.side,
+    args.orderType,
+    args.limitExecution ?? "resting",
+  );
   return args.needsDeposit ? `Deposit and ${action}` : action;
 }
 

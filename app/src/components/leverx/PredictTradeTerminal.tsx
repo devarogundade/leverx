@@ -47,6 +47,7 @@ import {
   formatUsdcOrPlaceholder,
 } from "@/lib/leverx/placeholders";
 import { summarizeGlobalTrades } from "@/lib/leverx/trade-stats";
+import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
 import { formatCount, ui } from "@/lib/copy";
 import { formatRangeStrikes, type PredictSide } from "@/lib/predict/instruments";
 import { isOracleSettledForTrade } from "@/lib/predict/oracles";
@@ -487,6 +488,32 @@ export function PredictTradeTerminal({ oracleId }: Props) {
     oracleId,
   );
 
+  const displayPositions = useMemo(
+    () =>
+      positionsFilter === "open"
+        ? positions.filter(isActiveOpenPosition)
+        : positions,
+    [positions, positionsFilter],
+  );
+
+  const handleTradeSuccess = useMemo(
+    () =>
+      ({
+        orderType,
+        limitExecution,
+      }: {
+        orderType: "market" | "limit";
+        limitExecution: "immediate" | "resting";
+      }) => {
+        if (orderType === "limit" && limitExecution === "resting") {
+          setActiveTab("Open Orders");
+        } else if (orderType === "market" || limitExecution === "immediate") {
+          setActiveTab("Positions");
+        }
+      },
+    [setActiveTab],
+  );
+
   const asset = chartAsset || market?.asset || oracleId.slice(2, 6).toUpperCase();
   const expiry = market?.expiry ?? oracleSummary?.expiry ?? oracleState?.expiry;
   const isOracleExpired =
@@ -578,7 +605,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
     setPositionsFilter,
     address: address ?? null,
     positionsLoading,
-    positions,
+    positions: displayPositions,
     ordersLoading,
     limitOrders,
     vaultSummary,
@@ -701,6 +728,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
               upperStrikeRaw={rangeUpper}
               lastAskPremium={market?.lastAskPremium ?? undefined}
               disabled={isOracleSettled || isOracleExpired}
+              onTradeSuccess={handleTradeSuccess}
             />
           </div>
           <TradePositionsPanel {...positionsPanelProps} />
@@ -745,6 +773,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
               upperStrikeRaw={rangeUpper}
               lastAskPremium={market?.lastAskPremium ?? undefined}
               disabled={isOracleSettled || isOracleExpired}
+              onTradeSuccess={handleTradeSuccess}
             />
           </div>
           <TradePositionsPanel {...positionsPanelProps} />
