@@ -28,25 +28,41 @@ export type RedeemQuote = {
   expectedPayout: bigint;
 };
 
-function parseU64(bytes: number[]): bigint {
+type ReturnValueBytes = number[] | Uint8Array | string;
+
+function toU8(raw: ReturnValueBytes): Uint8Array {
+  if (typeof raw === "string") {
+    const bin = atob(raw);
+    return Uint8Array.from(bin, (c) => c.charCodeAt(0));
+  }
+  if (raw instanceof Uint8Array) return raw;
+  return Uint8Array.from(raw);
+}
+
+/** Parse the first 8 BCS bytes as little-endian u64. */
+function parseU64(raw: ReturnValueBytes): bigint {
+  const bytes = toU8(raw);
+  const len = Math.min(bytes.length, 8);
   let value = 0n;
-  for (let i = 0; i < bytes.length; i++) {
+  for (let i = 0; i < len; i++) {
     value += BigInt(bytes[i] ?? 0) << BigInt(8 * i);
   }
   return value;
 }
 
 function findReturnTuple(
-  results: Array<{ returnValues?: Array<[number[], string]> }> | null | undefined,
+  results: Array<{ returnValues?: Array<[ReturnValueBytes, string]> }> | null | undefined,
   count: number,
 ): bigint[] | null {
+  // PTBs often include helper calls (e.g. market_key::new) before the read; use the last match.
+  let found: bigint[] | null = null;
   for (const result of results ?? []) {
     const values = result.returnValues;
     if (values && values.length >= count) {
-      return values.slice(0, count).map(([bytes]) => parseU64(bytes));
+      found = values.slice(0, count).map(([bytes]) => parseU64(bytes));
     }
   }
-  return null;
+  return found;
 }
 
 async function devInspectMarketAsk(params: {

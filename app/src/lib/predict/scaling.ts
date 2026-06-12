@@ -12,6 +12,15 @@ export function scaleQuote(value: number | null | undefined): number {
   return value / Number(QUOTE_UNIT);
 }
 
+/** On-chain quote atoms (6-decimal dUSDC) → USD without `Number(bigint)` precision loss. */
+export function scaleQuoteAtoms(atoms: bigint): number {
+  if (atoms <= 0n) return 0;
+  const whole = atoms / QUOTE_UNIT;
+  const frac = atoms % QUOTE_UNIT;
+  const usd = Number(whole) + Number(frac) / Number(QUOTE_UNIT);
+  return Number.isFinite(usd) ? usd : 0;
+}
+
 /** Token amounts from on-chain atom counts. */
 export function scaleAtoms(value: number | null | undefined, decimals: number): number {
   if (value == null || value <= 0) return 0;

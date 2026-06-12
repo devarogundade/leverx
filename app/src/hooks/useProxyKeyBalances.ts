@@ -5,6 +5,11 @@ import { useLeverxProtocolConfig } from "@/hooks/useLeverxTransactions";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import type { MarketKeyArgs } from "@/lib/leverx/market-keys";
 import { fetchKeyQuoteBalance } from "@/lib/leverx/quotes";
+import { MAX_MARGIN_USD } from "@/lib/leverx/trade-limits";
+import { QUOTE_UNIT } from "@/lib/predict/constants";
+
+/** Reject devInspect garbage — no single key should hold more than max leveraged notional. */
+const MAX_KEY_BALANCE_ATOMS = BigInt(Math.ceil(MAX_MARGIN_USD * 10 * 10)) * QUOTE_UNIT;
 
 export type ProxyKeyBalanceRow = {
   position: LeveragedPosition;
@@ -56,12 +61,15 @@ export function useProxyKeyBalances(
       ],
       queryFn: async (): Promise<ProxyKeyBalanceRow> => {
         const key = positionToKey(position);
-        const balanceAtoms = await fetchKeyQuoteBalance({
+        let balanceAtoms = await fetchKeyQuoteBalance({
           client,
           packageId: cfg!.packageId,
           accountId: accountId!,
           key,
         });
+        if (balanceAtoms > MAX_KEY_BALANCE_ATOMS) {
+          balanceAtoms = 0n;
+        }
         return { position, key, balanceAtoms };
       },
       enabled: Boolean(cfg?.packageId && accountId),

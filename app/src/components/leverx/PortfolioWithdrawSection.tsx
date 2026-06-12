@@ -11,7 +11,7 @@ import { showTxError, showTxSuccess } from "@/lib/toast";
 import { assetLabelForOracleId } from "@/lib/predict/oracles";
 import { predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
 import { usePredictOracleRows } from "@/hooks/usePredictOracles";
-import { scaleQuote } from "@/lib/predict/scaling";
+import { scaleQuoteAtoms } from "@/lib/predict/scaling";
 import { marginUsdToQuoteAtoms } from "@/lib/leverx/trade-math";
 import {
   inputInField,
@@ -45,7 +45,7 @@ export function PortfolioWithdrawSection({ accountId, positions, className }: Pr
   const [amountUsd, setAmountUsd] = useState("");
 
   const activeRow = rows.find((r) => r.position.position_key === activeKey) ?? null;
-  const maxUsd = activeRow ? scaleQuote(Number(activeRow.balanceAtoms)) : 0;
+  const maxUsd = activeRow ? scaleQuoteAtoms(activeRow.balanceAtoms) : 0;
   const amountNum = parseFloat(amountUsd) || 0;
   const amountInvalid = !Number.isFinite(amountNum) || amountNum <= 0 || amountNum > maxUsd + 1e-6;
 
@@ -70,7 +70,7 @@ export function PortfolioWithdrawSection({ accountId, positions, className }: Pr
           <ul className={settingsList}>
             {rows.map((row) => {
               const asset = assetLabelForOracleId(row.position.oracle_id, oracles);
-              const balanceUsd = scaleQuote(Number(row.balanceAtoms));
+              const balanceUsd = scaleQuoteAtoms(row.balanceAtoms);
               const isOpen = activeKey === row.position.position_key;
 
               return (
