@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { LeverageSlider } from "@/components/leverx/LeverageSlider";
@@ -126,27 +126,34 @@ export function PredictLeveragePanel({
   const [orderExpiresHours, setOrderExpiresHours] =
     useState<LimitOrderExpiryHours>(DEFAULT_LIMIT_ORDER_EXPIRY_HOURS);
   const [limitExecution, setLimitExecution] = useState<LimitExecutionMode>("resting");
+  const [tpSl, setTpSl] = useState(false);
+  const [tp, setTp] = useState("");
+  const [sl, setSl] = useState("");
   const { data: protocol } = useIndexerProtocol();
   const { data: leverxAccounts = [] } = useIndexerAccounts(address ?? undefined);
   const hasLinkedManager = Boolean(leverxAccounts[0]?.predict_manager_id);
   const tradeContextKey = `${oracleId}:${side}`;
 
+  const resetTradeInputs = useCallback(() => {
+    setMargin("");
+    setLimitPrice("");
+    setTpSl(false);
+    setTp("");
+    setSl("");
+    setLowerStrike(lowerStrikeRaw ? String(lowerStrikeRaw / 1e9) : "");
+    setUpperStrike(upperStrikeRaw ? String(upperStrikeRaw / 1e9) : "");
+  }, [lowerStrikeRaw, upperStrikeRaw]);
+
   useEffect(() => {
     setTxError(null);
     setOrderType("market");
-    setLimitPrice("");
-    setLowerStrike(lowerStrikeRaw ? String(lowerStrikeRaw / 1e9) : "");
-    setUpperStrike(upperStrikeRaw ? String(upperStrikeRaw / 1e9) : "");
-    setMargin("");
+    resetTradeInputs();
     setLeverage(DEFAULT_LEVERAGE);
     setPlacementSlippagePct(5);
     setOrderExpiresHours(DEFAULT_LIMIT_ORDER_EXPIRY_HOURS);
     setLimitExecution("resting");
-    setTpSl(false);
-    setTp("");
-    setSl("");
     // Only reset the trade form when the user changes market or outcome — not on background catalog refreshes.
-  }, [tradeContextKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tradeContextKey, resetTradeInputs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (orderType !== "limit") return;
@@ -159,9 +166,6 @@ export function PredictLeveragePanel({
     });
   }, [orderType, tradeContextKey, lastAskPremium]);
   const { data: walletQuoteBalance } = useWalletCoinBalance(appConfig.quoteType, 6);
-  const [tpSl, setTpSl] = useState(false);
-  const [tp, setTp] = useState("");
-  const [sl, setSl] = useState("");
 
   const lev = leverage;
   const marginNum = parseFloat(margin) || 0;
@@ -534,8 +538,8 @@ export function PredictLeveragePanel({
       {
         onError: (err) => setTxError(formatTxError(err)),
         onSuccess: () => {
-          setMargin("");
           setTxError(null);
+          resetTradeInputs();
           onTradeSuccess?.({ orderType, limitExecution });
         },
       },

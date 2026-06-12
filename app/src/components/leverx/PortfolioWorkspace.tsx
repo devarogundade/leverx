@@ -62,7 +62,7 @@ export function PortfolioWorkspace({
 
   return (
     <div className={cn(tradeSurface, className)}>
-      <div className="border-b border-border px-3 pt-2 sm:px-4">
+      <div className="px-3 pt-2 sm:px-4">
         <UnderlineTabs
           value={tab}
           onValueChange={(v) => setTab(v as PortfolioTab)}
