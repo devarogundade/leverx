@@ -8,6 +8,7 @@ import { WalletConnectButton } from "@/components/WalletConnectButton";
 import { useWalletCoinBalance } from "@/hooks/useWalletCoinBalance";
 import { useWallet } from "@/context/WalletContext";
 import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
+import { showTxError, showTxSuccess } from "@/lib/toast";
 import { appConfig } from "@/lib/config";
 import { lxplpCoinType } from "@/lib/leverx/protocol";
 import { formatCollateralAmount } from "@/lib/predict/quote-assets";
@@ -36,10 +37,8 @@ interface Props {
 export function PredictVaultLiquidityPanel({ vaultNav, vaultId, className }: Props) {
   const [action, setAction] = useState<VaultAction>("supply");
   const [amount, setAmount] = useState("");
-  const [txError, setTxError] = useState<string | null>(null);
   const { isWalletConnected, address } = useWallet();
-  const { vaultSupply, vaultWithdraw, isProtocolReady, formatTxError, cfg } =
-    useLeverxTransactions();
+  const { vaultSupply, vaultWithdraw, isProtocolReady, cfg } = useLeverxTransactions();
 
   const quoteType = appConfig.quoteType;
   const lxplpType = cfg ? lxplpCoinType(cfg.packageId) : null;
@@ -53,7 +52,6 @@ export function PredictVaultLiquidityPanel({ vaultNav, vaultId, className }: Pro
 
   useEffect(() => {
     setAmount("");
-    setTxError(null);
   }, [action]);
 
   const symbol = action === "supply" ? "DUSDC" : "lxPLP";
@@ -86,18 +84,23 @@ export function PredictVaultLiquidityPanel({ vaultNav, vaultId, className }: Pro
 
   const handleSubmit = () => {
     if (amountNum <= 0 || !isProtocolReady) return;
-    setTxError(null);
     const atoms = BigInt(Math.round(amountNum * Number(QUOTE_UNIT)));
 
     if (action === "supply") {
       vaultSupply.mutate(atoms, {
-        onError: (err) => setTxError(formatTxError(err)),
-        onSuccess: () => setAmount(""),
+        onError: showTxError,
+        onSuccess: () => {
+          showTxSuccess("Liquidity supplied");
+          setAmount("");
+        },
       });
     } else {
       vaultWithdraw.mutate(atoms, {
-        onError: (err) => setTxError(formatTxError(err)),
-        onSuccess: () => setAmount(""),
+        onError: showTxError,
+        onSuccess: () => {
+          showTxSuccess("Liquidity withdrawn");
+          setAmount("");
+        },
       });
     }
   };
@@ -179,8 +182,6 @@ export function PredictVaultLiquidityPanel({ vaultNav, vaultId, className }: Pro
             <InfoPopover title="Setup">{leverxInfo.protocolNotConfigured}</InfoPopover>
           </p>
         ) : null}
-        {txError ? <p className="text-xs text-destructive">{txError}</p> : null}
-
         {isWalletConnected ? (
           <button
             type="button"

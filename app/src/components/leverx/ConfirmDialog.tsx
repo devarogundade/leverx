@@ -16,7 +16,6 @@ interface Props {
   disabled?: boolean;
   onConfirm: () => void;
   children?: ReactNode;
-  error?: string | null;
 }
 
 export function ConfirmDialog({
@@ -31,7 +30,6 @@ export function ConfirmDialog({
   disabled = false,
   onConfirm,
   children,
-  error,
 }: Props) {
   return (
     <ResponsiveModal open={open} onOpenChange={onOpenChange} title={title} description={description}>
@@ -60,7 +58,6 @@ export function ConfirmDialog({
           {pending ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : confirmLabel}
         </button>
       </div>
-      {error ? <p className="mt-3 text-xs text-destructive">{error}</p> : null}
     </ResponsiveModal>
   );
 }

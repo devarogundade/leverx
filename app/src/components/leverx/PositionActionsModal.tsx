@@ -6,6 +6,7 @@ import { InfoPopover } from "@/components/leverx/InfoPopover";
 import { Input } from "@/components/ui/input";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
+import { showTxError, showTxSuccess } from "@/lib/toast";
 import { usePredictOracleRows } from "@/hooks/usePredictOracles";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
@@ -54,14 +55,12 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
     settleExpired,
     repayDebt,
     isProtocolReady,
-    formatTxError,
   } = useLeverxTransactions();
 
   const [view, setView] = useState<ActionView>("menu");
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [limitCents, setLimitCents] = useState("");
   const [repayUsd, setRepayUsd] = useState("");
-  const [txError, setTxError] = useState<string | null>(null);
 
   const pending =
     closePosition.isPending || settleExpired.isPending || repayDebt.isPending;
@@ -81,7 +80,6 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
   const reset = () => {
     setView("menu");
     setConfirmAction(null);
-    setTxError(null);
   };
 
   const closeModal = () => {
@@ -89,8 +87,11 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
     window.setTimeout(reset, 200);
   };
 
-  const onError = (err: unknown) => setTxError(formatTxError(err));
-  const onSuccess = () => closeModal();
+  const onError = showTxError;
+  const onSuccess = (message: string) => {
+    showTxSuccess(message);
+    closeModal();
+  };
 
   const asset = assetLabelForOracleId(position.oracle_id, oracles);
   const side = predictSideLabel[sideFromIsUp(position.is_up)];
@@ -124,10 +125,7 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
           <button
             type="button"
             className="mb-3 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => {
-              setView("menu");
-              setTxError(null);
-            }}
+            onClick={() => setView("menu")}
           >
             <ChevronLeft className="h-3.5 w-3.5" />
             Back
@@ -143,10 +141,7 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
                 hint="Redeem now at the best available bid"
                 info={leverxInfo.closeMarket}
                 disabled={!isProtocolReady || pending || !hasOpenQuantity}
-                onClick={() => {
-                  setTxError(null);
-                  setConfirmAction("market_close");
-                }}
+                onClick={() => setConfirmAction("market_close")}
               />
               <ActionButton
                 label="Close at limit"
@@ -170,10 +165,7 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
                   hint="Redeem after oracle settlement"
                   info={leverxInfo.settleExpired}
                   disabled={!isProtocolReady || pending || !hasOpenQuantity}
-                  onClick={() => {
-                    setTxError(null);
-                    setConfirmAction("settle");
-                  }}
+                  onClick={() => setConfirmAction("settle")}
                 />
               ) : null}
             </div>
@@ -212,7 +204,10 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
                     redeemMode: "limit",
                     minPremiumPerUnit: centsToPremiumRaw(cents),
                   },
-                  { onError, onSuccess },
+                  {
+                    onError,
+                    onSuccess: () => onSuccess("Position closed at limit"),
+                  },
                 );
               }}
             >
@@ -253,7 +248,10 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
                 if (!Number.isFinite(usd) || usd <= 0 || usd > borrowedUsd + 1e-6) return;
                 repayDebt.mutate(
                   { position, amountAtoms: marginUsdToQuoteAtoms(usd) },
-                  { onError, onSuccess },
+                  {
+                    onError,
+                    onSuccess: () => onSuccess("Debt repaid"),
+                  },
                 );
               }}
             >
@@ -266,7 +264,6 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
           </div>
         ) : null}
 
-        {txError ? <p className="mt-3 text-xs text-destructive">{txError}</p> : null}
       </ResponsiveModal>
 
       <ConfirmDialog
@@ -284,14 +281,13 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
             { position, redeemMode: "market" },
             {
               onError: (err) => {
-                setTxError(formatTxError(err));
+                showTxError(err);
                 setConfirmAction(null);
               },
-              onSuccess,
+              onSuccess: () => onSuccess("Position closed at market"),
             },
           )
         }
-        error={txError}
       >
         <PositionDetailGrid position={position} />
       </ConfirmDialog>
@@ -309,13 +305,12 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
         onConfirm={() =>
           settleExpired.mutate(position, {
             onError: (err) => {
-              setTxError(formatTxError(err));
+              showTxError(err);
               setConfirmAction(null);
             },
-            onSuccess,
+            onSuccess: () => onSuccess("Expired position settled"),
           })
         }
-        error={txError}
       >
         <PositionDetailGrid position={position} />
       </ConfirmDialog>

@@ -11,6 +11,7 @@ import {
   useIndexerTriggers,
 } from "@/hooks/useIndexer";
 import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
+import { showTxError, showTxSuccess } from "@/lib/toast";
 import type { LeveragedPosition, UserProxy } from "@/lib/leverx/indexer-client";
 import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
 import { premiumRawToCents } from "@/lib/leverx/trade-math";
@@ -82,7 +83,6 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
     revokeExecutor,
     linkManager,
     isProtocolReady,
-    formatTxError,
   } = useLeverxTransactions();
 
   const [managerOpen, setManagerOpen] = useState(false);
@@ -92,7 +92,6 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
 
   const [managerId, setManagerId] = useState(account.predict_manager_id ?? "");
   const [executorAddress, setExecutorAddress] = useState("");
-  const [txError, setTxError] = useState<string | null>(null);
 
   const managerValid = !managerId || isValidSuiAddress(managerId);
   const executorValid = !executorAddress || isValidSuiAddress(executorAddress);
@@ -109,7 +108,6 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
             className={cn(pillToggleBtn, pillToggleIdle, "gap-1 px-2.5 text-xs")}
             onClick={() => {
               setManagerId(account.predict_manager_id ?? "");
-              setTxError(null);
               setManagerOpen(true);
             }}
           >
@@ -149,7 +147,6 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
             className={cn(pillToggleBtn, pillToggleIdle, "gap-1 px-2.5 text-xs")}
             onClick={() => {
               setExecutorAddress("");
-              setTxError(null);
               setExecutorOpen(true);
             }}
           >
@@ -289,15 +286,17 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
               linkManager.mutate(
                 { accountId, managerId },
                 {
-                  onSuccess: () => setManagerOpen(false),
-                  onError: (e) => setTxError(formatTxError(e)),
+                  onSuccess: () => {
+                    showTxSuccess("Predict manager linked");
+                    setManagerOpen(false);
+                  },
+                  onError: showTxError,
                 },
               )
             }
           >
             {linkManager.isPending ? "Linking…" : "Confirm link"}
           </button>
-          {txError ? <p className="text-xs text-destructive">{txError}</p> : null}
         </div>
       </ResponsiveModal>
 
@@ -331,17 +330,17 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
                 { accountId, executor: executorAddress },
                 {
                   onSuccess: () => {
+                    showTxSuccess("Trusted trader registered");
                     setExecutorOpen(false);
                     setExecutorAddress("");
                   },
-                  onError: (e) => setTxError(formatTxError(e)),
+                  onError: showTxError,
                 },
               )
             }
           >
             {registerExecutor.isPending ? "Registering…" : "Confirm registration"}
           </button>
-          {txError ? <p className="text-xs text-destructive">{txError}</p> : null}
         </div>
       </ResponsiveModal>
 
@@ -360,8 +359,11 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
           revokeExecutor.mutate(
             { accountId, executor: revokeTarget },
             {
-              onSuccess: () => setRevokeTarget(null),
-              onError: (e) => setTxError(formatTxError(e)),
+              onSuccess: () => {
+                showTxSuccess("Trusted trader revoked");
+                setRevokeTarget(null);
+              },
+              onError: showTxError,
             },
           );
         }}
@@ -394,8 +396,11 @@ export function PortfolioAccountPanel({ account, owner, positions = [], classNam
               },
             },
             {
-              onSuccess: () => setClearTriggerTarget(null),
-              onError: (e) => setTxError(formatTxError(e)),
+              onSuccess: () => {
+                showTxSuccess("Auto-exit rules cleared");
+                setClearTriggerTarget(null);
+              },
+              onError: showTxError,
             },
           );
         }}

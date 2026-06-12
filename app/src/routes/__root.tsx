@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { APP_NAME } from "../lib/brand";
 import { IndexerStreamProvider } from "../context/IndexerStreamContext";
 import { PredictOracleProvider } from "../context/PredictOracleContext";
+import { Toaster } from "@/components/ui/sonner";
 import { WalletProvider } from "../context/WalletContext";
 import { ensurePredictOracles } from "@/lib/router/route-loaders";
 import { routePendingOptions } from "@/lib/router/route-options";
@@ -147,6 +148,7 @@ function RootComponent() {
               {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
               <Outlet />
             </div>
+            <Toaster position="bottom-right" richColors closeButton />
           </WalletProvider>
         </IndexerStreamProvider>
       </PredictOracleProvider>

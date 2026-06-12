@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ResponsiveModal } from "@/components/leverx/ResponsiveModal";
 import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
+import { showTxError, showTxSuccess } from "@/lib/toast";
 import type { LimitMintOrder } from "@/lib/leverx/indexer-client";
 import { formatPremiumCents } from "@/lib/leverx/indexer-markets";
 import { predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
@@ -15,19 +16,20 @@ interface Props {
 }
 
 export function CancelOrderTrigger({ order, className }: Props) {
-  const { cancelLimitOrder, isProtocolReady, formatTxError } = useLeverxTransactions();
+  const { cancelLimitOrder, isProtocolReady } = useLeverxTransactions();
   const [open, setOpen] = useState(false);
-  const [txError, setTxError] = useState<string | null>(null);
 
   const pending = cancelLimitOrder.isPending;
   const disabled = !isProtocolReady || order.status !== "open" || pending;
   const side = predictSideLabel[sideFromIsUp(order.is_up)];
 
   const confirm = () => {
-    setTxError(null);
     cancelLimitOrder.mutate(order, {
-      onError: (err) => setTxError(formatTxError(err)),
-      onSuccess: () => setOpen(false),
+      onError: showTxError,
+      onSuccess: () => {
+        showTxSuccess("Order cancelled");
+        setOpen(false);
+      },
     });
   };
 
@@ -80,7 +82,6 @@ export function CancelOrderTrigger({ order, className }: Props) {
             {pending ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : "Cancel order"}
           </button>
         </div>
-        {txError ? <p className="mt-3 text-xs text-destructive">{txError}</p> : null}
       </ResponsiveModal>
     </>
   );

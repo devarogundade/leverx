@@ -20,6 +20,7 @@ import {
 import { WalletConnectButton } from "@/components/WalletConnectButton";
 import { useWallet } from "@/context/WalletContext";
 import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
+import { showTxError, showTxSuccess } from "@/lib/toast";
 import { predictSideLabel, type PredictSide } from "@/lib/predict/instruments";
 import {
   DEFAULT_LIMIT_ORDER_EXPIRY_HOURS,
@@ -110,8 +111,7 @@ export function PredictLeveragePanel({
   onTradeSuccess,
 }: Props) {
   const { isWalletConnected, address } = useWallet();
-  const { openTrade, isProtocolReady, formatTxError } = useLeverxTransactions();
-  const [txError, setTxError] = useState<string | null>(null);
+  const { openTrade, isProtocolReady } = useLeverxTransactions();
   const [orderType, setOrderType] = useState<OrderType>("market");
   const [limitPrice, setLimitPrice] = useState("");
   const [lowerStrike, setLowerStrike] = useState(
@@ -146,7 +146,6 @@ export function PredictLeveragePanel({
 
   // Reset only when the user changes market or outcome — not when catalog/oracle props refetch.
   useEffect(() => {
-    setTxError(null);
     setOrderType("market");
     setMargin("");
     setLimitPrice("");
@@ -501,7 +500,6 @@ export function PredictLeveragePanel({
 
   const handleSubmit = () => {
     if (!canSubmit || !expiryMs) return;
-    setTxError(null);
 
     const resolvedLower = isRange
       ? lowerStrikeRaw ?? strikeUsdToRaw(parseFloat(lowerStrike))
@@ -545,9 +543,13 @@ export function PredictLeveragePanel({
         slPremium: slPremium > 0n ? slPremium : undefined,
       },
       {
-        onError: (err) => setTxError(formatTxError(err)),
+        onError: showTxError,
         onSuccess: () => {
-          setTxError(null);
+          showTxSuccess(
+            orderType === "limit" && limitExecution === "resting"
+              ? "Limit order placed"
+              : "Trade submitted",
+          );
           resetTradeInputs();
           onTradeSuccess?.({ orderType, limitExecution });
         },
@@ -879,7 +881,6 @@ export function PredictLeveragePanel({
             {err}
           </p>
         ))}
-        {txError ? <p className="text-xs text-destructive">{txError}</p> : null}
         {isWalletConnected ? (
           <button
             type="button"

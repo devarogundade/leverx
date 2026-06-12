@@ -14,6 +14,7 @@ import {
   type WalletWithRequiredFeatures,
 } from "@mysten/wallet-standard";
 import type { WalletAccount } from "@wallet-standard/core";
+import { showError } from "@/lib/toast";
 import { suiClient } from "@/lib/sui/client";
 import { getWalletAccount, listSuiWallets } from "@/lib/sui/wallets";
 import type { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
@@ -33,7 +34,6 @@ interface WalletContextValue {
   isWalletConnected: boolean;
   simulationSender: string;
   connecting: boolean;
-  error: string | null;
   connect: (wallet: WalletWithRequiredFeatures) => Promise<void>;
   disconnect: () => Promise<void>;
   refreshWallets: () => void;
@@ -57,7 +57,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [wallet, setWallet] = useState<WalletWithRequiredFeatures | null>(null);
   const [account, setAccount] = useState<WalletAccount | null>(null);
   const [connecting, setConnecting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const autoConnectInFlight = useRef(false);
 
   const refreshWallets = useCallback(() => {
@@ -94,7 +93,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const connect = useCallback(async (target: WalletWithRequiredFeatures) => {
     setConnecting(true);
-    setError(null);
     try {
       const result = await target.features["standard:connect"].connect({
         silent: false,
@@ -115,7 +113,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not connect wallet");
+      showError(e instanceof Error ? e.message : "Could not connect wallet");
       setWallet(null);
       setAccount(null);
     } finally {
@@ -124,7 +122,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const disconnect = useCallback(async () => {
-    setError(null);
     if (wallet?.features["standard:disconnect"]) {
       try {
         await wallet.features["standard:disconnect"].disconnect();
@@ -180,7 +177,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       isWalletConnected,
       simulationSender,
       connecting,
-      error,
       connect,
       disconnect,
       refreshWallets,
@@ -193,7 +189,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       isWalletConnected,
       simulationSender,
       connecting,
-      error,
       connect,
       disconnect,
       refreshWallets,

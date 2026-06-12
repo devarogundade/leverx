@@ -22,7 +22,7 @@ interface Props {
 }
 
 export function WalletConnectButton({ className, fullWidth, large, onMenuClose }: Props) {
-  const { wallets, wallet, address, connecting, error, connect, disconnect, refreshWallets } =
+  const { wallets, wallet, address, connecting, connect, disconnect, refreshWallets } =
     useWallet();
   const [open, setOpen] = useState(false);
 
@@ -112,12 +112,6 @@ export function WalletConnectButton({ className, fullWidth, large, onMenuClose }
         align="end"
         className={cn("w-56", fullWidth && "w-[var(--radix-dropdown-menu-trigger-width)]")}
       >
-        {error ? (
-          <>
-            <p className="px-2 py-1.5 text-xs text-destructive">{error}</p>
-            <DropdownMenuSeparator />
-          </>
-        ) : null}
         {wallets.length === 0 ? (
           <p className="px-2 py-3 text-center text-xs leading-relaxed text-muted-foreground">
             No Sui wallet detected. Install{" "}
