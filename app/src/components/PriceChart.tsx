@@ -14,7 +14,11 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ui } from "@/lib/copy";
-import { buildStrikeChartLevels } from "@/lib/charts/predict-chart-levels";
+import {
+  buildStrikeChartLevels,
+  type StrikeChartLevelInput,
+} from "@/lib/charts/predict-chart-levels";
+import type { PriceLevel } from "@/lib/charts/price-level";
 import {
   candlestickDownColor,
   candlestickUpColor,
@@ -45,12 +49,14 @@ interface Props {
   oracleId: string;
   /** When provided, skips internal chart data hook (share one series per page). */
   chartSeries?: ChartPriceSeriesResult;
-  /** Scaled strike for UP/DOWN. */
+  /** Scaled strike for UP/DOWN (fallback when `strikeLevels` omitted). */
   strikePrice?: number;
   activeSide?: PredictSide;
   /** Scaled range bounds for RANGE. */
   rangeLower?: number;
   rangeUpper?: number;
+  /** When set (e.g. open positions), overrides market strike guides. */
+  strikeLevels?: PriceLevel[];
   height?: number;
   /** When false (e.g. mobile tab hidden), skip resize until visible again */
   layoutActive?: boolean;
@@ -74,6 +80,7 @@ export function PriceChart({
   activeSide = "up",
   rangeLower,
   rangeUpper,
+  strikeLevels: strikeLevelsProp,
   height,
   layoutActive = true,
   className,
@@ -95,30 +102,45 @@ export function PriceChart({
   const chartSeries = chartSeriesProp ?? internalSeries;
   const { mode, candles, linePoints, isLoading, isError, refetch } = chartSeries;
 
+  const marketStrikeInput = useMemo<StrikeChartLevelInput>(
+    () => ({ activeSide, strikePrice, rangeLower, rangeUpper }),
+    [activeSide, strikePrice, rangeLower, rangeUpper],
+  );
+
+  const strikeLevels = useMemo(
+    () =>
+      strikeLevelsProp && strikeLevelsProp.length > 0
+        ? strikeLevelsProp
+        : buildStrikeChartLevels(marketStrikeInput),
+    [strikeLevelsProp, marketStrikeInput],
+  );
+
   const lineData = useMemo(() => {
     if (mode !== "line" || !linePoints.length) return [];
 
-    const anchorStrike = activeSide === "range" ? undefined : strikePrice;
+    const positionAnchor =
+      strikeLevelsProp && strikeLevelsProp.length > 0
+        ? strikeLevelsProp[0]?.price
+        : undefined;
+    const anchorStrike =
+      activeSide === "range" ? undefined : (positionAnchor ?? strikePrice);
     return buildStrikeAnchoredSpotLineData(
       linePoints,
       anchorStrike,
       CHART_OHLCV_INTERVAL_MS,
     );
-  }, [mode, linePoints, strikePrice, activeSide]);
+  }, [mode, linePoints, strikePrice, activeSide, strikeLevelsProp]);
 
   const candleData = mode === "candlestick" ? candles : [];
   const hasData = mode === "candlestick" ? candleData.length > 0 : lineData.length > 0;
   const dataLength = mode === "candlestick" ? candleData.length : lineData.length;
 
-  const strikeLevels = useMemo(
+  const strikeLevelsKey = useMemo(
     () =>
-      buildStrikeChartLevels({
-        activeSide,
-        strikePrice,
-        rangeLower,
-        rangeUpper,
-      }),
-    [activeSide, strikePrice, rangeLower, rangeUpper],
+      strikeLevels
+        .map((level) => `${level.label}:${level.price}:${level.tone}`)
+        .join("|"),
+    [strikeLevels],
   );
 
   lineDataRef.current = lineData;
@@ -191,7 +213,7 @@ export function PriceChart({
     const chart = chartRef.current;
     if (!chart || !hasData) return;
 
-    const strikeKey = `${activeSide}:${strikePrice ?? 0}:${rangeLower ?? 0}:${rangeUpper ?? 0}`;
+    const strikeKey = `${activeSide}:${strikePrice ?? 0}:${rangeLower ?? 0}:${rangeUpper ?? 0}:${strikeLevelsKey}`;
     const strikeChanged = strikeKeyRef.current !== strikeKey;
     strikeKeyRef.current = strikeKey;
 
@@ -269,7 +291,18 @@ export function PriceChart({
     dataLenRef.current = dataLength;
     applyPredictChartViewport(chart, dataLength, mode);
     chart.priceScale("right").applyOptions({ autoScale: true });
-  }, [mode, lineData, candleData, dataLength, hasData, activeSide, strikePrice, rangeLower, rangeUpper]);
+  }, [
+    mode,
+    lineData,
+    candleData,
+    dataLength,
+    hasData,
+    activeSide,
+    strikePrice,
+    rangeLower,
+    rangeUpper,
+    strikeLevelsKey,
+  ]);
 
   useEffect(() => {
     const series = priceSeriesRef.current;

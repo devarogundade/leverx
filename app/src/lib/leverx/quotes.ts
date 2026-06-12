@@ -334,3 +334,62 @@ export async function fetchRedeemQuote(params: {
     return null;
   }
 }
+
+function parseScalarResults(
+  results: Array<{ returnValues?: Array<[ReturnValueBytes, string]> }> | null | undefined,
+): bigint[] {
+  const values: bigint[] = [];
+  for (const result of results ?? []) {
+    const row = result.returnValues;
+    if (row?.length === 1) {
+      values.push(parseU64(row[0]![0]));
+    }
+  }
+  return values;
+}
+
+/**
+ * Simulate close/settle then read key borrowed + quote balance.
+ * Returns withdrawable atoms when debt is cleared; otherwise 0n.
+ */
+export async function simulateCloseWithdrawAtoms(params: {
+  client: SuiJsonRpcClient;
+  cfg: LeverxProtocolConfig;
+  sender: string;
+  accountId: string;
+  key: MarketKeyArgs;
+  appendClose: (tx: Transaction) => void;
+}): Promise<bigint> {
+  const tx = new Transaction();
+  tx.setSender(params.sender);
+  params.appendClose(tx);
+
+  const marketKey = addMarketKey(tx, params.key);
+  const borrowedFn = params.key.isRange ? "range_borrowed_quote" : "binary_borrowed_quote";
+  const balanceFn = params.key.isRange ? "range_quote_balance" : "binary_quote_balance";
+
+  tx.moveCall({
+    target: `${params.cfg.packageId}::user_proxy::${borrowedFn}`,
+    arguments: [tx.object(params.accountId), marketKey],
+  });
+  tx.moveCall({
+    target: `${params.cfg.packageId}::user_proxy::${balanceFn}`,
+    arguments: [tx.object(params.accountId), marketKey],
+  });
+
+  try {
+    const inspect = await params.client.devInspectTransactionBlock({
+      transactionBlock: tx,
+      sender: params.sender,
+    });
+    if (inspect.effects?.status?.status !== "success") return 0n;
+    const scalars = parseScalarResults(inspect.results);
+    if (scalars.length < 2) return 0n;
+    const borrowed = scalars[scalars.length - 2]!;
+    const balance = scalars[scalars.length - 1]!;
+    if (borrowed > 0n || balance <= 0n) return 0n;
+    return balance;
+  } catch {
+    return 0n;
+  }
+}

@@ -1,5 +1,9 @@
 import type { PriceLevel } from "@/lib/charts/price-level";
+import { predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
 import type { PredictSide } from "@/lib/predict/instruments";
+import { FLOAT_SCALING } from "@/lib/predict/constants";
+
+const SCALE = Number(FLOAT_SCALING);
 
 export interface StrikeChartLevelInput {
   activeSide: PredictSide;
@@ -8,7 +12,60 @@ export interface StrikeChartLevelInput {
   rangeUpper?: number;
 }
 
-/** Horizontal strike guides for the live spot chart. */
+export interface PositionStrikeChartInput {
+  isUp: boolean;
+  isRange: boolean;
+  strikeRaw: number;
+  higherStrikeRaw?: number;
+}
+
+function formatStrikeUsd(raw: number): string {
+  return `$${(raw / SCALE).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+}
+
+/** Strike lines from the user's open positions on this oracle. */
+export function buildPositionStrikeChartLevels(
+  positions: readonly PositionStrikeChartInput[],
+): PriceLevel[] {
+  const levels: PriceLevel[] = [];
+  const seen = new Set<string>();
+
+  for (const position of positions) {
+    if (position.isRange && (position.higherStrikeRaw ?? 0) > position.strikeRaw) {
+      const rangeKey = `range:${position.strikeRaw}:${position.higherStrikeRaw}`;
+      if (!seen.has(rangeKey)) {
+        seen.add(rangeKey);
+        levels.push({
+          label: `Range ${formatStrikeUsd(position.strikeRaw)}–${formatStrikeUsd(position.higherStrikeRaw!)}`,
+          price: position.strikeRaw / SCALE,
+          tone: "entry-range",
+        });
+        levels.push({
+          label: `Range high ${formatStrikeUsd(position.higherStrikeRaw!)}`,
+          price: position.higherStrikeRaw! / SCALE,
+          tone: "entry-range",
+        });
+      }
+      continue;
+    }
+
+    if (position.strikeRaw <= 0) continue;
+    const key = `binary:${position.strikeRaw}:${position.isUp ? 1 : 0}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const side = predictSideLabel[sideFromIsUp(position.isUp)];
+    levels.push({
+      label: `${side} ${formatStrikeUsd(position.strikeRaw)}`,
+      price: position.strikeRaw / SCALE,
+      tone: position.isUp ? "entry-up" : "entry-down",
+    });
+  }
+
+  return levels;
+}
+
+/** Horizontal strike guides for the live spot chart (trade panel / no open positions). */
 export function buildStrikeChartLevels(input: StrikeChartLevelInput): PriceLevel[] {
   const { activeSide, strikePrice, rangeLower, rangeUpper } = input;
 

@@ -44,7 +44,9 @@ import {
   TP_SL_OFFSET_PRESETS,
   tpPremiumCentsFromEntry,
 } from "@/lib/leverx/trade-math";
-import { type MarketKeyArgs } from "@/lib/leverx/market-keys";
+import { marketKeyMatchesPosition, type MarketKeyArgs } from "@/lib/leverx/market-keys";
+import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
+import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
 import { MARGIN_CALL_BPS } from "@/lib/leverx/protocol";
 import { buildQuickAmounts } from "@/lib/leverx/form-helpers";
 import { tradeCtaLabel, tradeNeedsDeposit } from "@/lib/leverx/trade-cta";
@@ -87,6 +89,8 @@ interface Props {
   lowerStrikeRaw?: number;
   upperStrikeRaw?: number;
   lastAskPremium?: number;
+  /** Open positions on this oracle — used to block duplicate market keys. */
+  openPositions?: readonly LeveragedPosition[];
   /** Set when oracle has settled — blocks new orders */
   disabled?: boolean;
   /** Called after a trade tx succeeds (e.g. switch to Open Orders on resting limit). */
@@ -107,6 +111,7 @@ export function PredictLeveragePanel({
   lowerStrikeRaw,
   upperStrikeRaw,
   lastAskPremium,
+  openPositions = [],
   disabled = false,
   onTradeSuccess,
 }: Props) {
@@ -344,8 +349,68 @@ export function PredictLeveragePanel({
     setSl(defaults.sl);
   }, [tpSl, entryCents, tp, sl]);
 
+  const pendingTradeKey = useMemo((): MarketKeyArgs | null => {
+    if (!expiryMs || expiryMs <= 0) return null;
+    if (isRange) {
+      const lower =
+        lowerStrikeRaw ??
+        (lowerStrike && Number.isFinite(parseFloat(lowerStrike))
+          ? strikeUsdToRaw(parseFloat(lowerStrike))
+          : 0);
+      const upper =
+        upperStrikeRaw ??
+        (upperStrike && Number.isFinite(parseFloat(upperStrike))
+          ? strikeUsdToRaw(parseFloat(upperStrike))
+          : 0);
+      if (!lower || !upper || upper <= lower) return null;
+      return {
+        oracleId,
+        expiryMs,
+        strike: lower,
+        higherStrike: upper,
+        isUp: true,
+        isRange: true,
+      };
+    }
+    if (!strikeRaw || strikeRaw <= 0) return null;
+    return {
+      oracleId,
+      expiryMs,
+      strike: strikeRaw,
+      higherStrike: 0,
+      isUp: side === "up",
+      isRange: false,
+    };
+  }, [
+    oracleId,
+    expiryMs,
+    isRange,
+    side,
+    strikeRaw,
+    lowerStrikeRaw,
+    upperStrikeRaw,
+    lowerStrike,
+    upperStrike,
+  ]);
+
+  const duplicateOpenPosition = useMemo(() => {
+    if (!pendingTradeKey) return null;
+    return (
+      openPositions.find(
+        (position) =>
+          isActiveOpenPosition(position) &&
+          marketKeyMatchesPosition(pendingTradeKey, position),
+      ) ?? null
+    );
+  }, [pendingTradeKey, openPositions]);
+
   const validationErrors = useMemo(() => {
     const errors: string[] = [];
+    if (duplicateOpenPosition) {
+      errors.push(
+        "You already have an open position on this exact market (same strike and side). Manage it under Positions instead of opening again.",
+      );
+    }
     if (marginNum > 0 && marginNum < MIN_MARGIN_USD) {
       errors.push(`Minimum deposit is ${MIN_MARGIN_USD} dUSDC.`);
     }
@@ -483,6 +548,7 @@ export function PredictLeveragePanel({
     isWalletConnected,
     leverxAccounts.length,
     hasLinkedManager,
+    duplicateOpenPosition,
   ]);
 
   const canSubmit =

@@ -48,6 +48,10 @@ import {
   formatUsdcOrPlaceholder,
 } from "@/lib/leverx/placeholders";
 import { summarizeGlobalTrades } from "@/lib/leverx/trade-stats";
+import {
+  buildPositionStrikeChartLevels,
+  buildStrikeChartLevels,
+} from "@/lib/charts/predict-chart-levels";
 import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
 import { formatCount, ui } from "@/lib/copy";
 import { formatRangeStrikes, type PredictSide } from "@/lib/predict/instruments";
@@ -156,6 +160,7 @@ function TerminalPriceChart({
   asset,
   oracleId,
   chartStrikePrice,
+  chartStrikeLevels,
   activeSide,
   chartRangeLower,
   chartRangeUpper,
@@ -165,6 +170,7 @@ function TerminalPriceChart({
   asset: string;
   oracleId: string;
   chartStrikePrice?: number;
+  chartStrikeLevels?: ReturnType<typeof buildPositionStrikeChartLevels>;
   activeSide: PredictSide;
   chartRangeLower?: number;
   chartRangeUpper?: number;
@@ -178,6 +184,7 @@ function TerminalPriceChart({
         oracleId={oracleId}
         chartSeries={chartSeries}
         strikePrice={chartStrikePrice}
+        strikeLevels={chartStrikeLevels}
         activeSide={activeSide}
         rangeLower={chartRangeLower}
         rangeUpper={chartRangeUpper}
@@ -577,6 +584,36 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   const chartRangeLower = rangeLower ? scaleSpot(rangeLower) : undefined;
   const chartRangeUpper = rangeUpper ? scaleSpot(rangeUpper) : undefined;
 
+  const openOraclePositions = useMemo(
+    () => displayPositions.filter(isActiveOpenPosition),
+    [displayPositions],
+  );
+
+  const chartStrikeLevels = useMemo(() => {
+    if (openOraclePositions.length > 0) {
+      return buildPositionStrikeChartLevels(
+        openOraclePositions.map((position) => ({
+          isUp: position.is_up,
+          isRange: position.is_range,
+          strikeRaw: position.strike,
+          higherStrikeRaw: position.higher_strike,
+        })),
+      );
+    }
+    return buildStrikeChartLevels({
+      activeSide,
+      strikePrice: chartStrikePrice,
+      rangeLower: chartRangeLower,
+      rangeUpper: chartRangeUpper,
+    });
+  }, [
+    openOraclePositions,
+    activeSide,
+    chartStrikePrice,
+    chartRangeLower,
+    chartRangeUpper,
+  ]);
+
   const sessionKey = useMemo(
     () => tradeContextKey(oracleId, activeSide),
     [oracleId, activeSide],
@@ -694,6 +731,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
             asset={asset}
             oracleId={oracleId}
             chartStrikePrice={chartStrikePrice}
+            chartStrikeLevels={chartStrikeLevels}
             activeSide={activeSide}
             chartRangeLower={chartRangeLower}
             chartRangeUpper={chartRangeUpper}
@@ -716,6 +754,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
               lowerStrikeRaw={rangeLower}
               upperStrikeRaw={rangeUpper}
               lastAskPremium={market?.lastAskPremium ?? undefined}
+              openPositions={openOraclePositions}
               disabled={isOracleSettled || isOracleExpired}
               onTradeSuccess={handleTradeSuccess}
             />
@@ -731,6 +770,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
             asset={asset}
             oracleId={oracleId}
             chartStrikePrice={chartStrikePrice}
+            chartStrikeLevels={chartStrikeLevels}
             activeSide={activeSide}
             chartRangeLower={chartRangeLower}
             chartRangeUpper={chartRangeUpper}
@@ -761,6 +801,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
               lowerStrikeRaw={rangeLower}
               upperStrikeRaw={rangeUpper}
               lastAskPremium={market?.lastAskPremium ?? undefined}
+              openPositions={openOraclePositions}
               disabled={isOracleSettled || isOracleExpired}
               onTradeSuccess={handleTradeSuccess}
             />

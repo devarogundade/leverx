@@ -10,6 +10,21 @@ export type MarketKeyArgs = {
   isRange: boolean;
 };
 
+export function marketKeyMatchesPosition(
+  key: MarketKeyArgs,
+  position: {
+    position_key: string;
+    oracle_id: string;
+    expiry_ms: number;
+    strike: number;
+    higher_strike: number;
+    is_up: boolean;
+    is_range: boolean;
+  },
+): boolean {
+  return positionKeyFromArgs(key) === position.position_key;
+}
+
 /** Canonical `position_key` / `market_key` string (matches indexer encoding). */
 export function positionKeyFromArgs(args: MarketKeyArgs): string {
   const higherStrike = args.isRange ? (args.higherStrike ?? 0) : 0;
