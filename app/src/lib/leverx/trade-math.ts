@@ -131,6 +131,36 @@ export function isPlacementPriceAligned(
   return marketAskPerUnit >= lower && marketAskPerUnit <= upper;
 }
 
+/** Quick-pick offsets from entry premium (display cents). */
+export const TP_SL_OFFSET_PRESETS = [5, 10, 15, 25] as const;
+
+export const DEFAULT_TP_OFFSET_CENTS = 15;
+export const DEFAULT_SL_OFFSET_CENTS = 10;
+
+export function formatTpSlCentsInput(cents: number): string {
+  if (!Number.isFinite(cents)) return "";
+  const clamped = Math.min(
+    PREDICT_MAX_PREMIUM_CENTS,
+    Math.max(PREDICT_MIN_PREMIUM_CENTS, cents),
+  );
+  return clamped.toFixed(1);
+}
+
+export function tpPremiumCentsFromEntry(entryCents: number, offsetCents: number): number {
+  return Math.min(PREDICT_MAX_PREMIUM_CENTS, entryCents + offsetCents);
+}
+
+export function slPremiumCentsFromEntry(entryCents: number, offsetCents: number): number {
+  return Math.max(PREDICT_MIN_PREMIUM_CENTS, entryCents - offsetCents);
+}
+
+export function defaultTpSlPremiumsFromEntry(entryCents: number): { tp: string; sl: string } {
+  return {
+    tp: formatTpSlCentsInput(tpPremiumCentsFromEntry(entryCents, DEFAULT_TP_OFFSET_CENTS)),
+    sl: formatTpSlCentsInput(slPremiumCentsFromEntry(entryCents, DEFAULT_SL_OFFSET_CENTS)),
+  };
+}
+
 /** Map TP/SL UI value to on-chain premium (1e9 scale). */
 export function tpSlToPremiumRaw(args: {
   value: number;

@@ -19,6 +19,10 @@ export const DEFAULT_SLIPPAGE_BPS = 500;
 /** Default placement slippage for limit orders (5%). */
 export const DEFAULT_PLACEMENT_SLIPPAGE_BPS = 500;
 
+/** On-chain max for limit / placement slippage (`protocol_constants::max_limit_order_slippage_bps`). */
+export const MAX_LIMIT_ORDER_SLIPPAGE_BPS = 5_000;
+export const MAX_LIMIT_ORDER_SLIPPAGE_PCT = MAX_LIMIT_ORDER_SLIPPAGE_BPS / 100;
+
 /** Resting limit order lifetime options (hours). */
 export const LIMIT_ORDER_EXPIRY_HOURS = [1, 4, 6, 12, 24] as const;
 

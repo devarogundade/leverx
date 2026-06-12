@@ -203,13 +203,24 @@ export async function fetchMintQuote(params: {
   key: MarketKeyArgs;
   marginQuoteAtoms: bigint;
   leverageBps: bigint;
+  /** Size quantity against this per-contract premium instead of the live ask (resting limits). */
+  referencePremiumOverride?: bigint;
 }): Promise<MintQuote | null> {
-  const referencePremium = await fetchPredictMarketAsk({
-    client: params.client,
-    cfg: params.cfg,
-    key: params.key,
-  });
-  if (referencePremium == null) return null;
+  const referencePremium =
+    params.referencePremiumOverride != null && params.referencePremiumOverride > 0n
+      ? params.referencePremiumOverride
+      : await fetchPredictMarketAsk({
+          client: params.client,
+          cfg: params.cfg,
+          key: params.key,
+        });
+  if (referencePremium == null || referencePremium <= 0n) return null;
+  if (
+    params.referencePremiumOverride == null &&
+    classifyPredictPremium(referencePremium) !== "ok"
+  ) {
+    return null;
+  }
 
   const resolved = await resolveTradeQuantity({
     client: params.client,

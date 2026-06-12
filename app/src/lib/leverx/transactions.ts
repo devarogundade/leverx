@@ -110,33 +110,40 @@ export async function executeOpenTrade(params: {
   const leverageBps = leverageToBps(input.leverage);
   let quantity = input.quantity > 0n ? input.quantity : 1n;
   const positionAtoms = positionQuoteAtoms(marginAtoms, leverageBps);
+  const orderKind = resolveMintOrderKind(input);
+  const limitPremiumRaw =
+    input.limitCents != null && input.limitCents > 0
+      ? centsToPremiumRaw(input.limitCents)
+      : undefined;
 
-  if (resolveMintOrderKind(input) === "market") {
-    const fresh = await fetchMintQuote({
-      client,
-      cfg,
-      accountId: leverxAccount.accountId,
-      key: input.key,
-      marginQuoteAtoms: marginAtoms,
-      leverageBps,
-    });
-    if (!fresh) {
-      throw new Error(
-        "Could not refresh the live contract price. The market may have moved — adjust margin or try again.",
-      );
-    }
-    quantity = fresh.tradeQuantity;
+  const fresh = await fetchMintQuote({
+    client,
+    cfg,
+    accountId: leverxAccount.accountId,
+    key: input.key,
+    marginQuoteAtoms: marginAtoms,
+    leverageBps,
+    referencePremiumOverride:
+      orderKind === "place" && limitPremiumRaw ? limitPremiumRaw : undefined,
+  });
+  if (!fresh) {
+    throw new Error(
+      orderKind === "place"
+        ? "Could not size the order at your limit price. Lower the limit or reduce margin/leverage."
+        : "Could not refresh the live contract price. The market may have moved — adjust margin or try again.",
+    );
   }
+  quantity = fresh.tradeQuantity;
+
   const marketSlippageBps = input.marketSlippageBps ?? DEFAULT_SLIPPAGE_BPS;
   const placementSlippageBps = input.placementSlippageBps ?? DEFAULT_PLACEMENT_SLIPPAGE_BPS;
-  const orderKind = resolveMintOrderKind(input);
 
   const mintParams: MintOrderParams = {
     key: input.key,
     marginQuoteAtoms: marginAtoms,
     leverageBps,
     quantity,
-    limitPremiumPerUnit: input.limitCents ? centsToPremiumRaw(input.limitCents) : undefined,
+    limitPremiumPerUnit: limitPremiumRaw,
     placementSlippageBps,
     maxMintCost: applySlippageBps(positionAtoms, marketSlippageBps),
     orderExpiresMs: input.orderExpiresMs ?? input.key.expiryMs,

@@ -36,6 +36,9 @@ const LIMIT_PRICE_NOT_MET_MESSAGE =
 const PLACEMENT_PRICE_NOT_ALIGNED_MESSAGE =
   "Live contract price is outside your limit ± placement slippage. Adjust the limit or widen placement slippage.";
 
+const SLIPPAGE_TOO_HIGH_MESSAGE =
+  "Slippage exceeds the on-chain maximum (50%). Lower slippage and try again.";
+
 function formatTxError(error: unknown): string {
   const raw =
     error instanceof Error
@@ -66,6 +69,9 @@ function formatTxError(error: unknown): string {
     (raw.includes("trade") && raw.includes(", 30)"))
   ) {
     return PLACEMENT_PRICE_NOT_ALIGNED_MESSAGE;
+  }
+  if (raw.includes("slippage_too_high") || (raw.includes("predict_client") && raw.includes(", 32)"))) {
+    return SLIPPAGE_TOO_HIGH_MESSAGE;
   }
   return raw;
 }

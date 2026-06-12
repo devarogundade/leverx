@@ -17,8 +17,10 @@ export const leverxInfo = {
   mintCost: "Total cost to open, including your deposit and any fees.",
   vaultBorrow: "Amount borrowed from the vault to reach your target leverage.",
   tpSl:
-    "Optional auto-exit when the contract price hits your profit target or loss limit.",
-  tpSlUnits: "% is relative to your entry price; ¢ is an absolute price per contract.",
+    "Optional auto-exit when the contract premium hits your take-profit or stop-loss price (¢ per contract). Take profit should be above entry; stop loss below entry.",
+  tpSlEntry: "Estimated entry premium for this trade — used to suggest TP/SL levels.",
+  tpSlTakeProfit: "Close when the contract premium rises to this price (above entry).",
+  tpSlStopLoss: "Close when the contract premium falls to this price (below entry).",
   lowerStrike: "Bottom of the range — the bet pays if the final price lands inside your band.",
   upperStrike: "Top of the range — the bet pays if the final price lands inside your band.",
   limitPrice: "Most you will pay per contract when placing a limit order.",

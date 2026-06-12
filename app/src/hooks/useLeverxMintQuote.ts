@@ -33,6 +33,8 @@ export function useLeverxMintQuote(args: {
   leverage?: number;
   owner?: string;
   enabled?: boolean;
+  /** Size quote quantity against limit premium (resting orders). */
+  referencePremiumOverride?: bigint;
 }) {
   const { client } = useWallet();
   const fullCfg = useLeverxProtocolConfig();
@@ -52,6 +54,7 @@ export function useLeverxMintQuote(args: {
       "leverx-mint-quote",
       args.key?.oracleId,
       args.key?.strike,
+      args.key?.higherStrike,
       args.key?.expiryMs,
       args.key?.isUp,
       args.key?.isRange,
@@ -59,6 +62,7 @@ export function useLeverxMintQuote(args: {
       leverageBps.toString(),
       accountId,
       cfg?.packageId,
+      args.referencePremiumOverride?.toString(),
     ],
     queryFn: async () => {
       if (!cfg || !args.key) return null;
@@ -69,6 +73,7 @@ export function useLeverxMintQuote(args: {
         key: args.key,
         marginQuoteAtoms: marginAtoms,
         leverageBps,
+        referencePremiumOverride: args.referencePremiumOverride,
       });
     },
     enabled:

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { LeverageSlider } from "@/components/leverx/LeverageSlider";
 import { InfoPopover, LabelWithInfo } from "@/components/leverx/InfoPopover";
@@ -17,7 +16,6 @@ import { appConfig } from "@/lib/config";
 import {
   TradeAmountInput,
   TradeQuickAmounts,
-  TradeSelect,
 } from "@/components/leverx/TradeFormControls";
 import { WalletConnectButton } from "@/components/WalletConnectButton";
 import { useWallet } from "@/context/WalletContext";
@@ -25,11 +23,13 @@ import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
 import { predictSideLabel, type PredictSide } from "@/lib/predict/instruments";
 import {
   DEFAULT_LIMIT_ORDER_EXPIRY_HOURS,
+  MAX_LIMIT_ORDER_SLIPPAGE_PCT,
   type LimitOrderExpiryHours,
 } from "@/lib/leverx/constants";
 import type { LimitExecutionMode } from "@/lib/leverx/transactions";
 import {
   centsToPremiumRaw,
+  defaultTpSlPremiumsFromEntry,
   isLimitBuyFillableNow,
   isLimitCentsWithinPredictBounds,
   isPlacementPriceAligned,
@@ -38,8 +38,10 @@ import {
   premiumRawToCents,
   PREDICT_MAX_PREMIUM_CENTS,
   PREDICT_MIN_PREMIUM_CENTS,
+  slPremiumCentsFromEntry,
   strikeUsdToRaw,
-  tpSlToPremiumRaw,
+  TP_SL_OFFSET_PRESETS,
+  tpPremiumCentsFromEntry,
 } from "@/lib/leverx/trade-math";
 import { type MarketKeyArgs } from "@/lib/leverx/market-keys";
 import { MARGIN_CALL_BPS } from "@/lib/leverx/protocol";
@@ -70,10 +72,6 @@ import {
   tpSlBlock,
   tpSlFields,
   tpSlHeader,
-  tpSlInput,
-  tpSlLabel,
-  tpSlRow,
-  tpSlUnit,
   tradeLeveragePanel,
 } from "@/lib/leverx/tw";
 
@@ -91,11 +89,6 @@ interface Props {
   /** Set when oracle has settled — blocks new orders */
   disabled?: boolean;
 }
-
-const UNIT_OPTIONS = [
-  { value: "pct", label: "%" },
-  { value: "cents", label: "¢" },
-] as const;
 
 const ORDER_TYPES: readonly OrderType[] = ["market", "limit"];
 
@@ -144,8 +137,6 @@ export function PredictLeveragePanel({
     setTpSl(false);
     setTp("");
     setSl("");
-    setTpUnit("pct");
-    setSlUnit("pct");
     // Only reset the trade form when the user changes market or outcome — not on background catalog refreshes.
   }, [tradeContextKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -163,8 +154,6 @@ export function PredictLeveragePanel({
   const [tpSl, setTpSl] = useState(false);
   const [tp, setTp] = useState("");
   const [sl, setSl] = useState("");
-  const [tpUnit, setTpUnit] = useState("pct");
-  const [slUnit, setSlUnit] = useState("pct");
 
   const lev = leverage;
   const marginNum = parseFloat(margin) || 0;
@@ -207,16 +196,6 @@ export function PredictLeveragePanel({
     strikeRaw,
   ]);
 
-  const entryPremiumRaw = useMemo(() => {
-    if (orderType === "limit" && limitPrice) {
-      return centsToPremiumRaw(parseFloat(limitPrice));
-    }
-    if (lastAskPremium && lastAskPremium > 0) {
-      return BigInt(Math.round(lastAskPremium));
-    }
-    return 0n;
-  }, [orderType, limitPrice, lastAskPremium]);
-
   const needsDeposit = useMemo(
     () =>
       tradeNeedsDeposit({
@@ -246,6 +225,14 @@ export function PredictLeveragePanel({
     orderType === "limit" ? tradeKey : undefined,
   );
 
+  const quoteReferencePremium = useMemo(() => {
+    if (orderType !== "limit" || limitExecution !== "resting" || !limitPrice) return undefined;
+    const cents = parseFloat(limitPrice);
+    if (!Number.isFinite(cents) || cents <= 0) return undefined;
+    if (!isLimitCentsWithinPredictBounds(cents)) return undefined;
+    return centsToPremiumRaw(cents);
+  }, [orderType, limitExecution, limitPrice]);
+
   const {
     data: mintQuote,
     isLoading: quoteLoading,
@@ -256,6 +243,7 @@ export function PredictLeveragePanel({
     leverage: lev,
     owner: address ?? undefined,
     enabled: marginNum > 0,
+    referencePremiumOverride: quoteReferencePremium,
   });
 
   const tradeQuantity = mintQuote?.tradeQuantity ?? 1n;
@@ -269,6 +257,73 @@ export function PredictLeveragePanel({
     }
     return null;
   }, [liveAskPremium, lastAskPremium]);
+
+  const entryPremiumRaw = useMemo(() => {
+    if (orderType === "limit" && limitPrice) {
+      const cents = parseFloat(limitPrice);
+      if (Number.isFinite(cents) && cents > 0) {
+        return centsToPremiumRaw(cents);
+      }
+    }
+    if (mintQuote?.marketAskPerUnit && mintQuote.marketAskPerUnit > 0n) {
+      return mintQuote.marketAskPerUnit;
+    }
+    if (liveAskPremium != null && liveAskPremium > 0n) {
+      return liveAskPremium;
+    }
+    if (lastAskPremium && lastAskPremium > 0) {
+      return BigInt(Math.round(lastAskPremium));
+    }
+    return 0n;
+  }, [orderType, limitPrice, mintQuote?.marketAskPerUnit, liveAskPremium, lastAskPremium]);
+
+  const entryCents = useMemo(() => {
+    if (entryPremiumRaw <= 0n) return 0;
+    return premiumRawToCents(entryPremiumRaw);
+  }, [entryPremiumRaw]);
+
+  const handleTpSlToggle = (checked: boolean) => {
+    setTpSl(checked);
+    if (!checked) {
+      setTp("");
+      setSl("");
+      return;
+    }
+    if (entryCents > 0) {
+      const defaults = defaultTpSlPremiumsFromEntry(entryCents);
+      setTp(defaults.tp);
+      setSl(defaults.sl);
+    }
+  };
+
+  const tpPresets = useMemo(
+    () =>
+      entryCents > 0
+        ? TP_SL_OFFSET_PRESETS.map((offset) => ({
+            label: `+${offset}¢`,
+            value: tpPremiumCentsFromEntry(entryCents, offset).toFixed(1),
+          }))
+        : [],
+    [entryCents],
+  );
+
+  const slPresets = useMemo(
+    () =>
+      entryCents > 0
+        ? TP_SL_OFFSET_PRESETS.map((offset) => ({
+            label: `−${offset}¢`,
+            value: slPremiumCentsFromEntry(entryCents, offset).toFixed(1),
+          }))
+        : [],
+    [entryCents],
+  );
+
+  useEffect(() => {
+    if (!tpSl || entryCents <= 0 || tp || sl) return;
+    const defaults = defaultTpSlPremiumsFromEntry(entryCents);
+    setTp(defaults.tp);
+    setSl(defaults.sl);
+  }, [tpSl, entryCents, tp, sl]);
 
   const validationErrors = useMemo(() => {
     const errors: string[] = [];
@@ -314,6 +369,18 @@ export function PredictLeveragePanel({
       }
       if (placementSlippagePct < 0.1) {
         errors.push("Slippage must be at least 0.1%.");
+      } else if (placementSlippagePct > MAX_LIMIT_ORDER_SLIPPAGE_PCT) {
+        errors.push(`Slippage cannot exceed ${MAX_LIMIT_ORDER_SLIPPAGE_PCT}%.`);
+      }
+      if (limitExecution === "resting" && expiryMs && expiryMs > 0) {
+        const restingExpiresMs = Date.now() + orderExpiresHours * 3_600_000;
+        if (restingExpiresMs <= Date.now()) {
+          errors.push("Order expiry must be in the future.");
+        } else if (restingExpiresMs > expiryMs) {
+          errors.push("Order expiry cannot be after this market closes. Pick a shorter duration.");
+        } else if (expiryMs <= Date.now() + 60_000) {
+          errors.push("Market closes too soon for a resting limit order. Use Fill now or wait for the next expiry.");
+        }
       }
     }
     if (orderType === "market" && marginNum > 0) {
@@ -338,6 +405,34 @@ export function PredictLeveragePanel({
         errors.push("Range low must be below high end.");
       }
     }
+    if (tpSl) {
+      if (entryCents <= 0) {
+        errors.push("Set your deposit to load an entry premium before using TP/SL.");
+      }
+      const tpVal = parseFloat(tp);
+      const slVal = parseFloat(sl);
+      if (!tp && !sl) {
+        errors.push("Set a take-profit or stop-loss premium, or turn TP/SL off.");
+      }
+      if (tp) {
+        if (!Number.isFinite(tpVal) || !isLimitCentsWithinPredictBounds(tpVal)) {
+          errors.push(
+            `Take profit must be between ${PREDICT_MIN_PREMIUM_CENTS}¢ and ${PREDICT_MAX_PREMIUM_CENTS}¢.`,
+          );
+        } else if (entryCents > 0 && tpVal <= entryCents) {
+          errors.push("Take profit must be above your entry premium.");
+        }
+      }
+      if (sl) {
+        if (!Number.isFinite(slVal) || !isLimitCentsWithinPredictBounds(slVal)) {
+          errors.push(
+            `Stop loss must be between ${PREDICT_MIN_PREMIUM_CENTS}¢ and ${PREDICT_MAX_PREMIUM_CENTS}¢.`,
+          );
+        } else if (entryCents > 0 && slVal >= entryCents) {
+          errors.push("Stop loss must be below your entry premium.");
+        }
+      }
+    }
     return errors;
   }, [
     marginNum,
@@ -355,7 +450,12 @@ export function PredictLeveragePanel({
     address,
     quoteLoading,
     mintQuote,
+    orderExpiresHours,
     expiryMs,
+    tpSl,
+    tp,
+    sl,
+    entryCents,
   ]);
 
   const canSubmit =
@@ -383,22 +483,12 @@ export function PredictLeveragePanel({
       : 0;
 
     const tpPremium =
-      tpSl && tp
-        ? tpSlToPremiumRaw({
-          value: parseFloat(tp),
-          unit: tpUnit as "pct" | "cents",
-          entryPremiumRaw,
-          isTakeProfit: true,
-        })
+      tpSl && tp && Number.isFinite(parseFloat(tp))
+        ? centsToPremiumRaw(parseFloat(tp))
         : 0n;
     const slPremium =
-      tpSl && sl
-        ? tpSlToPremiumRaw({
-          value: parseFloat(sl),
-          unit: slUnit as "pct" | "cents",
-          entryPremiumRaw,
-          isTakeProfit: false,
-        })
+      tpSl && sl && Number.isFinite(parseFloat(sl))
+        ? centsToPremiumRaw(parseFloat(sl))
         : 0n;
 
     openTrade.mutate(
@@ -421,7 +511,7 @@ export function PredictLeveragePanel({
           orderType === "limit" ? percentToBps(placementSlippagePct) : undefined,
         orderExpiresMs:
           orderType === "limit" && limitExecution === "resting"
-            ? Date.now() + orderExpiresHours * 3_600_000
+            ? Math.min(Date.now() + orderExpiresHours * 3_600_000, expiryMs)
             : undefined,
         tpPremium: tpPremium > 0n ? tpPremium : undefined,
         slPremium: slPremium > 0n ? slPremium : undefined,
@@ -674,42 +764,69 @@ export function PredictLeveragePanel({
             <LabelWithInfo
               label="Take profit / Stop loss"
               labelClassName={labelCaps}
-              info={
-                <>
-                  <p>{leverxInfo.tpSl}</p>
-                  <p className="mt-1.5">{leverxInfo.tpSlUnits}</p>
-                </>
-              }
+              info={leverxInfo.tpSl}
             />
-            <Switch checked={tpSl} onCheckedChange={setTpSl} />
+            <Switch checked={tpSl} onCheckedChange={handleTpSlToggle} />
           </div>
           {tpSl ? (
             <div className={tpSlFields}>
-              {(
-                [
-                  { label: "TP", value: tp, setValue: setTp, unit: tpUnit, setUnit: setTpUnit },
-                  { label: "SL", value: sl, setValue: setSl, unit: slUnit, setUnit: setSlUnit },
-                ] as const
-              ).map((row) => (
-                <div key={row.label} className={tpSlRow}>
-                  <span className={tpSlLabel}>{row.label}</span>
-                  <Input
-                    type="number"
-                    inputMode="decimal"
-                    value={row.value}
-                    onChange={(e) => row.setValue(e.target.value)}
-                    placeholder="0"
-                    className={tpSlInput}
-                  />
-                  <TradeSelect
-                    value={row.unit}
-                    onValueChange={row.setUnit}
-                    options={UNIT_OPTIONS}
-                    size="sm"
-                    triggerClassName={tpSlUnit}
-                  />
-                </div>
-              ))}
+              <p className="text-xs text-muted-foreground">
+                <LabelWithInfo
+                  label="Entry premium"
+                  labelClassName="inline text-xs text-muted-foreground"
+                  info={leverxInfo.tpSlEntry}
+                />
+                {": "}
+                <span className="font-mono text-foreground">
+                  {entryCents > 0 ? `${entryCents.toFixed(1)}¢` : quoteLoading ? "…" : "—"}
+                </span>
+              </p>
+              <div>
+                <LabelWithInfo
+                  className="mb-2"
+                  label="Take profit"
+                  labelClassName={labelCaps}
+                  info={leverxInfo.tpSlTakeProfit}
+                />
+                <TradeAmountInput
+                  type="number"
+                  inputMode="decimal"
+                  min={0.1}
+                  step={0.1}
+                  value={tp}
+                  onChange={(e) => setTp(e.target.value)}
+                  placeholder={entryCents > 0 ? defaultTpSlPremiumsFromEntry(entryCents).tp : "0.0"}
+                  suffix={<span className="text-sm text-muted-foreground">¢</span>}
+                />
+                {tpPresets.length > 0 ? (
+                  <div className="mt-2">
+                    <TradeQuickAmounts amounts={tpPresets} onPick={setTp} />
+                  </div>
+                ) : null}
+              </div>
+              <div>
+                <LabelWithInfo
+                  className="mb-2"
+                  label="Stop loss"
+                  labelClassName={labelCaps}
+                  info={leverxInfo.tpSlStopLoss}
+                />
+                <TradeAmountInput
+                  type="number"
+                  inputMode="decimal"
+                  min={0.1}
+                  step={0.1}
+                  value={sl}
+                  onChange={(e) => setSl(e.target.value)}
+                  placeholder={entryCents > 0 ? defaultTpSlPremiumsFromEntry(entryCents).sl : "0.0"}
+                  suffix={<span className="text-sm text-muted-foreground">¢</span>}
+                />
+                {slPresets.length > 0 ? (
+                  <div className="mt-2">
+                    <TradeQuickAmounts amounts={slPresets} onPick={setSl} />
+                  </div>
+                ) : null}
+              </div>
             </div>
           ) : null}
         </div>
