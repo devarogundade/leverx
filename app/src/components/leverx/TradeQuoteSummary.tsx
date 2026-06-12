@@ -23,16 +23,7 @@ export function TradeQuoteSummary({ quote, isLoading, className }: Props) {
   }
 
   if (!quote) {
-    return (
-      <div
-        className={cn(
-          "rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200",
-          className,
-        )}
-      >
-        Live contract price is unavailable or outside the 1¢–99¢ range DeepBook Predict allows.
-      </div>
-    );
+    return null;
   }
 
   const premiumRaw = Number(quote.marketAskPerUnit);

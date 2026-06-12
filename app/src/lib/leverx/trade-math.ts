@@ -1,5 +1,5 @@
 import { FLOAT_SCALING, QUOTE_UNIT } from "@/lib/predict/constants";
-import { PREDICT_PRICE_SCALE } from "@/lib/leverx/constants";
+import { MINT_BUDGET_SAFETY_BPS, PREDICT_PRICE_SCALE } from "@/lib/leverx/constants";
 import { clampLeverage } from "@/lib/leverx/trade-limits";
 
 /** DeepBook Predict per-oracle ask bounds (1e9 premium scale). */
@@ -75,15 +75,21 @@ export function borrowQuoteAtoms(marginAtoms: bigint, leverageBps: bigint): bigi
   return position > marginAtoms ? position - marginAtoms : 0n;
 }
 
-/** Estimate contract quantity from margin and per-unit premium. */
+/** Max mint spend: leveraged position minus a small on-chain safety buffer. */
+export function maxMintBudgetAtoms(marginAtoms: bigint, leverageBps: bigint): bigint {
+  const position = positionQuoteAtoms(marginAtoms, leverageBps);
+  return (position * BigInt(10_000 - MINT_BUDGET_SAFETY_BPS)) / 10_000n;
+}
+
+/** Estimate contract quantity from margin and per-unit premium (linear; verify on-chain). */
 export function estimateQuantity(
   marginAtoms: bigint,
   leverageBps: bigint,
   premiumPerUnit: bigint,
 ): bigint {
   if (premiumPerUnit <= 0n) return 1n;
-  const position = positionQuoteAtoms(marginAtoms, leverageBps);
-  const qty = (position * PREDICT_PRICE_SCALE) / premiumPerUnit;
+  const budget = maxMintBudgetAtoms(marginAtoms, leverageBps);
+  const qty = (budget * PREDICT_PRICE_SCALE) / premiumPerUnit;
   return qty > 0n ? qty : 1n;
 }
 

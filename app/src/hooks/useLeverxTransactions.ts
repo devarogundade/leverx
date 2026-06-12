@@ -24,6 +24,12 @@ import {
 const PREMIUM_BOUNDS_MESSAGE =
   "Contract price is outside DeepBook Predict's tradable range (1¢–99¢). The market may be near expiry or temporarily unpriced — try another strike or wait for updated oracle prices.";
 
+const MINT_COST_EXCEEDS_POSITION_MESSAGE =
+  "Mint cost exceeds your leveraged position size. Try a smaller deposit, lower leverage, or wait for a better contract price.";
+
+const SLIPPAGE_EXCEEDED_MESSAGE =
+  "Market moved beyond your slippage tolerance before the trade executed. Try again or increase slippage.";
+
 function formatTxError(error: unknown): string {
   const raw =
     error instanceof Error
@@ -36,6 +42,15 @@ function formatTxError(error: unknown): string {
     (raw.includes("predict_client") && raw.includes(", 27)"))
   ) {
     return PREMIUM_BOUNDS_MESSAGE;
+  }
+  if (
+    raw.includes("mint_cost_exceeds_position") ||
+    (raw.includes("trade") && raw.includes(", 23)"))
+  ) {
+    return MINT_COST_EXCEEDS_POSITION_MESSAGE;
+  }
+  if (raw.includes("slippage_exceeded") || (raw.includes("trade") && raw.includes(", 26)"))) {
+    return SLIPPAGE_EXCEEDED_MESSAGE;
   }
   return raw;
 }

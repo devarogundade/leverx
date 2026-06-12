@@ -9,8 +9,8 @@ import { addMarketKey, type MarketKeyArgs } from "@/lib/leverx/market-keys";
 import type { LeverxProtocolConfig } from "@/lib/leverx/protocol";
 import {
   classifyPredictPremium,
-  costFromPremiumPerUnit,
   estimateQuantity,
+  maxMintBudgetAtoms,
 } from "@/lib/leverx/trade-math";
 
 export type PredictQuoteConfig = Pick<LeverxProtocolConfig, "packageId" | "predictId">;
@@ -49,12 +49,12 @@ function findReturnTuple(
   return null;
 }
 
-/** Live Predict ask — no LeverX account required (same path as on-chain mint validation). */
-export async function fetchPredictMarketAsk(params: {
+async function devInspectMarketAsk(params: {
   client: SuiJsonRpcClient;
   cfg: PredictQuoteConfig;
   key: MarketKeyArgs;
-}): Promise<bigint | null> {
+  quantity: bigint;
+}): Promise<{ marketAskPerUnit: bigint; mintCost: bigint } | null> {
   const tx = new Transaction();
   tx.setSender(READONLY_SENDER);
   const marketKey = addMarketKey(tx, params.key);
@@ -66,7 +66,7 @@ export async function fetchPredictMarketAsk(params: {
       tx.object(params.cfg.predictId),
       tx.object(params.key.oracleId),
       marketKey,
-      tx.pure.u64(PREDICT_QUOTE_REFERENCE_QUANTITY),
+      tx.pure.u64(params.quantity),
       tx.object(SUI_CLOCK_OBJECT_ID),
     ],
   });
@@ -79,12 +79,76 @@ export async function fetchPredictMarketAsk(params: {
     if (inspect.effects?.status?.status !== "success") return null;
     const tuple = findReturnTuple(inspect.results, 2);
     if (!tuple) return null;
-    const [marketAskPerUnit] = tuple;
-    if (classifyPredictPremium(marketAskPerUnit) !== "ok") return null;
-    return marketAskPerUnit;
+    const [marketAskPerUnit, mintCost] = tuple;
+    return { marketAskPerUnit, mintCost };
   } catch {
     return null;
   }
+}
+
+/** Live per-contract ask at reference size (qty=1 often rounds to 0). */
+export async function fetchPredictMarketAsk(params: {
+  client: SuiJsonRpcClient;
+  cfg: PredictQuoteConfig;
+  key: MarketKeyArgs;
+}): Promise<bigint | null> {
+  const atRef = await devInspectMarketAsk({
+    client: params.client,
+    cfg: params.cfg,
+    key: params.key,
+    quantity: PREDICT_QUOTE_REFERENCE_QUANTITY,
+  });
+  if (!atRef || classifyPredictPremium(atRef.marketAskPerUnit) !== "ok") return null;
+  return atRef.marketAskPerUnit;
+}
+
+/** Find the largest quantity whose on-chain mint cost fits margin × leverage. */
+export async function resolveTradeQuantity(params: {
+  client: SuiJsonRpcClient;
+  cfg: PredictQuoteConfig;
+  key: MarketKeyArgs;
+  marginQuoteAtoms: bigint;
+  leverageBps: bigint;
+  referencePremium: bigint;
+}): Promise<Pick<MintQuote, "marketAskPerUnit" | "mintCost" | "tradeQuantity"> | null> {
+  const budget = maxMintBudgetAtoms(params.marginQuoteAtoms, params.leverageBps);
+  if (budget <= 0n) return null;
+
+  let quantity = estimateQuantity(
+    params.marginQuoteAtoms,
+    params.leverageBps,
+    params.referencePremium,
+  );
+
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const atQty = await devInspectMarketAsk({
+      client: params.client,
+      cfg: params.cfg,
+      key: params.key,
+      quantity,
+    });
+    if (!atQty) return null;
+    if (classifyPredictPremium(atQty.marketAskPerUnit) !== "ok") return null;
+
+    if (atQty.mintCost > 0n && atQty.mintCost <= budget) {
+      return {
+        marketAskPerUnit: atQty.marketAskPerUnit,
+        mintCost: atQty.mintCost,
+        tradeQuantity: quantity,
+      };
+    }
+
+    if (atQty.mintCost <= 0n) {
+      if (quantity <= 1n) return null;
+      quantity /= 2n;
+      continue;
+    }
+
+    quantity = (quantity * budget) / atQty.mintCost;
+    if (quantity < 1n) return null;
+  }
+
+  return null;
 }
 
 async function fetchMintBorrowQuote(params: {
@@ -140,19 +204,22 @@ export async function fetchMintQuote(params: {
   marginQuoteAtoms: bigint;
   leverageBps: bigint;
 }): Promise<MintQuote | null> {
-  const marketAskPerUnit = await fetchPredictMarketAsk({
+  const referencePremium = await fetchPredictMarketAsk({
     client: params.client,
     cfg: params.cfg,
     key: params.key,
   });
-  if (marketAskPerUnit == null) return null;
+  if (referencePremium == null) return null;
 
-  const tradeQuantity = estimateQuantity(
-    params.marginQuoteAtoms,
-    params.leverageBps,
-    marketAskPerUnit,
-  );
-  const mintCost = costFromPremiumPerUnit(marketAskPerUnit, tradeQuantity);
+  const resolved = await resolveTradeQuantity({
+    client: params.client,
+    cfg: params.cfg,
+    key: params.key,
+    marginQuoteAtoms: params.marginQuoteAtoms,
+    leverageBps: params.leverageBps,
+    referencePremium,
+  });
+  if (!resolved) return null;
 
   let borrowQuote = 0n;
   if (params.accountId && params.cfg.registryId) {
@@ -163,12 +230,12 @@ export async function fetchMintQuote(params: {
       key: params.key,
       marginQuoteAtoms: params.marginQuoteAtoms,
       leverageBps: params.leverageBps,
-      quantity: tradeQuantity,
+      quantity: resolved.tradeQuantity,
     });
     if (borrow != null) borrowQuote = borrow;
   }
 
-  return { marketAskPerUnit, mintCost, borrowQuote, tradeQuantity };
+  return { ...resolved, borrowQuote };
 }
 
 export async function fetchRedeemQuote(params: {

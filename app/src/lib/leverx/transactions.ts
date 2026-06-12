@@ -24,6 +24,7 @@ import {
   type MintOrderParams,
 } from "@/lib/leverx/ptb-builder";
 import { lxplpCoinType, type LeverxProtocolConfig } from "@/lib/leverx/protocol";
+import { fetchMintQuote } from "@/lib/leverx/quotes";
 import {
   applySlippageBps,
   centsToPremiumRaw,
@@ -107,8 +108,25 @@ export async function executeOpenTrade(params: {
 
   const marginAtoms = marginUsdToQuoteAtoms(input.marginUsd);
   const leverageBps = leverageToBps(input.leverage);
-  const quantity = input.quantity > 0n ? input.quantity : 1n;
+  let quantity = input.quantity > 0n ? input.quantity : 1n;
   const positionAtoms = positionQuoteAtoms(marginAtoms, leverageBps);
+
+  if (resolveMintOrderKind(input) === "market") {
+    const fresh = await fetchMintQuote({
+      client,
+      cfg,
+      accountId: leverxAccount.accountId,
+      key: input.key,
+      marginQuoteAtoms: marginAtoms,
+      leverageBps,
+    });
+    if (!fresh) {
+      throw new Error(
+        "Could not refresh the live contract price. The market may have moved — adjust margin or try again.",
+      );
+    }
+    quantity = fresh.tradeQuantity;
+  }
   const marketSlippageBps = input.marketSlippageBps ?? DEFAULT_SLIPPAGE_BPS;
   const placementSlippageBps = input.placementSlippageBps ?? DEFAULT_PLACEMENT_SLIPPAGE_BPS;
   const orderKind = resolveMintOrderKind(input);
