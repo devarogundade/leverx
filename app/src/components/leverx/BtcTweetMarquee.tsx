@@ -1,3 +1,15 @@
+import ashCryptoAvatar from "@/assets/ash-crypto-to-real.jpg";
+import bitcoinAvatar from "@/assets/bitcoin.jpeg";
+import btcMagazineAvatar from "@/assets/btc-magazine.jpg";
+import coindeskAvatar from "@/assets/coindesk.jpg";
+import cryptoCapoAvatar from "@/assets/crypto-capo.jpg";
+import documentingBtcAvatar from "@/assets/documenting-btc.jpg";
+import lookonchainAvatar from "@/assets/lookonchain.jpg";
+import saylorAvatar from "@/assets/saylor.jpg";
+import tier10kAvatar from "@/assets/tier10k.jpg";
+import whaleAlertAvatar from "@/assets/whale-alert.png";
+import wuBlockchainAvatar from "@/assets/wu-blockchain.jpg";
+import xLogo from "@/assets/x-logo.png";
 import { cn } from "@/lib/utils";
 
 type MockTweet = {
@@ -20,20 +32,53 @@ const MOCK_BTC_TWEETS: MockTweet[] = [
   { handle: "@Bitcoin", text: "Block 872,401 mined. Reward: 3.125 BTC + fees." },
 ];
 
+const TWEET_AVATAR_BY_HANDLE: Record<string, string> = {
+  "@Bitcoin": bitcoinAvatar,
+  "@saylor": saylorAvatar,
+  "@whale_alert": whaleAlertAvatar,
+  "@CryptoCapo_": cryptoCapoAvatar,
+  "@DocumentingBTC": documentingBtcAvatar,
+  "@WuBlockchain": wuBlockchainAvatar,
+  "@lookonchain": lookonchainAvatar,
+  "@BitcoinMagazine": btcMagazineAvatar,
+  "@tier10k": tier10kAvatar,
+  "@Ashcryptoreal": ashCryptoAvatar,
+  "@CoinDesk": coindeskAvatar,
+};
+
 function profileInitial(handle: string) {
   const slug = handle.replace(/^@/, "");
   return slug.charAt(0).toUpperCase() || "?";
 }
 
+function TweetAvatar({ handle }: { handle: string }) {
+  const src = TWEET_AVATAR_BY_HANDLE[handle];
+
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt=""
+        role="presentation"
+        className="h-5 w-5 shrink-0 rounded-full object-cover ring-1 ring-border"
+      />
+    );
+  }
+
+  return (
+    <span
+      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground"
+      aria-hidden
+    >
+      {profileInitial(handle)}
+    </span>
+  );
+}
+
 function TweetItem({ tweet }: { tweet: MockTweet }) {
   return (
     <span className="inline-flex max-w-[min(18rem,70vw)] shrink-0 items-center gap-1.5">
-      <span
-        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground"
-        aria-hidden
-      >
-        {profileInitial(tweet.handle)}
-      </span>
+      <TweetAvatar handle={tweet.handle} />
       <span className="min-w-0 truncate text-xs text-foreground/90">
         <span className="font-medium text-foreground">{tweet.handle}</span>{" "}
         <span className="text-muted-foreground">{tweet.text}</span>
@@ -52,6 +97,11 @@ export function BtcTweetMarquee({ className }: Props) {
 
   return (
     <div className={cn("chart-tweet-marquee", className)} aria-hidden>
+      <div className="chart-tweet-marquee-start">
+        <span className="chart-tweet-marquee-start-badge">
+          <img src={xLogo} alt="" role="presentation" className="chart-tweet-marquee-x-logo" />
+        </span>
+      </div>
       <div className="chart-tweet-marquee-track">
         {loop.map((tweet, i) => (
           <span key={`${tweet.handle}-${i}`} className="inline-flex shrink-0 items-center">

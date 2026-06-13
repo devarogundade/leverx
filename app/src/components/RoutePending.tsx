@@ -1,5 +1,6 @@
 import { useRouterState } from "@tanstack/react-router";
 import { LayoutGrid, List, Search } from "lucide-react";
+import { SiteShell } from "@/components/SiteShell";
 import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loading-state";
 import { UnderlineTabs } from "@/components/leverx/UnderlineTabs";
@@ -33,7 +34,8 @@ const SIMPLE_PAGE_HEADERS: Record<string, { title: string; hint?: string }> = {
   "/guide": { title: "How LeverX works" },
 };
 
-export function RoutePending() {
+/** Route-level shimmer body — rendered inside `SiteShell` via layout or leaf outlets. */
+export function RoutePendingContent() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   if (pathname.startsWith("/predictions/")) {
@@ -93,7 +95,7 @@ export function RoutePending() {
   const pageHeader = SIMPLE_PAGE_HEADERS[pathname];
   if (pageHeader) {
     return (
-      <section className={cn(pageSimple, "mx-auto max-w-[var(--page-max)] animate-page-in")}>
+      <section className={cn(pageSimple, "animate-page-in")}>
         <div>
           <h1 className={pageSimpleTitle}>{pageHeader.title}</h1>
           {pageHeader.hint ? (
@@ -109,5 +111,26 @@ export function RoutePending() {
     <div className="flex min-h-[40vh] items-center justify-center px-4">
       <LoadingState />
     </div>
+  );
+}
+
+/** Leaf routes — content only (parent layout already renders `SiteShell`). */
+export const RoutePending = RoutePendingContent;
+
+/** Layout route pending — keeps header/nav/footer while loaders run. */
+export function AppShellRoutePending() {
+  return (
+    <SiteShell>
+      <RoutePendingContent />
+    </SiteShell>
+  );
+}
+
+/** Trade terminal layout route pending — full-width shell. */
+export function DetailShellRoutePending() {
+  return (
+    <SiteShell fullWidth>
+      <RoutePendingContent />
+    </SiteShell>
   );
 }

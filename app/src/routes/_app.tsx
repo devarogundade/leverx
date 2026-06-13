@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/AppLayout";
 import { loadAppShell } from "@/lib/router/route-loaders";
-import { routePendingOptions } from "@/lib/router/route-options";
+import { appShellPendingOptions } from "@/lib/router/route-options";
 
 export const Route = createFileRoute("/_app")({
-  ...routePendingOptions,
+  ...appShellPendingOptions,
   loader: ({ context }) => loadAppShell(context.queryClient),
   component: AppLayout,
 });
