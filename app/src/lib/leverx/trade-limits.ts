@@ -1,15 +1,20 @@
 /** Min/max leverage multiplier for trades (1x = no vault borrow). */
 export const LEVERAGE_MIN = 1;
 export const LEVERAGE_MAX = 10;
-export const LEVERAGE_STEP = 0.5;
+export const LEVERAGE_STEP = 0.1;
 export const DEFAULT_LEVERAGE = LEVERAGE_MIN;
 
 /** Min/max dUSDC margin per trade (USD). */
 export const MIN_MARGIN_USD = 0.1;
 export const MAX_MARGIN_USD = 100;
 
+function roundToLeverageStep(value: number): number {
+  const inv = 1 / LEVERAGE_STEP;
+  return Math.round(value * inv) / inv;
+}
+
 export function clampLeverage(value: number): number {
-  const rounded = Math.round(value * 10) / 10;
+  const rounded = roundToLeverageStep(value);
   return Math.min(LEVERAGE_MAX, Math.max(LEVERAGE_MIN, rounded));
 }
 

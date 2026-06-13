@@ -1023,8 +1023,12 @@ export function PredictLeveragePanel({
                 <span className="font-mono text-foreground">
                   {formatCollateralAmount(appConfig.quoteType, marginNum * lev)}
                 </span>
-                {" · "}
-                Margin call at {(MARGIN_CALL_BPS / 100).toFixed(0)}%
+                {lev > LEVERAGE_MIN + 1e-6 ? (
+                  <>
+                    {" · "}
+                    Margin call at {(MARGIN_CALL_BPS / 100).toFixed(0)}%
+                  </>
+                ) : null}
               </p>
             ) : null}
           </div>
