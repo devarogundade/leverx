@@ -30,8 +30,17 @@ interface Props {
   className?: string;
 }
 
+function applyVaultChartSize(chart: IChartApi, el: HTMLElement): boolean {
+  const width = el.clientWidth;
+  const height = el.clientHeight;
+  if (width < 2 || height < 2) return false;
+  chart.applyOptions({ width, height });
+  return true;
+}
+
 export function VaultPerformanceChart({ snapshots = [], loading, className }: Props) {
   const [mounted, setMounted] = useState(false);
+  const [chartReady, setChartReady] = useState(false);
   const [mode, setMode] = useState<ChartMode>("tvl");
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -44,6 +53,17 @@ export function VaultPerformanceChart({ snapshots = [], loading, className }: Pr
     return flatChartLine(0);
   }, [snapshots, mode]);
 
+  const lineDataRef = useRef(lineData);
+  lineDataRef.current = lineData;
+
+  const applyLineData = () => {
+    const lineSeries = lineRef.current;
+    const chart = chartRef.current;
+    if (!lineSeries || !chart) return;
+    lineSeries.setData(lineDataRef.current);
+    chart.timeScale().fitContent();
+  };
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -52,7 +72,13 @@ export function VaultPerformanceChart({ snapshots = [], loading, className }: Pr
     if (!mounted || !containerRef.current) return;
 
     const el = containerRef.current;
-    const chart = createChart(el, lightweightChartOptions(el.clientWidth, el.clientHeight));
+    const chart = createChart(
+      el,
+      lightweightChartOptions(
+        Math.max(el.clientWidth, 1),
+        Math.max(el.clientHeight, 240),
+      ),
+    );
     chartRef.current = chart;
 
     const lineSeries = chart.addSeries(LineSeries, {
@@ -63,17 +89,27 @@ export function VaultPerformanceChart({ snapshots = [], loading, className }: Pr
       priceLineVisible: false,
     });
     lineRef.current = lineSeries;
+    applyLineData();
+    setChartReady(true);
 
-    const ro = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (!entry) return;
-      const { width, height: h } = entry.contentRect;
-      chart.applyOptions({ width, height: h });
+    const ro = new ResizeObserver(() => {
+      if (chartRef.current) applyVaultChartSize(chartRef.current, el);
     });
     ro.observe(el);
 
+    let raf = 0;
+    const ensureSize = () => {
+      if (!chartRef.current) return;
+      if (!applyVaultChartSize(chartRef.current, el)) {
+        raf = requestAnimationFrame(ensureSize);
+      }
+    };
+    raf = requestAnimationFrame(ensureSize);
+
     return () => {
+      cancelAnimationFrame(raf);
       ro.disconnect();
+      setChartReady(false);
       chart.remove();
       chartRef.current = null;
       lineRef.current = null;
@@ -81,12 +117,9 @@ export function VaultPerformanceChart({ snapshots = [], loading, className }: Pr
   }, [mounted]);
 
   useEffect(() => {
-    const lineSeries = lineRef.current;
-    if (!lineSeries) return;
-
-    lineSeries.setData(lineData);
-    chartRef.current?.timeScale().fitContent();
-  }, [lineData]);
+    if (!chartReady) return;
+    applyLineData();
+  }, [chartReady, lineData]);
 
   return (
     <div className={cn(tradeSurface, "flex flex-col overflow-hidden", className)}>

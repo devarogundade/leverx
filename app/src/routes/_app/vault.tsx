@@ -95,7 +95,7 @@ function VaultPage() {
       <div className={vaultWorkspace}>
         <VaultPerformanceChart
           snapshots={history}
-          loading={historyLoading}
+          loading={historyLoading && history.length === 0}
           className={vaultChart}
         />
         <PredictVaultLiquidityPanel

@@ -92,6 +92,7 @@ export function PriceChart({
   className,
 }: Props) {
   const [mounted, setMounted] = useState(false);
+  const [chartReady, setChartReady] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const priceSeriesRef = useRef<ISeriesApi<"Line"> | ISeriesApi<"Candlestick"> | null>(null);
@@ -175,6 +176,7 @@ export function PriceChart({
     seriesModeRef.current = null;
     viewportGuardRef.current?.destroy();
     viewportGuardRef.current = createChartViewportGuard(chart);
+    setChartReady(true);
 
     const ro = new ResizeObserver(() => {
       if (chartRef.current) applyChartSize(chartRef.current, el);
@@ -195,6 +197,7 @@ export function PriceChart({
       ro.disconnect();
       viewportGuardRef.current?.destroy();
       viewportGuardRef.current = null;
+      setChartReady(false);
       chart.remove();
       chartRef.current = null;
       priceSeriesRef.current = null;
@@ -221,6 +224,7 @@ export function PriceChart({
   }, [layoutActive, mounted, dataLength]);
 
   useEffect(() => {
+    if (!chartReady) return;
     const chart = chartRef.current;
     if (!chart || !hasData) return;
 
@@ -385,6 +389,7 @@ export function PriceChart({
     );
     chart.priceScale("right").applyOptions({ autoScale: true });
   }, [
+    chartReady,
     mode,
     lineData,
     candleData,
