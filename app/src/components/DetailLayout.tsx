@@ -5,7 +5,7 @@ import { SiteShell } from "@/components/SiteShell";
 export function DetailLayout() {
   return (
     <SiteShell fullWidth>
-      <div className="animate-page-in flex min-h-0 flex-1 flex-col">
+      <div className="animate-page-in w-full">
         <Outlet />
       </div>
     </SiteShell>

@@ -89,10 +89,10 @@
   --trade-gap: 0.75rem;
   --trade-sidebar-w: 380px;
   --trade-orderbook-w: 280px;
-  --trade-chart-h: clamp(260px, 42vh, 480px);
+  --trade-chart-h: 280px;
   --markets-hero-h: 220px;
   --markets-catalog-h: 32rem;
-  --trade-positions-body-h: 200px;
+  --trade-positions-body-min-h: 18rem;
   --trade-header-stats-h: 3.25rem;
   --trade-header-pills-h: 2rem;
   --featured-carousel-row-h: 3.75rem;
@@ -340,7 +340,7 @@
   :root {
     --site-header-h: calc(var(--spacing) * 12);
     --markets-catalog-h: min(22rem, 52vh);
-    --trade-positions-body-h: 14rem;
+    --trade-positions-body-min-h: 16rem;
     --trade-orderbook-w: 100%;
   }
 }
@@ -351,6 +351,7 @@
     --page-py: var(--space-4);
     --trade-gap: var(--space-2);
     --trade-chart-h: 420px;
+    --trade-positions-body-min-h: 22rem;
   }
 }
 
@@ -373,6 +374,7 @@
     --trade-chart-h: 460px;
     --trade-sidebar-w: 340px;
     --trade-orderbook-w: 280px;
+    --trade-positions-body-min-h: 24rem;
   }
 }
 
@@ -485,12 +487,8 @@ select {
 }
 
 @media (min-width: 1280px) {
-  .site-main--full .trade-terminal-chart {
-    height: clamp(300px, 44vh, 520px);
-  }
-
   .site-main--full .trade-terminal-orderbook {
-    max-height: 420px;
+    max-height: none;
   }
 }
 
@@ -607,9 +605,8 @@ select {
 @media (max-width: 767px) {
   .trade-terminal-mobile-chart .trade-terminal-chart {
     flex: 0 0 auto;
-    height: clamp(220px, 38vh, 360px);
-    min-height: clamp(220px, 38vh, 360px);
-    max-height: clamp(220px, 38vh, 360px);
+    height: 280px;
+    min-height: 280px;
   }
 
   .trade-terminal-mobile-chart .trade-terminal-orderbook {
@@ -3735,9 +3732,7 @@ select {
 }
 
 .trade-terminal-positions-body {
-  height: var(--trade-positions-body-h);
-  min-height: var(--trade-positions-body-h);
-  overflow-y: auto;
+  min-height: var(--trade-positions-body-min-h);
   padding: var(--space-4);
   font-size: 0.875rem;
   color: var(--color-muted-foreground);
@@ -5454,16 +5449,14 @@ button:disabled {
   text-align: right;
 }
 
-/* Trade terminal positions panel — stable empty/loading height */
-.trade-terminal-positions-body {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: var(--trade-positions-body-h);
-}
+/* Trade terminal positions panel — minimum height for empty/loading only */
 .trade-terminal-positions-body .lx-loading,
 .trade-terminal-positions-body .lx-empty {
   width: 100%;
+  min-height: var(--trade-positions-body-min-h);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Featured carousel — preserve height during load */

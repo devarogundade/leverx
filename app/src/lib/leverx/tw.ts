@@ -320,7 +320,7 @@ export const tradeTerminalTabsRow = cn(
 );
 
 export const tradeTerminalPositionsBody = cn(
-  "h-[var(--trade-positions-body-h)] min-h-[var(--trade-positions-body-h)] overflow-y-auto p-4",
+  "trade-terminal-positions-body min-h-[var(--trade-positions-body-min-h)] p-4",
   "text-sm text-muted-foreground",
 );
 
