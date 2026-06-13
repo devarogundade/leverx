@@ -58,12 +58,14 @@ export function useProxyKeyBalances(
         accountId,
         position.position_key,
         cfg?.packageId,
+        cfg?.predictPackageId,
       ],
       queryFn: async (): Promise<ProxyKeyBalanceRow> => {
         const key = positionToKey(position);
         let balanceAtoms = await fetchKeyQuoteBalance({
           client,
-          packageId: cfg!.packageId,
+          leverxPackageId: cfg!.packageId,
+          predictPackageId: cfg!.predictPackageId,
           accountId: accountId!,
           key,
         });
@@ -72,7 +74,7 @@ export function useProxyKeyBalances(
         }
         return { position, key, balanceAtoms };
       },
-      enabled: Boolean(cfg?.packageId && accountId),
+      enabled: Boolean(cfg?.packageId && cfg?.predictPackageId && accountId),
       staleTime: 10_000,
       refetchInterval: 15_000,
       retry: 1,

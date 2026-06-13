@@ -83,16 +83,7 @@ function buildMarketKey(
   })[0]!;
 }
 
-/** Keys for LeverX PTBs (`trade`, `user_proxy`, `triggers`). */
-export function addLeverxMarketKey(
-  tx: Transaction,
-  args: MarketKeyArgs,
-  leverxPackageId: string = appConfig.leverxPackageId,
-): TransactionObjectArgument {
-  return buildMarketKey(tx, args, leverxPackageId);
-}
-
-/** Keys for direct DeepBook Predict reads (`predict::get_trade_amounts`, etc.). */
+/** Keys for DeepBook Predict and LeverX PTBs — always use the published `deepbook_predict` package. */
 export function addPredictMarketKey(
   tx: Transaction,
   args: MarketKeyArgs,
@@ -101,11 +92,20 @@ export function addPredictMarketKey(
   return buildMarketKey(tx, args, predictPackageId);
 }
 
-/** @alias addLeverxMarketKey */
+/** @alias addPredictMarketKey */
+export function addLeverxMarketKey(
+  tx: Transaction,
+  args: MarketKeyArgs,
+  predictPackageId: string = appConfig.predictPackageId,
+): TransactionObjectArgument {
+  return addPredictMarketKey(tx, args, predictPackageId);
+}
+
+/** @alias addPredictMarketKey */
 export function addMarketKey(
   tx: Transaction,
   args: MarketKeyArgs,
-  leverxPackageId: string = appConfig.leverxPackageId,
+  predictPackageId: string = appConfig.predictPackageId,
 ): TransactionObjectArgument {
-  return addLeverxMarketKey(tx, args, leverxPackageId);
+  return addPredictMarketKey(tx, args, predictPackageId);
 }
