@@ -473,7 +473,7 @@ export function GuideStorybook() {
               <PillarCard
                 icon={<Sparkles className="h-4 w-4" />}
                 title="Points"
-                body="Genesis season leaderboard ranks wallets by leveraged trading volume on testnet."
+                body="Sui Overflow season leaderboard ranks wallets by leveraged trading volume on testnet."
                 accent="short"
               />
             </div>
@@ -610,7 +610,7 @@ function GuideChapter({
   );
 }
 
-function GuidePanel({ label, children }: { label: string; children: ReactNode }) {
+function GuidePanel({ label, children }: { label: string; children: ReactNode; }) {
   return (
     <div className="guide-panel">
       <p className="guide-panel-label">{label}</p>

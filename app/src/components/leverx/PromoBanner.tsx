@@ -9,7 +9,7 @@ export function PromoBanner() {
       <div className="relative z-10 p-6">
         <span className="promo-banner-badge">
           <Trophy className="h-3 w-3" aria-hidden />
-          Genesis season
+          Sui Overflow season
         </span>
         <h3 className="mt-3 font-display text-xl font-bold leading-tight tracking-tight">
           Sui Overflow
