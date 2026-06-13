@@ -128,7 +128,7 @@ interface Props {
   /** Set when oracle has settled — blocks new orders */
   disabled?: boolean;
   /** Called after a trade tx succeeds (e.g. switch to Open Orders on resting limit). */
-  onTradeSuccess?: (meta: { orderType: OrderType }) => void;
+  onTradeSuccess?: (meta: { orderType: OrderType; }) => void;
 }
 
 const ORDER_TYPES: readonly OrderType[] = ["market", "limit"];
@@ -1022,7 +1022,7 @@ export function PredictLeveragePanel({
                 "[&[data-state=open]_svg]:rotate-180",
               )}
             >
-              <span className={cn(labelCaps, "text-warning")}>Advanced</span>
+              <span className={cn(labelCaps, "text-warning")}>More settings</span>
               <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" />
             </CollapsibleTrigger>
             <CollapsibleContent className="space-y-5 pt-1 data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
