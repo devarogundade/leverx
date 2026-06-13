@@ -2448,6 +2448,7 @@ fun try_remint_unleveraged_binary<Quote>(
     let (_, mint_cost) =
         predict_client::market_ask_binary(predict_global, oracle, key, qty, clock);
     if (mint_cost == 0 || mint_cost > margin) return 0;
+    let remint_after_deleverage = proxy.binary_remint_after_deleverage(key);
     execute_leveraged_mint_binary<Quote>(
         registry,
         vault,
@@ -2463,7 +2464,7 @@ fun try_remint_unleveraged_binary<Quote>(
         0,
         mint_cost,
         0,
-        proxy.binary_remint_after_deleverage(key),
+        remint_after_deleverage,
         false,
         clock,
         ctx,
@@ -2490,6 +2491,7 @@ fun try_remint_unleveraged_range<Quote>(
     let (_, mint_cost) =
         predict_client::market_ask_range(predict_global, oracle, key, qty, clock);
     if (mint_cost == 0 || mint_cost > margin) return 0;
+    let remint_after_deleverage = proxy.range_remint_after_deleverage(key);
     execute_leveraged_mint_range<Quote>(
         registry,
         vault,
@@ -2505,7 +2507,7 @@ fun try_remint_unleveraged_range<Quote>(
         0,
         mint_cost,
         0,
-        proxy.range_remint_after_deleverage(key),
+        remint_after_deleverage,
         false,
         clock,
         ctx,
@@ -2927,9 +2929,10 @@ fun finalize_binary_key_after_redeem<Quote>(
     ctx: &mut TxContext,
 ) {
     if (proxy.binary_borrowed_quote(key) == 0) {
+        let owner = proxy.owner();
         proxy.reset_binary_to_unleveraged(key, ctx);
         proxy.clear_binary_margin_debt(key);
-        user_proxy::sweep_binary_free_quote_to<Quote>(proxy, key, proxy.owner(), ctx);
+        user_proxy::sweep_binary_free_quote_to<Quote>(proxy, key, owner, ctx);
     };
 }
 
@@ -2941,9 +2944,10 @@ fun finalize_binary_key_after_force_deleverage_remint<Quote>(
     ctx: &mut TxContext,
 ) {
     if (proxy.binary_borrowed_quote(key) == 0) {
+        let owner = proxy.owner();
         proxy.reset_binary_to_unleveraged(key, ctx);
         proxy.clear_binary_margin_debt(key);
-        user_proxy::sweep_binary_free_quote_to<Quote>(proxy, key, proxy.owner(), ctx);
+        user_proxy::sweep_binary_free_quote_to<Quote>(proxy, key, owner, ctx);
     };
     triggers::maybe_clear_binary_triggers_if_flat(proxy, manager, key);
 }
@@ -2954,9 +2958,10 @@ fun finalize_range_key_after_redeem<Quote>(
     ctx: &mut TxContext,
 ) {
     if (proxy.range_borrowed_quote(key) == 0) {
+        let owner = proxy.owner();
         proxy.reset_range_to_unleveraged(key, ctx);
         proxy.clear_range_margin_debt(key);
-        user_proxy::sweep_range_free_quote_to<Quote>(proxy, key, proxy.owner(), ctx);
+        user_proxy::sweep_range_free_quote_to<Quote>(proxy, key, owner, ctx);
     };
 }
 
@@ -2968,9 +2973,10 @@ fun finalize_range_key_after_force_deleverage_remint<Quote>(
     ctx: &mut TxContext,
 ) {
     if (proxy.range_borrowed_quote(key) == 0) {
+        let owner = proxy.owner();
         proxy.reset_range_to_unleveraged(key, ctx);
         proxy.clear_range_margin_debt(key);
-        user_proxy::sweep_range_free_quote_to<Quote>(proxy, key, proxy.owner(), ctx);
+        user_proxy::sweep_range_free_quote_to<Quote>(proxy, key, owner, ctx);
     };
     triggers::maybe_clear_range_triggers_if_flat(proxy, manager, key);
 }
