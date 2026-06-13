@@ -207,7 +207,8 @@ export function useIndexerPositions(
         oracleId: args?.oracleId,
         limit: 200,
         // Oracle settlement closes positions as `settled`, not `closed`.
-        ...(status === "closed" ? { excludeStatus: "open" } : { status }),
+        // Indexer defaults to status=open when omitted; use status=all so exclude_status works.
+        ...(status === "closed" ? { status: "all", excludeStatus: "open" } : { status }),
       });
       return items;
     },
