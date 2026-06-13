@@ -1,22 +1,6 @@
 import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
-
-type Theme = "light" | "dark";
-
-function readTheme(): Theme {
-  if (typeof document === "undefined") return "dark";
-  return document.documentElement.classList.contains("light") ? "light" : "dark";
-}
-
-function applyTheme(t: Theme) {
-  if (typeof document === "undefined") return;
-  const root = document.documentElement;
-  root.classList.toggle("light", t === "light");
-  root.classList.toggle("dark", t === "dark");
-  try {
-    localStorage.setItem("lx-theme", t);
-  } catch {}
-}
+import { applyTheme, readTheme, type Theme } from "@/lib/theme";
 
 export function ThemeToggle({ className }: { className?: string }) {
   const [theme, setTheme] = useState<Theme>("dark");

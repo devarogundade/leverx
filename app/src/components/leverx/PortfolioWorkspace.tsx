@@ -89,7 +89,7 @@ export function PortfolioWorkspace({
       <div className="p-3 sm:p-4">
         {tab === "positions" ? (
           loading && openPositions.length === 0 ? (
-            <SurfaceSkeleton lines={5} variant="plain" />
+            <SurfaceSkeleton lines={5} variant="plain" hideHeader />
           ) : openPositions.length === 0 ? (
             <EmptyState
               icon={Inbox}

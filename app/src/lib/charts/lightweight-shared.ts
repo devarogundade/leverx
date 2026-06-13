@@ -1,4 +1,4 @@
-import { ColorType, CrosshairMode, LineStyle, type DeepPartial, type ChartOptions } from "lightweight-charts";
+import { ColorType, CrosshairMode, LineStyle, type DeepPartial, type ChartOptions, type IChartApi, type ISeriesApi } from "lightweight-charts";
 import type { PriceLevel } from "@/lib/charts/price-level";
 
 export function levelLineColor(tone: PriceLevel["tone"]): string {
@@ -69,35 +69,34 @@ export function lightweightChartOptions(
   width: number,
   height: number,
   scaleMargins: { top: number; bottom: number } = { top: 0.1, bottom: 0.1 },
+  ui?: { transparentBackground?: boolean },
 ): DeepPartial<ChartOptions> {
-  const background = readCssVar("--card", "#1f1f1f");
-  const text = readCssVar("--muted-foreground", "#9a9a97");
-  const grid = readCssVar("--surface", "#232323");
+  const colors = chartThemeColors(ui?.transparentBackground ?? false);
 
   return {
     width,
     height,
     layout: {
-      background: { type: ColorType.Solid, color: background },
-      textColor: text,
+      background: { type: ColorType.Solid, color: colors.background },
+      textColor: colors.text,
       fontFamily: "JetBrains Mono",
       fontSize: 11,
     },
     grid: {
-      vertLines: { color: grid, visible: true },
-      horzLines: { color: grid, visible: true },
+      vertLines: { color: colors.gridLineColor, visible: true },
+      horzLines: { color: colors.gridLineColor, visible: true },
     },
     crosshair: {
       mode: CrosshairMode.Normal,
-      vertLine: { color: text, labelBackgroundColor: background },
-      horzLine: { color: text, labelBackgroundColor: background },
+      vertLine: { color: colors.text, labelBackgroundColor: colors.solidBackground },
+      horzLine: { color: colors.text, labelBackgroundColor: colors.solidBackground },
     },
     rightPriceScale: {
-      borderColor: grid,
+      borderColor: colors.gridLineColor,
       scaleMargins,
     },
     timeScale: {
-      borderColor: grid,
+      borderColor: colors.gridLineColor,
       timeVisible: true,
       secondsVisible: false,
     },
@@ -106,6 +105,57 @@ export function lightweightChartOptions(
         price.toLocaleString(undefined, { maximumFractionDigits: price >= 1000 ? 0 : 2 }),
     },
   };
+}
+
+export function chartThemeColors(transparentBackground = false) {
+  const solidBackground = readCssVar("--card", "#1f1f1f");
+  const background = transparentBackground ? "transparent" : solidBackground;
+  const text = readCssVar("--muted-foreground", "#9a9a97");
+  const grid = readCssVar("--surface", "#232323");
+  const gridLineColor = transparentBackground ? "rgba(127, 127, 127, 0.14)" : grid;
+
+  return { solidBackground, background, text, grid, gridLineColor };
+}
+
+export function applyLightweightChartTheme(
+  chart: IChartApi,
+  options?: { transparentBackground?: boolean },
+) {
+  const colors = chartThemeColors(options?.transparentBackground ?? false);
+
+  chart.applyOptions({
+    layout: {
+      background: { type: ColorType.Solid, color: colors.background },
+      textColor: colors.text,
+    },
+    grid: {
+      vertLines: { color: colors.gridLineColor },
+      horzLines: { color: colors.gridLineColor },
+    },
+    crosshair: {
+      vertLine: { color: colors.text, labelBackgroundColor: colors.solidBackground },
+      horzLine: { color: colors.text, labelBackgroundColor: colors.solidBackground },
+    },
+    rightPriceScale: { borderColor: colors.gridLineColor },
+    timeScale: { borderColor: colors.gridLineColor },
+  });
+}
+
+export function applyCandlestickSeriesTheme(series: ISeriesApi<"Candlestick">) {
+  series.applyOptions({
+    upColor: candlestickUpColor(),
+    downColor: candlestickDownColor(),
+    wickUpColor: candlestickUpColor(),
+    wickDownColor: candlestickDownColor(),
+  });
+}
+
+export function applyLineSeriesWinTheme(series: ISeriesApi<"Line">) {
+  series.applyOptions({ color: lineSeriesWinColor() });
+}
+
+export function applyLineSeriesAccentTheme(series: ISeriesApi<"Line">) {
+  series.applyOptions({ color: lineSeriesAccentColor() });
 }
 
 export function lineSeriesAccentColor(): string {

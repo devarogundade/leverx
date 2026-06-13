@@ -132,7 +132,7 @@ export function DataTable<T>({ columns, rows, rowKey, empty, onRowClick, rowClas
                     ))}
                   </div>
                   {trailing.length > 0 ? (
-                    <div className="shrink-0 text-right">
+                    <div className="shrink-0 self-start text-right">
                       {trailing.map((c) => (
                         <div key={c.key}>{c.cell(row)}</div>
                       ))}
@@ -144,11 +144,16 @@ export function DataTable<T>({ columns, rows, rowKey, empty, onRowClick, rowClas
               {stats.length > 0 ? (
                 <dl className={dataTableMobileCardStats}>
                   {stats.map((c) => (
-                    <div key={c.key} className="min-w-0">
-                      <dt className={dataTableMobileStatLabel}>{columnLabel(c)}</dt>
+                    <div
+                      key={c.key}
+                      className="flex items-baseline justify-between gap-3 min-w-0"
+                    >
+                      <dt className={cn(dataTableMobileStatLabel, "shrink-0")}>
+                        {columnLabel(c)}
+                      </dt>
                       <dd
                         className={cn(
-                          "mt-0.5 text-sm text-foreground",
+                          "min-w-0 text-sm text-foreground",
                           c.align === "right" && "text-right font-mono tabular-nums",
                         )}
                       >

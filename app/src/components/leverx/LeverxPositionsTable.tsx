@@ -6,6 +6,7 @@ import { PositionActionsTrigger } from "@/components/leverx/PositionActionsModal
 import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { usePredictOracleRows } from "@/hooks/usePredictOracles";
+import { useIndexerProtocol } from "@/hooks/useIndexer";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { assetLabelForOracleId } from "@/lib/predict/oracles";
@@ -19,6 +20,7 @@ import {
 import { predictSideFromBinary, type PredictSide } from "@/lib/predict/instruments";
 import { scaleQuote } from "@/lib/predict/scaling";
 import { formatUsdc, ui } from "@/lib/copy";
+import { resolveLiquidationBps } from "@/lib/leverx/protocol";
 import { cn } from "@/lib/utils";
 import { labelCaps } from "@/lib/leverx/tw";
 
@@ -98,7 +100,7 @@ function PnlCell({ mtm, closed }: { mtm?: PositionMarkToMarket; closed: boolean;
         : "text-muted-foreground";
 
   return (
-    <div className={cn("tabular-nums", tone)}>
+    <div className={cn("text-right tabular-nums", tone)}>
       <div className="text-sm font-medium">{formatPnlUsd(mtm.unrealizedPnlUsd)}</div>
       <div className="text-[11px] opacity-80">{formatPnlPct(mtm.unrealizedPnlPct)}</div>
     </div>
@@ -106,17 +108,29 @@ function PnlCell({ mtm, closed }: { mtm?: PositionMarkToMarket; closed: boolean;
 }
 
 function HealthCell({ mtm, closed }: { mtm?: PositionMarkToMarket; closed: boolean; }) {
+  const { data: protocol } = useIndexerProtocol();
+  const liquidationBps = resolveLiquidationBps(protocol);
+
   if (closed || mtm?.healthBps == null) {
     return <span className="text-sm text-muted-foreground">—</span>;
   }
 
-  const pct = mtm.healthBps / 100;
-  const barTone =
+  const healthPct = mtm.healthBps / 100;
+  const liquidationPct = liquidationBps / 100;
+  const barMaxPct = Math.max(healthPct, liquidationPct);
+  const fillWidth = (healthPct / barMaxPct) * 100;
+  const liquidationWidth = (liquidationPct / barMaxPct) * 100;
+  const aboveLiquidationWidth = Math.max(0, fillWidth - liquidationWidth);
+
+  const aboveTone =
     mtm.healthLabel === "healthy"
       ? "bg-success"
       : mtm.healthLabel === "margin_call"
         ? "bg-amber-500"
         : "bg-destructive";
+
+  const belowLiquidationTone =
+    mtm.healthLabel === "at_risk" ? "bg-destructive/70" : "bg-success/35";
 
   return (
     <div className="min-w-[5.5rem]">
@@ -131,10 +145,33 @@ function HealthCell({ mtm, closed }: { mtm?: PositionMarkToMarket; closed: boole
           {formatHealthBps(mtm.healthBps)}
         </span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+      <div
+        className="relative h-1.5 overflow-hidden rounded-full bg-muted"
+        title={`Liquidation at ${liquidationPct.toFixed(1)}%`}
+      >
+        {healthPct >= liquidationPct ? (
+          <>
+            <div
+              className={cn("absolute inset-y-0 left-0 rounded-l-full", belowLiquidationTone)}
+              style={{ width: `${liquidationWidth}%` }}
+            />
+            {aboveLiquidationWidth > 0 ? (
+              <div
+                className={cn("absolute inset-y-0 rounded-r-full transition-all", aboveTone)}
+                style={{ left: `${liquidationWidth}%`, width: `${aboveLiquidationWidth}%` }}
+              />
+            ) : null}
+          </>
+        ) : (
+          <div
+            className={cn("absolute inset-y-0 left-0 rounded-full transition-all", aboveTone)}
+            style={{ width: `${fillWidth}%` }}
+          />
+        )}
         <div
-          className={cn("h-full rounded-full transition-all", barTone)}
-          style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
+          className="pointer-events-none absolute inset-y-0 z-10 w-px -translate-x-1/2 bg-foreground/55"
+          style={{ left: `${Math.min(100, Math.max(0, liquidationWidth))}%` }}
+          aria-hidden
         />
       </div>
     </div>
@@ -243,7 +280,7 @@ export function LeverxPositionsTable({
           );
         }
         return (
-          <span className="inline-flex items-center justify-end gap-1.5 font-mono text-sm tabular-nums">
+          <span className="inline-flex items-center gap-1.5 font-mono text-sm tabular-nums">
             <LiveDot active={r.mtm?.isLive} />
             {r.mtm?.markBidCents != null ? `${r.mtm.markBidCents.toFixed(1)}¢` : "…"}
           </span>
@@ -265,7 +302,7 @@ export function LeverxPositionsTable({
       align: "right",
       mobileLabel: "Margin",
       cell: (r) => (
-        <div className="text-right text-sm tabular-nums">
+        <>
           <div className="font-medium">{formatUsdc(scaleQuote(r.position.margin_quote))}</div>
           <div className="text-muted-foreground">
             {(r.position.leverage_bps / 10_000).toFixed(1)}×
@@ -273,7 +310,7 @@ export function LeverxPositionsTable({
               ? ` · ${scaleQuote(r.position.borrow_quote).toFixed(1)} borrowed`
               : ""}
           </div>
-        </div>
+        </>
       ),
     },
     {

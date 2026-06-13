@@ -1,5 +1,16 @@
+import { Link } from "@tanstack/react-router";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { AssetBadge } from "@/components/AssetBadge";
+import { LabelWithInfo } from "@/components/leverx/InfoPopover";
+import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
+import { UnderlineTabs } from "@/components/leverx/UnderlineTabs";
+import { ui } from "@/lib/copy";
+import { leverxInfo } from "@/lib/leverx/info-copy";
+import { DATA_PLACEHOLDER } from "@/lib/leverx/placeholders";
+import { TRADE_PREDICT_SIDES } from "@/lib/predict/instruments";
 import { cn } from "@/lib/utils";
 import {
+  labelCaps,
   marketCard,
   marketCardBody,
   marketCardHeader,
@@ -26,15 +37,29 @@ import {
   marketsThHideSm,
   marketsThMarket,
   marketsThTrade,
+  orderbookSideHeader,
   pageBlock,
+  pillToggleActive,
+  pillToggleBtn,
   pillToggleGroup,
+  pillToggleIdle,
+  segTabActive,
+  segTabOutcome,
   segTabsClass,
+  textFilterActive,
+  textFilterBtn,
+  textFilterGroup,
   tradeLeveragePanel,
   tradeOracleNav,
+  tradeOracleNavBtn,
+  tradeOracleNavBtnDisabled,
   tradeStatItem,
+  tradeStatItemLabel,
+  tradeStatItemValue,
   tradeStatRow,
   tradeSurface,
   tradeTerminal,
+  tradeTerminalBack,
   tradeTerminalBody,
   tradeTerminalChart,
   tradeTerminalHeader,
@@ -48,6 +73,8 @@ import {
   tradeTerminalTabsRow,
   tradeTerminalWorkspace,
 } from "@/lib/leverx/tw";
+
+const TRADE_POSITION_TABS = ["Positions", "Open Orders", "Market trades", "Summary"] as const;
 
 function SkeletonBar({ className }: { className?: string }) {
   return <div className={cn("lx-skeleton", className)} />;
@@ -175,25 +202,15 @@ export function MarketTableSkeleton({ rows = 8 }: { rows?: number }) {
         <table className={marketsTable} aria-hidden>
           <thead>
             <tr>
-              <th className={cn(marketsTh, marketsThMarket)}>
-                <SkeletonBar className="h-2.5 w-14" />
-              </th>
-              <th className={marketsTh}>
-                <SkeletonBar className="h-2.5 w-16" />
-              </th>
-              <th className={cn(marketsTh, marketsThHideMd)}>
-                <SkeletonBar className="h-2.5 w-14" />
-              </th>
-              <th className={cn(marketsTh, marketsThHideLg)}>
-                <SkeletonBar className="h-2.5 w-16" />
-              </th>
-              <th className={cn(marketsTh, marketsThHideSm)}>
-                <SkeletonBar className="h-2.5 w-16" />
-              </th>
-              <th className={cn(marketsTh, marketsThTrade)} aria-hidden />
+              <th className={cn(marketsTh, marketsThMarket)}>Market</th>
+              <th className={marketsTh}>Index price</th>
+              <th className={cn(marketsTh, marketsThHideMd)}>Volume</th>
+              <th className={cn(marketsTh, marketsThHideLg)}>Liquidity</th>
+              <th className={cn(marketsTh, marketsThHideSm)}>Auto close</th>
+              <th className={cn(marketsTh, marketsThTrade)} aria-label="Trade actions" />
             </tr>
           </thead>
-          <tbody>
+          <tbody aria-hidden>
             {Array.from({ length: rows }, (_, i) => (
               <tr key={i} className={marketsRow}>
                 <td className={cn(marketsTd, marketsTdMarket)}>
@@ -234,11 +251,14 @@ export function SurfaceSkeleton({
   className,
   lines = 3,
   variant = "card",
+  hideHeader = false,
 }: {
   className?: string;
   lines?: number;
   /** `plain` when already inside a trade surface panel */
   variant?: "card" | "plain";
+  /** Skip the top shimmer row when the parent already renders a real header. */
+  hideHeader?: boolean;
 }) {
   return (
     <div
@@ -250,13 +270,15 @@ export function SurfaceSkeleton({
       )}
       aria-hidden
     >
-      <div className="flex items-center justify-between gap-4">
-        <div className="space-y-2">
-          <SkeletonBar className="h-2.5 w-24" />
-          <SkeletonBar className="h-2.5 w-40" />
+      {hideHeader ? null : (
+        <div className="flex items-center justify-between gap-4">
+          <div className="space-y-2">
+            <SkeletonBar className="h-2.5 w-24" />
+            <SkeletonBar className="h-2.5 w-40" />
+          </div>
+          <SkeletonBar className="h-2.5 w-20" />
         </div>
-        <SkeletonBar className="h-2.5 w-20" />
-      </div>
+      )}
       <div className="grid gap-3 sm:grid-cols-3">
         {Array.from({ length: lines }, (_, i) => (
           <div key={i} className="space-y-2">
@@ -282,19 +304,115 @@ function TradeChartSkeleton() {
   );
 }
 
+function TradeStatItem({
+  label,
+  value,
+  info,
+}: {
+  label: string;
+  value: string;
+  info?: string;
+}) {
+  return (
+    <div className={tradeStatItem}>
+      {info ? (
+        <LabelWithInfo label={label} labelClassName={tradeStatItemLabel} info={info} />
+      ) : (
+        <span className={tradeStatItemLabel}>{label}</span>
+      )}
+      <span className={tradeStatItemValue}>{value}</span>
+    </div>
+  );
+}
+
+function TradeTerminalHeaderShell({ oracleId }: { oracleId?: string }) {
+  const asset = oracleId?.slice(2, 6).toUpperCase() ?? "—";
+
+  return (
+    <header className={cn(tradeTerminalHeader, "trade-terminal-header")}>
+      <div className={tradeTerminalHeaderTop}>
+        <div className="flex min-w-0 flex-1 items-start gap-3">
+          <AssetBadge asset={asset} size="md" />
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="lx-skeleton h-4 w-full max-w-lg sm:h-5" aria-hidden />
+            <Link to="/markets" className={tradeTerminalBack}>
+              {ui.backToMarkets}
+            </Link>
+          </div>
+        </div>
+        <div className={tradeOracleNav} aria-label="Market navigation">
+          <span className={cn(tradeOracleNavBtn, tradeOracleNavBtnDisabled)} aria-hidden>
+            <ChevronLeft className="h-4 w-4" />
+          </span>
+          <span className={cn(tradeOracleNavBtn, tradeOracleNavBtnDisabled)} aria-hidden>
+            <ChevronRight className="h-4 w-4" />
+          </span>
+        </div>
+      </div>
+
+      <div className={tradeTerminalHeaderMetrics}>
+        <div className={tradeTerminalHeaderMetricsRow}>
+          <div className={tradeStatRow}>
+            <TradeStatItem
+              label={ui.markPrice}
+              info={leverxInfo.markPrice}
+              value={DATA_PLACEHOLDER}
+            />
+            <TradeStatItem
+              label="Contract price"
+              info={leverxInfo.premium}
+              value={DATA_PLACEHOLDER}
+            />
+            <TradeStatItem
+              label="Volume (24h)"
+              info={leverxInfo.volume24h}
+              value={DATA_PLACEHOLDER}
+            />
+            <TradeStatItem label="Pool size" info={leverxInfo.vaultNav} value={DATA_PLACEHOLDER} />
+            <TradeStatItem
+              label="Closes"
+              info={leverxInfo.autoClose}
+              value={DATA_PLACEHOLDER}
+            />
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
 function TradeOrderBookSkeleton() {
   return (
     <div className={tradeTerminalOrderbook}>
-      <div className={cn(tradeSurface, "flex h-full min-h-[280px] flex-col")}>
-        <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5">
-          <SkeletonBar className="h-3 w-24" />
-          <div className={cn(pillToggleGroup, "w-[9.5rem]")}>
-            <SkeletonBar className="h-8 flex-1 rounded-none" />
-            <SkeletonBar className="h-8 flex-1 rounded-none border-l border-border/50" />
-            <SkeletonBar className="h-8 flex-1 rounded-none border-l border-border/50" />
+      <div className={cn(tradeSurface, "flex h-full min-h-[280px] flex-col pointer-events-none")}>
+        <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+          <LabelWithInfo
+            label="Order book"
+            labelClassName={labelCaps}
+            info={leverxInfo.orderBook}
+          />
+          <div className={pillToggleGroup} role="group" aria-label="Outcome">
+            {TRADE_PREDICT_SIDES.map((option, index) => (
+              <span
+                key={option}
+                className={cn(
+                  pillToggleBtn,
+                  index === 0 ? pillToggleActive : pillToggleIdle,
+                )}
+              >
+                <PredictSideLabel side={option} noIcon />
+              </span>
+            ))}
           </div>
         </div>
-        <div className="flex flex-1 flex-col gap-2 p-3">
+
+        <div className={cn(orderbookSideHeader, "border-b border-border px-3 py-1.5")}>
+          <span>Price</span>
+          <span className="text-center">Qty</span>
+          <span className="text-right">Notional</span>
+        </div>
+
+        <div className="flex flex-1 flex-col gap-2 p-3" aria-hidden>
           {Array.from({ length: 6 }, (_, i) => (
             <div key={i} className="flex items-center justify-between gap-2">
               <SkeletonBar className="h-3 w-12" />
@@ -310,22 +428,31 @@ function TradeOrderBookSkeleton() {
 
 function TradeLeveragePanelSkeleton() {
   return (
-    <div className={cn(tradeLeveragePanel, "trade-leverage-panel")}>
+    <div className={cn(tradeLeveragePanel, "trade-leverage-panel pointer-events-none")}>
       <div className="border-b border-border p-3">
-        <div className={segTabsClass("stretch", "outcomes")}>
-          <SkeletonBar className="h-10 rounded-none" />
-          <SkeletonBar className="h-10 rounded-none border-l border-border/50" />
-          <SkeletonBar className="h-10 rounded-none border-l border-border/50" />
+        <div className={segTabsClass("stretch", "outcomes")} role="group" aria-label="Outcome">
+          {TRADE_PREDICT_SIDES.map((outcome, index) => (
+            <span
+              key={outcome}
+              className={cn(segTabOutcome, index === 0 && segTabActive)}
+            >
+              <PredictSideLabel side={outcome} />
+            </span>
+          ))}
         </div>
       </div>
       <div className="flex flex-col gap-3 border-b border-border px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-        <SkeletonBar className="h-3 w-16" />
-        <div className={cn(pillToggleGroup, "w-[8.5rem]")}>
-          <SkeletonBar className="h-8 flex-1 rounded-none" />
-          <SkeletonBar className="h-8 flex-1 rounded-none border-l border-border/50" />
+        <LabelWithInfo
+          label="Order type"
+          labelClassName={labelCaps}
+          info={leverxInfo.orderType}
+        />
+        <div className={pillToggleGroup} role="group" aria-label="Order type">
+          <span className={cn(pillToggleBtn, pillToggleActive)}>market</span>
+          <span className={cn(pillToggleBtn, pillToggleIdle)}>limit</span>
         </div>
       </div>
-      <div className="space-y-5 p-4">
+      <div className="space-y-5 p-4" aria-hidden>
         <div className="space-y-2">
           <SkeletonBar className="h-3 w-14" />
           <SkeletonBar className="h-12 w-full rounded-lg" />
@@ -351,21 +478,62 @@ function TradeLeveragePanelSkeleton() {
   );
 }
 
+function tradePositionTabLabel(tab: (typeof TRADE_POSITION_TABS)[number]) {
+  if (tab === "Market trades") {
+    return (
+      <>
+        <span className="sm:hidden">Trades (…)</span>
+        <span className="hidden sm:inline">Market trades (…)</span>
+      </>
+    );
+  }
+  if (tab === "Open Orders") {
+    return (
+      <>
+        <span className="sm:hidden">Orders</span>
+        <span className="hidden sm:inline">Open Orders</span>
+      </>
+    );
+  }
+  if (tab === "Positions") {
+    return (
+      <>
+        <span className="max-[380px]:hidden">Positions</span>
+        <span className="hidden max-[380px]:inline">Pos</span>
+      </>
+    );
+  }
+  if (tab === "Summary") {
+    return (
+      <>
+        <span className="max-[380px]:hidden">Summary</span>
+        <span className="hidden max-[380px]:inline">Stats</span>
+      </>
+    );
+  }
+  return tab;
+}
+
 function TradePositionsSkeleton() {
   return (
     <div className={tradeTerminalPositions}>
       <div className={tradeTerminalTabsRow}>
-        <div className="flex min-w-0 flex-1 gap-3 overflow-hidden">
-          {Array.from({ length: 4 }, (_, i) => (
-            <SkeletonBar key={i} className="h-4 w-16 shrink-0" />
-          ))}
-        </div>
-        <div className="hidden gap-1 sm:flex">
-          <SkeletonBar className="h-7 w-12 rounded-md" />
-          <SkeletonBar className="h-7 w-14 rounded-md" />
+        <UnderlineTabs
+          variant="plain"
+          className="min-w-0 flex-1 pointer-events-none"
+          value="Positions"
+          onValueChange={() => {}}
+          options={TRADE_POSITION_TABS.map((tab) => ({
+            value: tab,
+            label: tradePositionTabLabel(tab),
+          }))}
+        />
+        <div className={cn(textFilterGroup, "hidden sm:flex pointer-events-none")} role="group" aria-label="Position filter">
+          <span className={cn(textFilterBtn, textFilterActive)}>Open</span>
+          <span className={textFilterBtn}>Closed</span>
         </div>
       </div>
-      <div className={tradeTerminalPositionsBody}>
+      <div className={tradeTerminalPositionsBody} aria-hidden>
         <div className="space-y-3">
           {Array.from({ length: 4 }, (_, i) => (
             <div
@@ -391,40 +559,12 @@ function TradePositionsSkeleton() {
 }
 
 /** Mirrors `PredictTradeTerminal` layout for route pending / loading. */
-export function TradeTerminalSkeleton() {
+export function TradeTerminalSkeleton({ oracleId }: { oracleId?: string } = {}) {
   return (
-    <section className={cn(tradeTerminal, "trade-terminal pointer-events-none")} aria-hidden>
-      <header className={cn(tradeTerminalHeader, "trade-terminal-header")}>
-        <div className={tradeTerminalHeaderTop}>
-          <div className="flex min-w-0 flex-1 items-start gap-3">
-            <SkeletonIcon className="h-8 w-8 sm:h-9 sm:w-9" />
-            <div className="min-w-0 flex-1 space-y-2">
-              <SkeletonBar className="h-4 w-full max-w-lg sm:h-5" />
-              <SkeletonBar className="h-3 w-28" />
-            </div>
-          </div>
-          <div className={tradeOracleNav}>
-            <SkeletonBar className="h-7 w-7 rounded-md sm:h-8 sm:w-8" />
-            <SkeletonBar className="h-7 w-7 rounded-md sm:h-8 sm:w-8" />
-          </div>
-        </div>
+    <section className={cn(tradeTerminal, "trade-terminal")}>
+      <TradeTerminalHeaderShell oracleId={oracleId} />
 
-        <div className={tradeTerminalHeaderMetrics}>
-          <div className={tradeTerminalHeaderMetricsRow}>
-            <div className={tradeStatRow}>
-              {Array.from({ length: 5 }, (_, i) => (
-                <div key={i} className={tradeStatItem}>
-                  <SkeletonBar className="h-2.5 w-14" />
-                  <SkeletonBar className="h-3.5 w-16 sm:w-20" />
-                </div>
-              ))}
-            </div>
-            <SkeletonBar className="hidden h-[3.25rem] min-w-[11rem] rounded-lg lg:block" />
-          </div>
-        </div>
-      </header>
-
-      <div className={tradeTerminalBody}>
+      <div className={cn(tradeTerminalBody, "pointer-events-none")} aria-hidden>
         <div className={cn(tradeTerminalWorkspace, "trade-terminal-workspace-desktop")}>
           <TradeChartSkeleton />
           <TradeOrderBookSkeleton />

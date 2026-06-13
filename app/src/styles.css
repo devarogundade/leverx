@@ -710,6 +710,40 @@ select {
   min-height: var(--trade-chart-h);
 }
 
+/* Mock X timeline strip above BTC price chart */
+.chart-tweet-marquee {
+  flex-shrink: 0;
+  overflow: hidden;
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-card);
+  pointer-events: none;
+  user-select: none;
+}
+
+.chart-tweet-marquee-track {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  padding: 0.4375rem 0;
+  animation: chart-tweet-marquee 48s linear infinite;
+}
+
+@keyframes chart-tweet-marquee {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chart-tweet-marquee-track {
+    animation: none;
+  }
+}
+
 .trade-terminal-orderbook {
   min-width: 0;
   min-height: 280px;

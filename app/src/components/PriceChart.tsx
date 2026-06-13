@@ -20,6 +20,9 @@ import {
 } from "@/lib/charts/predict-chart-levels";
 import type { PriceLevel } from "@/lib/charts/price-level";
 import {
+  applyCandlestickSeriesTheme,
+  applyLightweightChartTheme,
+  applyLineSeriesWinTheme,
   candlestickDownColor,
   candlestickUpColor,
   levelLineColor,
@@ -46,6 +49,8 @@ import {
   type ChartPriceSeriesResult,
 } from "@/hooks/useChartPriceSeries";
 import type { PredictSide } from "@/lib/predict/instruments";
+import { BtcTweetMarquee } from "@/components/leverx/BtcTweetMarquee";
+import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { tradeSurface } from "@/lib/leverx/tw";
 
@@ -91,6 +96,8 @@ export function PriceChart({
   layoutActive = true,
   className,
 }: Props) {
+  const showBtcTweetMarquee = asset.toUpperCase() === "BTC";
+  const theme = useTheme();
   const [mounted, setMounted] = useState(false);
   const [chartReady, setChartReady] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -206,6 +213,22 @@ export function PriceChart({
       strikeKeyRef.current = "";
     };
   }, [mounted, oracleId]);
+
+  useEffect(() => {
+    if (!chartReady) return;
+    const chart = chartRef.current;
+    if (!chart) return;
+
+    applyLightweightChartTheme(chart);
+
+    const series = priceSeriesRef.current;
+    const seriesMode = seriesModeRef.current;
+    if (series && seriesMode === "candlestick") {
+      applyCandlestickSeriesTheme(series as ISeriesApi<"Candlestick">);
+    } else if (series && seriesMode === "line") {
+      applyLineSeriesWinTheme(series as ISeriesApi<"Line">);
+    }
+  }, [theme, chartReady]);
 
   useEffect(() => {
     if (!layoutActive || !mounted) return;
@@ -422,7 +445,7 @@ export function PriceChart({
         series.removePriceLine(line);
       }
     };
-  }, [strikeLevelsKey, strikeLevels]);
+  }, [strikeLevelsKey, strikeLevels, theme]);
 
   const chartLabel = pair ?? `${asset}/USDC`;
   const showChart = mounted && !isLoading && !isError && hasData;
@@ -438,40 +461,43 @@ export function PriceChart({
       style={height != null ? { height } : undefined}
       aria-label={`${chartLabel} price chart`}
     >
-      {(!mounted || isLoading) && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-card/90 backdrop-blur-[2px]">
-          <LoadingState label={ui.loadingChart} compact />
-        </div>
-      )}
-      {mounted && isError && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-card/90 p-4">
-          <EmptyState
-            icon={LineChart}
-            title="Could not load chart"
-            description="Price data may be temporarily unavailable. Try again in a moment."
-            action={
-              <Button type="button" variant="outline" size="sm" onClick={() => refetch()}>
-                Retry
-              </Button>
-            }
-            compact
-          />
-        </div>
-      )}
-      <div
-        ref={containerRef}
-        className={cn("h-full w-full", (isLoading || isError) && "opacity-0")}
-      />
-      {showChart && (
-        <a
-          href="https://www.tradingview.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="absolute bottom-1 left-2 z-10 text-[9px] text-muted-foreground/70 hover:text-muted-foreground"
-        >
-          Chart by TradingView
-        </a>
-      )}
+      {showBtcTweetMarquee ? <BtcTweetMarquee /> : null}
+      <div className="relative min-h-0 flex-1">
+        {(!mounted || isLoading) && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-card/90 backdrop-blur-[2px]">
+            <LoadingState label={ui.loadingChart} compact />
+          </div>
+        )}
+        {mounted && isError && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-card/90 p-4">
+            <EmptyState
+              icon={LineChart}
+              title="Could not load chart"
+              description="Price data may be temporarily unavailable. Try again in a moment."
+              action={
+                <Button type="button" variant="outline" size="sm" onClick={() => refetch()}>
+                  Retry
+                </Button>
+              }
+              compact
+            />
+          </div>
+        )}
+        <div
+          ref={containerRef}
+          className={cn("h-full w-full", (isLoading || isError) && "opacity-0")}
+        />
+        {showChart && (
+          <a
+            href="https://www.tradingview.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="absolute bottom-1 left-2 z-10 text-[9px] text-muted-foreground/70 hover:text-muted-foreground"
+          >
+            Chart by TradingView
+          </a>
+        )}
+      </div>
     </div>
   );
 }

@@ -3,9 +3,12 @@ import { LineSeries, createChart, type IChartApi, type ISeriesApi } from "lightw
 import { LoadingState } from "@/components/ui/loading-state";
 import { ui } from "@/lib/copy";
 import {
+  applyLightweightChartTheme,
+  applyLineSeriesAccentTheme,
   lineSeriesAccentColor,
   lightweightChartOptions,
 } from "@/lib/charts/lightweight-shared";
+import { useTheme } from "@/lib/theme";
 import {
   flatChartLine,
   vaultSnapshotsToAprLine,
@@ -42,6 +45,7 @@ export function VaultPerformanceChart({ snapshots = [], loading, className }: Pr
   const [mounted, setMounted] = useState(false);
   const [chartReady, setChartReady] = useState(false);
   const [mode, setMode] = useState<ChartMode>("tvl");
+  const theme = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const lineRef = useRef<ISeriesApi<"Line"> | null>(null);
@@ -115,6 +119,16 @@ export function VaultPerformanceChart({ snapshots = [], loading, className }: Pr
       lineRef.current = null;
     };
   }, [mounted]);
+
+  useEffect(() => {
+    if (!chartReady) return;
+    const chart = chartRef.current;
+    const lineSeries = lineRef.current;
+    if (!chart) return;
+
+    applyLightweightChartTheme(chart);
+    if (lineSeries) applyLineSeriesAccentTheme(lineSeries);
+  }, [theme, chartReady]);
 
   useEffect(() => {
     if (!chartReady) return;

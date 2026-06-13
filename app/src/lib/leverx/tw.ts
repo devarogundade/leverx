@@ -366,12 +366,12 @@ export const tradeMobileDock = cn(
 );
 
 export const tradeMobileDockTabs = cn(
-  "pointer-events-auto inline-flex items-center gap-0 rounded-full border border-border",
+  "pointer-events-auto inline-flex items-center gap-0 rounded-full border border-border overflow-hidden",
   "bg-card/95 p-0.5 shadow-lg backdrop-blur-md",
 );
 
 export const tradeMobileDockTab = cn(
-  "inline-flex min-w-[3.25rem] items-center justify-center rounded-md px-3 py-1.5",
+  "inline-flex min-w-[3.25rem] items-center justify-center rounded-full px-3 py-1.5",
   "text-sm font-medium text-muted-foreground transition-colors duration-150",
   "hover:text-foreground",
 );
@@ -490,7 +490,7 @@ export const dataTableMobileCard = marketsTableMobileCard;
 
 export const dataTableMobileCardHeader = marketsTableMobileCardHeader;
 
-export const dataTableMobileCardStats = marketsTableMobileCardStats;
+export const dataTableMobileCardStats = "flex flex-col gap-2";
 
 export const dataTableMobileStatLabel = marketsTableMobileStatLabel;
 

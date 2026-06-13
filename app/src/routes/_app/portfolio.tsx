@@ -94,7 +94,7 @@ function PortfolioPage() {
           description="Connect your wallet to see your trades, orders, and account settings."
         />
       ) : isLoading && !account && activeOpenPositions.length === 0 ? (
-        <SurfaceSkeleton lines={6} />
+        <SurfaceSkeleton lines={6} hideHeader />
       ) : (
         <div className="space-y-4">
           <PortfolioSummaryBar summary={summary} loading={!statsReady && activeOpenPositions.length > 0} />
