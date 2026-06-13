@@ -18,9 +18,8 @@ import { cn } from "@/lib/utils";
 const LG_MEDIA = "(min-width: 1024px)";
 
 function useIsLgViewport(): boolean {
-  const [isLg, setIsLg] = useState(() =>
-    typeof window !== "undefined" ? window.matchMedia(LG_MEDIA).matches : true,
-  );
+  // Match SSR default on the first client render to avoid hydration mismatch.
+  const [isLg, setIsLg] = useState(true);
 
   useEffect(() => {
     const media = window.matchMedia(LG_MEDIA);

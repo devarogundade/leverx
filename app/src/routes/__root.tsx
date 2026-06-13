@@ -81,6 +81,8 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void; }) 
   );
 }
 
+const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem('lx-theme');if(t!=='light'&&t!=='dark'){t='dark';}var d=document.documentElement;d.classList.remove('light','dark');d.classList.add(t);}catch(e){document.documentElement.classList.add('dark');}})();`;
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient; }>()({
   ...routePendingOptions,
   loader: ({ context }) => ensurePredictOracles(context.queryClient),
@@ -106,6 +108,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient; }>()
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       { rel: "stylesheet", href: appCss },
     ],
+    scripts: [{ children: THEME_INIT_SCRIPT }],
   }),
   shellComponent: RootShell,
   component: RootComponent,
@@ -113,17 +116,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient; }>()
   errorComponent: ErrorComponent,
 });
 
-const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem('lx-theme');if(t!=='light'&&t!=='dark'){t='dark';}var d=document.documentElement;d.classList.remove('light','dark');d.classList.add(t);}catch(e){document.documentElement.classList.add('dark');}})();`;
-
 function RootShell({ children }: { children: ReactNode; }) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <head>
         <HeadContent />
-        <script
-          suppressHydrationWarning
-          dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
-        />
       </head>
       <body
         className="min-h-dvh bg-background font-sans text-foreground antialiased"

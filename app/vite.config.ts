@@ -45,6 +45,9 @@ export default defineConfig(({ mode }) => {
       }),
       nitro({
         preset: "vercel",
+        vercel: {
+          skewProtection: true,
+        },
         output: {
           dir: ".vercel/output",
           serverDir: ".vercel/output/functions/__server.func",

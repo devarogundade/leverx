@@ -4,8 +4,17 @@ function shouldReloadForChunkError(message: string): boolean {
   return (
     message.includes("Failed to fetch dynamically imported module") ||
     message.includes("Importing a module script failed") ||
-    message.includes("error loading dynamically imported module")
+    message.includes("error loading dynamically imported module") ||
+    message.includes("Failed to load module script") ||
+    message.includes("MIME type")
   );
+}
+
+function isStaleAssetScript(event: Event): boolean {
+  const target = event.target;
+  if (!(target instanceof HTMLScriptElement)) return false;
+  const src = target.src;
+  return src.includes("/assets/") && (target.type === "module" || src.endsWith(".js"));
 }
 
 function reloadOnceForStaleChunks(): void {
@@ -21,11 +30,15 @@ if (typeof window !== "undefined") {
     reloadOnceForStaleChunks();
   });
 
-  window.addEventListener("error", (event) => {
-    if (shouldReloadForChunkError(event.message ?? "")) {
-      reloadOnceForStaleChunks();
-    }
-  });
+  window.addEventListener(
+    "error",
+    (event) => {
+      if (isStaleAssetScript(event) || shouldReloadForChunkError(event.message ?? "")) {
+        reloadOnceForStaleChunks();
+      }
+    },
+    true,
+  );
 
   window.addEventListener("unhandledrejection", (event) => {
     const reason = event.reason;
