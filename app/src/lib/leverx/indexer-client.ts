@@ -330,6 +330,8 @@ export function fetchPositions(args?: {
   accountId?: string;
   oracleId?: string;
   status?: string;
+  /** Exclude rows with this status (indexer supports comma-separated values). */
+  excludeStatus?: string;
   limit?: number;
   offset?: number;
 }): Promise<Paginated<LeveragedPosition>> {
@@ -339,6 +341,7 @@ export function fetchPositions(args?: {
       account_id: args?.accountId,
       oracle_id: args?.oracleId,
       status: args?.status,
+      exclude_status: args?.excludeStatus,
       limit: args?.limit,
       offset: args?.offset,
     })}`,

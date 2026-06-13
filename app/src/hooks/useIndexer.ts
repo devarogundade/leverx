@@ -201,11 +201,13 @@ export function useIndexerPositions(
   return useQuery({
     queryKey: indexerKeys.positions(owner, args?.status, args?.oracleId),
     queryFn: async () => {
+      const status = args?.status ?? "open";
       const { items } = await fetchPositions({
         owner,
-        status: args?.status,
         oracleId: args?.oracleId,
         limit: 200,
+        // Oracle settlement closes positions as `settled`, not `closed`.
+        ...(status === "closed" ? { excludeStatus: "open" } : { status }),
       });
       return items;
     },

@@ -177,6 +177,7 @@ export function PredictLeveragePanel({
     setTpSl(false);
     setTp("");
     setSl("");
+    setLeverage(DEFAULT_LEVERAGE);
   }, []);
 
   // Reset only when the user changes market or outcome — not when catalog/oracle props refetch.
