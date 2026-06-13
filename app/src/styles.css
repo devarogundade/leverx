@@ -728,7 +728,7 @@ select {
   z-index: 2;
   display: flex;
   align-items: center;
-  padding-inline: 0.5rem 0.75rem;
+  padding-inline: 0.5rem 0.5rem;
   background-color: var(--color-card);
   box-shadow: 8px 0 12px -4px var(--color-card);
 }
@@ -737,16 +737,11 @@ select {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.375rem;
-  height: 1.375rem;
-  border-radius: var(--radius-sm);
-  background-color: var(--color-foreground);
-  color: var(--color-card);
 }
 
 .chart-tweet-marquee-x-logo {
-  width: 0.6875rem;
-  height: 0.6875rem;
+  width: 24px;
+  height: 24px;
 }
 
 .chart-tweet-marquee-track {
