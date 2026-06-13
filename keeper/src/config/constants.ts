@@ -63,12 +63,13 @@ export const INDEXER_URL = 'https://indexer.suileverx.xyz';
 
 export const DEFAULT_PORT = 3001;
 
+/** Stagger by 2s so concurrent crons do not pile up on the same tick. */
 export const KEEPER_CRON_DEFAULTS = {
-  settlement: '*/10 * * * * *',
-  limitOrder: '*/10 * * * * *',
-  liquidation: '*/10 * * * * *',
-  trigger: '*/10 * * * * *',
-  forceClose: '*/10 * * * * *',
+  settlement: '0,10,20,30,40,50 * * * * *',
+  limitOrder: '2,12,22,32,42,52 * * * * *',
+  liquidation: '4,14,24,34,44,54 * * * * *',
+  trigger: '6,16,26,36,46,56 * * * * *',
+  forceClose: '8,18,28,38,48,58 * * * * *',
 } as const;
 
 export const KEEPER_LIMIT_DEFAULTS = {

@@ -112,7 +112,7 @@ export class KeeperOrchestratorService {
         error: formatError('keeper run failed', err),
       });
     } finally {
-      this.running = false;
+      this.runningKinds.delete(kind);
     }
 
     for (const result of results) {

@@ -53,7 +53,6 @@ export class SuiService implements OnModuleInit {
     const url = `${this.cfg.indexerUrl}/v1/protocol`;
     try {
       const res = await fetch(url);
-      console.log('res', res);
       if (!res.ok) {
         logKeeperWarn(
           this.logger,
