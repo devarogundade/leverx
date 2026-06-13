@@ -1,10 +1,19 @@
 import { signAndExecuteTransaction } from "@mysten/wallet-standard";
-import { SUI_TESTNET_CHAIN, type WalletWithRequiredFeatures } from "@mysten/wallet-standard";
+import {
+  SUI_MAINNET_CHAIN,
+  SUI_TESTNET_CHAIN,
+  type WalletWithRequiredFeatures,
+} from "@mysten/wallet-standard";
 import type { WalletAccount } from "@wallet-standard/core";
 import { Transaction } from "@mysten/sui/transactions";
 import type { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
+import { appConfig } from "@/lib/config";
 
 const DEFAULT_GAS_BUDGET = 50_000_000;
+
+function walletChain() {
+  return appConfig.suiNetwork === "testnet" ? SUI_TESTNET_CHAIN : SUI_MAINNET_CHAIN;
+}
 
 /** Build and sign a single Sui PTB (`Transaction`) via the wallet. */
 export async function executeWalletTransaction(
@@ -26,13 +35,20 @@ export async function executeWalletTransaction(
   const result = await signAndExecuteTransaction(wallet, {
     transaction: transactionForWallet,
     account,
-    chain: SUI_TESTNET_CHAIN,
+    chain: walletChain(),
   });
 
-  await client.waitForTransaction({
+  const finalized = await client.waitForTransaction({
     digest: result.digest,
     options: { showEffects: true, showObjectChanges: true },
   });
+
+  if (finalized.effects?.status?.status !== "success") {
+    const err = finalized.effects?.status?.error;
+    throw new Error(
+      typeof err === "string" ? err : err ? JSON.stringify(err) : "Transaction failed on-chain",
+    );
+  }
 
   return { digest: result.digest };
 }

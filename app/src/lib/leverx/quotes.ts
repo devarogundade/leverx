@@ -13,7 +13,10 @@ import {
   maxMintBudgetAtoms,
 } from "@/lib/leverx/trade-math";
 
-export type PredictQuoteConfig = Pick<LeverxProtocolConfig, "packageId" | "predictId">;
+export type PredictQuoteConfig = Pick<
+  LeverxProtocolConfig,
+  "packageId" | "predictId" | "predictPackageId"
+>;
 
 export type MintQuote = {
   marketAskPerUnit: bigint;
@@ -73,7 +76,7 @@ async function devInspectMarketAsk(params: {
 }): Promise<{ marketAskPerUnit: bigint; mintCost: bigint } | null> {
   const tx = new Transaction();
   tx.setSender(READONLY_SENDER);
-  const marketKey = addMarketKey(tx, params.key);
+  const marketKey = addMarketKey(tx, params.key, params.cfg.predictPackageId);
   const fn = params.key.isRange ? "market_ask_range" : "market_ask_binary";
 
   tx.moveCall({
@@ -178,7 +181,7 @@ async function fetchMintBorrowQuote(params: {
 }): Promise<bigint | null> {
   const tx = new Transaction();
   tx.setSender(READONLY_SENDER);
-  const marketKey = addMarketKey(tx, params.key);
+  const marketKey = addMarketKey(tx, params.key, params.cfg.predictPackageId);
   const fn = params.key.isRange
     ? "quote_leveraged_mint_range"
     : "quote_leveraged_mint_binary";
@@ -269,12 +272,13 @@ export async function fetchMintQuote(params: {
 export async function fetchKeyQuoteBalance(params: {
   client: SuiJsonRpcClient;
   packageId: string;
+  predictPackageId: string;
   accountId: string;
   key: MarketKeyArgs;
 }): Promise<bigint> {
   const tx = new Transaction();
   tx.setSender(READONLY_SENDER);
-  const marketKey = addMarketKey(tx, params.key);
+  const marketKey = addMarketKey(tx, params.key, params.predictPackageId);
   const fn = params.key.isRange ? "range_quote_balance" : "binary_quote_balance";
 
   tx.moveCall({
@@ -303,7 +307,7 @@ export async function fetchRedeemQuote(params: {
 }): Promise<RedeemQuote | null> {
   const tx = new Transaction();
   tx.setSender(READONLY_SENDER);
-  const marketKey = addMarketKey(tx, params.key);
+  const marketKey = addMarketKey(tx, params.key, params.cfg.predictPackageId);
   const fn = params.key.isRange
     ? "quote_leveraged_redeem_range"
     : "quote_leveraged_redeem_binary";
@@ -364,7 +368,7 @@ export async function simulateCloseWithdrawAtoms(params: {
   tx.setSender(params.sender);
   params.appendClose(tx);
 
-  const marketKey = addMarketKey(tx, params.key);
+  const marketKey = addMarketKey(tx, params.key, params.cfg.predictPackageId);
   const borrowedFn = params.key.isRange ? "range_borrowed_quote" : "binary_borrowed_quote";
   const balanceFn = params.key.isRange ? "range_quote_balance" : "binary_quote_balance";
 

@@ -182,7 +182,7 @@ export async function executeOpenTrade(params: {
       );
 
       if (input.tpPremium || input.slPremium) {
-        const marketKey = addMarketKey(tx, input.key);
+        const marketKey = addMarketKey(tx, input.key, cfg.predictPackageId);
         tx.moveCall({
           target: `${cfg.packageId}::triggers::${
             input.key.isRange ? "set_range_triggers" : "set_automated_triggers_entry"

@@ -40,8 +40,8 @@ export const appConfig = {
   suiNetwork: "testnet" as const,
 
   predictServerUrl: TESTNET_PREDICT.serverUrl,
-  predictId: TESTNET_PREDICT.predictId,
-  predictPackageId: TESTNET_PREDICT.packageId,
+  predictId: viteEnv("VITE_PREDICT_ID") || TESTNET_PREDICT.predictId,
+  predictPackageId: viteEnv("VITE_PREDICT_PACKAGE_ID") || TESTNET_PREDICT.packageId,
   predictRegistryId: TESTNET_PREDICT.registryId,
   quoteType: TESTNET_PREDICT.quoteType,
 

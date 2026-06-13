@@ -64,6 +64,7 @@ export function useProxyKeyBalances(
         let balanceAtoms = await fetchKeyQuoteBalance({
           client,
           packageId: cfg!.packageId,
+          predictPackageId: cfg!.predictPackageId,
           accountId: accountId!,
           key,
         });

@@ -35,8 +35,9 @@ export function positionKeyFromArgs(args: MarketKeyArgs): string {
 export function addMarketKey(
   tx: Transaction,
   args: MarketKeyArgs,
+  predictPackageId: string = appConfig.predictPackageId,
 ): TransactionObjectArgument {
-  const pkg = appConfig.predictPackageId;
+  const pkg = predictPackageId;
 
   if (args.isRange) {
     return tx.moveCall({

@@ -8,7 +8,7 @@ export function ohlcvToCandlestickData(
 
   for (const [t, open, high, low, close] of candles) {
     if (t <= 0 || !Number.isFinite(close) || close <= 0) continue;
-    const time = Math.floor(t / 1000) as UTCTimestamp;
+    const time = t as UTCTimestamp;
     byTime.set(time, {
       time,
       open,

@@ -22,6 +22,7 @@ const LEVERX_MUTATION_QUERY_PREFIXES = [
   "leverx-mint-quote",
   "leverx-market-ask",
   "position-redeem-quote",
+  "proxy-key-balance",
   // Predict server portfolio / vault (manager link, protection positions)
   "predict-manager-id",
   "predict-manager-summary",

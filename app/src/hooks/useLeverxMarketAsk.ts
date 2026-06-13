@@ -6,9 +6,17 @@ import type { MarketKeyArgs } from "@/lib/leverx/market-keys";
 import { fetchPredictMarketAsk } from "@/lib/leverx/quotes";
 import { useLeverxProtocolConfig } from "@/hooks/useLeverxTransactions";
 
-function quoteCfg(packageId: string | undefined, predictId?: string) {
+function quoteCfg(
+  packageId: string | undefined,
+  predictId?: string,
+  predictPackageId?: string,
+) {
   if (!packageId) return null;
-  return { packageId, predictId: predictId ?? appConfig.predictId };
+  return {
+    packageId,
+    predictId: predictId ?? appConfig.predictId,
+    predictPackageId: predictPackageId ?? appConfig.predictPackageId,
+  };
 }
 
 /** Live per-contract ask for a market (no margin / account required). */
@@ -16,8 +24,13 @@ export function useLeverxMarketAsk(key?: MarketKeyArgs) {
   const { client } = useWallet();
   const fullCfg = useLeverxProtocolConfig();
   const cfg = useMemo(
-    () => quoteCfg(fullCfg?.packageId ?? appConfig.leverxPackageId, fullCfg?.predictId),
-    [fullCfg?.packageId, fullCfg?.predictId],
+    () =>
+      quoteCfg(
+        fullCfg?.packageId ?? appConfig.leverxPackageId,
+        fullCfg?.predictId,
+        fullCfg?.predictPackageId,
+      ),
+    [fullCfg?.packageId, fullCfg?.predictId, fullCfg?.predictPackageId],
   );
 
   return useQuery({

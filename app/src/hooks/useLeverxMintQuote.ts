@@ -3,29 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useWallet } from "@/context/WalletContext";
 import { useIndexerAccounts, useIndexerProtocol } from "@/hooks/useIndexer";
 import { useLeverxProtocolConfig } from "@/hooks/useLeverxTransactions";
-import { appConfig } from "@/lib/config";
 import type { MarketKeyArgs } from "@/lib/leverx/market-keys";
 import { fetchMintQuote } from "@/lib/leverx/quotes";
-import type { LeverxProtocolConfig } from "@/lib/leverx/protocol";
+import { resolveLeverxProtocol } from "@/lib/leverx/protocol";
 import { leverageToBps, marginUsdToQuoteAtoms } from "@/lib/leverx/trade-math";
-
-function quoteReadyConfig(
-  full: LeverxProtocolConfig | null | undefined,
-): LeverxProtocolConfig | null {
-  if (full?.packageId && full.predictId) return full;
-  const packageId = appConfig.leverxPackageId;
-  if (!packageId) return null;
-  return {
-    packageId,
-    registryId: full?.registryId ?? "",
-    vaultId: full?.vaultId ?? "",
-    feeCollectorId: full?.feeCollectorId ?? "",
-    predictId: full?.predictId ?? appConfig.predictId,
-    predictPackageId: appConfig.predictPackageId,
-    predictRegistryId: full?.predictRegistryId ?? appConfig.predictRegistryId,
-    quoteType: appConfig.quoteType,
-  };
-}
 
 export function useLeverxMintQuote(args: {
   key?: MarketKeyArgs;
@@ -40,8 +21,8 @@ export function useLeverxMintQuote(args: {
   const fullCfg = useLeverxProtocolConfig();
   const { data: protocol } = useIndexerProtocol();
   const cfg = useMemo(
-    () => quoteReadyConfig(fullCfg),
-    [fullCfg, protocol?.predict_id],
+    () => fullCfg ?? resolveLeverxProtocol(protocol ?? null),
+    [fullCfg, protocol],
   );
   const { data: accounts = [] } = useIndexerAccounts(args.owner);
   const accountId = accounts[0]?.account_id;
