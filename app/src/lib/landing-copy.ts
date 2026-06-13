@@ -1,3 +1,7 @@
+import { isRangeTradingEnabled } from "@/lib/predict/instruments";
+
+const rangeEnabled = isRangeTradingEnabled();
+
 /** Plain-language copy for the marketing landing page. */
 export const landingCopy = {
   eyebrow: "Live on Sui · Demo mode",
@@ -19,7 +23,9 @@ export const landingCopy = {
   leverageLead:
     "Your target price sits in the middle of the chart. When the live price crosses above or below it, the line turns green or red so you always know where you stand.",
   leverageBullets: [
-    "1×–10× leverage with 0.1–100 dUSDC margin on price-up, price-down, and range bets",
+    rangeEnabled
+      ? "1×–10× leverage with 0.1–100 dUSDC margin on price-up, price-down, and range bets"
+      : "1×–10× leverage with 0.1–100 dUSDC margin on price-up and price-down bets",
     "Target price always centered on the chart",
     "Clear signals when a position is ahead or behind",
   ] as const,
@@ -27,10 +33,13 @@ export const landingCopy = {
 
   marketsEyebrow: "Markets",
   marketsTitle: "Pick a direction on live prices",
-  marketsLead:
-    "Will BTC finish above your strike? Below it? Inside a band? Choose a market, set your view, and size your trade — the app handles the rest.",
+  marketsLead: rangeEnabled
+    ? "Will BTC finish above your strike? Below it? Inside a band? Choose a market, set your view, and size your trade — the app handles the rest."
+    : "Will BTC finish above your strike? Below it? Choose a market, set your view, and size your trade — the app handles the rest.",
   marketsBullets: [
-    "Price-up, price-down, and range markets on major assets",
+    rangeEnabled
+      ? "Price-up, price-down, and range markets on major assets"
+      : "Price-up and price-down markets on major assets",
     "Target prices update as the market moves",
     "Full list of open markets with live prices",
   ] as const,

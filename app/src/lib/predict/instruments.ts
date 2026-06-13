@@ -1,7 +1,23 @@
+import { appConfig } from "@/lib/config";
+
 /** DeepBook Predict instrument sides — binary UP/DOWN and vertical RANGE. */
 export type PredictSide = "up" | "down" | "range";
 
 export const PREDICT_SIDES: readonly PredictSide[] = ["up", "down", "range"] as const;
+
+export function isRangeTradingEnabled(): boolean {
+  return appConfig.rangeEnabled;
+}
+
+/** Outcome sides shown in trade / order-book toggles. */
+export const TRADE_PREDICT_SIDES: readonly PredictSide[] = isRangeTradingEnabled()
+  ? PREDICT_SIDES
+  : (["up", "down"] as const);
+
+export function coercePredictSide(side: PredictSide): PredictSide {
+  if (side === "range" && !isRangeTradingEnabled()) return "up";
+  return side;
+}
 
 export const predictSideLabel: Record<PredictSide, string> = {
   up: "UP",
@@ -17,6 +33,14 @@ export const tradePanelSideLabel: Record<"up" | "down", string> = {
 
 export function sideFromIsUp(isUp: boolean): "up" | "down" {
   return isUp ? "up" : "down";
+}
+
+export function predictSideFromBinary(args: {
+  isUp: boolean;
+  isRange?: boolean;
+}): PredictSide {
+  if (args.isRange) return "range";
+  return sideFromIsUp(args.isUp);
 }
 
 export function isUpFromSide(side: PredictSide): boolean | undefined {

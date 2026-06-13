@@ -4,7 +4,12 @@ import { Check, ChevronRight, Circle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-const ContextMenu = ContextMenuPrimitive.Root;
+const ContextMenu = ({
+  modal = false,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof ContextMenuPrimitive.Root>) => (
+  <ContextMenuPrimitive.Root modal={modal} {...props} />
+);
 
 const ContextMenuTrigger = ContextMenuPrimitive.Trigger;
 
@@ -161,7 +166,7 @@ ContextMenuSeparator.displayName = ContextMenuPrimitive.Separator.displayName;
 const ContextMenuShortcut = ({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) => {
   return (
     <span
-      className={cn("ml-auto text-xs tracking-widest text-muted-foreground", className)}
+      className={cn("ml-auto text-sm tracking-widest text-muted-foreground", className)}
       {...props}
     />
   );

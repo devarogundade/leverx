@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { predictSideLabel, type PredictSide } from "@/lib/predict/instruments";
+import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
+import { isRangeTradingEnabled, predictSideLabel, type PredictSide } from "@/lib/predict/instruments";
 import {
   marketSideAction,
   marketSideActionDown,
@@ -65,26 +66,28 @@ export function MarketSideActions({
         side="up"
         className={cn(marketSideAction, marketSideActionUp)}
       >
-        {predictSideLabel.up}
+        <PredictSideLabel side="up" />
       </SideLink>
       <SideLink
         oracleId={oracleId}
         side="down"
         className={cn(marketSideAction, marketSideActionDown)}
       >
-        {predictSideLabel.down}
+        <PredictSideLabel side="down" />
       </SideLink>
-      <SideLink
-        oracleId={oracleId}
-        side="range"
-        className={cn(
-          marketSideAction,
-          marketSideActionRange,
-          hideRangeOnMobile && "hidden sm:inline-flex",
-        )}
-      >
-        {predictSideLabel.range}
-      </SideLink>
+      {isRangeTradingEnabled() ? (
+        <SideLink
+          oracleId={oracleId}
+          side="range"
+          className={cn(
+            marketSideAction,
+            marketSideActionRange,
+            hideRangeOnMobile && "hidden sm:inline-flex",
+          )}
+        >
+          {predictSideLabel.range}
+        </SideLink>
+      ) : null}
     </div>
   );
 }

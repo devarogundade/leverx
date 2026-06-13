@@ -37,7 +37,7 @@ export function CancelOrderTrigger({ order, className }: Props) {
     <>
       <button
         type="button"
-        className={cn(pillToggleBtn, pillToggleIdle, "text-xs", className)}
+        className={cn(pillToggleBtn, pillToggleIdle, "text-sm", className)}
         disabled={disabled}
         onClick={() => setOpen(true)}
       >
@@ -49,7 +49,7 @@ export function CancelOrderTrigger({ order, className }: Props) {
         title="Cancel open order"
         description={`${side} limit @ ${formatPremiumCents(order.limit_premium_per_unit)}`}
       >
-        <dl className="mb-4 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+        <dl className="mb-4 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
           <dt className="text-muted-foreground">Quantity</dt>
           <dd className="font-mono text-right">{order.quantity.toLocaleString()}</dd>
           <dt className="text-muted-foreground">Margin reserved</dt>
@@ -59,7 +59,7 @@ export function CancelOrderTrigger({ order, className }: Props) {
           <dt className="text-muted-foreground">Leverage</dt>
           <dd className="font-mono text-right">{(order.leverage_bps / 10_000).toFixed(1)}×</dd>
         </dl>
-        <p className="mb-4 text-xs text-muted-foreground">
+        <p className="mb-4 text-sm text-muted-foreground">
           Cancelled orders release reserved margin back to your market balance.
         </p>
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">

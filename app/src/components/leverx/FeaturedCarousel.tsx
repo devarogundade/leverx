@@ -53,7 +53,7 @@ export function FeaturedCarousel({ markets, loading }: Props) {
               >
                 <AssetBadge asset={m.asset} size="sm" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-medium">{m.question}</p>
+                  <p className="truncate text-sm font-medium">{m.question}</p>
                   <p className="text-[10px] text-muted-foreground">DeepBook Predict</p>
                 </div>
                 <div className="shrink-0 text-right">
@@ -93,7 +93,7 @@ export function FeaturedCarousel({ markets, loading }: Props) {
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
-        <span className="font-mono text-xs text-muted-foreground">
+        <span className="font-mono text-sm text-muted-foreground">
           {loading ? "—/—" : `${page + 1}/${pages}`}
         </span>
       </div>

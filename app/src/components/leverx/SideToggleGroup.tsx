@@ -1,14 +1,12 @@
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
 import {
-  predictSideLabel,
   sideToggleClass,
-  tradePanelSideLabel,
+  TRADE_PREDICT_SIDES,
   type PredictSide,
 } from "@/lib/predict/instruments";
 import { segTab, segTabsClass } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
-
-const SIDES: readonly PredictSide[] = ["up", "down", "range"];
 
 interface Props {
   value: PredictSide;
@@ -19,7 +17,7 @@ interface Props {
 }
 
 export function SideToggleGroup({ value, onValueChange, className, dual }: Props) {
-  const sides = dual ? (["up", "down"] as const) : SIDES;
+  const sides = dual ? (["up", "down"] as const) : TRADE_PREDICT_SIDES;
 
   return (
     <ToggleGroup
@@ -38,9 +36,10 @@ export function SideToggleGroup({ value, onValueChange, className, dual }: Props
             value === side ? sideToggleClass(side, true) : "text-muted-foreground",
           )}
         >
-          {dual && (side === "up" || side === "down")
-            ? tradePanelSideLabel[side]
-            : predictSideLabel[side]}
+          <PredictSideLabel
+            side={side}
+            variant={dual && (side === "up" || side === "down") ? "trade" : "outcome"}
+          />
         </ToggleGroupItem>
       ))}
     </ToggleGroup>

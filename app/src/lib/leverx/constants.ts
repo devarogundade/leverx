@@ -13,6 +13,9 @@ export const PREDICT_QUOTE_REFERENCE_QUANTITY = 1_000_000n;
 /** Headroom below leveraged position size so mint_cost <= margin + borrow on-chain. */
 export const MINT_BUDGET_SAFETY_BPS = 50;
 
+/** Quick-pick slippage options in the trade form (percent). */
+export const SLIPPAGE_PRESET_PCTS = [2, 5, 10] as const;
+
 /** Default slippage for market mint/redeem (5%). */
 export const DEFAULT_SLIPPAGE_BPS = 500;
 

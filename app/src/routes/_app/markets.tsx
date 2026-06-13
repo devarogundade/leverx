@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { LayoutGrid, List, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { UnderlineTabs } from "@/components/leverx/UnderlineTabs";
 import { PredictMarketsGrid } from "@/components/leverx/PredictMarketsGrid";
 import { PredictMarketsTable } from "@/components/leverx/PredictMarketsTable";
+import { useMarketFavorites } from "@/context/MarketFavoritesContext";
 import { useMergedMarkets } from "@/hooks/useMergedMarkets";
 import { useIndexerProtocol, useIndexerVaultSummary } from "@/hooks/useIndexer";
 import { pageTitle } from "@/lib/brand";
+import { ui } from "@/lib/copy";
 import { formatCompactUsdOrPlaceholder } from "@/lib/leverx/placeholders";
 import type { MarketCategory } from "@/lib/leverx/predict-oracle-markets";
 import { scaleQuote } from "@/lib/predict/scaling";
@@ -26,7 +28,8 @@ import { cn } from "@/lib/utils";
 import { loadMarketsRoute } from "@/lib/router/route-loaders";
 import { routePendingOptions } from "@/lib/router/route-options";
 
-const CATEGORIES = ["All", "Live", "Closed"] as const;
+const CATEGORIES = ["All", "Live", "Favorites", "Closed"] as const;
+type MarketsTab = (typeof CATEGORIES)[number];
 
 export const Route = createFileRoute("/_app/markets")({
   ...routePendingOptions,
@@ -44,14 +47,27 @@ export const Route = createFileRoute("/_app/markets")({
 });
 
 function MarketsPage() {
-  const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("Live");
+  const [category, setCategory] = useState<MarketsTab>("Live");
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"grid" | "list">("grid");
+  const { favorites, favoriteCount } = useMarketFavorites();
 
-  const { markets, categoryCounts, loading, offline, catalogReady } = useMergedMarkets({
-    category: category as MarketCategory,
-    search,
-  });
+  const catalogCategory: MarketCategory = category === "Favorites" ? "All" : category;
+
+  const { markets: catalogMarkets, categoryCounts, loading, offline, catalogReady } =
+    useMergedMarkets({
+      category: catalogCategory,
+      search,
+    });
+
+  const markets = useMemo(() => {
+    if (category !== "Favorites") return catalogMarkets;
+    return catalogMarkets.filter((market) => favorites.has(market.oracleId));
+  }, [catalogMarkets, category, favorites]);
+
+  const emptyTitle = category === "Favorites" ? ui.emptyFavoriteMarkets : ui.emptyMarkets;
+  const emptyDescription =
+    category === "Favorites" ? ui.emptyFavoriteMarketsHint : ui.emptyMarketsHint;
 
   const { data: protocol } = useIndexerProtocol();
   const { data: vaultSummary } = useIndexerVaultSummary(protocol?.vault_id ?? undefined);
@@ -108,7 +124,7 @@ function MarketsPage() {
       <UnderlineTabs
         variant="plain"
         value={category}
-        onValueChange={(v) => setCategory(v as (typeof CATEGORIES)[number])}
+        onValueChange={(v) => setCategory(v as MarketsTab)}
         options={CATEGORIES.map((cat) => ({
           value: cat,
           label: (
@@ -116,6 +132,9 @@ function MarketsPage() {
               {cat}
               {cat === "Live" && categoryCounts.Live > 0 ? (
                 <span className={cn(pillCount, "ml-1")}>{categoryCounts.Live}</span>
+              ) : null}
+              {cat === "Favorites" && favoriteCount > 0 ? (
+                <span className={cn(pillCount, "ml-1")}>{favoriteCount}</span>
               ) : null}
             </>
           ),
@@ -129,6 +148,8 @@ function MarketsPage() {
             liquidityLabel={liquidityLabel}
             loading={loading}
             offline={offline}
+            emptyTitle={emptyTitle}
+            emptyDescription={emptyDescription}
           />
         ) : (
           <>
@@ -138,6 +159,8 @@ function MarketsPage() {
                 liquidityLabel={liquidityLabel}
                 loading={loading}
                 offline={offline}
+                emptyTitle={emptyTitle}
+                emptyDescription={emptyDescription}
               />
             </div>
             <div className="lg:hidden">
@@ -146,6 +169,8 @@ function MarketsPage() {
                 liquidityLabel={liquidityLabel}
                 loading={loading}
                 offline={offline}
+                emptyTitle={emptyTitle}
+                emptyDescription={emptyDescription}
               />
             </div>
           </>

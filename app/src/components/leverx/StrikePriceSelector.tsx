@@ -57,7 +57,7 @@ export function StrikePriceSelector({
           info={leverxInfo.strikePrice}
         />
         {oracleSpotUsd != null && oracleSpotUsd > 0 ? (
-          <span className="shrink-0 text-xs text-muted-foreground">
+          <span className="shrink-0 text-sm text-muted-foreground">
             Spot{" "}
             <span className="font-mono text-foreground">
               {formatSpotUsd(oracleSpotUsd)}
@@ -66,7 +66,7 @@ export function StrikePriceSelector({
         ) : null}
       </div>
 
-      <div className={cn(segTabsScroll, "-mx-1 px-1")}>
+      <div className={cn(segTabsScroll, "seg-tabs-scroll-fade -mx-1 px-1")}>
         <div
           className={cn(pillToggleGroup, "inline-flex min-w-max flex-nowrap")}
           role="group"
@@ -106,7 +106,7 @@ export function StrikePriceSelector({
             disabled={disabled}
           />
           {minStrikeLabel ? (
-            <p className="mt-1.5 text-xs text-muted-foreground">
+            <p className="mt-1.5 text-sm text-muted-foreground">
               Minimum strike:{" "}
               <span className="font-mono text-foreground">{minStrikeLabel}</span>
             </p>
@@ -115,7 +115,7 @@ export function StrikePriceSelector({
       ) : null}
 
       <div className="flex items-baseline justify-between gap-2 rounded-lg border border-border bg-surface/60 px-3 py-2">
-        <span className="text-xs text-muted-foreground">Your strike</span>
+        <span className="text-sm text-muted-foreground">Your strike</span>
         <span className="font-mono text-sm font-medium text-foreground">
           {formatStrikeUsdFromRaw(resolvedStrikeRaw)}
         </span>

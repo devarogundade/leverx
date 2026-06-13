@@ -467,6 +467,8 @@ select {
 }
 
 .site-shell {
+  display: flex;
+  flex-direction: column;
   min-height: 100dvh;
   overflow-x: clip;
 }
@@ -477,7 +479,8 @@ select {
   z-index: 50;
   flex-shrink: 0;
   width: 100%;
-  height: var(--site-header-h);
+  height: auto;
+  min-height: var(--site-header-h);
   background-color: var(--color-background);
 }
 
@@ -491,21 +494,75 @@ select {
   padding-inline: var(--page-px);
 }
 
+.site-header-brand {
+  min-width: 0;
+}
+
+.site-header-nav {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.site-header-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.site-header-actions {
+  min-width: 0;
+}
+
+.site-header .lx-theme-toggle,
+.site-header .btn-icon {
+  flex-shrink: 0;
+}
+
+@media (max-width: 639px) {
+  .site-header-inner {
+    gap: var(--space-1);
+  }
+
+  .site-header .lx-theme-toggle {
+    height: 2.25rem;
+    width: 2.25rem;
+  }
+
+  .site-header .btn-connect--compact {
+    height: 2.25rem !important;
+    min-height: 2.25rem;
+    padding-inline: 0.625rem !important;
+    font-size: 0.75rem;
+    border-radius: var(--radius-md);
+  }
+
+  .site-header .header-balance-pill {
+    height: 2.25rem;
+    padding-inline: 0.5rem;
+    font-size: 0.75rem;
+  }
+}
+
 @media (min-width: 640px) {
   .site-header-inner {
     gap: var(--space-3);
   }
 }
 
-@media (min-width: 1024px) {
-  .site-header-inner {
-    gap: var(--space-6);
+@media (min-width: 768px) and (max-width: 1023px) {
+  .site-header .nav-tab {
+    font-size: 0.8125rem;
+    white-space: nowrap;
+  }
+
+  .site-header-nav {
+    padding-inline: var(--space-1);
   }
 }
 
-@media (min-width: 1024px) and (max-width: 1279px) {
-  .site-header .nav-tab {
-    font-size: 0.8125rem;
+@media (min-width: 1024px) {
+  .site-header-inner {
+    gap: var(--space-6);
   }
 }
 
@@ -517,8 +574,33 @@ select {
   max-width: var(--page-max);
   margin-inline: auto;
   min-width: 0;
+  min-height: 0;
   padding-inline: var(--page-px);
   padding-block: var(--page-py);
+}
+
+.page-shell-content {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+}
+
+.app-outlet {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 100dvh;
+  width: 100%;
+}
+
+.app-outlet > * {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 100dvh;
+  width: 100%;
 }
 
 .site-main:has(.trade-terminal) {
@@ -547,7 +629,6 @@ select {
   flex-direction: column;
   gap: var(--space-3);
   padding-bottom: var(--space-3);
-  border-bottom: 1px solid var(--color-border);
 }
 
 .trade-terminal-header-top {
@@ -1175,6 +1256,11 @@ select {
     display: none;
   }
 
+  .seg-tabs-scroll-fade {
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 0.75rem), transparent);
+    mask-image: linear-gradient(to right, black calc(100% - 0.75rem), transparent);
+  }
+
   .seg-tabs--stretch {
     display: flex;
     width: 100%;
@@ -1183,6 +1269,27 @@ select {
   .seg-tabs--stretch > .seg-tab {
     flex: 1;
     min-width: 0;
+  }
+
+  @media (max-width: 639px) {
+    .seg-tabs--stretch {
+      display: inline-flex;
+      width: max-content;
+      max-width: 100%;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+
+    .seg-tabs--stretch::-webkit-scrollbar {
+      display: none;
+    }
+
+    .seg-tabs--stretch > .seg-tab {
+      flex: none;
+      min-width: auto;
+    }
   }
 
   .seg-tab {
@@ -2758,18 +2865,6 @@ select {
   }
 }
 
-::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: color-mix(in oklab, var(--color-foreground) 12%, transparent);
-  border-radius: 99px;
-}
-
 /* LeverX layout extensions */
 .pixel-border {
   display: none;
@@ -2850,6 +2945,37 @@ select {
   mask-image: radial-gradient(ellipse 85% 75% at 50% 45%, black 20%, transparent 72%);
 }
 
+.landing-interactive-grid {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  pointer-events: none;
+  mask-image: radial-gradient(ellipse 85% 75% at 50% 45%, black 20%, transparent 72%);
+}
+
+.landing-interactive-grid--static {
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--color-accent) 4%, transparent) 1px, transparent 1px),
+    linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--color-accent) 4%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 56px 56px;
+}
+
+.landing-grid-cell {
+  box-sizing: border-box;
+  width: 56px;
+  height: 56px;
+  flex: 0 0 56px;
+  border: 1px solid color-mix(in oklab, var(--color-accent) 4%, transparent);
+  background: transparent;
+  will-change: background-color, border-color, box-shadow;
+}
+
 /* ── Landing page ─────────────────────────────────────────────── */
 
 .landing-page {
@@ -2861,6 +2987,80 @@ select {
   overflow: hidden;
   background-color: var(--color-background);
   padding-inline: var(--page-px);
+}
+
+/* Single-screen hero — fit within one viewport; visual shrinks on short screens */
+.landing-page--viewport {
+  height: 100dvh;
+  max-height: 100dvh;
+  align-items: stretch;
+  padding-top: 0;
+}
+.landing-page--viewport .landing-scroll {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding-top: clamp(var(--space-6), 5vh, var(--space-8));
+  padding-bottom: clamp(var(--space-6), 5vh, var(--space-8));
+  overflow-y: auto;
+}
+.landing-page--viewport:has(.landing-header) .landing-scroll {
+  padding-top: calc(var(--site-header-h) + clamp(var(--space-6), 5vh, var(--space-8)));
+}
+.landing-page--viewport .landing-hero {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 0;
+  padding-block: clamp(1rem, 2.5vh, 2rem);
+}
+.landing-page--viewport .landing-eyebrow {
+  margin-bottom: 1rem;
+}
+.landing-page--viewport .landing-hero-lead {
+  margin-top: 1.5rem;
+}
+.landing-page--viewport .landing-cta-row {
+  margin-top: 1.5rem;
+}
+.landing-page--viewport .landing-hero-visual {
+  flex: none;
+  width: 100%;
+  max-width: min(42rem, 90vw);
+  margin-top: clamp(1.5rem, 3.5vw, 2.5rem);
+  margin-inline: auto;
+  max-height: min(44vh, 26rem);
+}
+.landing-page--viewport .landing-hero-visual .landing-illus-frame {
+  width: 100%;
+  max-height: min(44vh, 26rem);
+}
+
+@media (max-width: 639px) {
+  .landing-page--viewport .landing-scroll {
+    padding-top: var(--space-3);
+    padding-bottom: var(--space-3);
+  }
+  .landing-page--viewport:has(.landing-header) .landing-scroll {
+    padding-top: calc(var(--site-header-h) + var(--space-3));
+  }
+  .landing-page--viewport .landing-hero {
+    padding-block: var(--space-2);
+  }
+  .landing-page--viewport .landing-eyebrow {
+    margin-bottom: 0.625rem;
+  }
+  .landing-page--viewport .landing-hero-lead {
+    margin-top: 0.875rem;
+  }
+  .landing-page--viewport .landing-cta-row {
+    margin-top: 0.875rem;
+  }
+  .landing-page--viewport .landing-hero-visual {
+    margin-top: 1rem;
+  }
 }
 
 .landing-asset-grid {
@@ -2877,6 +3077,7 @@ select {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: visible;
   animation: landing-float 14s ease-in-out infinite;
 }
 
@@ -2886,9 +3087,11 @@ select {
 }
 
 .landing-asset-icon {
-  width: auto;
-  height: auto;
-  max-width: 100%;
+  --asset-size: 2.5rem;
+  width: min(var(--asset-size), 10vmin);
+  height: min(var(--asset-size), 10vmin);
+  flex-shrink: 0;
+  object-fit: contain;
   filter: grayscale(0.15) saturate(0.85);
   user-select: none;
 }
@@ -3060,8 +3263,7 @@ select {
   flex-direction: column;
   align-items: stretch;
   justify-content: center;
-  gap: 0.75rem;
-  margin-top: 2.25rem;
+  margin-top: 1.5rem;
 }
 
 @media (min-width: 480px) {
@@ -3739,13 +3941,10 @@ select {
 
 .market-card--skeleton .market-card-body > * {
   border-radius: var(--radius-sm);
-  background-color: color-mix(in oklab, var(--color-surface) 80%, transparent);
 }
 
 .market-card--skeleton .skeleton-line {
   height: 0.625rem;
-  border-radius: var(--radius-sm);
-  background-color: color-mix(in oklab, var(--color-surface) 80%, transparent);
 }
 
 .featured-carousel-row {
@@ -3769,6 +3968,27 @@ select {
   justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-3);
+}
+
+@media (max-width: 639px) {
+  .site-main {
+    padding-block: var(--space-3);
+  }
+
+  .trade-terminal-tabs-row {
+    gap: var(--space-2);
+    padding: var(--space-2-5);
+  }
+
+  .trade-terminal-positions-body {
+    padding: var(--space-3);
+  }
+}
+
+@media (max-width: 767px) {
+  body:has(.trade-terminal) [data-sonner-toaster][data-y-position="bottom"] {
+    bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px)) !important;
+  }
 }
 
 .trade-terminal-tabs-row .seg-tabs {
@@ -3861,10 +4081,10 @@ select:focus-visible {
 }
 @keyframes lx-shimmer {
   0% {
-    background-position: -200% 0;
+    background-position: 200% 0;
   }
   100% {
-    background-position: 200% 0;
+    background-position: -200% 0;
   }
 }
 @keyframes lx-pulse-ring {
@@ -3911,16 +4131,40 @@ select:focus-visible {
 }
 
 /* ── Skeleton / loading shimmer ─────────────────────────────────── */
-.lx-skeleton {
-  background: linear-gradient(
+.lx-skeleton,
+.skeleton-line {
+  --lx-shimmer-base: color-mix(in oklab, var(--color-foreground) 3.5%, var(--color-surface));
+  --lx-shimmer-mid: color-mix(in oklab, var(--color-foreground) 6.5%, var(--color-hover));
+  --lx-shimmer-hi: color-mix(in oklab, var(--color-accent) 7%, var(--color-hover));
+  border-radius: var(--radius-sm);
+  background-color: var(--lx-shimmer-base);
+  background-image: linear-gradient(
     90deg,
-    color-mix(in oklab, var(--color-foreground) 4%, transparent) 0%,
-    color-mix(in oklab, var(--color-foreground) 9%, transparent) 50%,
-    color-mix(in oklab, var(--color-foreground) 4%, transparent) 100%
+    var(--lx-shimmer-base) 0%,
+    var(--lx-shimmer-mid) 40%,
+    var(--lx-shimmer-hi) 50%,
+    var(--lx-shimmer-mid) 60%,
+    var(--lx-shimmer-base) 100%
   );
   background-size: 200% 100%;
-  animation: lx-shimmer 1.6s ease-in-out infinite;
+  animation: lx-shimmer 1.8s ease-in-out infinite;
+}
+
+.lx-skeleton--block {
   border-radius: var(--radius-md);
+}
+
+.lx-skeleton--band {
+  border-radius: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lx-skeleton,
+  .skeleton-line {
+    animation: none;
+    background-image: none;
+    background-color: color-mix(in oklab, var(--color-foreground) 6%, var(--color-surface));
+  }
 }
 
 /* ── Empty state ────────────────────────────────────────────────── */
@@ -4021,11 +4265,6 @@ select:focus-visible {
   background: var(--color-surface);
 }
 
-/* ── No-jump rule: stabilize scrollbar gutter ───────────────────── */
-html {
-  scrollbar-gutter: stable;
-}
-
 /* End redesign overlay ----------------------------------------- */
 
 /* ════════════════════════════════════════════════════════════════
@@ -4035,8 +4274,9 @@ html {
 
 /* ── Site chrome (header, footer, mobile menu) ──────────────────── */
 .site-header {
-  background: var(--color-background) !important;
-  border-bottom: none;
+  background: color-mix(in oklab, var(--color-background) 90%, transparent) !important;
+  border-bottom: 1px solid color-mix(in oklab, var(--color-border) 65%, transparent);
+  backdrop-filter: blur(12px) saturate(140%);
 }
 .site-footer {
   background: var(--color-background);
@@ -4046,6 +4286,17 @@ html {
   border-bottom: 1px solid var(--color-border);
   box-shadow: 0 14px 40px -10px color-mix(in oklab, black 35%, transparent);
   animation: lx-fade-up 220ms ease-out both;
+  padding-top: var(--space-3);
+}
+
+.site-mobile-menu .nav-tab {
+  border-radius: var(--radius-md);
+  padding: 0.625rem 0.75rem;
+  font-size: 0.9375rem;
+}
+
+.site-mobile-menu .nav-tab-active {
+  background: var(--color-hover);
 }
 
 /* Nav tabs — refined active indicator */
@@ -4135,18 +4386,6 @@ html {
 .market-card--skeleton {
   background: var(--color-card);
   animation: lx-fade-in 200ms both;
-}
-.skeleton-line {
-  height: 10px;
-  border-radius: 4px;
-  background: linear-gradient(
-    90deg,
-    color-mix(in oklab, var(--color-foreground) 5%, transparent) 0%,
-    color-mix(in oklab, var(--color-foreground) 11%, transparent) 50%,
-    color-mix(in oklab, var(--color-foreground) 5%, transparent) 100%
-  );
-  background-size: 200% 100%;
-  animation: lx-shimmer 1.6s ease-in-out infinite;
 }
 
 /* Leverage badge */
@@ -4371,31 +4610,8 @@ button:disabled {
 }
 
 /* ── Page entry animation (no layout shift) ─────────────────────── */
-.site-main > * {
-  animation: lx-fade-in 240ms ease-out both;
-}
-.animate-page-in {
+.site-main .page-shell-content {
   animation: lx-fade-up 360ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
-}
-
-/* ── Scrollbar (consistent, themed) ─────────────────────────────── */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-border-strong) transparent;
-}
-*::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-*::-webkit-scrollbar-thumb {
-  background: var(--color-border-strong);
-  border-radius: 999px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-*::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in oklab, var(--brand-500) 50%, var(--color-border-strong));
-  background-clip: padding-box;
 }
 
 /* ── Selection ──────────────────────────────────────────────────── */
@@ -4569,7 +4785,7 @@ button:disabled {
 }
 
 /* Landing page with fixed header (scroll layout uses .landing-scroll padding) */
-.landing-page:not(.landing-page--scroll) {
+.landing-page:not(.landing-page--scroll):not(.landing-page--viewport) {
   padding-top: var(--site-header-h);
 }
 .landing-content {
@@ -4856,8 +5072,8 @@ button:disabled {
 
 /* Feature blocks with illustrations */
 .landing-hero-visual {
-  margin-top: clamp(2rem, 5vw, 3rem);
-  max-width: 42rem;
+  margin-top: clamp(1.25rem, 3vw, 2rem);
+  max-width: min(42rem, 90vw);
   margin-inline: auto;
   transform: perspective(1200px) rotateX(2deg);
   transform-origin: center top;
@@ -5524,6 +5740,31 @@ button:disabled {
   font-family: var(--font-display);
   font-weight: 700;
   letter-spacing: -0.02em;
+}
+
+@media (max-width: 639px) {
+  .landing-page--viewport .landing-hero-title {
+    font-size: clamp(1.875rem, 8.5vw, 2.75rem);
+  }
+
+  .landing-page--viewport .landing-hero-visual {
+    max-height: min(36vh, 18rem);
+  }
+}
+
+@media (max-height: 700px) and (max-width: 639px) {
+  .landing-page--viewport .landing-hero-title {
+    font-size: clamp(1.625rem, 7.5vw, 2.25rem);
+  }
+
+  .landing-page--viewport .landing-hero-visual {
+    max-height: min(30vh, 14rem);
+  }
+
+  .landing-page--viewport .landing-hero-lead {
+    font-size: 0.9375rem;
+    line-height: 1.5;
+  }
 }
 
 /* End premium UI pass v2 --------------------------------------- */

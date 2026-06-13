@@ -72,7 +72,7 @@ export function PortfolioSummaryBar({ summary, loading, className }: Props) {
       <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
         <div>
           <p className={labelCaps}>Portfolio overview</p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Live marks refresh every ~12s across open positions
           </p>
         </div>

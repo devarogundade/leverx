@@ -14,6 +14,7 @@ import "@/lib/chunk-reload";
 import { Button } from "@/components/ui/button";
 import { APP_NAME } from "../lib/brand";
 import { IndexerStreamProvider } from "../context/IndexerStreamContext";
+import { MarketFavoritesProvider } from "../context/MarketFavoritesContext";
 import { PredictOracleProvider } from "../context/PredictOracleContext";
 import { Toaster } from "@/components/ui/sonner";
 import { WalletProvider } from "../context/WalletContext";
@@ -39,7 +40,7 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+function ErrorComponent({ error, reset }: { error: Error; reset: () => void; }) {
   if (import.meta.env.DEV) {
     console.error("[LeverX]", error);
   }
@@ -58,7 +59,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
           Something went wrong on our end. You can try refreshing or head back home.
         </p>
         {devMessage ? (
-          <p className="mt-3 rounded-md border border-border bg-muted/40 px-3 py-2 font-mono text-left text-xs text-destructive">
+          <p className="mt-3 rounded-md border border-border bg-muted/40 px-3 py-2 font-mono text-left text-sm text-destructive">
             {devMessage}
           </p>
         ) : null}
@@ -80,7 +81,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   );
 }
 
-export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+export const Route = createRootRouteWithContext<{ queryClient: QueryClient; }>()({
   ...routePendingOptions,
   loader: ({ context }) => ensurePredictOracles(context.queryClient),
   head: () => ({
@@ -114,7 +115,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem('lx-theme');if(t!=='light'&&t!=='dark'){t='dark';}var d=document.documentElement;d.classList.remove('light','dark');d.classList.add(t);}catch(e){document.documentElement.classList.add('dark');}})();`;
 
-function RootShell({ children }: { children: ReactNode }) {
+function RootShell({ children }: { children: ReactNode; }) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <head>
@@ -142,13 +143,15 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <PredictOracleProvider>
         <IndexerStreamProvider>
-          <WalletProvider>
-            <div className="flex min-h-dvh flex-col">
-              {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-              <Outlet />
-            </div>
-            <Toaster position="bottom-right" richColors closeButton />
-          </WalletProvider>
+          <MarketFavoritesProvider>
+            <WalletProvider>
+              <div className="app-outlet flex min-h-dvh flex-col">
+                {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+                <Outlet />
+              </div>
+              <Toaster position="bottom-right" richColors closeButton />
+            </WalletProvider>
+          </MarketFavoritesProvider>
         </IndexerStreamProvider>
       </PredictOracleProvider>
     </QueryClientProvider>

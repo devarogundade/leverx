@@ -53,7 +53,7 @@ export function LeverageWindowCountdown({ expiryMs, className }: Props) {
           />
           <LabelWithInfo
             label={label}
-            labelClassName="text-[0.6875rem] font-medium text-muted-foreground"
+            labelClassName="text-sm font-medium text-muted-foreground"
             info={leverxInfo.leverageCountdown}
           />
         </div>

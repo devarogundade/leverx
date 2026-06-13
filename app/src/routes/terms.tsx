@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { SiteShell } from "@/components/SiteShell";
 import { PageHeader } from "@/components/PageHeader";
 import { APP_NAME, pageTitle } from "@/lib/brand";
+import { pageSimple } from "@/lib/leverx/tw";
 import { ScrollText } from "lucide-react";
 import { routePendingOptions } from "@/lib/router/route-options";
 
@@ -20,12 +21,13 @@ export const Route = createFileRoute("/terms")({
 function TermsPage() {
   return (
     <SiteShell>
-      <PageHeader
-        icon={<ScrollText className="h-5 w-5 text-accent" />}
-        title="Terms of Service"
-        subtitle="Last updated June 13, 2026"
-      />
-      <article className="space-y-6 text-sm leading-relaxed text-muted-foreground">
+      <div className={pageSimple}>
+        <PageHeader
+          icon={<ScrollText className="h-5 w-5 text-accent" />}
+          title="Terms of Service"
+          subtitle="Last updated June 13, 2026"
+        />
+        <article className="space-y-6 text-sm leading-relaxed text-muted-foreground">
           <Clause n="1" title="Using the service">
             By using {APP_NAME}, you agree to these terms. The app is provided as-is. You are
             responsible for understanding the risks of leveraged trading on testnet.
@@ -60,6 +62,7 @@ function TermsPage() {
             acceptance of the revised terms.
           </Clause>
       </article>
+      </div>
     </SiteShell>
   );
 }

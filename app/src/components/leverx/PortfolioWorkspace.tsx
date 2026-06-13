@@ -26,6 +26,13 @@ function tabLabel(tab: PortfolioTab, openCount: number, orderCount: number) {
   return "Account";
 }
 
+function tabLabelMobile(tab: PortfolioTab, openCount: number, orderCount: number) {
+  if (tab === "positions") return `Pos (${openCount})`;
+  if (tab === "orders") return `Ord (${orderCount})`;
+  if (tab === "closed") return "Closed";
+  return "Account";
+}
+
 interface Props {
   openPositions: readonly LeveragedPosition[];
   closedPositions: readonly LeveragedPosition[];
@@ -61,7 +68,10 @@ export function PortfolioWorkspace({
           Account
         </span>
       ) : (
-        tabLabel(value, openPositions.length, limitOrders.length)
+        <>
+          <span className="sm:hidden">{tabLabelMobile(value, openPositions.length, limitOrders.length)}</span>
+          <span className="hidden sm:inline">{tabLabel(value, openPositions.length, limitOrders.length)}</span>
+        </>
       ),
   }));
 
@@ -79,7 +89,7 @@ export function PortfolioWorkspace({
       <div className="p-3 sm:p-4">
         {tab === "positions" ? (
           loading && openPositions.length === 0 ? (
-            <SurfaceSkeleton lines={5} />
+            <SurfaceSkeleton lines={5} variant="plain" />
           ) : openPositions.length === 0 ? (
             <EmptyState
               icon={Inbox}
@@ -113,7 +123,7 @@ export function PortfolioWorkspace({
               <LabelWithInfo
                 label="Open limit orders"
                 info={leverxInfo.openOrders}
-                labelClassName="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                labelClassName="text-sm font-semibold uppercase tracking-wide text-muted-foreground"
               />
               <LeverxLimitOrdersTable orders={limitOrders} />
             </div>
@@ -135,7 +145,7 @@ export function PortfolioWorkspace({
               <LabelWithInfo
                 label="Closed positions"
                 info={leverxInfo.closedPositions}
-                labelClassName="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                labelClassName="text-sm font-semibold uppercase tracking-wide text-muted-foreground"
               />
               <LeverxPositionsTable
                 positions={closedPositions}

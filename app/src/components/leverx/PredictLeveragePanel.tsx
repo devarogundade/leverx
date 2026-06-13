@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { LeverageSlider } from "@/components/leverx/LeverageSlider";
 import { InfoPopover, LabelWithInfo } from "@/components/leverx/InfoPopover";
-import { SlippagePopover } from "@/components/leverx/SlippagePopover";
+import { SlippagePopover, MarketSlippagePopover } from "@/components/leverx/SlippagePopover";
 import { TradeQuoteSummary } from "@/components/leverx/TradeQuoteSummary";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import { useIndexerProtocol, useIndexerAccounts } from "@/hooks/useIndexer";
@@ -21,15 +21,16 @@ import { WalletConnectButton } from "@/components/WalletConnectButton";
 import { useWallet } from "@/context/WalletContext";
 import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
 import { showTxError, showTxSuccess } from "@/lib/toast";
-import { predictSideLabel, type PredictSide } from "@/lib/predict/instruments";
+import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
+import { predictSideLabel, coercePredictSide, TRADE_PREDICT_SIDES, type PredictSide } from "@/lib/predict/instruments";
 import {
+  DEFAULT_SLIPPAGE_BPS,
+  LEVERAGED_MINT_WINDOW_MS,
   MAX_LIMIT_ORDER_SLIPPAGE_PCT,
 } from "@/lib/leverx/constants";
-import type { LimitExecutionMode } from "@/lib/leverx/transactions";
 import {
   centsToPremiumRaw,
   defaultTpSlPremiumsFromEntry,
-  isLimitBuyFillableNow,
   isLimitCentsWithinPredictBounds,
   isPlacementPriceAligned,
   isPremiumWithinPredictBounds,
@@ -48,7 +49,6 @@ import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
 import { resolveLiquidationBps } from "@/lib/leverx/protocol";
 import { buildQuickAmounts } from "@/lib/leverx/form-helpers";
 import { tradeCtaLabel, tradeNeedsDeposit } from "@/lib/leverx/trade-cta";
-import { LEVERAGED_MINT_WINDOW_MS } from "@/lib/leverx/constants";
 import {
   DEFAULT_LEVERAGE,
   formatLeverageBadge,
@@ -66,7 +66,12 @@ import {
 import { ui } from "@/lib/copy";
 import { StrikePriceSelector } from "@/components/leverx/StrikePriceSelector";
 import { RangeStrikeSelector } from "@/components/leverx/RangeStrikeSelector";
-import { Loader2 } from "lucide-react";
+import { ChevronDown, Loader2 } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   formatStrikeUsdFromRaw,
   rangeBoundsFromPreset,
@@ -98,6 +103,8 @@ import {
 
 type OrderType = "market" | "limit";
 
+const DEFAULT_MARKET_SLIPPAGE_PCT = DEFAULT_SLIPPAGE_BPS / 100;
+
 interface Props {
   oracleId: string;
   side: PredictSide;
@@ -121,10 +128,7 @@ interface Props {
   /** Set when oracle has settled — blocks new orders */
   disabled?: boolean;
   /** Called after a trade tx succeeds (e.g. switch to Open Orders on resting limit). */
-  onTradeSuccess?: (meta: {
-    orderType: OrderType;
-    limitExecution: LimitExecutionMode;
-  }) => void;
+  onTradeSuccess?: (meta: { orderType: OrderType }) => void;
 }
 
 const ORDER_TYPES: readonly OrderType[] = ["market", "limit"];
@@ -154,10 +158,10 @@ export function PredictLeveragePanel({
   const [margin, setMargin] = useState("");
   const [leverage, setLeverage] = useState(DEFAULT_LEVERAGE);
   const [placementSlippagePct, setPlacementSlippagePct] = useState(5);
+  const [marketSlippagePct, setMarketSlippagePct] = useState(DEFAULT_MARKET_SLIPPAGE_PCT);
   const [orderExpiresOffsetMs, setOrderExpiresOffsetMs] = useState(
     DEFAULT_LIMIT_ORDER_EXPIRY_MS,
   );
-  const [limitExecution, setLimitExecution] = useState<LimitExecutionMode>("resting");
   const [remintAfterDeleverage, setRemintAfterDeleverage] = useState(true);
   const [tpSl, setTpSl] = useState(false);
   const [tp, setTp] = useState("");
@@ -197,8 +201,8 @@ export function PredictLeveragePanel({
     setCustomUpperUsd("");
     setLeverage(DEFAULT_LEVERAGE);
     setPlacementSlippagePct(5);
+    setMarketSlippagePct(DEFAULT_MARKET_SLIPPAGE_PCT);
     setOrderExpiresOffsetMs(DEFAULT_LIMIT_ORDER_EXPIRY_MS);
-    setLimitExecution("resting");
     setRemintAfterDeleverage(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- strike props intentionally omitted
   }, [tradeContextKey]);
@@ -245,12 +249,6 @@ export function PredictLeveragePanel({
   }, [leveragedMintAllowed]);
 
   useEffect(() => {
-    if (!restingLimitAllowed && limitExecution === "resting") {
-      setLimitExecution("immediate");
-    }
-  }, [restingLimitAllowed, limitExecution]);
-
-  useEffect(() => {
     if (!expiryMs || expiryMs <= 0) return;
     const presets = availableLimitOrderExpiryPresets(expiryMs);
     if (presets.length === 0) return;
@@ -260,6 +258,12 @@ export function PredictLeveragePanel({
   }, [expiryMs, orderExpiresOffsetMs]);
   const marginNum = parseFloat(margin) || 0;
   const isRange = side === "range";
+
+  useEffect(() => {
+    const coerced = coercePredictSide(side);
+    if (coerced !== side) onSideChange(coerced);
+  }, [side, onSideChange]);
+
   const ctaClass = tradeCtaClass(side);
 
   const resolvedBinaryStrikeRaw = useMemo(() => {
@@ -440,8 +444,8 @@ export function PredictLeveragePanel({
   );
 
   const submitLabel = useMemo(
-    () => tradeCtaLabel({ side, orderType, limitExecution, needsDeposit }),
-    [side, orderType, limitExecution, needsDeposit],
+    () => tradeCtaLabel({ side, orderType, needsDeposit }),
+    [side, orderType, needsDeposit],
   );
 
   const quoteBalanceLabel = useMemo(() => {
@@ -457,12 +461,12 @@ export function PredictLeveragePanel({
   const { data: liveAskPremium, isLoading: liveAskLoading } = useLeverxMarketAsk(tradeKey);
 
   const quoteReferencePremium = useMemo(() => {
-    if (orderType !== "limit" || limitExecution !== "resting" || !limitPrice) return undefined;
+    if (orderType !== "limit" || !limitPrice) return undefined;
     const cents = parseFloat(limitPrice);
     if (!Number.isFinite(cents) || cents <= 0) return undefined;
     if (!isLimitCentsWithinPredictBounds(cents)) return undefined;
     return centsToPremiumRaw(cents);
-  }, [orderType, limitExecution, limitPrice]);
+  }, [orderType, limitPrice]);
 
   const {
     data: mintQuote,
@@ -602,6 +606,11 @@ export function PredictLeveragePanel({
       );
     }
     if (orderType === "limit") {
+      if (!restingLimitAllowed) {
+        errors.push(
+          "Resting limit orders are unavailable in the final hour or when the market closes too soon.",
+        );
+      }
       const cents = parseFloat(limitPrice);
       if (!Number.isFinite(cents) || cents <= 0) {
         errors.push("Enter a limit price above 0¢.");
@@ -621,13 +630,7 @@ export function PredictLeveragePanel({
         const slippageBps = percentToBps(placementSlippagePct);
         const liveLabel = `${premiumRawToCents(liveAskPremium).toFixed(1)}¢`;
 
-        if (limitExecution === "immediate") {
-          if (!isLimitBuyFillableNow(liveAskPremium, limitPremium, slippageBps)) {
-            errors.push(
-              `Live contract price (${liveLabel}) is above your limit + ${placementSlippagePct}% slippage. Raise the limit or switch to Resting.`,
-            );
-          }
-        } else if (!isPlacementPriceAligned(liveAskPremium, limitPremium, slippageBps)) {
+        if (!isPlacementPriceAligned(liveAskPremium, limitPremium, slippageBps)) {
           errors.push(
             `Resting orders need the live price (${liveLabel}) within your limit ± ${placementSlippagePct}% placement slippage. Adjust the limit, widen slippage, or wait for the market to move.`,
           );
@@ -638,7 +641,7 @@ export function PredictLeveragePanel({
       } else if (placementSlippagePct > MAX_LIMIT_ORDER_SLIPPAGE_PCT) {
         errors.push(`Slippage cannot exceed ${MAX_LIMIT_ORDER_SLIPPAGE_PCT}%.`);
       }
-      if (limitExecution === "resting" && expiryMs && expiryMs > 0) {
+      if (expiryMs && expiryMs > 0) {
         const restingExpiresMs = Date.now() + orderExpiresOffsetMs;
         const maxLeveragedExpiryMs = maxLeveragedRestingOrderExpiryMs(
           expiryMs,
@@ -657,8 +660,15 @@ export function PredictLeveragePanel({
             "Leveraged resting orders must expire at least one hour before this market closes.",
           );
         } else if (expiryMs <= Date.now() + 60_000) {
-          errors.push("Market closes too soon for a resting limit order. Use Fill now or wait for the next expiry.");
+          errors.push("Market closes too soon for a resting limit order.");
         }
+      }
+    }
+    if (orderType === "market") {
+      if (marketSlippagePct < 0.1) {
+        errors.push("Slippage must be at least 0.1%.");
+      } else if (marketSlippagePct > MAX_LIMIT_ORDER_SLIPPAGE_PCT) {
+        errors.push(`Slippage cannot exceed ${MAX_LIMIT_ORDER_SLIPPAGE_PCT}%.`);
       }
     }
     if (orderType === "market" && marginNum > 0 && tradeKey) {
@@ -742,8 +752,8 @@ export function PredictLeveragePanel({
     walletQuoteBalance,
     orderType,
     limitPrice,
-    limitExecution,
     placementSlippagePct,
+    marketSlippagePct,
     liveAskLoading,
     liveAskPremium,
     isRange,
@@ -763,6 +773,7 @@ export function PredictLeveragePanel({
     mintQuote,
     orderExpiresOffsetMs,
     expiryMs,
+    restingLimitAllowed,
     tpSl,
     tp,
     sl,
@@ -805,13 +816,15 @@ export function PredictLeveragePanel({
         marginUsd: marginNum,
         leverage: lev,
         orderType,
-        limitExecution,
+        limitExecution: orderType === "limit" ? "resting" : undefined,
         limitCents: orderType === "limit" ? parseFloat(limitPrice) || undefined : undefined,
         quantity: tradeQuantity,
         placementSlippageBps:
           orderType === "limit" ? percentToBps(placementSlippagePct) : undefined,
+        marketSlippageBps:
+          orderType === "market" ? percentToBps(marketSlippagePct) : undefined,
         orderExpiresMs:
-          orderType === "limit" && limitExecution === "resting"
+          orderType === "limit"
             ? Math.min(Date.now() + orderExpiresOffsetMs, expiryMs)
             : undefined,
         remintAfterDeleverage: lev > 1 ? remintAfterDeleverage : false,
@@ -821,13 +834,9 @@ export function PredictLeveragePanel({
       {
         onError: showTxError,
         onSuccess: () => {
-          showTxSuccess(
-            orderType === "limit" && limitExecution === "resting"
-              ? "Limit order placed"
-              : "Trade submitted",
-          );
+          showTxSuccess(orderType === "limit" ? "Limit order placed" : "Trade submitted");
           resetTradeInputs();
-          onTradeSuccess?.({ orderType, limitExecution });
+          onTradeSuccess?.({ orderType });
         },
       },
     );
@@ -837,7 +846,7 @@ export function PredictLeveragePanel({
     <div className={cn(tradeLeveragePanel, "trade-leverage-panel", disabled && "relative")}>
       {disabled ? (
         <div
-          className="border-b border-border bg-muted/40 px-4 py-2.5 text-center text-xs text-muted-foreground"
+          className="border-b border-border bg-muted/40 px-4 py-2.5 text-center text-sm text-muted-foreground"
           role="status"
         >
           {expiryMs && expiryMs > 0 && expiryMs <= Date.now()
@@ -849,47 +858,28 @@ export function PredictLeveragePanel({
         <div className="border-b border-border p-3">
           <div className={segTabsClass("stretch", "outcomes")} role="group" aria-label="Outcome">
             {canSwitchOutcome ? (
-              <>
+              TRADE_PREDICT_SIDES.map((outcome) => (
                 <button
+                  key={outcome}
                   type="button"
-                  onClick={() => onSideChange("up")}
+                  onClick={() => onSideChange(outcome)}
                   className={cn(
                     segTabOutcome,
-                    side === "up" && segTabActive,
-                    side === "up" && sideToggleLongActive,
+                    side === outcome && segTabActive,
+                    side === outcome && outcome === "up" && sideToggleLongActive,
+                    side === outcome && outcome === "down" && sideToggleShortActive,
+                    side === outcome && outcome === "range" && segTabRangeActive,
                   )}
                 >
-                  {predictSideLabel.up}
+                  <PredictSideLabel side={outcome} />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => onSideChange("down")}
-                  className={cn(
-                    segTabOutcome,
-                    side === "down" && segTabActive,
-                    side === "down" && sideToggleShortActive,
-                  )}
-                >
-                  {predictSideLabel.down}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onSideChange("range")}
-                  className={cn(
-                    segTabOutcome,
-                    side === "range" && segTabActive,
-                    side === "range" && segTabRangeActive,
-                  )}
-                >
-                  {predictSideLabel.range}
-                </button>
-              </>
+              ))
             ) : (
-              <>
-                <span className={cn(segTabOutcome, "opacity-50")}>{predictSideLabel.up}</span>
-                <span className={cn(segTabOutcome, "opacity-50")}>{predictSideLabel.down}</span>
-                <span className={cn(segTabOutcome, "opacity-50")}>{predictSideLabel.range}</span>
-              </>
+              TRADE_PREDICT_SIDES.map((outcome) => (
+                <span key={outcome} className={cn(segTabOutcome, "opacity-50")}>
+                  <PredictSideLabel side={outcome} />
+                </span>
+              ))
             )}
           </div>
         </div>
@@ -921,45 +911,21 @@ export function PredictLeveragePanel({
               <SlippagePopover
                 placementSlippagePct={placementSlippagePct}
                 orderExpiresOffsetMs={orderExpiresOffsetMs}
-                limitExecution={limitExecution}
                 marketExpiryMs={expiryMs}
                 restingAllowed={restingLimitAllowed}
                 onPlacementSlippageChange={setPlacementSlippagePct}
                 onOrderExpiresOffsetMsChange={setOrderExpiresOffsetMs}
-                onLimitExecutionChange={setLimitExecution}
               />
-            ) : null}
+            ) : (
+              <MarketSlippagePopover
+                slippagePct={marketSlippagePct}
+                onSlippageChange={setMarketSlippagePct}
+              />
+            )}
           </div>
         </div>
 
         <div className="flex flex-col space-y-5 p-4">
-          {!isRange ? (
-            <StrikePriceSelector
-              preset={strikePreset}
-              onPresetChange={handleStrikePresetChange}
-              customStrikeUsd={customStrikeUsd}
-              onCustomStrikeChange={setCustomStrikeUsd}
-              resolvedStrikeRaw={resolvedBinaryStrikeRaw}
-              oracleSpotUsd={oracleSpotUsd}
-              minStrikeRaw={minStrikeRaw}
-              disabled={disabled}
-            />
-          ) : (
-            <RangeStrikeSelector
-              preset={rangePreset}
-              onPresetChange={handleRangePresetChange}
-              customLowerUsd={customLowerUsd}
-              customUpperUsd={customUpperUsd}
-              onCustomLowerChange={setCustomLowerUsd}
-              onCustomUpperChange={setCustomUpperUsd}
-              lowerStrikeRaw={resolvedRangeLowerRaw}
-              upperStrikeRaw={resolvedRangeUpperRaw}
-              oracleSpotUsd={oracleSpotUsd}
-              minStrikeRaw={minStrikeRaw}
-              disabled={disabled}
-            />
-          )}
-
           {orderType === "limit" ? (
             <div>
               <div className="mb-2">
@@ -979,7 +945,7 @@ export function PredictLeveragePanel({
                 onChange={(e) => setLimitPrice(e.target.value)}
                 suffix={<span className="text-sm text-muted-foreground">¢</span>}
               />
-              <p className="mt-2 text-xs text-muted-foreground">
+              <p className="mt-2 text-sm text-muted-foreground">
                 Live contract price:{" "}
                 <span className="font-mono text-foreground">
                   {liveAskLoading
@@ -999,7 +965,7 @@ export function PredictLeveragePanel({
                 labelClassName={labelCaps}
                 info={leverxInfo.margin}
               />
-              <span className="text-xs text-muted-foreground">
+              <span className="text-sm text-muted-foreground">
                 {ui.balanceAvailable}{" "}
                 <span className="font-mono text-foreground">{quoteBalanceLabel}</span>
               </span>
@@ -1024,7 +990,7 @@ export function PredictLeveragePanel({
               <TradeQuickAmounts amounts={quickAmounts} onPick={setMargin} />
             </div>
             {marginNum > 0 ? (
-              <p className="mt-2 text-xs text-muted-foreground">
+              <p className="mt-2 text-sm text-muted-foreground">
                 Position size:{" "}
                 <span className="font-mono text-foreground">
                   {formatCollateralAmount(appConfig.quoteType, marginNum * lev)}
@@ -1048,6 +1014,61 @@ export function PredictLeveragePanel({
             />
           ) : null}
 
+          <Collapsible defaultOpen={false} className={tpSlBlock}>
+            <CollapsibleTrigger
+              className={cn(
+                tpSlHeader,
+                "w-full cursor-pointer rounded-md text-left transition-colors hover:text-foreground",
+                "[&[data-state=open]_svg]:rotate-180",
+              )}
+            >
+              <span className={cn(labelCaps, "text-warning")}>Advanced</span>
+              <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-5 pt-1 data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+              {!isRange ? (
+                <StrikePriceSelector
+                  preset={strikePreset}
+                  onPresetChange={handleStrikePresetChange}
+                  customStrikeUsd={customStrikeUsd}
+                  onCustomStrikeChange={setCustomStrikeUsd}
+                  resolvedStrikeRaw={resolvedBinaryStrikeRaw}
+                  oracleSpotUsd={oracleSpotUsd}
+                  minStrikeRaw={minStrikeRaw}
+                  disabled={disabled}
+                />
+              ) : (
+                <RangeStrikeSelector
+                  preset={rangePreset}
+                  onPresetChange={handleRangePresetChange}
+                  customLowerUsd={customLowerUsd}
+                  customUpperUsd={customUpperUsd}
+                  onCustomLowerChange={setCustomLowerUsd}
+                  onCustomUpperChange={setCustomUpperUsd}
+                  lowerStrikeRaw={resolvedRangeLowerRaw}
+                  upperStrikeRaw={resolvedRangeUpperRaw}
+                  oracleSpotUsd={oracleSpotUsd}
+                  minStrikeRaw={minStrikeRaw}
+                  disabled={disabled}
+                />
+              )}
+
+              {lev > 1 ? (
+                <div className={tpSlHeader}>
+                  <LabelWithInfo
+                    label="Continue prediction with 1x leverage after deleverage"
+                    labelClassName={labelCaps}
+                    info={leverxInfo.remintAfterDeleverage}
+                  />
+                  <Switch
+                    checked={remintAfterDeleverage}
+                    onCheckedChange={setRemintAfterDeleverage}
+                  />
+                </div>
+              ) : null}
+            </CollapsibleContent>
+          </Collapsible>
+
           <TradeQuoteSummary
             quote={mintQuote}
             isLoading={quoteLoading}
@@ -1065,10 +1086,10 @@ export function PredictLeveragePanel({
             </div>
             {tpSl ? (
               <div className={tpSlFields}>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   <LabelWithInfo
                     label="Entry premium"
-                    labelClassName="inline text-xs text-muted-foreground"
+                    labelClassName="inline text-sm text-muted-foreground"
                     info={leverxInfo.tpSlEntry}
                   />
                   {": "}
@@ -1125,39 +1146,23 @@ export function PredictLeveragePanel({
               </div>
             ) : null}
           </div>
-
-          {lev > 1 ? (
-            <div className={tpSlBlock}>
-              <div className={tpSlHeader}>
-                <LabelWithInfo
-                  label="Continue prediction with 1x leverage after deleverage"
-                  labelClassName={labelCaps}
-                  info={leverxInfo.remintAfterDeleverage}
-                />
-                <Switch
-                  checked={remintAfterDeleverage}
-                  onCheckedChange={setRemintAfterDeleverage}
-                />
-              </div>
-            </div>
-          ) : null}
         </div>
 
         <div className="space-y-2 border-t border-border p-4">
           {protocol?.trading_paused ? (
-            <p className="flex items-center gap-1 text-xs text-destructive">
+            <p className="flex items-center gap-1 text-sm text-destructive">
               Trading is temporarily paused.
               <InfoPopover title="Trading paused">{leverxInfo.tradingPaused}</InfoPopover>
             </p>
           ) : null}
           {!isProtocolReady && isWalletConnected ? (
-            <p className="flex items-center gap-1 text-xs text-muted-foreground">
+            <p className="flex items-center gap-1 text-sm text-muted-foreground">
               Trading is not available yet. Check back soon.
               <InfoPopover title="Setup">{leverxInfo.protocolNotConfigured}</InfoPopover>
             </p>
           ) : null}
           {validationErrors.map((err) => (
-            <p key={err} className="text-xs text-destructive">
+            <p key={err} className="text-sm text-destructive">
               {err}
             </p>
           ))}

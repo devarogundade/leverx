@@ -58,16 +58,16 @@ export function PortfolioWithdrawSection({ accountId, positions, className }: Pr
           info={leverxInfo.withdrawTradingBalance}
         />
         {rows.length > 0 ? (
-          <span className="font-mono text-xs tabular-nums text-muted-foreground">
+          <span className="font-mono text-sm tabular-nums text-muted-foreground">
             {rows.length} key{rows.length === 1 ? "" : "s"}
           </span>
         ) : null}
       </div>
       <div className="px-4 py-3">
         {isLoading && rows.length === 0 ? (
-          <p className="text-xs text-muted-foreground">Loading balances…</p>
+          <p className="text-sm text-muted-foreground">Loading balances…</p>
         ) : rows.length === 0 ? (
-          <p className="text-xs leading-relaxed text-muted-foreground">
+          <p className="text-sm leading-relaxed text-muted-foreground">
             No withdrawable dUSDC on your account right now. After closing a trade, free quote stays
             on the market key until you withdraw here — repay any vault borrow first.
           </p>
@@ -89,7 +89,7 @@ export function PortfolioWithdrawSection({ accountId, positions, className }: Pr
                     </div>
                     <button
                       type="button"
-                      className={cn(pillToggleBtn, pillToggleIdle, "gap-1 text-xs")}
+                      className={cn(pillToggleBtn, pillToggleIdle, "gap-1 text-sm")}
                       disabled={!isProtocolReady || withdrawQuote.isPending}
                       onClick={() => {
                         setActiveKey(row.position.position_key);
@@ -111,19 +111,19 @@ export function PortfolioWithdrawSection({ accountId, positions, className }: Pr
                         value={amountUsd}
                         onChange={(e) => setAmountUsd(e.target.value)}
                         placeholder="Amount (dUSDC)"
-                        className={cn(inputInField, "font-mono text-xs")}
+                        className={cn(inputInField, "font-mono text-sm")}
                       />
                       <div className="flex gap-2">
                         <button
                           type="button"
-                          className={cn(pillToggleBtn, pillToggleIdle, "flex-1 text-xs")}
+                          className={cn(pillToggleBtn, pillToggleIdle, "flex-1 text-sm")}
                           onClick={() => setAmountUsd(balanceUsd.toFixed(2))}
                         >
                           Max
                         </button>
                         <button
                           type="button"
-                          className={cn(pillToggleBtn, pillToggleIdle, "flex-1 text-xs")}
+                          className={cn(pillToggleBtn, pillToggleIdle, "flex-1 text-sm")}
                           disabled={
                             !isProtocolReady ||
                             amountInvalid ||
@@ -157,7 +157,7 @@ export function PortfolioWithdrawSection({ accountId, positions, className }: Pr
                         </button>
                       </div>
                       {amountInvalid && amountUsd ? (
-                        <p className="text-xs text-destructive">
+                        <p className="text-sm text-destructive">
                           Enter an amount up to {balanceUsd.toFixed(2)} dUSDC.
                         </p>
                       ) : null}

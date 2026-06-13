@@ -33,7 +33,8 @@ import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
 import { premiumRawToCents } from "@/lib/leverx/trade-math";
 import { formatUsdcOrPlaceholder } from "@/lib/leverx/placeholders";
 import { assetLabelForOracleId } from "@/lib/predict/oracles";
-import { predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
+import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
+import { predictSideFromBinary, predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
 import { usePredictOracleRows } from "@/hooks/usePredictOracles";
 import { scaleQuote, scaleQuoteAtoms } from "@/lib/predict/scaling";
 import { isValidSuiAddress } from "@/lib/leverx/form-helpers";
@@ -72,7 +73,7 @@ function formatShortDate(ms: number): string {
 }
 
 function positionKeyForTrigger(
-  trigger: { oracle_id: string; is_range: boolean },
+  trigger: { oracle_id: string; is_range: boolean; },
   positions: readonly LeveragedPosition[],
 ) {
   return positions.find(
@@ -96,7 +97,7 @@ function liquidationLabel(
   return shortAddress(liquidation.position_key, 10, 6);
 }
 
-function CopyField({ label, value }: { label: string; value: string }) {
+function CopyField({ label, value }: { label: string; value: string; }) {
   const [copied, setCopied] = useState(false);
 
   return (
@@ -105,7 +106,7 @@ function CopyField({ label, value }: { label: string; value: string }) {
         <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
           {label}
         </p>
-        <p className="truncate font-mono text-xs text-foreground" title={value}>
+        <p className="truncate font-mono text-sm text-foreground" title={value}>
           {shortAddress(value, 12, 8)}
         </p>
       </div>
@@ -187,9 +188,9 @@ function SettingsCard({
   );
 }
 
-function EmptyHint({ children }: { children: React.ReactNode }) {
+function EmptyHint({ children }: { children: React.ReactNode; }) {
   return (
-    <p className="rounded-md border border-dashed border-border/80 bg-muted/20 px-3 py-4 text-center text-xs leading-relaxed text-muted-foreground">
+    <p className="rounded-md border border-dashed border-border/80 bg-muted/20 px-3 py-4 text-center text-sm leading-relaxed text-muted-foreground">
       {children}
     </p>
   );
@@ -275,11 +276,11 @@ export function PortfolioAccountPanel({
                 {managerLinked ? "Manager linked" : "Manager not linked"}
               </Badge>
             </div>
-            <p className="text-xs text-muted-foreground">{leverxInfo.accountSettings}</p>
+            <p className="text-sm text-muted-foreground">{leverxInfo.accountSettings}</p>
           </div>
           <button
             type="button"
-            className={cn(pillToggleBtn, pillToggleIdle, "gap-1.5 self-start px-3 py-1.5 text-xs")}
+            className={cn(pillToggleBtn, pillToggleIdle, "gap-1.5 self-start px-3 py-1.5 text-sm")}
             onClick={() => {
               setManagerId(account.predict_manager_id ?? "");
               setManagerOpen(true);
@@ -343,7 +344,7 @@ export function PortfolioAccountPanel({
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Predict manager
                 </p>
-                <p className="text-xs text-muted-foreground">Link a manager to trade on-chain</p>
+                <p className="text-sm text-muted-foreground">Link a manager to trade on-chain</p>
               </div>
             </div>
           )}
@@ -360,7 +361,7 @@ export function PortfolioAccountPanel({
           action={
             <button
               type="button"
-              className={cn(pillToggleBtn, pillToggleIdle, "gap-1 px-2.5 text-xs")}
+              className={cn(pillToggleBtn, pillToggleIdle, "gap-1 px-2.5 text-sm")}
               onClick={() => {
                 setExecutorAddress("");
                 setExecutorOpen(true);
@@ -383,7 +384,7 @@ export function PortfolioAccountPanel({
                 <li key={ex.executor} className={settingsListItem}>
                   <div className={settingsListItemHeader}>
                     <div className="min-w-0">
-                      <p className="truncate font-mono text-xs" title={ex.executor}>
+                      <p className="truncate font-mono text-sm" title={ex.executor}>
                         {shortAddress(ex.executor, 10, 8)}
                       </p>
                       <p className="text-[11px] text-muted-foreground">
@@ -397,7 +398,7 @@ export function PortfolioAccountPanel({
                     {ex.active ? (
                       <button
                         type="button"
-                        className={cn(pillToggleBtn, pillToggleIdle, "text-xs")}
+                        className={cn(pillToggleBtn, pillToggleIdle, "text-sm")}
                         disabled={revokeExecutor.isPending}
                         onClick={() => setRevokeTarget(ex.executor)}
                       >
@@ -450,7 +451,7 @@ export function PortfolioAccountPanel({
                       {match ? (
                         <button
                           type="button"
-                          className={cn(pillToggleBtn, pillToggleIdle, "text-xs")}
+                          className={cn(pillToggleBtn, pillToggleIdle, "text-sm")}
                           disabled={clearTriggers.isPending}
                           onClick={() => setClearTriggerTarget(match)}
                         >
@@ -474,17 +475,20 @@ export function PortfolioAccountPanel({
             <ul className={settingsList}>
               {openMargins.slice(0, 12).map((p) => {
                 const asset = assetLabelForOracleId(p.oracle_id, oracles);
-                const side = p.is_range
-                  ? "range"
-                  : predictSideLabel[sideFromIsUp(p.is_up)];
+                const side = predictSideFromBinary({
+                  isUp: p.is_up,
+                  isRange: p.is_range,
+                });
                 return (
                   <li key={p.position_key} className={settingsListItem}>
                     <div className={settingsListItemHeader}>
                       <div className="min-w-0">
                         <p className="text-sm font-medium">{asset}</p>
-                        <p className="text-[11px] capitalize text-muted-foreground">{side}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          <PredictSideLabel side={side} />
+                        </p>
                       </div>
-                      <span className="font-mono text-xs tabular-nums">
+                      <span className="font-mono text-sm tabular-nums">
                         {formatUsdcOrPlaceholder(scaleQuote(p.margin_quote))}
                       </span>
                     </div>
@@ -518,7 +522,7 @@ export function PortfolioAccountPanel({
                         {(l.health_bps / 100).toFixed(0)}%
                       </p>
                     </div>
-                    <span className="shrink-0 font-mono text-xs tabular-nums">
+                    <span className="shrink-0 font-mono text-sm tabular-nums">
                       {formatUsdcOrPlaceholder(scaleQuote(l.debt_repaid))}
                     </span>
                   </div>
@@ -540,10 +544,10 @@ export function PortfolioAccountPanel({
             value={managerId}
             onChange={(e) => setManagerId(e.target.value)}
             placeholder="0x… predict manager object ID"
-            className={cn(inputInField, "h-9 rounded-md border border-border px-3 font-mono text-xs")}
+            className={cn(inputInField, "h-9 rounded-md border border-border px-3 font-mono text-sm")}
           />
           {!managerValid ? (
-            <p className="text-xs text-destructive">Enter a valid Sui address.</p>
+            <p className="text-sm text-destructive">Enter a valid Sui address.</p>
           ) : null}
           <button
             type="button"
@@ -578,10 +582,10 @@ export function PortfolioAccountPanel({
             value={executorAddress}
             onChange={(e) => setExecutorAddress(e.target.value)}
             placeholder="Wallet address (0x…)"
-            className={cn(inputInField, "h-9 rounded-md border border-border px-3 font-mono text-xs")}
+            className={cn(inputInField, "h-9 rounded-md border border-border px-3 font-mono text-sm")}
           />
           {!executorValid ? (
-            <p className="text-xs text-destructive">Enter a valid Sui address.</p>
+            <p className="text-sm text-destructive">Enter a valid Sui address.</p>
           ) : null}
           <button
             type="button"
@@ -635,7 +639,7 @@ export function PortfolioAccountPanel({
           );
         }}
       >
-        <p className="font-mono text-xs">{revokeTarget}</p>
+        <p className="font-mono text-sm">{revokeTarget}</p>
       </ConfirmDialog>
 
       <ConfirmDialog

@@ -1,4 +1,6 @@
 import { useId, type ReactNode } from "react";
+import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
+import { isRangeTradingEnabled } from "@/lib/predict/instruments";
 import { cn } from "@/lib/utils";
 
 function Frame({ children, label, className }: { children: ReactNode; label: string; className?: string }) {
@@ -73,11 +75,13 @@ export function LandingChartIllustration() {
 
 /** UP / DOWN / RANGE market cards. */
 export function LandingMarketsIllustration() {
-  const cards = [
-    { side: "UP", color: "#38ef7d", strike: "$95,000", premium: "42¢" },
-    { side: "DOWN", color: "#ef5350", strike: "$95,000", premium: "38¢" },
-    { side: "RANGE", color: "var(--color-accent)", strike: "$94k–96k", premium: "55¢" },
-  ];
+  const cards = (
+    [
+      { side: "up", color: "#38ef7d", strike: "$95,000", premium: "42¢" },
+      { side: "down", color: "#ef5350", strike: "$95,000", premium: "38¢" },
+      { side: "range", color: "var(--color-accent)", strike: "$94k–96k", premium: "55¢" },
+    ] as const
+  ).filter((card) => isRangeTradingEnabled() || card.side !== "range");
 
   return (
     <Frame label="Markets">
@@ -85,7 +89,7 @@ export function LandingMarketsIllustration() {
         {cards.map((card) => (
           <div key={card.side} className="landing-illus-market-card">
             <span className="landing-illus-market-side" style={{ color: card.color }}>
-              {card.side}
+              <PredictSideLabel side={card.side} />
             </span>
             <span className="landing-illus-market-strike">{card.strike}</span>
             <span className="landing-illus-market-premium">{card.premium}</span>
@@ -93,9 +97,9 @@ export function LandingMarketsIllustration() {
               <svg viewBox="0 0 120 32" preserveAspectRatio="none">
                 <polyline
                   points={
-                    card.side === "DOWN"
+                    card.side === "down"
                       ? "0,8 30,12 60,18 90,24 120,28"
-                      : card.side === "RANGE"
+                      : card.side === "range"
                         ? "0,16 30,14 60,18 90,14 120,16"
                         : "0,28 30,22 60,16 90,10 120,6"
                   }

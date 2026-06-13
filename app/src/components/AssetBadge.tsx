@@ -11,7 +11,7 @@ const MONOGRAM_COLORS: Record<string, string> = {
 
 const SIZE_CLASS = {
   sm: "h-6 w-6 text-[10px]",
-  md: "h-9 w-9 text-xs",
+  md: "h-9 w-9 text-sm",
   lg: "h-12 w-12 text-sm",
 } as const;
 

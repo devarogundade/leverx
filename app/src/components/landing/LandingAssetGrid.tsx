@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import btcIcon from "@/assets/btc.png";
 import dbusdcIcon from "@/assets/dbusdc.png";
 import suiIcon from "@/assets/sui.png";
@@ -28,13 +29,13 @@ export function LandingAssetGrid() {
             gridColumn: tile.col,
             gridRow: tile.row,
             opacity: tile.opacity,
-          }}
+            "--asset-size": `${tile.size}px`,
+          } as CSSProperties}
         >
           <img
             src={tile.src}
             alt=""
-            className="landing-asset-icon"
-            style={{ width: tile.size, height: tile.size }}
+            className="landing-asset-icon rounded-full"
             draggable={false}
           />
         </div>

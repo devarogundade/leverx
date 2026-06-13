@@ -1,5 +1,6 @@
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { DataTable, type Column } from "@/components/DataTable";
+import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
 import { formatPremiumCents } from "@/lib/leverx/indexer-markets";
 import type { GlobalMarketTrade } from "@/lib/leverx/indexer-client";
 import { cn } from "@/lib/utils";
@@ -44,14 +45,15 @@ export function MarketTradesTable({ trades, limit = 12, className }: Props) {
       cell: (r) => {
         const t = r.trade;
         return (
-          <span className="flex min-w-0 items-center gap-1.5 font-mono text-xs">
+          <span className="flex min-w-0 items-center gap-1.5 font-mono text-sm">
             {t.trade_side === "mint" ? (
               <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-success" />
             ) : (
               <ArrowDownRight className="h-3.5 w-3.5 shrink-0 text-destructive" />
             )}
-            <span className={cn(t.is_up ? "text-success" : "text-destructive")}>
-              {t.trade_side === "mint" ? "OPEN" : "CLOSE"} {t.is_up ? "UP" : "DOWN"}
+            <span className={cn("inline-flex items-center gap-1.5", t.is_up ? "text-success" : "text-destructive")}>
+              <span>{t.trade_side === "mint" ? "OPEN" : "CLOSE"}</span>
+              <PredictSideLabel side={t.is_up ? "up" : "down"} />
             </span>
           </span>
         );
@@ -71,7 +73,7 @@ export function MarketTradesTable({ trades, limit = 12, className }: Props) {
       header: "Time",
       mobileLabel: "Time",
       cell: (r) => (
-        <span className="text-xs text-muted-foreground">
+        <span className="text-sm text-muted-foreground">
           {formatTradeTime(r.trade.timestamp_ms)}
         </span>
       ),

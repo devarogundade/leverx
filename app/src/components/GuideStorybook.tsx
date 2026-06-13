@@ -6,6 +6,7 @@ import {
   Coins,
   Layers,
   ListOrdered,
+  Shield,
   Sparkles,
   TrendingDown,
   TrendingUp,
@@ -30,10 +31,13 @@ import {
   segTabsClass,
 } from "@/lib/leverx/tw";
 import { PREDICT_TESTNET_EXPIRATION_DAYS } from "@/lib/predict/knowledge";
+import { isRangeTradingEnabled } from "@/lib/predict/instruments";
 
 const MARGIN_RANGE = `${MIN_MARGIN_USD}–${MAX_MARGIN_USD} dUSDC`;
 const LEVERAGE_RANGE = `${LEVERAGE_MIN}×–${LEVERAGE_MAX}×`;
+const rangeEnabled = isRangeTradingEnabled();
 const MARGIN_CALL_PCT = (MARGIN_CALL_BPS / 100).toFixed(0);
+const HEALTHY_PCT = ((MARGIN_CALL_BPS + 500) / 100).toFixed(0);
 
 const CHAPTERS = [
   { id: "introduction", label: "Introduction" },
@@ -41,6 +45,7 @@ const CHAPTERS = [
   { id: "orders", label: "Order types" },
   { id: "leverage", label: "Leverage" },
   { id: "risk", label: "Risk" },
+  { id: "autoclose", label: "Auto-close" },
   { id: "walkthrough", label: "Walkthrough" },
   { id: "earn", label: "Earn" },
   { id: "start", label: "Get started" },
@@ -84,7 +89,8 @@ export function GuideStorybook() {
             </p>
             <h1 className="guide-hero-title">How LeverX works</h1>
             <p className="guide-hero-lead">
-              {ui.appTagline}. Bet on price going up, down, or staying in a range — with{" "}
+              {ui.appTagline}. Bet on price going{" "}
+              {rangeEnabled ? "up, down, or staying in a range" : "up or down"} — with{" "}
               {MARGIN_RANGE} margin at {LEVERAGE_RANGE} leverage on Sui testnet.
             </p>
           </div>
@@ -99,11 +105,11 @@ export function GuideStorybook() {
             <span className="guide-hero-stat-label">Max leverage</span>
           </div>
           <div className="guide-hero-stat">
-            <span className="guide-hero-stat-value">3</span>
+            <span className="guide-hero-stat-value">{rangeEnabled ? 3 : 2}</span>
             <span className="guide-hero-stat-label">Market types</span>
           </div>
           <div className="guide-hero-stat">
-            <span className="guide-hero-stat-value">~6 min</span>
+            <span className="guide-hero-stat-value">~9 min</span>
             <span className="guide-hero-stat-label">Read time</span>
           </div>
         </div>
@@ -152,10 +158,10 @@ export function GuideStorybook() {
             first
           >
             <p>
-              LeverX lets you bet on where an asset&apos;s price will be at expiry — above a target,
-              below it, or inside a range. Post {MARGIN_RANGE} margin and choose leverage up to{" "}
-              {LEVERAGE_MAX}× to size your position. Contracts settle against live oracle prices on
-              DeepBook Predict — not a traditional order book.
+              LeverX lets you bet on where an asset&apos;s price will be at expiry — above a target
+              {rangeEnabled ? ", below it, or inside a range" : " or below it"}. Post {MARGIN_RANGE}{" "}
+              margin and choose leverage up to {LEVERAGE_MAX}× to size your position. Contracts
+              settle against live oracle prices on DeepBook Predict — not a traditional order book.
             </p>
             <div className="guide-pillar-grid guide-pillar-grid--single">
               <PillarCard
@@ -170,8 +176,8 @@ export function GuideStorybook() {
           <GuideChapter
             id="instruments"
             index="02"
-            title="UP, DOWN & RANGE"
-            subtitle="Three ways to take a view"
+            title={rangeEnabled ? "UP, DOWN & RANGE" : "UP & DOWN"}
+            subtitle={rangeEnabled ? "Three ways to take a view" : "Two ways to take a view"}
           >
             <div className="guide-pillar-grid">
               <PillarCard
@@ -186,12 +192,14 @@ export function GuideStorybook() {
                 body="Pays if the final price is below your target."
                 accent="short"
               />
-              <PillarCard
-                icon={<Layers className="h-4 w-4" />}
-                title="RANGE"
-                body="Pays if the final price lands inside your chosen band."
-                accent="shield"
-              />
+              {rangeEnabled ? (
+                <PillarCard
+                  icon={<Layers className="h-4 w-4" />}
+                  title="RANGE"
+                  body="Pays if the final price lands inside your chosen band."
+                  accent="shield"
+                />
+              ) : null}
             </div>
             <GuideCallout variant="note" title="Each market is unique">
               Every trade is tied to an asset, expiry time, target price, and direction. Pick the
@@ -214,20 +222,14 @@ export function GuideStorybook() {
               />
               <PillarCard
                 icon={<ListOrdered className="h-4 w-4" />}
-                title="Limit · Resting"
+                title="Limit"
                 body="Set a max price per contract. Your order waits under Open Orders until the market reaches it."
                 accent="shield"
-              />
-              <PillarCard
-                icon={<ArrowRight className="h-4 w-4" />}
-                title="Limit · Fill now"
-                body="Opens immediately only if the live price is within your limit and placement slippage."
-                accent="short"
               />
             </div>
             <GuideCallout variant="note" title="Order book panel">
               Bids show resting limits from other traders; the ask is the live vault mint quote for
-              the selected UP, DOWN, or RANGE outcome.
+              the selected {rangeEnabled ? "UP, DOWN, or RANGE" : "UP or DOWN"} outcome.
             </GuideCallout>
           </GuideChapter>
 
@@ -274,42 +276,131 @@ export function GuideStorybook() {
             id="risk"
             index="05"
             title="When price moves"
-            subtitle="Protecting yourself along the way"
+            subtitle="Health, P&amp;L, and your exit options"
           >
             <p>
-              If the market moves against you, mark value can fall relative to borrowed dUSDC. Health
-              tracks collateral vs debt; below {MARGIN_CALL_PCT}% the pool may step in and close the
-              trade. Use take-profit and stop-loss levels on contract premium to exit on your terms
-              before that happens.
+              Open trades are marked to the live redeem bid — what you would receive if you closed
+              right now. Unrealized P&amp;L is that mark value minus what you paid to open. If you
+              borrowed from the vault, health compares mark value to outstanding borrow: 100% means
+              collateral exactly covers debt; above {HEALTHY_PCT}% is comfortable; between{" "}
+              {MARGIN_CALL_PCT}% and {HEALTHY_PCT}% is a margin-call band; below {MARGIN_CALL_PCT}%
+              the position is underwater and eligible for liquidation. Positions at 1× with no vault
+              borrow are never liquidated on health alone.
             </p>
-            <GuidePanel label="Tools that help">
+            <GuidePanel label="Ways you can exit">
               <dl className="guide-risk-grid">
                 <div>
+                  <dt>Close market</dt>
+                  <dd>Redeem contracts immediately at the best available bid.</dd>
+                </div>
+                <div>
+                  <dt>Close limit</dt>
+                  <dd>Redeem only when the bid reaches your minimum price.</dd>
+                </div>
+                <div>
                   <dt>Take profit</dt>
-                  <dd>Close when contract premium rises above your entry (¢ per contract).</dd>
+                  <dd>Auto-close when contract premium rises above your target (¢ per contract).</dd>
                 </div>
                 <div>
                   <dt>Stop loss</dt>
-                  <dd>Close when contract premium falls below your entry.</dd>
+                  <dd>Auto-close when contract premium falls below your target.</dd>
                 </div>
                 <div>
-                  <dt>Margin call</dt>
+                  <dt>Repay debt</dt>
                   <dd>
-                    If health drops below {MARGIN_CALL_PCT}%, the position may be auto-closed by the
-                    pool.
+                    Pay back borrowed dUSDC from your wallet without fully closing — improves health
+                    and reduces liquidation risk.
                   </dd>
                 </div>
                 <div>
-                  <dt>At expiry</dt>
-                  <dd>Trades settle against the final oracle price when the market closes.</dd>
+                  <dt>Withdraw balance</dt>
+                  <dd>
+                    After closing, move leftover dUSDC from your trading account to your wallet once
+                    borrow on that market key is fully repaid.
+                  </dd>
                 </div>
               </dl>
             </GuidePanel>
+            <GuideCallout variant="tip" title="Watch health in portfolio">
+              The portfolio table shows live health and P&amp;L per trade. Use Manage on any row to
+              close, repay, or settle after expiry before the protocol steps in.
+            </GuideCallout>
+          </GuideChapter>
+
+          <GuideChapter
+            id="autoclose"
+            index="06"
+            title="Force close &amp; deleverage"
+            subtitle="When the protocol steps in"
+          >
+            <p>
+              If you do not exit in time, permissionless keepers (helper apps) can close risky
+              positions on your behalf. These auto-closes appear under Auto-closed trades in your
+              portfolio. They fall into three categories depending on timing and health.
+            </p>
+            <div className="guide-pillar-grid">
+              <PillarCard
+                icon={<Shield className="h-4 w-4" />}
+                title="Liquidation"
+                body={`When health drops below ${MARGIN_CALL_PCT}% on a leveraged trade, a keeper redeems your contracts and repays vault debt from the proceeds. Any surplus goes to the insurance backstop; shortfalls may be written off as bad debt.`}
+                accent="short"
+              />
+              <PillarCard
+                icon={<Zap className="h-4 w-4" />}
+                title="Force deleverage"
+                body={`In the final hour before expiry, borrowed positions above 1× are force-deleveraged: contracts are redeemed, vault debt is repaid, and leftover margin can reopen at 1× if you opted in when opening the trade.`}
+                accent="shield"
+              />
+              <PillarCard
+                icon={<TrendingDown className="h-4 w-4" />}
+                title="Bad debt"
+                body="If redeem proceeds cannot fully repay borrow after liquidation, the shortfall is recorded as bad debt and absorbed by the pool insurance fund."
+                accent="long"
+              />
+            </div>
+            <GuidePanel label="How force deleverage works">
+              <dl className="guide-risk-grid">
+                <div>
+                  <dt>Final-hour window</dt>
+                  <dd>
+                    New trades above 1× cannot open in the last hour. Existing leveraged positions
+                    in that window must be brought back to 1× or liquidated if already underwater.
+                  </dd>
+                </div>
+                <div>
+                  <dt>Healthy vs underwater</dt>
+                  <dd>
+                    Force deleverage only applies when mark value still covers borrow. If health is
+                    already below {MARGIN_CALL_PCT}%, liquidation runs instead — the same path as a
+                    mid-market margin call.
+                  </dd>
+                </div>
+                <div>
+                  <dt>Remint at 1×</dt>
+                  <dd>
+                    When opening a leveraged trade you can choose to continue the prediction at 1×
+                    after a force deleverage. Turn this off to stay in cash once debt is cleared.
+                  </dd>
+                </div>
+                <div>
+                  <dt>After expiry</dt>
+                  <dd>
+                    Once the market expires, remaining vault borrow can be repaid from redeem
+                    proceeds. Settle expired positions from portfolio when the oracle finalizes.
+                  </dd>
+                </div>
+              </dl>
+            </GuidePanel>
+            <GuideCallout variant="note" title="Who runs auto-closes?">
+              Anyone can run a helper that watches for liquidations, force deleverages, limit fills,
+              and expiry settlement. The first successful transaction earns a keeper fee. See the
+              Helper page to run your own.
+            </GuideCallout>
           </GuideChapter>
 
           <GuideChapter
             id="walkthrough"
-            index="06"
+            index="07"
             title="Step by step"
             subtitle="From wallet to open position"
           >
@@ -329,7 +420,10 @@ export function GuideStorybook() {
                 </span>
                 <span className="guide-step-body">
                   <strong>Pick a market</strong>
-                  <span>Choose an asset, target price, and UP / DOWN / RANGE direction.</span>
+                  <span>
+                    Choose an asset, target price, and{" "}
+                    {rangeEnabled ? "UP / DOWN / RANGE" : "UP / DOWN"} direction.
+                  </span>
                 </span>
               </li>
               <li>
@@ -340,7 +434,8 @@ export function GuideStorybook() {
                   <strong>Set your trade</strong>
                   <span>
                     Choose market or limit, deposit ({MARGIN_RANGE}), leverage ({LEVERAGE_RANGE}),
-                    and optional take-profit / stop-loss on premium.
+                    optional take-profit / stop-loss on premium, and whether to remint at 1× after
+                    a force deleverage.
                   </span>
                 </span>
               </li>
@@ -358,7 +453,7 @@ export function GuideStorybook() {
 
           <GuideChapter
             id="earn"
-            index="07"
+            index="08"
             title="Earn without trading"
             subtitle="Pool liquidity, helpers, and points"
           >
@@ -372,7 +467,7 @@ export function GuideStorybook() {
               <PillarCard
                 icon={<Zap className="h-4 w-4" />}
                 title="Helper"
-                body="Run a small background app that closes expired trades, fills limits, and steps in on risky positions — and earn protocol fees."
+                body="Run a small background app that liquidates underwater trades, force-deleverages in the final hour, fills limits, and settles expired markets — and earn protocol fees."
                 accent="long"
               />
               <PillarCard
@@ -395,7 +490,7 @@ export function GuideStorybook() {
             </div>
           </GuideChapter>
 
-          <GuideChapter id="start" index="08" title="Your first trade" subtitle="Ready to try it?">
+          <GuideChapter id="start" index="09" title="Your first trade" subtitle="Ready to try it?">
             <p>
               Open any market from the list. Live spot prices, order-book bids, LP mint quotes, and
               pool stats update as activity happens on testnet.
@@ -411,7 +506,7 @@ export function GuideStorybook() {
             </div>
           </GuideChapter>
 
-          <GuideChapter id="faq" index="09" title="Good to know" subtitle="Common questions">
+          <GuideChapter id="faq" index="10" title="Good to know" subtitle="Common questions">
             <dl className="guide-faq">
               <div className="guide-faq-item">
                 <dt>Is this real money?</dt>
@@ -429,6 +524,39 @@ export function GuideStorybook() {
                 <dd>
                   Testnet expirations are {expirationList} days from listing. Pick a tenor that
                   matches your view.
+                </dd>
+              </div>
+              <div className="guide-faq-item">
+                <dt>What is health?</dt>
+                <dd>
+                  Mark value divided by vault borrow, shown as a percentage. It updates with the
+                  live redeem bid. Above {HEALTHY_PCT}% is healthy; {MARGIN_CALL_PCT}%–{HEALTHY_PCT}%
+                  is margin-call territory; below {MARGIN_CALL_PCT}% a leveraged position can be
+                  liquidated.
+                </dd>
+              </div>
+              <div className="guide-faq-item">
+                <dt>Liquidation vs force deleverage?</dt>
+                <dd>
+                  Liquidation happens any time health falls below {MARGIN_CALL_PCT}% on a borrowed
+                  position. Force deleverage only runs in the final hour before expiry to bring
+                  healthy leveraged trades down to 1×. Underwater positions in that hour are
+                  liquidated, not deleveraged.
+                </dd>
+              </div>
+              <div className="guide-faq-item">
+                <dt>What is remint after deleverage?</dt>
+                <dd>
+                  A setting when you open above 1×. If a keeper force-deleverages you in the final
+                  hour, leftover margin can automatically reopen the same prediction at 1× with no
+                  vault borrow. Disable it to exit to cash instead.
+                </dd>
+              </div>
+              <div className="guide-faq-item">
+                <dt>Can I repay without closing?</dt>
+                <dd>
+                  Yes — use Repay debt in portfolio Manage to send dUSDC toward vault borrow while
+                  keeping contracts open. This improves health without exiting your view.
                 </dd>
               </div>
               <div className="guide-faq-item">

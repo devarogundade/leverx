@@ -25,9 +25,9 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-function PositionDetailGrid({ position }: { position: LeveragedPosition }) {
+function PositionDetailGrid({ position }: { position: LeveragedPosition; }) {
   return (
-    <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+    <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
       <dt className="text-muted-foreground">Quantity</dt>
       <dd className="text-right font-mono tabular-nums">
         {position.open_quantity.toLocaleString()}
@@ -124,7 +124,7 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
         {view !== "menu" ? (
           <button
             type="button"
-            className="mb-3 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            className="mb-3 flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
             onClick={() => setView("menu")}
           >
             <ChevronLeft className="h-3.5 w-3.5" />
@@ -185,7 +185,7 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
               className="font-mono"
             />
             {limitCentsInvalid && limitCents ? (
-              <p className="text-xs text-destructive">
+              <p className="text-sm text-destructive">
                 Min bid must be between {PREDICT_MIN_PREMIUM_CENTS}¢ and {PREDICT_MAX_PREMIUM_CENTS}¢.
               </p>
             ) : null}
@@ -222,7 +222,7 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
 
         {view === "repay_debt" ? (
           <div className="space-y-3">
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Outstanding borrow:{" "}
               <span className="font-mono text-foreground">{borrowedUsd.toFixed(2)} dUSDC</span>
             </p>
@@ -237,7 +237,7 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
               className="font-mono"
             />
             {repayExceedsDebt ? (
-              <p className="text-xs text-destructive">Amount exceeds borrowed balance.</p>
+              <p className="text-sm text-destructive">Amount exceeds borrowed balance.</p>
             ) : null}
             <button
               type="button"
@@ -348,7 +348,7 @@ function ActionButton({
           {label}
           <InfoPopover iconClassName="h-3 w-3">{info}</InfoPopover>
         </span>
-        <span className="mt-0.5 block text-xs text-muted-foreground">{hint}</span>
+        <span className="mt-0.5 block text-sm text-muted-foreground">{hint}</span>
       </span>
       {pending ? <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" /> : null}
     </button>
@@ -374,7 +374,7 @@ export function PositionActionsTrigger({ position, className }: TriggerProps) {
         className={cn(
           pillToggleBtn,
           pillToggleIdle,
-          "px-3 text-xs font-medium",
+          "px-3 text-sm font-medium",
           className,
         )}
         disabled={!isProtocolReady || pending}

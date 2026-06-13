@@ -12,6 +12,7 @@ interface ImportMetaEnv {
   readonly VITE_PREDICT_ID?: string;
   readonly VITE_PREDICT_PACKAGE_ID?: string;
   readonly VITE_DEEPBOOK_INDEXER_URL?: string;
+  readonly VITE_RANGE_ENABLED?: string;
 }
 
 interface ImportMeta {

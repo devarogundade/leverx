@@ -58,7 +58,7 @@ export function MarketCatalogPagination({
           <ChevronLeft className="h-4 w-4" />
           <span className="hidden sm:inline">Previous</span>
         </Button>
-        <span className="px-2 text-xs tabular-nums text-muted-foreground">
+        <span className="px-2 text-sm tabular-nums text-muted-foreground">
           {page} / {totalPages}
         </span>
         <Button

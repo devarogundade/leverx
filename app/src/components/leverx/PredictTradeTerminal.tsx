@@ -60,7 +60,7 @@ import {
 } from "@/lib/charts/predict-chart-levels";
 import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
 import { formatCount, ui } from "@/lib/copy";
-import { formatRangeStrikes, type PredictSide } from "@/lib/predict/instruments";
+import { formatRangeStrikes, coercePredictSide, type PredictSide } from "@/lib/predict/instruments";
 import { isOracleSettledForTrade } from "@/lib/predict/oracles";
 import { scaleQuote, scaleSpot } from "@/lib/predict/scaling";
 import {
@@ -122,6 +122,22 @@ function tradeTabLabel(
       <>
         <span className="sm:hidden">Orders</span>
         <span className="hidden sm:inline">Open Orders</span>
+      </>
+    );
+  }
+  if (tab === "Positions") {
+    return (
+      <>
+        <span className="max-[380px]:hidden">Positions</span>
+        <span className="hidden max-[380px]:inline">Pos</span>
+      </>
+    );
+  }
+  if (tab === "Summary") {
+    return (
+      <>
+        <span className="max-[380px]:hidden">Summary</span>
+        <span className="hidden max-[380px]:inline">Stats</span>
       </>
     );
   }
@@ -413,7 +429,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
 
   useEffect(() => {
     if (navSide === "up" || navSide === "down" || navSide === "range") {
-      setActiveSide(navSide);
+      setActiveSide(coercePredictSide(navSide));
       return;
     }
     setActiveSide("up");
@@ -559,21 +575,14 @@ export function PredictTradeTerminal({ oracleId }: Props) {
     [positions, positionsFilter],
   );
 
-  const handleTradeSuccess = useMemo(
-    () =>
-      ({
-        orderType,
-        limitExecution,
-      }: {
-        orderType: "market" | "limit";
-        limitExecution: "immediate" | "resting";
-      }) => {
-        if (orderType === "limit" && limitExecution === "resting") {
-          setActiveTab("Open Orders");
-        } else if (orderType === "market" || limitExecution === "immediate") {
-          setActiveTab("Positions");
-        }
-      },
+  const handleTradeSuccess = useCallback(
+    ({ orderType }: { orderType: "market" | "limit" }) => {
+      if (orderType === "limit") {
+        setActiveTab("Open Orders");
+      } else {
+        setActiveTab("Positions");
+      }
+    },
     [setActiveTab],
   );
 
@@ -692,8 +701,8 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   };
 
   return (
-    <section className={tradeTerminal}>
-      <header className={tradeTerminalHeader}>
+    <section className={cn(tradeTerminal, "trade-terminal")}>
+      <header className={cn(tradeTerminalHeader, "trade-terminal-header")}>
         <div className={tradeTerminalHeaderTop}>
           <div className="flex min-w-0 flex-1 items-start gap-3">
             <AssetBadge asset={asset} size="md" />

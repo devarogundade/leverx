@@ -83,6 +83,8 @@ export const ui = {
   loadingChart: "Loading chart…",
   emptyMarkets: "No markets right now",
   emptyMarketsHint: "Markets will show up here when they are available to trade.",
+  emptyFavoriteMarkets: "No favorites yet",
+  emptyFavoriteMarketsHint: "Bookmark markets from the list to find them here quickly.",
   emptyPositions: "No open trades",
   emptyPositionsHint: "Your open trades will appear here after your first position.",
   predictServerDisabled: "Live data unavailable",

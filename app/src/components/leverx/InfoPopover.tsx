@@ -39,7 +39,7 @@ export function InfoPopover({
       <PopoverContent
         align={align}
         side={side}
-        className="w-64 space-y-1.5 text-xs leading-relaxed text-muted-foreground"
+        className="w-64 space-y-1.5 text-sm leading-relaxed text-muted-foreground"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         {title ? <p className="font-semibold text-foreground">{title}</p> : null}

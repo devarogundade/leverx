@@ -20,7 +20,7 @@ export function TradeQuoteSummary({ quote, isLoading, isRefreshing, className }:
       return (
         <div
           className={cn(
-            "rounded-md border border-border/60 bg-card/40 p-3 text-xs text-muted-foreground",
+            "rounded-md border border-border/60 bg-card/40 p-3 text-sm text-muted-foreground",
             className,
           )}
         >
@@ -47,7 +47,7 @@ export function TradeQuoteSummary({ quote, isLoading, isRefreshing, className }:
         labelClassName={labelCaps}
         info={leverxInfo.preTradeQuote}
       />
-      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
         <LabelWithInfo label="Per contract" info={leverxInfo.askPerUnit} />
         <span className={cn("font-mono text-right", outOfBounds && "text-amber-400")}>
           {formatPremiumCents(premiumRaw)}
@@ -64,7 +64,7 @@ export function TradeQuoteSummary({ quote, isLoading, isRefreshing, className }:
         ) : null}
       </div>
       {outOfBounds ? (
-        <p className="text-xs text-amber-200">
+        <p className="text-sm text-amber-200">
           This price cannot be traded on-chain right now (Predict allows 1¢–99¢ per contract).
         </p>
       ) : null}

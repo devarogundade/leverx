@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { DataTable, type Column } from "@/components/DataTable";
 import { AssetBadge } from "@/components/AssetBadge";
 import { PositionActionsTrigger } from "@/components/leverx/PositionActionsModal";
+import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { usePredictOracleRows } from "@/hooks/usePredictOracles";
 import { leverxInfo } from "@/lib/leverx/info-copy";
@@ -15,7 +16,7 @@ import {
   positionRowId,
   type PositionMarkToMarket,
 } from "@/lib/leverx/position-metrics";
-import { predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
+import { predictSideFromBinary, type PredictSide } from "@/lib/predict/instruments";
 import { scaleQuote } from "@/lib/predict/scaling";
 import { formatUsdc, ui } from "@/lib/copy";
 import { cn } from "@/lib/utils";
@@ -35,7 +36,7 @@ interface PositionRow {
   id: string;
   position: LeveragedPosition;
   asset: string;
-  side: string;
+  side: PredictSide;
   strikeLabel: string;
   mtm: PositionMarkToMarket | undefined;
 }
@@ -69,22 +70,25 @@ function formatExpiry(expiryMs: number): string {
 function buildRows(
   positions: readonly LeveragedPosition[],
   markToMarket: Map<string, PositionMarkToMarket>,
-  oracles: readonly { oracle_id: string; underlying_asset?: string }[],
+  oracles: readonly { oracle_id: string; underlying_asset?: string; }[],
 ): PositionRow[] {
   return positions.map((position) => ({
     id: positionRowId(position),
     position,
     asset: assetLabelForOracleId(position.oracle_id, oracles),
-    side: predictSideLabel[sideFromIsUp(position.is_up)],
+    side: predictSideFromBinary({
+      isUp: position.is_up,
+      isRange: position.is_range,
+    }),
     strikeLabel: formatStrike(position),
     mtm: markToMarket.get(positionRowId(position)),
   }));
 }
 
-function PnlCell({ mtm, closed }: { mtm?: PositionMarkToMarket; closed: boolean }) {
-  if (closed) return <span className="text-xs text-muted-foreground">Closed</span>;
+function PnlCell({ mtm, closed }: { mtm?: PositionMarkToMarket; closed: boolean; }) {
+  if (closed) return <span className="text-sm text-muted-foreground">Closed</span>;
   if (!mtm?.isLive) {
-    return <span className="text-xs text-muted-foreground">…</span>;
+    return <span className="text-sm text-muted-foreground">…</span>;
   }
   const tone =
     mtm.unrealizedPnlUsd > 0
@@ -101,9 +105,9 @@ function PnlCell({ mtm, closed }: { mtm?: PositionMarkToMarket; closed: boolean 
   );
 }
 
-function HealthCell({ mtm, closed }: { mtm?: PositionMarkToMarket; closed: boolean }) {
+function HealthCell({ mtm, closed }: { mtm?: PositionMarkToMarket; closed: boolean; }) {
   if (closed || mtm?.healthBps == null) {
-    return <span className="text-xs text-muted-foreground">—</span>;
+    return <span className="text-sm text-muted-foreground">—</span>;
   }
 
   const pct = mtm.healthBps / 100;
@@ -116,7 +120,7 @@ function HealthCell({ mtm, closed }: { mtm?: PositionMarkToMarket; closed: boole
 
   return (
     <div className="min-w-[5.5rem]">
-      <div className="mb-1 flex items-center justify-end gap-1.5 text-xs font-medium tabular-nums">
+      <div className="mb-1 flex items-center justify-end gap-1.5 text-sm font-medium tabular-nums">
         <span
           className={cn(
             mtm.healthLabel === "healthy" && "text-success",
@@ -137,7 +141,7 @@ function HealthCell({ mtm, closed }: { mtm?: PositionMarkToMarket; closed: boole
   );
 }
 
-function LiveDot({ active }: { active?: boolean }) {
+function LiveDot({ active }: { active?: boolean; }) {
   if (!active) return null;
   return (
     <span
@@ -179,7 +183,9 @@ export function LeverxPositionsTable({
               >
                 {r.asset}
               </Link>
-              <p className="text-[11px] text-muted-foreground">{r.side}</p>
+              <p className="text-[11px] text-muted-foreground">
+                <PredictSideLabel side={r.side} />
+              </p>
             </div>
           </div>
         </div>
@@ -189,7 +195,7 @@ export function LeverxPositionsTable({
       key: "strike",
       header: "Strike",
       mobileLabel: "Strike",
-      cell: (r) => <span className="font-mono text-xs">{r.strikeLabel}</span>,
+      cell: (r) => <span className="font-mono text-sm">{r.strikeLabel}</span>,
     },
     {
       key: "qty",
@@ -208,7 +214,7 @@ export function LeverxPositionsTable({
       align: "right",
       hideOnMobile: true,
       cell: (r) => (
-        <span className="font-mono text-xs tabular-nums text-muted-foreground">
+        <span className="font-mono text-sm tabular-nums text-muted-foreground">
           {r.mtm?.entryPremiumCents != null ? `${r.mtm.entryPremiumCents.toFixed(1)}¢` : "—"}
         </span>
       ),
@@ -229,7 +235,7 @@ export function LeverxPositionsTable({
         const closed = r.position.status !== "open";
         if (closed) {
           return (
-            <span className="font-mono text-xs text-muted-foreground">
+            <span className="font-mono text-sm text-muted-foreground">
               {r.position.realized_payout > 0
                 ? formatUsdc(scaleQuote(r.position.realized_payout))
                 : "—"}
@@ -237,7 +243,7 @@ export function LeverxPositionsTable({
           );
         }
         return (
-          <span className="inline-flex items-center justify-end gap-1.5 font-mono text-xs tabular-nums">
+          <span className="inline-flex items-center justify-end gap-1.5 font-mono text-sm tabular-nums">
             <LiveDot active={r.mtm?.isLive} />
             {r.mtm?.markBidCents != null ? `${r.mtm.markBidCents.toFixed(1)}¢` : "…"}
           </span>
@@ -259,7 +265,7 @@ export function LeverxPositionsTable({
       align: "right",
       mobileLabel: "Margin",
       cell: (r) => (
-        <div className="text-right text-xs tabular-nums">
+        <div className="text-right text-sm tabular-nums">
           <div className="font-medium">{formatUsdc(scaleQuote(r.position.margin_quote))}</div>
           <div className="text-muted-foreground">
             {(r.position.leverage_bps / 10_000).toFixed(1)}×
@@ -285,7 +291,7 @@ export function LeverxPositionsTable({
       align: "right",
       mobileLabel: "Expiry",
       cell: (r) => (
-        <span className="text-xs text-muted-foreground">{formatExpiry(r.position.expiry_ms)}</span>
+        <span className="text-sm text-muted-foreground">{formatExpiry(r.position.expiry_ms)}</span>
       ),
     },
     {
@@ -297,7 +303,7 @@ export function LeverxPositionsTable({
         r.position.status === "open" ? (
           <PositionActionsTrigger position={r.position} />
         ) : (
-          <span className="text-xs capitalize text-muted-foreground">{r.position.status}</span>
+          <span className="text-sm capitalize text-muted-foreground">{r.position.status}</span>
         ),
     },
   ];

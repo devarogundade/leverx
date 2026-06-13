@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { BarChart3, Bookmark } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { BarChart3 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MarketGridSkeleton } from "@/components/ui/market-skeleton";
 import { AssetBadge } from "@/components/AssetBadge";
+import { MarketFavoriteButton } from "@/components/leverx/MarketFavoriteButton";
 import { MarketPremiumQuote } from "@/components/leverx/MarketPremiumQuote";
 import { MarketSideActions } from "@/components/leverx/MarketSideActions";
 import { useMarketPremiumSparklines } from "@/hooks/useMarketPremiumSparklines";
@@ -43,6 +43,8 @@ interface Props {
   liquidityLabel?: string;
   loading?: boolean;
   offline?: boolean;
+  emptyTitle?: string;
+  emptyDescription?: string;
 }
 
 export function PredictMarketsGrid({
@@ -50,6 +52,8 @@ export function PredictMarketsGrid({
   liquidityLabel = "_",
   loading,
   offline,
+  emptyTitle = ui.emptyMarkets,
+  emptyDescription = ui.emptyMarketsHint,
 }: Props) {
   const [page, setPage] = useState(1);
 
@@ -74,8 +78,8 @@ export function PredictMarketsGrid({
       <div className={pageState}>
         <EmptyState
           icon={BarChart3}
-          title={ui.emptyMarkets}
-          description={ui.emptyMarketsHint}
+          title={emptyTitle}
+          description={emptyDescription}
           action={
             <Link to="/guide" className={cn(landingCtaSecondary, "text-sm")}>
               Learn how markets work
@@ -114,7 +118,7 @@ export function PredictMarketsGrid({
                     {...marketHref}
                     className={cn(marketCardInteractive, "min-w-0 flex-1 no-underline")}
                   >
-                    <p className="line-clamp-2 text-xs font-medium leading-snug text-foreground transition-colors hover:text-accent">
+                    <p className="line-clamp-2 text-sm font-medium leading-snug text-foreground transition-colors hover:text-accent">
                       {m.question}
                     </p>
                     <MarketLeverageBadge expiryMs={m.expiry} now={now} />
@@ -139,15 +143,12 @@ export function PredictMarketsGrid({
                   </span>
                   <div className={cn(marketCardInteractive, "flex items-center gap-2")}>
                     <span>{m.expiry ? formatAutoClose(m.expiry) : "—"}</span>
-                    <Button
-                      type="button"
-                      variant="ghost"
+                    <MarketFavoriteButton
+                      oracleId={m.oracleId}
                       size="sm"
-                      className="h-7 w-7 min-w-7 p-0 text-muted-foreground"
-                      aria-label="Bookmark"
-                    >
-                      <Bookmark className="h-3 w-3" />
-                    </Button>
+                      className="h-7 w-7 min-w-7 p-0"
+                      iconClassName="h-3 w-3"
+                    />
                   </div>
                 </div>
               </div>

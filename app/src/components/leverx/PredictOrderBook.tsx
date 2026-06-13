@@ -11,7 +11,8 @@ import { DATA_PLACEHOLDER } from "@/lib/leverx/placeholders";
 import type { OrderBookLevel } from "@/lib/leverx/indexer-client";
 import { PREDICT_QUOTE_REFERENCE_QUANTITY } from "@/lib/leverx/constants";
 import { costFromPremiumPerUnit, premiumRawToCents } from "@/lib/leverx/trade-math";
-import { predictSideLabel, type PredictSide } from "@/lib/predict/instruments";
+import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
+import { predictSideLabel, TRADE_PREDICT_SIDES, type PredictSide } from "@/lib/predict/instruments";
 import { scaleQuote } from "@/lib/predict/scaling";
 import {
   labelCaps,
@@ -110,7 +111,7 @@ function OrderBookShell({
         />
         <div className="flex items-center gap-1.5">
           <div className={pillToggleGroup} role="group" aria-label="Outcome">
-            {(["up", "down", "range"] as const).map((option) => (
+            {TRADE_PREDICT_SIDES.map((option) => (
               <button
                 key={option}
                 type="button"
@@ -121,7 +122,7 @@ function OrderBookShell({
                 onClick={() => onSideChange(option)}
                 aria-pressed={side === option}
               >
-                {predictSideLabel[option]}
+                <PredictSideLabel side={option} />
               </button>
             ))}
           </div>
@@ -144,7 +145,7 @@ function OrderBookShell({
         <div className={compact ? "flex flex-col" : orderbookStackSection}>
           <div className={cn(compact ? "flex flex-col" : orderbookStackRows, "justify-end")}>
             {asksEmpty ? (
-              <p className="px-2 py-3 text-center text-xs text-muted-foreground">
+              <p className="px-2 py-3 text-center text-sm text-muted-foreground">
                 No live LP mint quote
               </p>
             ) : (
@@ -157,10 +158,10 @@ function OrderBookShell({
                   <span className="relative font-mono tabular-nums text-destructive">
                     {formatPremiumOrPlaceholder(row.price)}
                   </span>
-                  <span className="relative text-center text-xs text-muted-foreground" title="Vault mint">
+                  <span className="relative text-center text-sm text-muted-foreground" title="Vault mint">
                     LP
                   </span>
-                  <span className="relative text-right font-mono text-xs tabular-nums text-muted-foreground">
+                  <span className="relative text-right font-mono text-sm tabular-nums text-muted-foreground">
                     {formatLevelNotionalUsd(row.price, row.size)}
                   </span>
                 </div>
@@ -187,7 +188,7 @@ function OrderBookShell({
         <div className={compact ? "flex flex-col" : orderbookStackSection}>
           <div className={cn(compact ? "flex flex-col" : orderbookStackRows)}>
             {bidsEmpty ? (
-              <p className="px-2 py-3 text-center text-xs text-muted-foreground">
+              <p className="px-2 py-3 text-center text-sm text-muted-foreground">
                 No resting limit bids
               </p>
             ) : (
@@ -200,10 +201,10 @@ function OrderBookShell({
                   <span className="relative font-mono tabular-nums text-success">
                     {formatPremiumOrPlaceholder(row.price)}
                   </span>
-                  <span className="relative text-center font-mono text-xs tabular-nums text-muted-foreground">
+                  <span className="relative text-center font-mono text-sm tabular-nums text-muted-foreground">
                     {formatSize(row.size)}
                   </span>
-                  <span className="relative text-right font-mono text-xs tabular-nums text-muted-foreground">
+                  <span className="relative text-right font-mono text-sm tabular-nums text-muted-foreground">
                     {formatLevelNotionalUsd(row.price, row.size)}
                   </span>
                 </div>

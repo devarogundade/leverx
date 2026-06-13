@@ -18,10 +18,18 @@ interface Props {
   className?: string;
   fullWidth?: boolean;
   large?: boolean;
+  /** Shorter label and tighter padding for the site header on small screens */
+  compact?: boolean;
   onMenuClose?: () => void;
 }
 
-export function WalletConnectButton({ className, fullWidth, large, onMenuClose }: Props) {
+export function WalletConnectButton({
+  className,
+  fullWidth,
+  large,
+  compact,
+  onMenuClose,
+}: Props) {
   const { wallets, wallet, address, connecting, connect, disconnect, refreshWallets } =
     useWallet();
   const [open, setOpen] = useState(false);
@@ -45,7 +53,8 @@ export function WalletConnectButton({ className, fullWidth, large, onMenuClose }
             type="button"
             variant="ghost"
             className={cn(
-              "btn-connect gap-2 text-xs",
+              "btn-connect gap-2 text-sm",
+              compact && "btn-connect--compact",
               fullWidth && "w-full justify-between",
               large && "btn-connect-lg",
               className,
@@ -55,11 +64,14 @@ export function WalletConnectButton({ className, fullWidth, large, onMenuClose }
               {wallet.icon && (
                 <img src={wallet.icon} alt="" className="h-4 w-4 shrink-0 rounded-full" />
               )}
-              <span className="truncate">{formatSuiAddress(address)}</span>
+              <span className={cn("truncate", compact && "max-w-[4.25rem] sm:max-w-none")}>
+                {formatSuiAddress(address)}
+              </span>
             </span>
             <ChevronDown
               className={cn(
                 "h-3.5 w-3.5 shrink-0 opacity-60 transition-transform",
+                compact && "hidden sm:block",
                 open && "rotate-180",
               )}
             />
@@ -69,7 +81,7 @@ export function WalletConnectButton({ className, fullWidth, large, onMenuClose }
           align="end"
           className={cn("min-w-[12rem]", fullWidth && "w-[var(--radix-dropdown-menu-trigger-width)]")}
         >
-          <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+          <DropdownMenuLabel className="text-sm font-normal text-muted-foreground">
             {wallet.name}
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
@@ -94,15 +106,24 @@ export function WalletConnectButton({ className, fullWidth, large, onMenuClose }
           type="button"
           variant="ghost"
           disabled={connecting}
-          className={cn("btn-connect", fullWidth && "w-full", large && "btn-connect-lg", className)}
+          className={cn(
+            "btn-connect",
+            compact && "btn-connect--compact",
+            fullWidth && "w-full",
+            large && "btn-connect-lg",
+            className,
+          )}
         >
           {connecting ? (
             <>
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Connecting…
+              <span className={cn(compact && "hidden sm:inline")}>Connecting…</span>
             </>
-          ) : large ? (
-            "Connect Wallet"
+          ) : compact ? (
+            <>
+              <span className="sm:hidden">Connect</span>
+              <span className="hidden sm:inline">Connect Wallet</span>
+            </>
           ) : (
             "Connect Wallet"
           )}
@@ -113,7 +134,7 @@ export function WalletConnectButton({ className, fullWidth, large, onMenuClose }
         className={cn("w-56", fullWidth && "w-[var(--radix-dropdown-menu-trigger-width)]")}
       >
         {wallets.length === 0 ? (
-          <p className="px-2 py-3 text-center text-xs leading-relaxed text-muted-foreground">
+          <p className="px-2 py-3 text-center text-sm leading-relaxed text-muted-foreground">
             No Sui wallet detected. Install{" "}
             <a
               href="https://suiwallet.com/"

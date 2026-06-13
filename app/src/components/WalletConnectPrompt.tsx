@@ -25,7 +25,7 @@ export function WalletConnectPrompt({
         action={
           <div className="flex flex-col items-center gap-3">
             <WalletConnectButton />
-            <p className="text-xs text-muted-foreground">{ui.connectHint}</p>
+            <p className="text-sm text-muted-foreground">{ui.connectHint}</p>
           </div>
         }
       />

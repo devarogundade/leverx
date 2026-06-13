@@ -30,7 +30,7 @@ function BalanceRow({
   info?: string;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-2 text-[0.8125rem] text-muted-foreground">
+    <div className="flex items-center justify-between gap-4 py-2 text-sm text-muted-foreground">
       {info ? <LabelWithInfo label={label} info={info} /> : <span>{label}</span>}
       <span className="font-mono tabular-nums text-foreground">{value}</span>
     </div>
@@ -127,7 +127,7 @@ export function BalanceBreakdown({ className }: Props) {
           <div className="border-t border-border px-3 py-2">
             <Link
               to="/portfolio"
-              className="text-xs font-medium text-accent hover:underline"
+              className="text-sm font-medium text-accent hover:underline"
             >
               View portfolio →
             </Link>

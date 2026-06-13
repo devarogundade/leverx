@@ -67,7 +67,7 @@ export function RangeStrikeSelector({
           info={leverxInfo.rangePreset}
         />
         {oracleSpotUsd != null && oracleSpotUsd > 0 ? (
-          <span className="shrink-0 text-xs text-muted-foreground">
+          <span className="shrink-0 text-sm text-muted-foreground">
             Spot{" "}
             <span className="font-mono text-foreground">
               {formatSpotUsd(oracleSpotUsd)}
@@ -76,11 +76,11 @@ export function RangeStrikeSelector({
         ) : null}
       </div>
 
-      <p className="text-xs leading-relaxed text-muted-foreground">
+      <p className="text-sm leading-relaxed text-muted-foreground">
         Pays if the final price settles inside your band at expiry.
       </p>
 
-      <div className={cn(segTabsScroll, "-mx-1 px-1")}>
+      <div className={cn(segTabsScroll, "seg-tabs-scroll-fade -mx-1 px-1")}>
         <div
           className={cn(pillToggleGroup, "inline-flex min-w-max flex-nowrap")}
           role="group"
@@ -147,7 +147,7 @@ export function RangeStrikeSelector({
             />
           </div>
           {minStrikeLabel ? (
-            <p className="text-xs text-muted-foreground sm:col-span-2">
+            <p className="text-sm text-muted-foreground sm:col-span-2">
               Minimum strike:{" "}
               <span className="font-mono text-foreground">{minStrikeLabel}</span>
             </p>
@@ -157,7 +157,7 @@ export function RangeStrikeSelector({
 
       <div className="rounded-lg border border-border bg-surface/60 px-3 py-2.5">
         <div className="flex items-baseline justify-between gap-2">
-          <span className="text-xs text-muted-foreground">Your range</span>
+          <span className="text-sm text-muted-foreground">Your range</span>
           <span className="font-mono text-sm font-medium text-foreground">
             {rangeValid
               ? formatRangeBoundsFromRaw(lowerStrikeRaw, upperStrikeRaw)

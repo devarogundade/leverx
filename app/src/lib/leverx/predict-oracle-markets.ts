@@ -1,4 +1,5 @@
 import { baseFromUnderlying } from "@/lib/markets";
+import { appConfig } from "@/lib/config";
 import type { MarketCatalogEntry } from "@/lib/leverx/indexer-client";
 import {
   buildQuestion,
@@ -222,10 +223,14 @@ function catalogEntriesForCategory(
   entries: readonly MarketCatalogEntry[],
   category: MarketCategory,
 ): MarketCatalogEntry[] {
-  if (category === "Live") {
-    return entries.filter((entry) => !entry.is_range);
+  let filtered = [...entries];
+  if (!appConfig.rangeEnabled) {
+    filtered = filtered.filter((entry) => !entry.is_range);
   }
-  return [...entries];
+  if (category === "Live") {
+    return filtered.filter((entry) => !entry.is_range);
+  }
+  return filtered;
 }
 
 export function mergeOracleMarkets(args: {

@@ -4,7 +4,8 @@ import { CancelOrderTrigger } from "@/components/leverx/CancelOrderModal";
 import { usePredictOracleRows } from "@/hooks/usePredictOracles";
 import { formatPremiumCents } from "@/lib/leverx/indexer-markets";
 import type { LimitMintOrder } from "@/lib/leverx/indexer-client";
-import { predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
+import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
+import { predictSideFromBinary, type PredictSide } from "@/lib/predict/instruments";
 import { assetLabelForOracleId } from "@/lib/predict/oracles";
 import { scaleQuote } from "@/lib/predict/scaling";
 
@@ -17,7 +18,7 @@ interface OrderRow {
   id: string;
   order: LimitMintOrder;
   asset: string;
-  side: string;
+  side: PredictSide;
 }
 
 export function LeverxLimitOrdersTable({ orders, className }: Props) {
@@ -28,7 +29,10 @@ export function LeverxLimitOrdersTable({ orders, className }: Props) {
         id: order.placed_event_digest,
         order,
         asset: assetLabelForOracleId(order.oracle_id, oracles),
-        side: predictSideLabel[sideFromIsUp(order.is_up)],
+        side: predictSideFromBinary({
+          isUp: order.is_up,
+          isRange: order.is_range,
+        }),
       })),
     [orders, oracles],
   );
@@ -41,7 +45,9 @@ export function LeverxLimitOrdersTable({ orders, className }: Props) {
       cell: (r) => (
         <div>
           <p className="text-sm font-medium">{r.asset}</p>
-          <p className="text-[11px] text-muted-foreground">{r.side}</p>
+          <p className="text-[11px] text-muted-foreground">
+            <PredictSideLabel side={r.side} />
+          </p>
         </div>
       ),
     },
@@ -93,14 +99,14 @@ export function LeverxLimitOrdersTable({ orders, className }: Props) {
       align: "right",
       mobileLabel: "Expires",
       cell: (r) => (
-        <span className="text-xs text-muted-foreground">
+        <span className="text-sm text-muted-foreground">
           {r.order.order_expires_ms
             ? new Date(r.order.order_expires_ms).toLocaleString("en-US", {
-                month: "short",
-                day: "numeric",
-                hour: "numeric",
-                minute: "2-digit",
-              })
+              month: "short",
+              day: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+            })
             : "—"}
         </span>
       ),
@@ -110,7 +116,7 @@ export function LeverxLimitOrdersTable({ orders, className }: Props) {
       header: "Status",
       align: "right",
       mobileLabel: "Status",
-      cell: (r) => <span className="text-xs capitalize text-muted-foreground">{r.order.status}</span>,
+      cell: (r) => <span className="text-sm capitalize text-muted-foreground">{r.order.status}</span>,
     },
     {
       key: "actions",

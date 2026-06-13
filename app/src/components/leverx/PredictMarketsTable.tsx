@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowDown, ArrowUp, BarChart3, Bookmark, ChevronsUpDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowDown, ArrowUp, BarChart3, ChevronsUpDown } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MarketTableSkeleton } from "@/components/ui/market-skeleton";
 import { AssetBadge } from "@/components/AssetBadge";
+import { MarketFavoriteButton } from "@/components/leverx/MarketFavoriteButton";
 import { MarketPremiumQuote } from "@/components/leverx/MarketPremiumQuote";
 import { MarketSideActions } from "@/components/leverx/MarketSideActions";
 import { useMarketPremiumSparklines } from "@/hooks/useMarketPremiumSparklines";
@@ -18,7 +18,6 @@ import type { LeverxMarketRow } from "@/lib/leverx/indexer-markets";
 import { formatAutoClose, formatCompactUsdOrPlaceholder } from "@/lib/leverx/placeholders";
 import { ui } from "@/lib/copy";
 import {
-  marketsBookmark,
   marketsMarketCell,
   marketsMarketLink,
   marketsRow,
@@ -108,15 +107,7 @@ function MarketMobileCard({
   return (
     <article className={marketsTableMobileCard}>
       <div className={marketsTableMobileCardHeader}>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className={marketsBookmark}
-          aria-label="Bookmark market"
-        >
-          <Bookmark className="h-3.5 w-3.5" />
-        </Button>
+        <MarketFavoriteButton oracleId={m.oracleId} />
         <AssetBadge asset={m.asset} size="sm" />
         <div className="min-w-0 flex-1">
           <Link
@@ -172,6 +163,8 @@ interface Props {
   liquidityLabel?: string;
   loading?: boolean;
   offline?: boolean;
+  emptyTitle?: string;
+  emptyDescription?: string;
 }
 
 export function PredictMarketsTable({
@@ -179,6 +172,8 @@ export function PredictMarketsTable({
   liquidityLabel = "_",
   loading,
   offline,
+  emptyTitle = ui.emptyMarkets,
+  emptyDescription = ui.emptyMarketsHint,
 }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>("volume");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -234,8 +229,8 @@ export function PredictMarketsTable({
       <div className={pageState}>
         <EmptyState
           icon={BarChart3}
-          title={ui.emptyMarkets}
-          description={ui.emptyMarketsHint}
+          title={emptyTitle}
+          description={emptyDescription}
         />
       </div>
     );
@@ -305,15 +300,7 @@ export function PredictMarketsTable({
                 <tr key={m.id} className={marketsRow}>
                   <td className={cn(marketsTd, marketsTdMarket)}>
                     <div className={marketsMarketCell}>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className={marketsBookmark}
-                        aria-label="Bookmark market"
-                      >
-                        <Bookmark className="h-3.5 w-3.5" />
-                      </Button>
+                      <MarketFavoriteButton oracleId={m.oracleId} />
                       <AssetBadge asset={m.asset} size="sm" />
                       <div className="min-w-0 flex-1">
                         <Link

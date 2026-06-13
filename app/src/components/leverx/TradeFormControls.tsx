@@ -1,13 +1,13 @@
 import type { ComponentProps, ReactNode } from "react";
+import { Check, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { segTab, segTabsClass, tradeInputCard, inputInField } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
@@ -47,7 +47,7 @@ export function TradeAmountInput({
 interface TradeSelectProps {
   value: string;
   onValueChange: (value: string) => void;
-  options: readonly { value: string; label: string }[];
+  options: readonly { value: string; label: string; }[];
   placeholder?: string;
   size?: "sm" | "default";
   className?: string;
@@ -63,33 +63,45 @@ export function TradeSelect({
   className,
   triggerClassName,
 }: TradeSelectProps) {
+  const selected = options.find((opt) => opt.value === value);
+
   return (
-    <Select value={value} onValueChange={onValueChange}>
-      <SelectTrigger
-        className={cn(
-          "border-border bg-card",
-          size === "sm" && "h-7 min-h-7 text-xs",
-          triggerClassName,
-          className,
-        )}
-      >
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          className={cn(
+            "h-9 w-full justify-between border-border bg-card px-3 font-normal",
+            size === "sm" && "h-7 min-h-7 text-sm",
+            triggerClassName,
+            className,
+          )}
+        >
+          <span className="truncate">{selected?.label ?? placeholder}</span>
+          <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
         {options.map((opt) => (
-          <SelectItem key={opt.value} value={opt.value}>
-            {opt.label}
-          </SelectItem>
+          <DropdownMenuItem
+            key={opt.value}
+            className="justify-between gap-2"
+            onSelect={() => onValueChange(opt.value)}
+          >
+            <span>{opt.label}</span>
+            {opt.value === value ? <Check className="h-4 w-4 shrink-0" /> : null}
+          </DropdownMenuItem>
         ))}
-      </SelectContent>
-    </Select>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
 interface TradeChipGroupProps<T extends string> {
   value: T;
   onValueChange: (value: T) => void;
-  options: readonly { value: T; label: string }[];
+  options: readonly { value: T; label: string; }[];
   className?: string;
 }
 
@@ -112,7 +124,7 @@ export function TradeChipGroup<T extends string>({
           value={opt.value}
           className={cn(
             segTab,
-            "h-auto min-h-0 flex-1 rounded-none px-2 py-1.5 text-xs font-medium text-muted-foreground",
+            "h-auto min-h-0 flex-1 rounded-none px-2 py-1.5 text-sm font-medium text-muted-foreground",
             "data-[state=on]:text-foreground",
           )}
         >
@@ -124,7 +136,7 @@ export function TradeChipGroup<T extends string>({
 }
 
 interface TradeQuickAmountsProps {
-  amounts: readonly { label: string; value: string }[];
+  amounts: readonly { label: string; value: string; }[];
   onPick: (value: string) => void;
   className?: string;
 }
@@ -138,7 +150,7 @@ export function TradeQuickAmounts({ amounts, onPick, className }: TradeQuickAmou
           type="button"
           variant="ghost"
           size="sm"
-          className="min-h-10 rounded-md px-0 text-xs font-medium text-muted-foreground hover:bg-hover hover:text-foreground sm:min-h-8"
+          className="min-h-10 rounded-md px-0 text-sm font-medium text-muted-foreground hover:bg-hover hover:text-foreground sm:min-h-8"
           onClick={() => onPick(a.value)}
         >
           {a.label}

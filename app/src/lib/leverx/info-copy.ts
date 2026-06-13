@@ -1,12 +1,8 @@
 /** Short help copy for info popovers across LeverX UI. */
 export const leverxInfo = {
   orderType:
-    "Market orders open right away at the best available price. Limit orders default to Resting (pending) — set your max price and they appear under Open Orders until filled.",
-  marketSlippage:
-    "How much extra you allow above the quoted price if the market moves before your trade goes through.",
-  limitExecution:
-    "Resting (default) queues your order under Open Orders until the market reaches your price. Fill now opens immediately if the live price is within your limit + slippage.",
-  placementSlippage: "How far the price can move from your target when your order fills.",
+    "Market orders open right away at the best available price. Limit orders queue under Open Orders until the market reaches your price.",
+  marketSlippage: "How far the price can move from your target when your order fills.",
   orderExpires: "How long a waiting order stays open before it is cancelled.",
   collateral: "dUSDC margin posted for a trade.",
   margin: "dUSDC you deposit per trade (0.1–100 dUSDC). Higher leverage borrows from the vault to increase position size.",

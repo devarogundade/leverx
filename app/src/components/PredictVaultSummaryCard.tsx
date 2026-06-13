@@ -30,11 +30,11 @@ export function PredictVaultSummaryCard({ vault, isLoading, className }: Props) 
           <Landmark className="h-4 w-4 text-accent" aria-hidden />
           <div>
             <p className={labelCaps}>{ui.predictVaultTitle}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">{ui.predictVaultHint}</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">{ui.predictVaultHint}</p>
           </div>
         </div>
         <div className="text-right">
-          <div className="text-xs text-muted-foreground">{ui.predictVaultValue}</div>
+          <div className="text-sm text-muted-foreground">{ui.predictVaultValue}</div>
           <div className={cn(statValue, "text-lg")}>{formatUsdc(vaultValue)}</div>
         </div>
       </div>
@@ -51,10 +51,10 @@ export function PredictVaultSummaryCard({ vault, isLoading, className }: Props) 
   );
 }
 
-function VaultStat({ label, value }: { label: string; value: string }) {
+function VaultStat({ label, value }: { label: string; value: string; }) {
   return (
     <div>
-      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dt className="text-sm text-muted-foreground">{label}</dt>
       <dd className="mt-0.5 font-mono text-sm font-medium tabular-nums">{value}</dd>
     </div>
   );

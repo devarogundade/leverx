@@ -106,7 +106,7 @@ function KeeperStep({
       <span className="keeper-step-num">{step}</span>
       <div className="min-w-0 flex-1">
         <h2 className="text-sm font-semibold text-foreground">{title}</h2>
-        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{hint}</p>
+        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{hint}</p>
         <pre className="keeper-code-block mt-3">
           <code>{code}</code>
         </pre>

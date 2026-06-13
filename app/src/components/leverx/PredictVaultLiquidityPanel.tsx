@@ -134,7 +134,7 @@ export function PredictVaultLiquidityPanel({ vaultNav, vaultId, className }: Pro
       </div>
 
       <div className="space-y-4 p-3">
-        <div className="text-xs text-muted-foreground">
+        <div className="text-sm text-muted-foreground">
           Pool size{" "}
           <span className="font-mono text-foreground">
             {formatUsdcOrPlaceholder(vaultNav ?? null)}
@@ -154,7 +154,7 @@ export function PredictVaultLiquidityPanel({ vaultNav, vaultId, className }: Pro
               labelClassName={labelCaps}
               info={leverxInfo.vaultAmount}
             />
-            <span className="text-xs text-muted-foreground">
+            <span className="text-sm text-muted-foreground">
               Bal. <span className="font-mono text-foreground">{balanceLabel}</span>
             </span>
           </div>
@@ -172,12 +172,12 @@ export function PredictVaultLiquidityPanel({ vaultNav, vaultId, className }: Pro
             onPick={(v) => setAmount(v)}
           />
           {exceedsBalance ? (
-            <p className="mt-2 text-xs text-destructive">Amount exceeds wallet balance.</p>
+            <p className="mt-2 text-sm text-destructive">Amount exceeds wallet balance.</p>
           ) : null}
         </div>
 
         {!isProtocolReady && isWalletConnected ? (
-          <p className="flex items-center gap-1 text-xs text-muted-foreground">
+          <p className="flex items-center gap-1 text-sm text-muted-foreground">
             Pool deposits are not available yet. Trading will open once the app is fully connected.
             <InfoPopover title="Setup">{leverxInfo.protocolNotConfigured}</InfoPopover>
           </p>

@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, BookOpen } from "lucide-react";
 import { LandingAssetGrid } from "@/components/landing/LandingAssetGrid";
+import { LandingInteractiveGrid } from "@/components/landing/LandingInteractiveGrid";
 // import { LandingHeader } from "@/components/landing/LandingHeader";
 import { LandingChartIllustration } from "@/components/landing/LandingIllustrations";
 // import { APP_NAME } from "@/lib/brand";
@@ -15,13 +16,13 @@ export const Route = createFileRoute("/")({
 
 function LandingPage() {
   return (
-    <div className="landing-page">
+    <div className="landing-page landing-page--viewport">
       {/* <LandingHeader /> */}
 
       <div className="landing-scroll stagger">
         <section className="landing-hero">
           <div className="landing-hero-bg" aria-hidden>
-            <div className="landing-grid-bg" />
+            <LandingInteractiveGrid />
             <LandingAssetGrid />
           </div>
           {/* <div className="landing-brand">

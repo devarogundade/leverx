@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { SiteShell } from "@/components/SiteShell";
 import { PageHeader } from "@/components/PageHeader";
 import { APP_NAME, pageTitle } from "@/lib/brand";
+import { pageSimple } from "@/lib/leverx/tw";
 import { Lock } from "lucide-react";
 import { routePendingOptions } from "@/lib/router/route-options";
 
@@ -20,12 +21,13 @@ export const Route = createFileRoute("/privacy")({
 function PrivacyPage() {
   return (
     <SiteShell>
-      <PageHeader
-        icon={<Lock className="h-5 w-5 text-accent" />}
-        title="Privacy Policy"
-        subtitle="Last updated June 13, 2026"
-      />
-      <article className="space-y-6 text-sm leading-relaxed text-muted-foreground">
+      <div className={pageSimple}>
+        <PageHeader
+          icon={<Lock className="h-5 w-5 text-accent" />}
+          title="Privacy Policy"
+          subtitle="Last updated June 13, 2026"
+        />
+        <article className="space-y-6 text-sm leading-relaxed text-muted-foreground">
           <Clause n="1" title="What we collect">
             We don&apos;t ask for your name or email. When you connect a wallet, we only use your
             address to show your trades and prepare transactions you approve yourself.
@@ -50,6 +52,7 @@ function PrivacyPage() {
             Questions about this policy can be raised in the public GitHub repository.
           </Clause>
       </article>
+      </div>
     </SiteShell>
   );
 }

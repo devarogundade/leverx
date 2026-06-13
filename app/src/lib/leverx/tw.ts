@@ -23,7 +23,7 @@ export const tradeLeveragePanel = cn(
 
 /** Amount / limit price input wrapper */
 export const tradeInputCard = cn(
-  "rounded-lg border border-border bg-card px-5 py-4",
+  "rounded-lg border border-border bg-card px-3 py-3 sm:px-5 sm:py-4",
   "outline-none ring-0 focus-within:outline-none focus-within:ring-0 focus-within:shadow-none",
   "[&_input]:border-0 [&_input]:bg-transparent [&_input]:shadow-none",
   "[&_input]:outline-none [&_input]:ring-0 [&_input]:focus-visible:outline-none [&_input]:focus-visible:ring-0",
@@ -41,7 +41,13 @@ export const segTabs = cn(
   "[&>*+*]:border-l [&>*+*]:border-border",
 );
 
-export const segTabsStretch = "flex w-full [&>*]:min-w-0 [&>*]:flex-1";
+export const segTabsStretch = cn(
+  "flex w-full",
+  "max-sm:max-w-full max-sm:overflow-x-auto max-sm:overscroll-x-contain",
+  "max-sm:[scrollbar-width:none] max-sm:[&::-webkit-scrollbar]:hidden",
+  "max-sm:[&>*]:shrink-0 max-sm:[&>*]:flex-none",
+  "sm:[&>*]:min-w-0 sm:[&>*]:flex-1",
+);
 
 export const segTabsScroll = cn(
   "overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]",
@@ -58,7 +64,7 @@ export const segTabsPlain =
 export const segTab = cn(
   "inline-flex shrink-0 cursor-pointer items-center justify-center gap-1.5",
   "rounded-none border-0 bg-transparent",
-  "px-3.5 py-[0.4375rem] text-[0.8125rem] font-medium leading-[1.2] text-muted-foreground whitespace-nowrap",
+  "px-3.5 py-[0.4375rem] text-sm font-medium leading-[1.2] text-muted-foreground whitespace-nowrap",
   "transition-[background-color,color] duration-150",
   "hover:bg-hover/55 hover:text-foreground",
   "sm:px-4 sm:py-2 sm:text-sm",
@@ -79,11 +85,14 @@ export const segTabRangeActive =
 /** Outcome tabs in trade terminal header */
 export const segTabOutcome = cn(
   segTab,
-  "text-xs font-bold tracking-[0.04em] no-underline sm:text-[0.8125rem]",
+  "text-sm font-bold tracking-[0.04em] no-underline sm:text-sm",
 );
 
 export const sideToggleLongActive = "bg-[var(--long-bg)] font-semibold text-[var(--long-text)]";
 export const sideToggleShortActive = "bg-[var(--short-bg)] font-semibold text-[var(--short-text)]";
+
+/** Filled chevron paired with UP / DOWN labels. */
+export const predictSideChevron = "size-3 shrink-0 fill-current stroke-current stroke-[2.5]";
 
 export function segTabsClass(
   ...variants: ("stretch" | "scroll" | "icon" | "plain" | "outcomes")[]
@@ -102,7 +111,10 @@ export const pageState =
   "flex min-h-[min(var(--markets-catalog-h),70vh)] flex-1 items-center justify-center [&_.lx-empty]:w-full [&_.lx-empty]:max-w-md";
 
 /** Simple page layout */
-export const pageSimple = "flex w-full flex-col gap-4";
+export const pageSimple = "flex w-full flex-1 flex-col gap-3 min-h-0 sm:gap-4";
+
+/** Fills SiteShell main so short pages keep the footer at the bottom */
+export const pageShellContent = "page-shell-content flex min-h-0 flex-1 flex-col w-full";
 
 export const pageSimpleToolbar =
   "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between";
@@ -135,7 +147,7 @@ export const statValue =
 export const pillToggleGroup =
   "inline-flex shrink-0 items-center gap-0.5 rounded-md bg-surface p-0.5";
 
-export const pillToggleBtn = "rounded px-2.5 py-1 text-xs font-medium capitalize transition-colors";
+export const pillToggleBtn = "rounded px-2.5 py-1 text-sm font-medium capitalize transition-colors";
 
 export const pillToggleActive = "bg-card font-semibold text-foreground shadow-sm";
 
@@ -145,13 +157,13 @@ export const pillToggleIdle = "text-muted-foreground hover:text-foreground";
 export const textFilterGroup = "flex shrink-0 flex-wrap items-center gap-2 sm:gap-3";
 
 export const textFilterBtn =
-  "text-xs font-medium text-muted-foreground transition-colors hover:text-foreground";
+  "text-sm font-medium text-muted-foreground transition-colors hover:text-foreground";
 
 export const textFilterActive =
   "font-semibold text-foreground underline decoration-accent decoration-2 underline-offset-4";
 
 /** Count pill inside tabs */
-export const pillCount = "rounded-full bg-background px-2 py-0.5 text-xs font-semibold text-accent";
+export const pillCount = "rounded-full bg-background px-2 py-0.5 text-sm font-semibold text-accent";
 
 /** Markets grid responsive columns */
 export const marketsGrid =
@@ -193,7 +205,7 @@ export const marketCardActionsFooter = cn(
 
 export const marketCardAction = cn(
   "flex h-8 items-center justify-center rounded-md border border-border bg-surface",
-  "text-xs font-bold tracking-[0.04em] text-muted-foreground",
+  "text-sm font-bold tracking-[0.04em] text-muted-foreground",
   "transition-[border-color,color,background-color] duration-150",
   "hover:border-border-strong hover:bg-hover hover:text-foreground",
 );
@@ -218,7 +230,7 @@ export const marketSideActionsStretch = "[&>*]:min-w-0 [&>*]:flex-1";
 export const marketSideAction = cn(
   "relative z-[2] inline-flex min-h-11 cursor-pointer items-center justify-center px-3 no-underline sm:min-h-8 sm:h-8 sm:px-2.5",
   "pointer-events-auto border-l border-border first:border-l-0",
-  "text-[0.6875rem] font-bold tracking-wide text-muted-foreground",
+  "text-sm font-bold tracking-wide text-muted-foreground",
   "transition-[color,background-color] duration-150",
 );
 
@@ -229,8 +241,7 @@ export const marketSideActionDown = "hover:bg-[var(--short-bg)] hover:text-[var(
 export const marketSideActionRange =
   "hover:bg-[color-mix(in_oklab,var(--color-accent)_12%,var(--color-hover))] hover:text-accent";
 
-export const marketCardMeta =
-  "flex items-center justify-between text-[0.6875rem] text-muted-foreground";
+export const marketCardMeta = "flex items-center justify-between text-sm text-muted-foreground";
 
 export const marketCardSparkline =
   "pointer-events-none relative z-0 h-8 bg-[color-mix(in_oklab,var(--color-surface)_50%,transparent)]";
@@ -239,28 +250,30 @@ export const marketCardSparklineFooter =
   "pointer-events-none relative z-0 mt-auto h-8 w-full shrink-0 bg-transparent";
 
 /** Trade terminal layout */
-export const tradeTerminal = "flex w-full flex-col";
+export const tradeTerminal = "trade-terminal flex w-full flex-1 flex-col min-h-0";
 
-export const tradeTerminalHeader = "flex flex-col gap-3 pb-3";
+export const tradeTerminalHeader = "flex flex-col gap-2 pb-2 sm:gap-3 sm:pb-3";
 
-export const tradeTerminalHeaderTop = "flex min-w-0 w-full items-start justify-between gap-3";
+export const tradeTerminalHeaderTop =
+  "flex min-w-0 w-full items-start justify-between gap-2 sm:gap-3";
 
 export const tradeTerminalHeaderMetrics = cn(
   "md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-[var(--trade-gap)]",
   "lg:grid-cols-[minmax(0,1fr)_var(--trade-orderbook-w)_var(--trade-sidebar-w)]",
 );
 
-export const tradeTerminalTitle = "text-sm font-semibold leading-snug sm:text-base md:text-lg";
+export const tradeTerminalTitle =
+  "text-sm font-semibold leading-snug [overflow-wrap:anywhere] sm:text-sm md:text-lg";
 
 export const tradeTerminalBack = cn(
-  "mt-1 inline-block text-xs text-muted-foreground transition-colors duration-150",
+  "mt-1 inline-block text-sm text-muted-foreground transition-colors duration-150",
   "hover:text-accent",
 );
 
 export const tradeOracleNav = "flex shrink-0 items-center gap-0.5";
 
 export const tradeOracleNavBtn = cn(
-  "inline-flex h-8 w-8 items-center justify-center rounded-md border border-border bg-surface",
+  "inline-flex h-7 w-7 items-center justify-center rounded-md border border-border bg-surface sm:h-8 sm:w-8",
   "text-muted-foreground transition-colors duration-150",
   "hover:bg-hover hover:text-foreground",
 );
@@ -270,20 +283,22 @@ export const tradeOracleNavBtnDisabled = cn(
 );
 
 export const tradeStatRow = cn(
-  "grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 sm:gap-x-6",
+  "grid grid-cols-3 gap-x-3 gap-y-2 max-[479px]:grid-cols-2",
+  "max-[479px]:[&>:nth-child(5)]:col-span-2 max-[479px]:[&>:nth-child(5)]:w-1/2 max-[479px]:[&>:nth-child(5)]:justify-self-center",
+  "sm:gap-x-6",
   "lg:col-start-1 lg:grid-cols-5 lg:gap-x-4",
 );
 
 export const tradeStatItem = "flex flex-col gap-0.5";
 
-export const tradeStatItemLabel = "text-[0.6875rem] text-muted-foreground";
+export const tradeStatItemLabel = "text-sm text-muted-foreground";
 
 export const tradeStatItemValue =
-  "font-mono text-[0.8125rem] font-medium tabular-nums text-foreground";
+  "font-mono text-sm font-medium tabular-nums text-foreground sm:text-sm";
 
 export const leverageCountdown = cn(
-  "flex w-full min-w-[11rem] flex-col gap-1 rounded-lg border border-border bg-surface/80 px-3 py-2",
-  "sm:min-w-[12.5rem] sm:px-4 sm:py-2.5",
+  "flex w-full min-w-0 flex-col gap-1 rounded-lg border border-border bg-surface/80 px-3 py-2",
+  "sm:min-w-[11rem] sm:px-4 sm:py-2.5",
   "lg:w-auto lg:shrink-0",
 );
 
@@ -330,11 +345,11 @@ export const tradeTerminalPositions = cn(
 );
 
 export const tradeTerminalTabsRow = cn(
-  "flex flex-col gap-2 p-3 sm:flex-row sm:items-stretch sm:justify-between sm:gap-3",
+  "flex flex-col gap-2 p-2.5 sm:flex-row sm:items-stretch sm:justify-between sm:gap-3 sm:p-3",
 );
 
 export const tradeTerminalPositionsBody = cn(
-  "trade-terminal-positions-body min-h-[var(--trade-positions-body-min-h)] p-4",
+  "trade-terminal-positions-body min-h-[var(--trade-positions-body-min-h)] p-3 sm:p-4",
   "text-sm text-muted-foreground",
 );
 
@@ -352,13 +367,13 @@ export const tradeMobileDockTabs = cn(
 
 export const tradeMobileDockTab = cn(
   "inline-flex min-w-[3.25rem] items-center justify-center rounded-md px-3 py-1.5",
-  "text-xs font-medium text-muted-foreground transition-colors duration-150",
+  "text-sm font-medium text-muted-foreground transition-colors duration-150",
   "hover:text-foreground",
 );
 
 export const tradeMobileDockTabActive = "bg-hover font-semibold text-foreground";
 
-export const tradeTerminalMobileBody = "max-md:pb-[calc(2.75rem+env(safe-area-inset-bottom,0px))]";
+export const tradeTerminalMobileBody = "max-md:pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))]";
 
 export const tradeTerminalMobileChartPanel = "trade-terminal-mobile-chart flex flex-col";
 
@@ -369,7 +384,7 @@ export const leveragePickerHeader = "mb-2 flex items-center justify-between gap-
 
 export const leveragePickerValue = "font-mono text-base font-bold tabular-nums text-accent";
 
-export const leveragePickerTab = "px-1 py-1.5 font-mono text-[0.6875rem] tabular-nums";
+export const leveragePickerTab = "px-1 py-1.5 font-mono text-sm tabular-nums";
 
 /** TP/SL block */
 export const tpSlBlock = "flex flex-col gap-2.5";
@@ -385,13 +400,12 @@ export const tpSlRow = cn(
   "[&_input]:outline-none [&_input]:ring-0 [&_input]:focus-visible:outline-none [&_input]:focus-visible:ring-0",
 );
 
-export const tpSlLabel =
-  "w-6 shrink-0 text-[0.6875rem] font-bold tracking-wide text-muted-foreground";
+export const tpSlLabel = "w-6 shrink-0 text-sm font-bold tracking-wide text-muted-foreground";
 
-export const tpSlInput = cn(inputInField, "py-1.5 font-mono text-[0.8125rem]");
+export const tpSlInput = cn(inputInField, "py-1.5 font-mono text-sm");
 
 export const tpSlUnit = cn(
-  "h-7 w-auto min-w-0 shrink-0 rounded-none rounded-r-sm border-0 border-l border-border bg-card px-2 text-xs shadow-none",
+  "h-7 w-auto min-w-0 shrink-0 rounded-none rounded-r-sm border-0 border-l border-border bg-card px-2 text-sm shadow-none",
 );
 
 /** Trade sign-in CTA */
@@ -429,7 +443,7 @@ export const orderbookRow = "relative grid grid-cols-3 gap-1 px-2 py-0.5";
 
 export const orderbookRowDepth = "pointer-events-none absolute inset-y-0";
 
-export const orderbookMid = cn("flex shrink-0 items-center justify-center gap-3 py-2.5 text-xs");
+export const orderbookMid = cn("flex shrink-0 items-center justify-center gap-3 py-2.5 text-sm");
 
 export const orderbookStack = "flex min-h-0 flex-1 flex-col";
 
@@ -449,7 +463,7 @@ export const marketsTableShell =
 export const marketsTableScroll = "min-h-0 flex-1 overflow-x-auto overscroll-x-contain";
 
 export const marketsTable =
-  "w-full min-w-[40rem] border-separate border-spacing-0 text-[0.8125rem] lg:min-w-[52rem]";
+  "w-full min-w-[40rem] border-separate border-spacing-0 text-sm lg:min-w-[52rem]";
 
 export const marketsTableMobileList = "space-y-3 lg:hidden";
 
@@ -512,7 +526,7 @@ export const marketsTdMarket = "max-w-md";
 
 export const marketsTdMono = "font-mono tabular-nums text-foreground";
 
-export const marketsTdMuted = "text-xs whitespace-nowrap text-muted-foreground";
+export const marketsTdMuted = "text-sm whitespace-nowrap text-muted-foreground";
 
 export const marketsTdTrade = "pr-4";
 
@@ -544,14 +558,14 @@ export const marketsPriceCell = "flex items-center gap-1.5 font-mono tabular-num
 
 export const marketsPriceValue = "font-semibold text-foreground";
 
-export const marketsChange = "font-mono text-xs font-semibold tabular-nums";
+export const marketsChange = "font-mono text-sm font-semibold tabular-nums";
 
 export const marketsTradePillHideMobile = "hidden sm:inline-flex";
 
 export const marketsMarketCell = "flex min-w-0 items-center gap-2.5";
 
 export const marketsMarketLink = cn(
-  "line-clamp-2 text-xs leading-snug text-foreground no-underline transition-colors duration-150 hover:text-accent",
+  "line-clamp-2 text-sm leading-snug text-foreground no-underline transition-colors duration-150 hover:text-accent",
 );
 
 export const marketsTradeActions = "flex items-center justify-end";
@@ -568,7 +582,7 @@ export const catalogPagination = cn(
   "flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 mt-2",
 );
 
-export const catalogPaginationInfo = "font-mono text-xs text-muted-foreground tabular-nums";
+export const catalogPaginationInfo = "font-mono text-sm text-muted-foreground tabular-nums";
 
 /** Featured carousel / hero */
 export const heroPanel = "flex h-full min-h-[var(--markets-hero-h)] flex-col py-1";
