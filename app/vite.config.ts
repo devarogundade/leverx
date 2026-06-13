@@ -48,6 +48,13 @@ export default defineConfig(({ mode }) => {
         vercel: {
           skewProtection: true,
         },
+        routeRules: {
+          "/assets/**": {
+            headers: {
+              "cache-control": "public, max-age=31536000, immutable",
+            },
+          },
+        },
         output: {
           dir: ".vercel/output",
           serverDir: ".vercel/output/functions/__server.func",

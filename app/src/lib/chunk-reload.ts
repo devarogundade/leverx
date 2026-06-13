@@ -1,20 +1,28 @@
 const RELOAD_KEY = "lx-chunk-reload";
 
 function shouldReloadForChunkError(message: string): boolean {
+  const text = message.toLowerCase();
   return (
-    message.includes("Failed to fetch dynamically imported module") ||
-    message.includes("Importing a module script failed") ||
-    message.includes("error loading dynamically imported module") ||
-    message.includes("Failed to load module script") ||
-    message.includes("MIME type")
+    text.includes("failed to fetch dynamically imported module") ||
+    text.includes("importing a module script failed") ||
+    text.includes("error loading dynamically imported module") ||
+    text.includes("failed to load module script") ||
+    text.includes("mime type") ||
+    text.includes("loading chunk") ||
+    text.includes("chunkloaderror")
   );
+}
+
+function isHashedAssetUrl(src: string): boolean {
+  return src.includes("/assets/") || /\/[\w-]+-[A-Za-z0-9_-]+\.m?js(?:[?#]|$)/.test(src);
 }
 
 function isStaleAssetScript(event: Event): boolean {
   const target = event.target;
   if (!(target instanceof HTMLScriptElement)) return false;
   const src = target.src;
-  return src.includes("/assets/") && (target.type === "module" || src.endsWith(".js"));
+  if (!src) return false;
+  return isHashedAssetUrl(src) && (target.type === "module" || /\.m?js(?:[?#]|$)/.test(src));
 }
 
 function reloadOnceForStaleChunks(): void {
@@ -22,7 +30,9 @@ function reloadOnceForStaleChunks(): void {
   if (sessionStorage.getItem(RELOAD_KEY)) return;
 
   sessionStorage.setItem(RELOAD_KEY, "1");
-  window.location.reload();
+  const url = new URL(window.location.href);
+  url.searchParams.set("_lx", String(Date.now()));
+  window.location.replace(url.toString());
 }
 
 if (typeof window !== "undefined") {
@@ -33,7 +43,14 @@ if (typeof window !== "undefined") {
   window.addEventListener(
     "error",
     (event) => {
-      if (isStaleAssetScript(event) || shouldReloadForChunkError(event.message ?? "")) {
+      const message = event.message ?? "";
+      const filename =
+        event instanceof ErrorEvent && event.filename ? event.filename : "";
+      if (
+        isStaleAssetScript(event) ||
+        shouldReloadForChunkError(message) ||
+        shouldReloadForChunkError(filename)
+      ) {
         reloadOnceForStaleChunks();
       }
     },

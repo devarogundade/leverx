@@ -23,9 +23,11 @@ interface MarketFavoritesContextValue {
 const MarketFavoritesContext = createContext<MarketFavoritesContextValue | null>(null);
 
 export function MarketFavoritesProvider({ children }: { children: ReactNode }) {
-  const [favorites, setFavorites] = useState<ReadonlySet<string>>(
-    () => new Set(readMarketFavorites()),
-  );
+  const [favorites, setFavorites] = useState<ReadonlySet<string>>(() => new Set());
+
+  useEffect(() => {
+    setFavorites(new Set(readMarketFavorites()));
+  }, []);
 
   useEffect(() => {
     const sync = () => setFavorites(new Set(readMarketFavorites()));

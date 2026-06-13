@@ -18,7 +18,7 @@ interface Props {
 export function LeverageWindowCountdown({ expiryMs, className }: Props) {
   const now = useNow(1000);
   const state =
-    expiryMs && expiryMs > 0
+    now > 0 && expiryMs && expiryMs > 0
       ? leverageCountdownState(expiryMs, LEVERAGED_MINT_WINDOW_MS, now)
       : null;
 
