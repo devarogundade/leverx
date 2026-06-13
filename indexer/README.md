@@ -53,11 +53,27 @@ Production checkpoint sources: [Sui custom indexer build guide](https://docs.sui
 | `user_proxies` | `AccountCreated`, `PredictManagerLinked`, debt sync |
 | `account_timeline` | Account-scoped activity |
 | `vault_snapshots` | Vault / flash / insurance events (+ borrow/LP APR) |
-| `protocol_settings` | `ProtocolDeployed`, `RegistryInitialized`, pause/rate updates |
+| `protocol_settings` | `ProtocolDeployed`, `RegistryInitialized`, `LiquidationBpsUpdated`, pause/rate updates |
 | `position_triggers` | `TriggersUpdated/Cleared` |
 | `proxy_executors` | `ExecutorRegistered/Revoked` |
-| `liquidations` | `PositionLiquidated` |
+| `liquidations` | `PositionLiquidated`, `PositionForceDeleveraged` (`event_kind` column) |
 | `user_points` | LeverX volume leaderboard (`LeveragedPositionOpened` / `LeveragedPositionClosed` only) |
+
+## Breaking changes (contract ↔ indexer)
+
+Resync from the publish checkpoint after upgrading contracts (`bash indexer/scripts/reset-from-publish.sh`).
+
+| Change | Indexer impact |
+|--------|----------------|
+| `RegistryInitialized` adds `liquidation_bps` | BCS layout fix in `move_events.rs`; `protocol_settings.liquidation_bps` column |
+| `LiquidationBpsUpdated` event | Patches `protocol_settings.liquidation_bps` |
+| `InsuranceFundSkimmed` + liquidation `ProtocolFeeDistributed` | `vault_snapshots.insurance_fund_delta`; merged into vault summary |
+| Surplus routed to owner (not keeper) on settle/close | `LeveragedPositionClosed.surplus_quote` reflects owner economics |
+| Force-deleverage remint | Same-tx `LeveragedPositionClosed` → `LeveragedPositionOpened`; `PositionForceDeleveraged.reminted_quantity` |
+| Liquidation resets leverage to 1× | `leveraged_positions.leverage_bps = 10000` on liquidate |
+| `vault_flash::repay_flash_liquidity` + `liquidated_account_id` | Keeper PTB only (not indexed as event) |
+
+All events are always stored in `leverx_events` with full `parsed_json` even when projections are partial.
 
 ## Docker
 
@@ -99,7 +115,7 @@ Verify: `curl -s http://127.0.0.1:3100/v1/protocol` should return the new `regis
 | `GET /v1/markets/:oracleId/trades` | LeverX market trades |
 | `GET /v1/global-markets/:oracleId/trades?trade_side&is_range` | Predict global mint/redeem trades |
 | `GET /v1/events?event_type` | Raw indexed events |
-| `GET /v1/protocol` | Protocol settings (registry, vault, fee collector, pause, borrow params) |
+| `GET /v1/protocol` | Protocol settings (registry, vault, fee collector, pause, borrow params, **liquidation_bps**) |
 | `GET /v1/triggers?account_id` | Active take-profit / stop-loss triggers |
 | `GET /v1/executors?account_id` | Active proxy executors |
 | `GET /v1/liquidations?account_id&owner` | Liquidation history |

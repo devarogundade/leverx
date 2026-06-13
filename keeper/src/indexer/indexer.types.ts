@@ -116,7 +116,23 @@ export type ProtocolSettings = {
   slope1_bps: number | null;
   slope2_bps: number | null;
   flash_fee_bps: number | null;
+  liquidation_bps: number | null;
   updated_at_ms: number;
+};
+
+export type Liquidation = {
+  event_digest: string;
+  position_key: string;
+  account_id: string;
+  owner: string;
+  keeper: string;
+  debt_repaid: number;
+  surplus_quote: number;
+  health_bps: number;
+  had_position_redeem: boolean;
+  timestamp_ms: number;
+  /** `liquidation` | `force_deleverage` | `bad_debt` */
+  event_kind: string;
 };
 
 export type LeverxEvent = {

@@ -1,6 +1,30 @@
 import { appConfig } from "@/lib/config";
 import type { ProtocolSettings } from "@/lib/leverx/indexer-client";
 
+/** Default on-chain liquidation health threshold (basis points). */
+export const DEFAULT_LIQUIDATION_BPS = 9_500;
+
+/** Margin-call band uses registry `liquidation_bps` when available. */
+export const MARGIN_CALL_BPS = DEFAULT_LIQUIDATION_BPS;
+
+export function resolveLiquidationBps(
+  settings?: Pick<ProtocolSettings, "liquidation_bps"> | null,
+): number {
+  const bps = settings?.liquidation_bps;
+  return typeof bps === "number" && bps > 0 ? bps : DEFAULT_LIQUIDATION_BPS;
+}
+
+export function liquidationEventKindLabel(kind: string): string {
+  switch (kind) {
+    case "force_deleverage":
+      return "Force deleveraged";
+    case "bad_debt":
+      return "Bad debt";
+    default:
+      return "Liquidated";
+  }
+}
+
 export type LeverxProtocolConfig = {
   packageId: string;
   registryId: string;
@@ -17,9 +41,6 @@ export type LeverxOnboardingConfig = Pick<
   LeverxProtocolConfig,
   "packageId" | "predictPackageId"
 >;
-
-/** Margin-call threshold (95%). */
-export const MARGIN_CALL_BPS = 9_500;
 
 function nonEmpty(value: string | null | undefined): string {
   return value?.trim() ?? "";

@@ -1,7 +1,9 @@
 import { useMemo } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { useWallet } from "@/context/WalletContext";
+import { useIndexerProtocol } from "@/hooks/useIndexer";
 import { useLeverxProtocolConfig } from "@/hooks/useLeverxTransactions";
+import { resolveLiquidationBps } from "@/lib/leverx/protocol";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { positionKeyFromArgs } from "@/lib/leverx/market-keys";
 import {
@@ -26,6 +28,8 @@ function positionToMarketKey(position: LeveragedPosition) {
 export function usePositionsMarkToMarket(positions: readonly LeveragedPosition[]) {
   const { client } = useWallet();
   const { cfg } = useLeverxProtocolConfig();
+  const { data: protocol } = useIndexerProtocol();
+  const liquidationBps = resolveLiquidationBps(protocol);
 
   const openPositions = useMemo(
     () => positions.filter(isActiveOpenPosition),
@@ -62,11 +66,16 @@ export function usePositionsMarkToMarket(positions: readonly LeveragedPosition[]
       const query = quoteQueries[index];
       map.set(
         positionRowId(position),
-        computePositionMarkToMarket(position, query?.data ?? null, Boolean(query?.isLoading)),
+        computePositionMarkToMarket(
+          position,
+          query?.data ?? null,
+          Boolean(query?.isLoading),
+          liquidationBps,
+        ),
       );
     });
     return map;
-  }, [openPositions, quoteQueries]);
+  }, [openPositions, quoteQueries, liquidationBps]);
 
   const isRefreshing = quoteQueries.some((q) => q.isFetching);
 

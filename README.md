@@ -53,6 +53,22 @@ cd app
 bun run build   # or npm run build
 ```
 
+### Breaking changes (contract ↔ indexer ↔ app)
+
+Resync the indexer after republishing contracts (`bash indexer/scripts/reset-from-publish.sh`). The app reads protocol state from `/v1/protocol` — no env changes required beyond `VITE_LEVERX_INDEXER_URL` if you self-host.
+
+| Change | App impact |
+|--------|------------|
+| `RegistryInitialized.liquidation_bps` + `LiquidationBpsUpdated` | Margin-call band and health labels use `protocol.liquidation_bps` (default 9500 bps) |
+| `trading_paused` maintenance exemption | New opens blocked in UI when paused; close, repay, and settle still available in portfolio |
+| `remintAfterDeleverage` on mint PTBs | Toggle in leverage panel (default on for >1×) |
+| Surplus to owner on settle/close | Close/settle PTBs unchanged; surplus credited to proxy owner, not keeper |
+| Liquidation `event_kind` on `/v1/liquidations` | Portfolio shows liquidated / force-deleveraged / bad-debt rows |
+| `vault_snapshots.insurance_fund_delta` | Vault history API includes insurance skim deltas (chart-ready) |
+| Range permissionless settle | Binary settle works; range settle may fail until Predict adds permissionless range redeem |
+
+PTB builders (`ptb-builder.ts`, `transactions.ts`) do not call `vault_flash::repay_flash_liquidity` — that change is keeper-only.
+
 ## Contracts
 
 Move package configured against DeepBook Predict testnet (`predict-testnet-4-16`).

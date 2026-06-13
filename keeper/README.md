@@ -36,9 +36,21 @@ Liquidations scan:
 1. Open positions with `margin_quote > 0` (`GET /v1/positions?status=open&has_margin=true`)
 2. Any key with residual vault borrow (`status=all&min_borrow_quote=1`)
 
-Each candidate is pre-filtered on-chain via `trade::is_binary_position_liquidatable` / `is_range_position_liquidatable` (quote balance vs `effective_health_debt` = vault debt or `margin_debt`). Execution uses `vault_flash::borrow_flash_liquidity` + `liquidation::flash_liquidate_*_with_redeem_permissionless`.
+Each candidate is pre-filtered on-chain via `trade::is_binary_position_liquidatable` / `is_range_position_liquidatable` (quote balance vs `effective_health_debt` = vault debt or `margin_debt`; threshold from registry `liquidation_bps`, default 9500). Execution uses `vault_flash::borrow_flash_liquidity` → `liquidation::flash_liquidate_*_with_redeem_permissionless` → `vault_flash::repay_flash_liquidity` (with `liquidated_account_id`).
 
-On startup the keeper loads `/v1/protocol` from the indexer to override registry, vault, and fee collector IDs (required for fill/settle/liquidate/trigger; limit expiry only needs `LEVERX_PACKAGE_ID`).
+On startup the keeper loads `/v1/protocol` from the indexer to override registry, vault, fee collector IDs, `trading_paused`, and `liquidation_bps` (required for fill/settle/liquidate/trigger; limit expiry only needs `LEVERX_PACKAGE_ID`).
+
+## Breaking changes (contract upgrade)
+
+Republish LeverX and resync the indexer before running an updated keeper against new package IDs.
+
+| Change | Keeper impact |
+|--------|----------------|
+| `vault_flash::repay_flash_liquidity` adds `liquidated_account_id: ID` | `buildLiquidation` passes `position.account_id` (6th arg after `receipt`) |
+| Maintenance exempt from `trading_paused` on-chain | Keeper runs **settlement**, **force_close**, and **liquidation** even when indexer reports `trading_paused`; only **limit fills** and **triggers** are skipped |
+| Surplus routed to position owner (not keeper) on settle/close | No PTB change; keeper profit on liquidations is now **10% of post-flash surplus** via protocol fee split |
+| `RegistryInitialized.liquidation_bps` + `LiquidationBpsUpdated` | Exposed on `/v1/protocol` and `/health/ready` → `protocol.liquidationBps` |
+| Range permissionless settle still blocked in Predict | `settle_expired_proxy_range_permissionless` may fail until Predict adds permissionless range redeem; binary settle unaffected |
 
 ## HTTP API
 

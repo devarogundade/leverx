@@ -55,6 +55,7 @@ pub struct LeverxBatch {
     pub key_borrow_patches: Vec<KeyBorrowPatch>,
     pub borrow_rate_patches: Vec<BorrowRatePatch>,
     pub trading_paused_patches: Vec<TradingPausedPatch>,
+    pub liquidation_bps_patches: Vec<LiquidationBpsPatch>,
     pub points_patches: Vec<UserPointsPatch>,
 }
 
@@ -132,6 +133,12 @@ pub struct BorrowRatePatch {
 pub struct TradingPausedPatch {
     pub registry_id: String,
     pub paused: bool,
+    pub updated_at_ms: i64,
+}
+
+pub struct LiquidationBpsPatch {
+    pub registry_id: String,
+    pub liquidation_bps: i64,
     pub updated_at_ms: i64,
 }
 
@@ -308,6 +315,7 @@ impl Handler for LeverxEventsHandler {
             batch.key_borrow_patches.extend(v.key_borrow_patches);
             batch.borrow_rate_patches.extend(v.borrow_rate_patches);
             batch.trading_paused_patches.extend(v.trading_paused_patches);
+            batch.liquidation_bps_patches.extend(v.liquidation_bps_patches);
             batch.points_patches.extend(v.points_patches);
         }
     }
@@ -454,6 +462,10 @@ impl Handler for LeverxEventsHandler {
                    WHEN open_quantity - $1 <= 0 THEN 0 \
                    ELSE (mint_cost * GREATEST(open_quantity - $1, 0) / GREATEST(open_quantity, 1)) \
                  END, \
+                 leverage_bps = CASE \
+                   WHEN open_quantity - $1 <= 0 THEN 10000 \
+                   ELSE leverage_bps \
+                 END, \
                  status = CASE \
                    WHEN open_quantity - $1 <= 0 THEN CASE WHEN $7 THEN 'settled' ELSE 'closed' END \
                    ELSE 'open' \
@@ -556,6 +568,9 @@ impl Handler for LeverxEventsHandler {
                     protocol_settings::predict_id.eq(excluded(protocol_settings::predict_id)),
                     protocol_settings::fee_collector_id
                         .eq(excluded(protocol_settings::fee_collector_id)),
+                    protocol_settings::liquidation_bps.eq(diesel::dsl::sql(
+                        "COALESCE(EXCLUDED.liquidation_bps, protocol_settings.liquidation_bps)",
+                    )),
                     protocol_settings::updated_at_ms.eq(excluded(protocol_settings::updated_at_ms)),
                 ))
                 .execute(conn)
@@ -575,12 +590,39 @@ impl Handler for LeverxEventsHandler {
                     slope1_bps: None,
                     slope2_bps: None,
                     flash_fee_bps: None,
+                    liquidation_bps: None,
                     updated_at_ms: patch.updated_at_ms,
                 })
                 .on_conflict(protocol_settings::registry_id)
                 .do_update()
                 .set((
                     protocol_settings::trading_paused.eq(excluded(protocol_settings::trading_paused)),
+                    protocol_settings::updated_at_ms.eq(excluded(protocol_settings::updated_at_ms)),
+                ))
+                .execute(conn)
+                .await?;
+        }
+
+        for patch in &batch.liquidation_bps_patches {
+            rows += diesel::insert_into(protocol_settings::table)
+                .values(NewProtocolSettings {
+                    registry_id: patch.registry_id.clone(),
+                    vault_id: None,
+                    predict_id: None,
+                    fee_collector_id: None,
+                    trading_paused: false,
+                    base_rate_bps: None,
+                    kink_utilization_bps: None,
+                    slope1_bps: None,
+                    slope2_bps: None,
+                    flash_fee_bps: None,
+                    liquidation_bps: Some(patch.liquidation_bps),
+                    updated_at_ms: patch.updated_at_ms,
+                })
+                .on_conflict(protocol_settings::registry_id)
+                .do_update()
+                .set((
+                    protocol_settings::liquidation_bps.eq(excluded(protocol_settings::liquidation_bps)),
                     protocol_settings::updated_at_ms.eq(excluded(protocol_settings::updated_at_ms)),
                 ))
                 .execute(conn)
@@ -667,6 +709,7 @@ impl Handler for LeverxEventsHandler {
                  borrow_quote = 0, \
                  margin_quote = 0, \
                  mint_cost = 0, \
+                 leverage_bps = 10000, \
                  closed_at_ms = $1, \
                  open_quantity = CASE WHEN $2 THEN 0 ELSE open_quantity END \
                  WHERE position_key = $3 AND account_id = $4",

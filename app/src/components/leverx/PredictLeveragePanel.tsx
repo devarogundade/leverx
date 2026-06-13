@@ -45,7 +45,7 @@ import {
 import { marketKeyMatchesPosition, type MarketKeyArgs } from "@/lib/leverx/market-keys";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
-import { MARGIN_CALL_BPS } from "@/lib/leverx/protocol";
+import { resolveLiquidationBps } from "@/lib/leverx/protocol";
 import { buildQuickAmounts } from "@/lib/leverx/form-helpers";
 import { tradeCtaLabel, tradeNeedsDeposit } from "@/lib/leverx/trade-cta";
 import { LEVERAGED_MINT_WINDOW_MS } from "@/lib/leverx/constants";
@@ -168,6 +168,7 @@ export function PredictLeveragePanel({
   const [customLowerUsd, setCustomLowerUsd] = useState("");
   const [customUpperUsd, setCustomUpperUsd] = useState("");
   const { data: protocol } = useIndexerProtocol();
+  const liquidationBps = resolveLiquidationBps(protocol);
   const { data: leverxAccounts = [] } = useIndexerAccounts(address ?? undefined);
   const hasLinkedManager = Boolean(leverxAccounts[0]?.predict_manager_id);
   const tradeContextKey = `${oracleId}:${side}`;
@@ -1031,7 +1032,7 @@ export function PredictLeveragePanel({
                 {lev > LEVERAGE_MIN + 1e-6 ? (
                   <>
                     {" · "}
-                    Margin call at {(MARGIN_CALL_BPS / 100).toFixed(0)}%
+                    Margin call at {(liquidationBps / 100).toFixed(0)}%
                   </>
                 ) : null}
               </p>

@@ -27,6 +27,7 @@ import { useProxyKeyBalances } from "@/hooks/useProxyKeyBalances";
 import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
 import { showTxError, showTxSuccess } from "@/lib/toast";
 import type { LeveragedPosition, Liquidation, UserProxy } from "@/lib/leverx/indexer-client";
+import { liquidationEventKindLabel } from "@/lib/leverx/protocol";
 import type { PredictOracleSummary } from "@/lib/predict/types";
 import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
 import { premiumRawToCents } from "@/lib/leverx/trade-math";
@@ -512,7 +513,9 @@ export function PortfolioAccountPanel({
                         {liquidationLabel(l, history, oracles)}
                       </p>
                       <p className="text-[11px] text-muted-foreground">
-                        {formatShortDate(l.timestamp_ms)} · Health {(l.health_bps / 100).toFixed(0)}%
+                        {liquidationEventKindLabel(l.event_kind)} ·{" "}
+                        {formatShortDate(l.timestamp_ms)} · Health{" "}
+                        {(l.health_bps / 100).toFixed(0)}%
                       </p>
                     </div>
                     <span className="shrink-0 font-mono text-xs tabular-nums">

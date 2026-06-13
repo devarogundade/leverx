@@ -38,8 +38,11 @@ export const MIN_LEVERAGE_BPS = 10_000;
 export const LEVERAGED_MINT_WINDOW_MS = 3_600_000;
 export const MAX_LEVERAGE_BPS = 100_000;
 
-/** Margin-call threshold (95%). */
+/** Margin-call threshold (95%). Matches `protocol_constants::default_liquidation_bps`. */
 export const MARGIN_CALL_BPS = 9_500;
+
+/** Default on-chain liquidation health threshold (basis points). */
+export const DEFAULT_LIQUIDATION_BPS = 9_500;
 
 /** Extra quote borrowed on flash loans to cover accrued vault interest. */
 export const FLASH_BORROW_BUFFER_BPS = 500;

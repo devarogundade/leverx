@@ -363,6 +363,7 @@ export class PtbBuilderService {
       ],
     })[0];
 
+    // `liquidated_account_id` — required since vault_flash repay routes surplus skim events.
     tx.moveCall({
       target: `${cfg.packageId}::vault_flash::repay_flash_liquidity`,
       typeArguments: [cfg.quoteType],

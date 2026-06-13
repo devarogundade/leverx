@@ -178,6 +178,7 @@ export type VaultSnapshot = {
   account_id: string | null;
   owner: string | null;
   payload: Record<string, unknown>;
+  insurance_fund_delta: number | null;
 };
 
 export type ProtocolSettings = {
@@ -195,6 +196,7 @@ export type ProtocolSettings = {
   slope1_bps: number | null;
   slope2_bps: number | null;
   flash_fee_bps: number | null;
+  liquidation_bps: number | null;
   updated_at_ms: number;
 };
 
@@ -216,6 +218,8 @@ export type ProxyExecutor = {
   revoked_at_ms: number | null;
 };
 
+export type LiquidationEventKind = "liquidation" | "force_deleverage" | "bad_debt";
+
 export type Liquidation = {
   event_digest: string;
   position_key: string;
@@ -227,6 +231,7 @@ export type Liquidation = {
   health_bps: number;
   had_position_redeem: boolean;
   timestamp_ms: number;
+  event_kind: LiquidationEventKind | string;
 };
 
 export type AccountTimelineEntry = {

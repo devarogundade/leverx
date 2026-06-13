@@ -61,6 +61,10 @@ export type HealthReport = {
   tasks: Record<KeeperTaskKind, boolean>;
   missing: string[];
   quoteType: string;
+  protocol: {
+    tradingPaused: boolean;
+    liquidationBps: number | null;
+  };
   contractCalls: typeof KEEPER_CONTRACT_CALLS;
 };
 
@@ -85,6 +89,7 @@ export class HealthService {
 
   async readiness(): Promise<HealthReport> {
     const cfg = this.config.get<KeeperConfig>('keeper')!;
+    await this.sui.refreshProtocolState();
     const taskReadiness = this.sui.getTaskReadiness();
     const indexer = await this.indexer.health();
 
@@ -119,6 +124,7 @@ export class HealthService {
       tasks: taskReadiness.tasks,
       missing: taskReadiness.missing,
       quoteType: cfg.quoteType,
+      protocol: this.sui.getProtocolState(),
       contractCalls: KEEPER_CONTRACT_CALLS,
     };
   }

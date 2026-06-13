@@ -10,17 +10,20 @@ use sui_types::event::Event;
 
 use crate::handlers::{
     BorrowRatePatch, DebtRepaidPatch, KeyBorrowPatch, LeverxBatch, LimitCancelPatch,
-    LimitExecutePatch, LiquidationPositionPatch, PositionClosePatch, TradingPausedPatch,
+    LimitExecutePatch, LiquidationBpsPatch, LiquidationPositionPatch, PositionClosePatch,
+    TradingPausedPatch,
 };
 use crate::keys::{limit_order_key, position_key};
 use crate::points::record_volume;
 use crate::relation_upserts::{ensure_market, ensure_predict_manager};
 use crate::move_events::{
-    parse_event_json, try_parse, AccountCreated, DebtBorrowed, DebtRepaid, ExecutorRegistered,
+    parse_event_json, try_parse, fee_source_label, FEE_SOURCE_LIQUIDATION,
+    AccountCreated, DebtBorrowed, DebtRepaid, ExecutorRegistered,
     ExecutorRevoked, BorrowRateParamsUpdated, FeeCollectorWithdrawn, FlashLoanBorrowed,
     FlashLoanRepaid, InsuranceFundSkimmed, InterestAccrued, ProtocolFeeDistributed,
     BadDebtWrittenOff, KeyBorrowUpdated, LeveragedPositionClosed, LeveragedPositionOpened,
-    LimitMintOrderCancelled, LimitMintOrderExecuted, LimitMintOrderPlaced, PositionForceDeleveraged,
+    LimitMintOrderCancelled, LimitMintOrderExecuted, LimitMintOrderPlaced, LiquidationBpsUpdated,
+    PositionForceDeleveraged,
     PositionLiquidated,
     PredictManagerLinked,
     ProtocolDeployed, ProxyAccountingSynced, RegistryInitialized,
@@ -308,6 +311,11 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     ev.payout as i64,
                     ctx.timestamp_ms,
                 );
+                batch.debt_repaid.push(DebtRepaidPatch {
+                    account_id: ev.account_id.to_string(),
+                    remaining_debt: ev.remaining_debt as i64,
+                    updated_at_ms: ctx.timestamp_ms,
+                });
                 timeline(batch, ctx, ev.account_id.to_string(), Some(ev.owner.to_string()));
             }
         }
@@ -324,6 +332,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     slope1_bps: None,
                     slope2_bps: None,
                     flash_fee_bps: None,
+                    liquidation_bps: None,
                     updated_at_ms: ctx.timestamp_ms,
                 });
                 batch.vaults.push(NewVaultSnapshot {
@@ -340,6 +349,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     account_id: None,
                     owner: Some(ev.deployer.to_string()),
                     payload: ctx.parsed_json.clone(),
+                    insurance_fund_delta: None,
                 });
             }
         }
@@ -356,6 +366,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     slope1_bps: None,
                     slope2_bps: None,
                     flash_fee_bps: None,
+                    liquidation_bps: Some(ev.liquidation_bps as i64),
                     updated_at_ms: ctx.timestamp_ms,
                 });
                 batch.vaults.push(NewVaultSnapshot {
@@ -372,6 +383,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     account_id: None,
                     owner: None,
                     payload: ctx.parsed_json.clone(),
+                    insurance_fund_delta: None,
                 });
             }
         }
@@ -380,6 +392,15 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                 batch.trading_paused_patches.push(TradingPausedPatch {
                     registry_id: ev.registry_id.to_string(),
                     paused: ev.paused,
+                    updated_at_ms: ctx.timestamp_ms,
+                });
+            }
+        }
+        "LiquidationBpsUpdated" => {
+            if let Some(ev) = try_parse::<LiquidationBpsUpdated>(ctx.event.contents.as_slice()) {
+                batch.liquidation_bps_patches.push(LiquidationBpsPatch {
+                    registry_id: ev.registry_id.to_string(),
+                    liquidation_bps: ev.liquidation_bps as i64,
                     updated_at_ms: ctx.timestamp_ms,
                 });
             }
@@ -408,6 +429,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                 Some(ev.total_borrowed),
                 Some(ev.borrow_rate_bps),
                 Some(ev.lp_apr_bps),
+                None,
             )
         }),
         "VaultWithdrawn" => vault_from(ctx, batch, |_, ev: VaultWithdrawn| {
@@ -422,6 +444,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                 Some(ev.total_borrowed),
                 Some(ev.borrow_rate_bps),
                 Some(ev.lp_apr_bps),
+                None,
             )
         }),
         "VaultBorrowed" => vault_from(ctx, batch, |_, ev: VaultBorrowed| {
@@ -435,6 +458,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                 Some(ev.total_borrowed),
                 Some(ev.borrow_rate_bps),
                 Some(ev.lp_apr_bps),
+                None,
             )
         }),
         "VaultRepaid" => vault_from(ctx, batch, |_, ev: VaultRepaid| {
@@ -448,6 +472,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                 Some(ev.total_borrowed),
                 Some(ev.borrow_rate_bps),
                 Some(ev.lp_apr_bps),
+                None,
             )
         }),
         "InterestAccrued" => vault_from(ctx, batch, |_, ev: InterestAccrued| {
@@ -461,6 +486,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                 Some(ev.total_borrowed),
                 Some(ev.borrow_rate_bps),
                 Some(ev.lp_apr_bps),
+                None,
             )
         }),
         "FlashLoanBorrowed" => vault_from(ctx, batch, |_, ev: FlashLoanBorrowed| {
@@ -469,6 +495,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                 None,
                 Some(ev.borrower.to_string()),
                 Some(ev.amount),
+                None,
                 None,
                 None,
                 None,
@@ -487,9 +514,11 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                 None,
                 None,
                 None,
+                None,
             )
         }),
         "InsuranceFundSkimmed" => vault_from(ctx, batch, |_, ev: InsuranceFundSkimmed| {
+            let vault_share = ev.amount * 8_000 / 10_000;
             (
                 ev.vault_id.to_string(),
                 Some(ev.account_id.to_string()),
@@ -500,9 +529,15 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                 None,
                 None,
                 None,
+                Some(vault_share),
             )
         }),
         "ProtocolFeeDistributed" => vault_from(ctx, batch, |_, ev: ProtocolFeeDistributed| {
+            let insurance_delta = if ev.fee_source == FEE_SOURCE_LIQUIDATION {
+                Some(ev.vault_amount)
+            } else {
+                None
+            };
             (
                 ev.vault_id.to_string(),
                 None,
@@ -513,6 +548,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                 None,
                 None,
                 None,
+                insurance_delta,
             )
         }),
         "FeeCollectorWithdrawn" => {
@@ -532,6 +568,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     account_id: Some(ev.fee_collector_id.to_string()),
                     owner: Some(ev.recipient.to_string()),
                     payload: ctx.parsed_json.clone(),
+                    insurance_fund_delta: None,
                 });
             }
         }
@@ -615,13 +652,34 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                 });
                 if ev.socialized > 0 {
                     batch.position_closes.push(PositionClosePatch {
-                        position_key: pk,
+                        position_key: pk.clone(),
                         account_id: ev.account_id.to_string(),
                         quantity: 0,
                         payout: 0,
                         settled: true,
                         closed_at_ms: ctx.timestamp_ms,
                         remaining_borrow_quote: 0,
+                    });
+                    batch.liquidation_positions.push(LiquidationPositionPatch {
+                        position_key: pk.clone(),
+                        account_id: ev.account_id.to_string(),
+                        closed_at_ms: ctx.timestamp_ms,
+                        had_position_redeem: true,
+                        event_digest: ctx.event_digest.to_string(),
+                        keeper: ev.keeper.to_string(),
+                    });
+                    batch.liquidations.push(NewLiquidation {
+                        event_digest: ctx.event_digest.to_string(),
+                        position_key: pk,
+                        account_id: ev.account_id.to_string(),
+                        owner: ev.owner.to_string(),
+                        keeper: ev.keeper.to_string(),
+                        debt_repaid: ev.insurance_covered as i64 + ev.socialized as i64,
+                        surplus_quote: 0,
+                        health_bps: 0,
+                        had_position_redeem: true,
+                        timestamp_ms: ctx.timestamp_ms,
+                        event_kind: "bad_debt".into(),
                     });
                 }
                 timeline(batch, ctx, ev.account_id.to_string(), Some(ev.owner.to_string()));
@@ -658,6 +716,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     health_bps: 0,
                     had_position_redeem: ev.redeemed_quantity > 0,
                     timestamp_ms: ctx.timestamp_ms,
+                    event_kind: "force_deleverage".into(),
                 });
                 timeline(batch, ctx, ev.account_id.to_string(), Some(ev.owner.to_string()));
             }
@@ -693,6 +752,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     health_bps: ev.health_bps as i64,
                     had_position_redeem: ev.had_position_redeem,
                     timestamp_ms: ctx.timestamp_ms,
+                    event_kind: "liquidation".into(),
                 });
                 batch.liquidation_positions.push(LiquidationPositionPatch {
                     position_key: pk,
@@ -808,11 +868,31 @@ fn vault_from<T: serde::de::DeserializeOwned>(
         Option<u64>,
         Option<u64>,
         Option<u64>,
+        Option<u64>,
     ),
 ) {
     if let Some(ev) = try_parse::<T>(ctx.event.contents.as_slice()) {
-        let (vault_id, account_id, owner, amount, nav, util, borrowed, borrow_rate, lp_apr) =
-            map(&ctx, ev);
+        let (
+            vault_id,
+            account_id,
+            owner,
+            amount,
+            nav,
+            util,
+            borrowed,
+            borrow_rate,
+            lp_apr,
+            insurance_fund_delta,
+        ) = map(&ctx, ev);
+        let mut payload = ctx.parsed_json.clone();
+        if let Some(source) = payload.get("fee_source").and_then(|v| v.as_u64()) {
+            if let Some(obj) = payload.as_object_mut() {
+                obj.insert(
+                    "fee_source_label".into(),
+                    serde_json::Value::String(fee_source_label(source as u8).into()),
+                );
+            }
+        }
         batch.vaults.push(NewVaultSnapshot {
             event_digest: ctx.event_digest.to_string(),
             vault_id,
@@ -826,7 +906,8 @@ fn vault_from<T: serde::de::DeserializeOwned>(
             amount: amount.map(|v| v as i64),
             account_id,
             owner,
-            payload: ctx.parsed_json.clone(),
+            payload,
+            insurance_fund_delta: insurance_fund_delta.map(|v| v as i64),
         });
     }
 }

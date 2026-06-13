@@ -21,6 +21,13 @@ pub struct RegistryInitialized {
     pub vault_id: ObjectID,
     pub fee_collector_id: ObjectID,
     pub predict_id: ObjectID,
+    pub liquidation_bps: u64,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct LiquidationBpsUpdated {
+    pub registry_id: ObjectID,
+    pub liquidation_bps: u64,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -374,6 +381,22 @@ pub struct LimitMintOrderCancelled {
     pub cancelled_by: SuiAddress,
 }
 
+/// Matches `protocol_constants::fee_source_*` in contracts.
+pub const FEE_SOURCE_INTEREST: u8 = 1;
+pub const FEE_SOURCE_FLASH_LOAN: u8 = 2;
+pub const FEE_SOURCE_LIQUIDATION: u8 = 3;
+pub const FEE_SOURCE_INSURANCE: u8 = 4;
+
+pub fn fee_source_label(source: u8) -> &'static str {
+    match source {
+        FEE_SOURCE_INTEREST => "interest",
+        FEE_SOURCE_FLASH_LOAN => "flash_loan",
+        FEE_SOURCE_LIQUIDATION => "liquidation",
+        FEE_SOURCE_INSURANCE => "insurance",
+        _ => "unknown",
+    }
+}
+
 pub fn try_parse<T: for<'de> Deserialize<'de>>(bytes: &[u8]) -> Option<T> {
     bcs::from_bytes(bytes).ok()
 }
@@ -392,6 +415,7 @@ pub fn parse_event_json(event_name: &str, bytes: &[u8]) -> serde_json::Value {
     match event_name {
         "ProtocolDeployed" => parse_as!(ProtocolDeployed),
         "RegistryInitialized" => parse_as!(RegistryInitialized),
+        "LiquidationBpsUpdated" => parse_as!(LiquidationBpsUpdated),
         "TradingPausedChanged" => parse_as!(TradingPausedChanged),
         "BorrowRateParamsUpdated" => parse_as!(BorrowRateParamsUpdated),
         "VaultSupplied" => parse_as!(VaultSupplied),

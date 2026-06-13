@@ -101,6 +101,14 @@ pub fn merge_vault_snapshot(rows: &[VaultSnapshotRow]) -> Option<VaultSnapshotRo
         }
     }
 
+    let insurance_total: i64 = rows
+        .iter()
+        .filter_map(|row| row.insurance_fund_delta)
+        .sum();
+    if insurance_total > 0 {
+        merged.insurance_fund_delta = Some(insurance_total);
+    }
+
     merged.nav = apply_nav_delta_for_event(
         &merged.event_type,
         merged.nav,

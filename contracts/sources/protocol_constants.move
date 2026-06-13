@@ -31,7 +31,7 @@ const MAX_MARGIN_QUOTE: u64 = 100_000_000;
 
 // --- Interest rate model defaults (two-slope kink) ---
 
-const DEFAULT_BASE_RATE_BPS: u64 = 600;
+const DEFAULT_BASE_RATE_BPS: u64 = 400;
 const DEFAULT_KINK_UTIL_BPS: u64 = 8_000;
 const DEFAULT_SLOPE1_BPS: u64 = 1_000;
 const DEFAULT_SLOPE2_BPS: u64 = 5_000;

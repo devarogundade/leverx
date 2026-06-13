@@ -49,7 +49,8 @@ export const leverxInfo = {
   triggers: "Active profit-target and stop-loss rules. Clear them when you close the matching trade.",
   collateralBalances: "dUSDC margin allocated to each open market key.",
   marginInTrades: "dUSDC margin allocated to each open market key.",
-  liquidations: "Times the pool stepped in to close a trade because margin ran too low.",
+  liquidations:
+    "Liquidations, force-deleverages, and bad-debt write-offs when health falls below the protocol threshold.",
   withdrawTradingBalance:
     "dUSDC credited to your trading account after closing a trade. Withdraw here to your wallet once key borrow is fully repaid.",
   estimatedHealth:
@@ -85,7 +86,8 @@ export const leverxInfo = {
   closeLimit: "Close only if the price meets your minimum.",
   repayDebt: "Pay back borrowed dUSDC without fully closing the trade.",
   settleExpired: "Finalize a trade after the market has expired.",
-  tradingPaused: "New trades are temporarily paused. You may still be able to close positions.",
+  tradingPaused:
+    "New opens, limit fills, and triggers are paused. You can still close, repay debt, and settle expired positions.",
   protocolNotConfigured:
     "Trading is not fully set up yet. Check back once the app is connected to live markets.",
 

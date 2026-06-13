@@ -378,7 +378,12 @@ async fn dispatch_event(
                 }
             }
         }
-        "LeveragedPositionOpened" | "LeveragedPositionClosed" | "PositionLiquidated" => {
+        "LeveragedPositionOpened"
+        | "LeveragedPositionClosed"
+        | "PositionLiquidated"
+        | "PositionForceDeleveraged"
+        | "BadDebtWrittenOff"
+        | "KeyBorrowUpdated" => {
             if let Some(owner) = parsed.get("owner").and_then(|v| v.as_str()) {
                 push_matching_positions(pool, hub, active, owner, None).await?;
             }

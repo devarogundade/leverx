@@ -212,6 +212,7 @@ pub struct VaultSnapshotRow {
     pub account_id: Option<String>,
     pub owner: Option<String>,
     pub payload: JsonValue,
+    pub insurance_fund_delta: Option<i64>,
 }
 
 #[derive(Queryable, Selectable, Serialize, Debug, Clone)]
@@ -227,6 +228,7 @@ pub struct ProtocolSettingsRow {
     pub slope1_bps: Option<i64>,
     pub slope2_bps: Option<i64>,
     pub flash_fee_bps: Option<i64>,
+    pub liquidation_bps: Option<i64>,
     pub updated_at_ms: i64,
 }
 
@@ -265,6 +267,7 @@ pub struct LiquidationRow {
     pub health_bps: i64,
     pub had_position_redeem: bool,
     pub timestamp_ms: i64,
+    pub event_kind: String,
 }
 
 #[derive(Queryable, Selectable, Serialize, Debug, Clone)]
@@ -409,6 +412,7 @@ pub struct NewVaultSnapshot {
     pub account_id: Option<String>,
     pub owner: Option<String>,
     pub payload: JsonValue,
+    pub insurance_fund_delta: Option<i64>,
 }
 
 #[derive(Insertable, AsChangeset, Debug, Clone, FieldCount)]
@@ -424,6 +428,7 @@ pub struct NewProtocolSettings {
     pub slope1_bps: Option<i64>,
     pub slope2_bps: Option<i64>,
     pub flash_fee_bps: Option<i64>,
+    pub liquidation_bps: Option<i64>,
     pub updated_at_ms: i64,
 }
 
@@ -462,6 +467,7 @@ pub struct NewLiquidation {
     pub health_bps: i64,
     pub had_position_redeem: bool,
     pub timestamp_ms: i64,
+    pub event_kind: String,
 }
 
 #[derive(Queryable, Selectable, Serialize, Debug, Clone)]

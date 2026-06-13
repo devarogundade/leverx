@@ -138,6 +138,7 @@ diesel::table! {
         account_id -> Nullable<Text>,
         owner -> Nullable<Text>,
         payload -> Jsonb,
+        insurance_fund_delta -> Nullable<Int8>,
     }
 }
 
@@ -153,6 +154,7 @@ diesel::table! {
         slope1_bps -> Nullable<Int8>,
         slope2_bps -> Nullable<Int8>,
         flash_fee_bps -> Nullable<Int8>,
+        liquidation_bps -> Nullable<Int8>,
         updated_at_ms -> Int8,
     }
 }
@@ -191,6 +193,7 @@ diesel::table! {
         health_bps -> Int8,
         had_position_redeem -> Bool,
         timestamp_ms -> Int8,
+        event_kind -> Text,
     }
 }
 

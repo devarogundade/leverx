@@ -1,6 +1,6 @@
 import type { RedeemQuote } from "@/lib/leverx/quotes";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
-import { MARGIN_CALL_BPS } from "@/lib/leverx/protocol";
+import { DEFAULT_LIQUIDATION_BPS } from "@/lib/leverx/protocol";
 import { PREDICT_PRICE_SCALE } from "@/lib/leverx/constants";
 import { premiumRawToCents } from "@/lib/leverx/trade-math";
 import { scaleQuote } from "@/lib/predict/scaling";
@@ -50,6 +50,7 @@ export function computePositionMarkToMarket(
   position: LeveragedPosition,
   redeemQuote: RedeemQuote | null | undefined,
   quoteLoading: boolean,
+  liquidationBps: number = DEFAULT_LIQUIDATION_BPS,
 ): PositionMarkToMarket {
   const entryCostUsd = scaleQuote(effectiveMintCostAtoms(position));
   const marginUsd = scaleQuote(position.margin_quote);
@@ -93,8 +94,8 @@ export function computePositionMarkToMarket(
 
   let healthLabel: PositionMarkToMarket["healthLabel"] = "unknown";
   if (healthBps != null) {
-    if (healthBps >= MARGIN_CALL_BPS + 500) healthLabel = "healthy";
-    else if (healthBps >= MARGIN_CALL_BPS) healthLabel = "margin_call";
+    if (healthBps >= liquidationBps + 500) healthLabel = "healthy";
+    else if (healthBps >= liquidationBps) healthLabel = "margin_call";
     else healthLabel = "at_risk";
   }
 

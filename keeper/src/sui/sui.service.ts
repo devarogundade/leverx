@@ -15,6 +15,7 @@ export class SuiService implements OnModuleInit {
   private readonly cfg: KeeperConfig;
   private runtimeOverrides: Partial<KeeperConfig> = {};
   private tradingPaused = false;
+  private liquidationBps: number | null = null;
 
   constructor(config: ConfigService) {
     this.cfg = config.get<KeeperConfig>('keeper')!;
@@ -78,10 +79,14 @@ export class SuiService implements OnModuleInit {
         this.runtimeOverrides.predictId = settings.predict_id;
       }
       this.tradingPaused = settings.trading_paused === true;
+      this.liquidationBps =
+        typeof settings.liquidation_bps === 'number'
+          ? settings.liquidation_bps
+          : null;
 
       const merged = this.getConfig();
       this.logger.log(
-        `indexer protocol: registry=${merged.registryId || 'unset'} vault=${merged.vaultId || 'unset'} paused=${this.tradingPaused}`,
+        `indexer protocol: registry=${merged.registryId || 'unset'} vault=${merged.vaultId || 'unset'} paused=${this.tradingPaused} liquidation_bps=${this.liquidationBps ?? 'unset'}`,
       );
     } catch (err) {
       logKeeperError(this.logger, 'indexer protocol load failed', err, { url });
@@ -90,6 +95,20 @@ export class SuiService implements OnModuleInit {
 
   isTradingPaused(): boolean {
     return this.tradingPaused;
+  }
+
+  getLiquidationBps(): number | null {
+    return this.liquidationBps;
+  }
+
+  getProtocolState(): {
+    tradingPaused: boolean;
+    liquidationBps: number | null;
+  } {
+    return {
+      tradingPaused: this.tradingPaused,
+      liquidationBps: this.liquidationBps,
+    };
   }
 
   async refreshProtocolState(): Promise<void> {
