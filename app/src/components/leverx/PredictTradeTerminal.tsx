@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, Inbox } from "lucide-react";
@@ -403,6 +403,8 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   const [mobileWorkspace, setMobileWorkspace] = useState<MobileWorkspaceTab>("trade");
   const [dockMounted, setDockMounted] = useState(false);
   const [selectedStrikeRaw, setSelectedStrikeRaw] = useState<number | undefined>();
+  const [selectedRangeLower, setSelectedRangeLower] = useState<number | undefined>();
+  const [selectedRangeUpper, setSelectedRangeUpper] = useState<number | undefined>();
   const { address } = useWallet();
 
   useEffect(() => {
@@ -459,6 +461,8 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   }, [catalog, oracleSummary, oracleSpot]);
   useEffect(() => {
     setSelectedStrikeRaw(undefined);
+    setSelectedRangeLower(undefined);
+    setSelectedRangeUpper(undefined);
   }, [oracleId, activeSide]);
 
   const oracleStrikeConfig = useMemo(
@@ -493,9 +497,23 @@ export function PredictTradeTerminal({ oracleId }: Props) {
         catalogRows: marketRows,
         oracle: oracleSummary,
         oracleSpot,
+        lowerStrikeRaw: selectedRangeLower,
+        upperStrikeRaw: selectedRangeUpper,
       }),
-    [oracleId, marketRows, oracleSummary, oracleSpot],
+    [
+      oracleId,
+      marketRows,
+      oracleSummary,
+      oracleSpot,
+      selectedRangeLower,
+      selectedRangeUpper,
+    ],
   );
+
+  const handleRangeBoundsChange = useCallback((lower: number, upper: number) => {
+    setSelectedRangeLower(lower);
+    setSelectedRangeUpper(upper);
+  }, []);
 
   const market = useMemo(
     () =>
@@ -794,6 +812,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
               minStrikeRaw={oracleStrikeConfig.minStrikeRaw}
               tickSizeRaw={oracleStrikeConfig.tickSizeRaw}
               onStrikeRawChange={setSelectedStrikeRaw}
+              onRangeBoundsChange={handleRangeBoundsChange}
               binaryStrikeRaw={activeBinaryStrikeRaw > 0 ? activeBinaryStrikeRaw : undefined}
               lowerStrikeRaw={rangeLower}
               upperStrikeRaw={rangeUpper}
@@ -845,6 +864,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
               minStrikeRaw={oracleStrikeConfig.minStrikeRaw}
               tickSizeRaw={oracleStrikeConfig.tickSizeRaw}
               onStrikeRawChange={setSelectedStrikeRaw}
+              onRangeBoundsChange={handleRangeBoundsChange}
               binaryStrikeRaw={activeBinaryStrikeRaw > 0 ? activeBinaryStrikeRaw : undefined}
               lowerStrikeRaw={rangeLower}
               upperStrikeRaw={rangeUpper}

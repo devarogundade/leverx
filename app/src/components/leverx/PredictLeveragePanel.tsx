@@ -65,12 +65,15 @@ import {
 } from "@/lib/leverx/trade-limits";
 import { ui } from "@/lib/copy";
 import { StrikePriceSelector } from "@/components/leverx/StrikePriceSelector";
+import { RangeStrikeSelector } from "@/components/leverx/RangeStrikeSelector";
 import { Loader2 } from "lucide-react";
 import {
   formatStrikeUsdFromRaw,
+  rangeBoundsFromPreset,
   snapStrikeRaw,
   strikeRawFromPreset,
   strikeUsdFromRaw,
+  type RangePresetId,
   type StrikePresetId,
 } from "@/lib/leverx/strike-selection";
 import {
@@ -110,6 +113,8 @@ interface Props {
   onStrikeRawChange?: (strikeRaw: number) => void;
   /** Parent-resolved strike (catalog / chart) — keeps quotes in sync before spot loads. */
   binaryStrikeRaw?: number;
+  /** Notifies parent when the resolved range bounds change (chart / order book). */
+  onRangeBoundsChange?: (lowerRaw: number, upperRaw: number) => void;
   lastAskPremium?: number;
   /** Open positions on this oracle — used to block duplicate market keys. */
   openPositions?: readonly LeveragedPosition[];
@@ -140,17 +145,12 @@ export function PredictLeveragePanel({
   onStrikeRawChange,
   onTradeSuccess,
   binaryStrikeRaw: parentBinaryStrikeRaw,
+  onRangeBoundsChange,
 }: Props) {
   const { isWalletConnected, address } = useWallet();
   const { openTrade, isProtocolReady } = useLeverxTransactions();
   const [orderType, setOrderType] = useState<OrderType>("market");
   const [limitPrice, setLimitPrice] = useState("");
-  const [lowerStrike, setLowerStrike] = useState(
-    lowerStrikeRaw ? String(lowerStrikeRaw / 1e9) : "",
-  );
-  const [upperStrike, setUpperStrike] = useState(
-    upperStrikeRaw ? String(upperStrikeRaw / 1e9) : "",
-  );
   const [margin, setMargin] = useState("");
   const [leverage, setLeverage] = useState(DEFAULT_LEVERAGE);
   const [placementSlippagePct, setPlacementSlippagePct] = useState(5);
@@ -163,6 +163,9 @@ export function PredictLeveragePanel({
   const [sl, setSl] = useState("");
   const [strikePreset, setStrikePreset] = useState<StrikePresetId>("market");
   const [customStrikeUsd, setCustomStrikeUsd] = useState("");
+  const [rangePreset, setRangePreset] = useState<RangePresetId>("market");
+  const [customLowerUsd, setCustomLowerUsd] = useState("");
+  const [customUpperUsd, setCustomUpperUsd] = useState("");
   const { data: protocol } = useIndexerProtocol();
   const { data: leverxAccounts = [] } = useIndexerAccounts(address ?? undefined);
   const hasLinkedManager = Boolean(leverxAccounts[0]?.predict_manager_id);
@@ -174,9 +177,7 @@ export function PredictLeveragePanel({
     setTpSl(false);
     setTp("");
     setSl("");
-    setLowerStrike(lowerStrikeRaw ? String(lowerStrikeRaw / 1e9) : "");
-    setUpperStrike(upperStrikeRaw ? String(upperStrikeRaw / 1e9) : "");
-  }, [lowerStrikeRaw, upperStrikeRaw]);
+  }, []);
 
   // Reset only when the user changes market or outcome — not when catalog/oracle props refetch.
   useEffect(() => {
@@ -186,10 +187,11 @@ export function PredictLeveragePanel({
     setTpSl(false);
     setTp("");
     setSl("");
-    setLowerStrike(lowerStrikeRaw ? String(lowerStrikeRaw / 1e9) : "");
-    setUpperStrike(upperStrikeRaw ? String(upperStrikeRaw / 1e9) : "");
     setStrikePreset("market");
     setCustomStrikeUsd("");
+    setRangePreset("market");
+    setCustomLowerUsd("");
+    setCustomUpperUsd("");
     setLeverage(DEFAULT_LEVERAGE);
     setPlacementSlippagePct(5);
     setOrderExpiresOffsetMs(DEFAULT_LIMIT_ORDER_EXPIRY_MS);
@@ -255,8 +257,6 @@ export function PredictLeveragePanel({
   const marginNum = parseFloat(margin) || 0;
   const isRange = side === "range";
   const ctaClass = tradeCtaClass(side);
-  const rangeLower = lowerStrikeRaw;
-  const rangeUpper = upperStrikeRaw;
 
   const resolvedBinaryStrikeRaw = useMemo(() => {
     if (isRange) return 0;
@@ -293,12 +293,67 @@ export function PredictLeveragePanel({
     tickSizeRaw,
   ]);
 
+  const resolvedRangeBounds = useMemo(() => {
+    if (!isRange) return { lower: 0, upper: 0 };
+    if (rangePreset === "custom") {
+      const lowerUsd = parseFloat(customLowerUsd);
+      const upperUsd = parseFloat(customUpperUsd);
+      const lower =
+        Number.isFinite(lowerUsd) && lowerUsd > 0
+          ? snapStrikeRaw(lowerUsd, minStrikeRaw, tickSizeRaw)
+          : 0;
+      const upper =
+        Number.isFinite(upperUsd) && upperUsd > 0
+          ? snapStrikeRaw(upperUsd, minStrikeRaw, tickSizeRaw)
+          : 0;
+      return { lower, upper };
+    }
+    if (
+      rangePreset === "market" &&
+      lowerStrikeRaw != null &&
+      lowerStrikeRaw > 0 &&
+      upperStrikeRaw != null &&
+      upperStrikeRaw > lowerStrikeRaw
+    ) {
+      return { lower: lowerStrikeRaw, upper: upperStrikeRaw };
+    }
+    if (oracleSpotUsd != null && oracleSpotUsd > 0) {
+      return rangeBoundsFromPreset(
+        rangePreset,
+        oracleSpotUsd,
+        minStrikeRaw,
+        tickSizeRaw,
+      );
+    }
+    return { lower: 0, upper: 0 };
+  }, [
+    isRange,
+    rangePreset,
+    customLowerUsd,
+    customUpperUsd,
+    lowerStrikeRaw,
+    upperStrikeRaw,
+    oracleSpotUsd,
+    minStrikeRaw,
+    tickSizeRaw,
+  ]);
+
+  const resolvedRangeLowerRaw = resolvedRangeBounds.lower;
+  const resolvedRangeUpperRaw = resolvedRangeBounds.upper;
+
   useEffect(() => {
     if (isRange || !onStrikeRawChange) return;
     if (resolvedBinaryStrikeRaw > 0) {
       onStrikeRawChange(resolvedBinaryStrikeRaw);
     }
   }, [isRange, resolvedBinaryStrikeRaw, onStrikeRawChange]);
+
+  useEffect(() => {
+    if (!isRange || !onRangeBoundsChange) return;
+    if (resolvedRangeLowerRaw > 0 && resolvedRangeUpperRaw > resolvedRangeLowerRaw) {
+      onRangeBoundsChange(resolvedRangeLowerRaw, resolvedRangeUpperRaw);
+    }
+  }, [isRange, resolvedRangeLowerRaw, resolvedRangeUpperRaw, onRangeBoundsChange]);
 
   const handleStrikePresetChange = useCallback(
     (preset: StrikePresetId) => {
@@ -310,39 +365,65 @@ export function PredictLeveragePanel({
     [customStrikeUsd, resolvedBinaryStrikeRaw],
   );
 
+  const handleRangePresetChange = useCallback(
+    (preset: RangePresetId) => {
+      setRangePreset(preset);
+      if (preset === "custom") {
+        if (!customLowerUsd && resolvedRangeLowerRaw > 0) {
+          setCustomLowerUsd(String(strikeUsdFromRaw(resolvedRangeLowerRaw)));
+        }
+        if (!customUpperUsd && resolvedRangeUpperRaw > 0) {
+          setCustomUpperUsd(String(strikeUsdFromRaw(resolvedRangeUpperRaw)));
+        }
+      }
+    },
+    [customLowerUsd, customUpperUsd, resolvedRangeLowerRaw, resolvedRangeUpperRaw],
+  );
+
   const outcomeStrike =
     resolvedBinaryStrikeRaw ||
-    (rangeLower && rangeUpper ? Math.round((rangeLower + rangeUpper) / 2) : undefined);
-  const canSwitchOutcome = !!(outcomeStrike || (rangeLower && rangeUpper));
-  const rangeFromChart = isRange && lowerStrikeRaw != null && upperStrikeRaw != null;
+    (resolvedRangeLowerRaw > 0 && resolvedRangeUpperRaw > resolvedRangeLowerRaw
+      ? Math.round((resolvedRangeLowerRaw + resolvedRangeUpperRaw) / 2)
+      : undefined);
+  const canSwitchOutcome = !!(
+    outcomeStrike ||
+    (resolvedRangeLowerRaw > 0 && resolvedRangeUpperRaw > resolvedRangeLowerRaw)
+  );
   const tradeKey: MarketKeyArgs | undefined = useMemo(() => {
     if (!expiryMs) return undefined;
-    const resolvedLower = isRange
-      ? lowerStrikeRaw ?? strikeUsdToRaw(parseFloat(lowerStrike))
-      : resolvedBinaryStrikeRaw;
-    const resolvedUpper = isRange
-      ? upperStrikeRaw ?? strikeUsdToRaw(parseFloat(upperStrike))
-      : 0;
-    if (isRange && (!resolvedLower || !resolvedUpper)) return undefined;
-    if (!isRange && !resolvedLower) return undefined;
+    if (isRange) {
+      if (
+        resolvedRangeLowerRaw <= 0 ||
+        resolvedRangeUpperRaw <= resolvedRangeLowerRaw
+      ) {
+        return undefined;
+      }
+      return {
+        oracleId,
+        expiryMs,
+        strike: resolvedRangeLowerRaw,
+        higherStrike: resolvedRangeUpperRaw,
+        isUp: true,
+        isRange: true,
+      };
+    }
+    if (!resolvedBinaryStrikeRaw) return undefined;
     return {
       oracleId,
       expiryMs,
-      strike: isRange ? resolvedLower : resolvedLower,
-      higherStrike: isRange ? resolvedUpper : 0,
-      isUp: isRange ? true : side === "up",
-      isRange,
+      strike: resolvedBinaryStrikeRaw,
+      higherStrike: 0,
+      isUp: side === "up",
+      isRange: false,
     };
   }, [
     expiryMs,
     isRange,
-    lowerStrike,
-    lowerStrikeRaw,
-    upperStrike,
-    upperStrikeRaw,
     oracleId,
     side,
     resolvedBinaryStrikeRaw,
+    resolvedRangeLowerRaw,
+    resolvedRangeUpperRaw,
   ]);
 
   const needsDeposit = useMemo(
@@ -473,49 +554,7 @@ export function PredictLeveragePanel({
     setSl(defaults.sl);
   }, [tpSl, entryCents, tp, sl]);
 
-  const pendingTradeKey = useMemo((): MarketKeyArgs | null => {
-    if (!expiryMs || expiryMs <= 0) return null;
-    if (isRange) {
-      const lower =
-        lowerStrikeRaw ??
-        (lowerStrike && Number.isFinite(parseFloat(lowerStrike))
-          ? strikeUsdToRaw(parseFloat(lowerStrike))
-          : 0);
-      const upper =
-        upperStrikeRaw ??
-        (upperStrike && Number.isFinite(parseFloat(upperStrike))
-          ? strikeUsdToRaw(parseFloat(upperStrike))
-          : 0);
-      if (!lower || !upper || upper <= lower) return null;
-      return {
-        oracleId,
-        expiryMs,
-        strike: lower,
-        higherStrike: upper,
-        isUp: true,
-        isRange: true,
-      };
-    }
-    if (!resolvedBinaryStrikeRaw || resolvedBinaryStrikeRaw <= 0) return null;
-    return {
-      oracleId,
-      expiryMs,
-      strike: resolvedBinaryStrikeRaw,
-      higherStrike: 0,
-      isUp: side === "up",
-      isRange: false,
-    };
-  }, [
-    oracleId,
-    expiryMs,
-    isRange,
-    side,
-    resolvedBinaryStrikeRaw,
-    lowerStrikeRaw,
-    upperStrikeRaw,
-    lowerStrike,
-    upperStrike,
-  ]);
+  const pendingTradeKey = tradeKey ?? null;
 
   const duplicateOpenPosition = useMemo(() => {
     if (!pendingTradeKey) return null;
@@ -632,11 +671,20 @@ export function PredictLeveragePanel({
         );
       }
     }
-    if (isRange && !rangeFromChart) {
-      const lower = parseFloat(lowerStrike);
-      const upper = parseFloat(upperStrike);
-      if (Number.isFinite(lower) && Number.isFinite(upper) && lower >= upper) {
+    if (isRange) {
+      if (resolvedRangeLowerRaw <= 0 || resolvedRangeUpperRaw <= 0) {
+        errors.push("Set a price range to trade this market.");
+      } else if (resolvedRangeUpperRaw <= resolvedRangeLowerRaw) {
         errors.push("Range low must be below high end.");
+      } else if (rangePreset === "custom") {
+        const lowerUsd = parseFloat(customLowerUsd);
+        const upperUsd = parseFloat(customUpperUsd);
+        if (!Number.isFinite(lowerUsd) || lowerUsd <= 0) {
+          errors.push("Enter a valid low-end strike.");
+        }
+        if (!Number.isFinite(upperUsd) || upperUsd <= 0) {
+          errors.push("Enter a valid high-end strike.");
+        }
       }
     }
     if (!isRange && strikePreset === "custom") {
@@ -694,9 +742,11 @@ export function PredictLeveragePanel({
     liveAskLoading,
     liveAskPremium,
     isRange,
-    rangeFromChart,
-    lowerStrike,
-    upperStrike,
+    rangePreset,
+    customLowerUsd,
+    customUpperUsd,
+    resolvedRangeLowerRaw,
+    resolvedRangeUpperRaw,
     strikePreset,
     customStrikeUsd,
     minStrikeRaw,
@@ -729,18 +779,11 @@ export function PredictLeveragePanel({
     expiryMs > 0 &&
     validationErrors.length === 0 &&
     (isRange
-      ? (lowerStrike || lowerStrikeRaw) && (upperStrike || upperStrikeRaw)
+      ? resolvedRangeLowerRaw > 0 && resolvedRangeUpperRaw > resolvedRangeLowerRaw
       : resolvedBinaryStrikeRaw > 0);
 
   const handleSubmit = () => {
-    if (!canSubmit || !expiryMs) return;
-
-    const resolvedLower = isRange
-      ? lowerStrikeRaw ?? strikeUsdToRaw(parseFloat(lowerStrike))
-      : resolvedBinaryStrikeRaw;
-    const resolvedUpper = isRange
-      ? upperStrikeRaw ?? strikeUsdToRaw(parseFloat(upperStrike))
-      : 0;
+    if (!canSubmit || !expiryMs || !tradeKey) return;
 
     const tpPremium =
       tpSl && tp && Number.isFinite(parseFloat(tp))
@@ -753,14 +796,7 @@ export function PredictLeveragePanel({
 
     openTrade.mutate(
       {
-        key: {
-          oracleId,
-          expiryMs,
-          strike: isRange ? resolvedLower : resolvedBinaryStrikeRaw,
-          higherStrike: isRange ? resolvedUpper : 0,
-          isUp: isRange ? true : side === "up",
-          isRange,
-        },
+        key: tradeKey,
         marginUsd: marginNum,
         leverage: lev,
         orderType,
@@ -902,62 +938,23 @@ export function PredictLeveragePanel({
               minStrikeRaw={minStrikeRaw}
               disabled={disabled}
             />
-          ) : null}
+          ) : (
+            <RangeStrikeSelector
+              preset={rangePreset}
+              onPresetChange={handleRangePresetChange}
+              customLowerUsd={customLowerUsd}
+              customUpperUsd={customUpperUsd}
+              onCustomLowerChange={setCustomLowerUsd}
+              onCustomUpperChange={setCustomUpperUsd}
+              lowerStrikeRaw={resolvedRangeLowerRaw}
+              upperStrikeRaw={resolvedRangeUpperRaw}
+              oracleSpotUsd={oracleSpotUsd}
+              minStrikeRaw={minStrikeRaw}
+              disabled={disabled}
+            />
+          )}
 
-          {isRange ? (
-            <div>
-              <LabelWithInfo
-                className="mb-2"
-                labelClassName="text-xs text-muted-foreground"
-                label="Range bet — pays if the final price lands inside your band."
-                info={leverxInfo.rangeMarket}
-              />
-              {rangeFromChart ? (
-                <p className="font-mono text-sm text-foreground">
-                  ${(lowerStrikeRaw! / 1e9).toLocaleString()} – ${(upperStrikeRaw! / 1e9).toLocaleString()}
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  <div>
-                    <LabelWithInfo
-                      className={cn(labelCaps, "mb-2")}
-                      label="Low end"
-                      labelClassName={labelCaps}
-                      info={leverxInfo.lowerStrike}
-                    />
-                    <TradeAmountInput
-                      prefix="$"
-                      large
-                      type="number"
-                      inputMode="decimal"
-                      min={0}
-                      value={lowerStrike}
-                      onChange={(e) => setLowerStrike(e.target.value)}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div>
-                    <LabelWithInfo
-                      className={cn(labelCaps, "mb-2")}
-                      label="High end"
-                      labelClassName={labelCaps}
-                      info={leverxInfo.upperStrike}
-                    />
-                    <TradeAmountInput
-                      prefix="$"
-                      large
-                      type="number"
-                      inputMode="decimal"
-                      min={0}
-                      value={upperStrike}
-                      onChange={(e) => setUpperStrike(e.target.value)}
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : orderType === "limit" ? (
+          {orderType === "limit" ? (
             <div>
               <div className="mb-2">
                 <LabelWithInfo

@@ -10,10 +10,12 @@ export function createChartViewportGuard(chart: IChartApi) {
   let preserve = false;
   let applying = false;
 
-  const unsubscribe = chart.timeScale().subscribeVisibleLogicalRangeChange(() => {
+  const onVisibleLogicalRangeChange = () => {
     if (applying) return;
     preserve = true;
-  });
+  };
+
+  chart.timeScale().subscribeVisibleLogicalRangeChange(onVisibleLogicalRangeChange);
 
   return {
     shouldPreserve: () => preserve,
@@ -40,7 +42,7 @@ export function createChartViewportGuard(chart: IChartApi) {
       }
     },
     destroy: () => {
-      unsubscribe();
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(onVisibleLogicalRangeChange);
     },
   };
 }
