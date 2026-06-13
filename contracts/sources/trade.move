@@ -930,7 +930,6 @@ fun settle_expired_proxy_position_inner<Quote>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
-    assert!(!registry.trading_paused(), errors::trading_paused());
     assert_registry_predict(registry, predict_global);
     assert_registry_vault_collector(registry, vault, collector);
     assert!(oracle.is_settled(), errors::oracle_not_settled());
@@ -1029,7 +1028,6 @@ fun settle_expired_proxy_range_inner<Quote>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
-    assert!(!registry.trading_paused(), errors::trading_paused());
     assert_registry_predict(registry, predict_global);
     assert_registry_vault_collector(registry, vault, collector);
     assert!(oracle.is_settled(), errors::oracle_not_settled());
@@ -1070,7 +1068,6 @@ public fun force_deleverage_binary_at_expiry<Quote>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
-    assert!(!registry.trading_paused(), errors::trading_paused());
     assert_registry_predict(registry, predict_global);
     assert_registry_vault_collector(registry, vault, collector);
     assert!(object::id(manager) == proxy.predict_manager_id(), errors::invalid_manager());
@@ -1170,7 +1167,6 @@ public fun force_deleverage_range_at_expiry<Quote>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
-    assert!(!registry.trading_paused(), errors::trading_paused());
     assert_registry_predict(registry, predict_global);
     assert_registry_vault_collector(registry, vault, collector);
     assert!(object::id(manager) == proxy.predict_manager_id(), errors::invalid_manager());
@@ -1272,7 +1268,6 @@ public fun force_repay_binary_post_expiry<Quote>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
-    assert!(!registry.trading_paused(), errors::trading_paused());
     assert_registry_predict(registry, predict_global);
     assert_registry_vault_collector(registry, vault, collector);
     assert!(object::id(manager) == proxy.predict_manager_id(), errors::invalid_manager());
@@ -1338,7 +1333,6 @@ public fun force_repay_range_post_expiry<Quote>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
-    assert!(!registry.trading_paused(), errors::trading_paused());
     assert_registry_predict(registry, predict_global);
     assert_registry_vault_collector(registry, vault, collector);
     assert!(object::id(manager) == proxy.predict_manager_id(), errors::invalid_manager());
@@ -1443,6 +1437,7 @@ public fun deleverage_binary_account_balance<Quote>(
         coin::destroy_zero(repay_coin);
     };
     if (principal_repaid > 0) {
+        reduce_binary_margin_debt_pro_rata(proxy, key, ledger_principal, principal_repaid, ctx);
         proxy.record_repay_for_binary(key, principal_repaid);
     };
     events::emit_vault_repaid(
@@ -1516,6 +1511,7 @@ public fun deleverage_range_account_balance<Quote>(
         coin::destroy_zero(repay_coin);
     };
     if (principal_repaid > 0) {
+        reduce_range_margin_debt_pro_rata(proxy, key, ledger_principal, principal_repaid, ctx);
         proxy.record_repay_for_range(key, principal_repaid);
     };
     events::emit_vault_repaid(
@@ -2778,6 +2774,40 @@ fun write_off_residual_range_debt<Quote>(
     proxy.clear_range_margin_debt(key);
 }
 
+/// Scale posted margin debt down when vault principal is partially repaid.
+fun reduce_binary_margin_debt_pro_rata(
+    proxy: &mut UserProxy,
+    key: MarketKey,
+    ledger_principal_before: u64,
+    principal_repaid: u64,
+    ctx: &mut TxContext,
+) {
+    if (principal_repaid == 0 || ledger_principal_before == 0) return;
+    let margin = proxy.binary_margin_debt(key);
+    if (margin == 0) return;
+    let remaining_principal = ledger_principal_before - principal_repaid;
+    let new_margin = ((margin as u128) * (remaining_principal as u128)
+        / (ledger_principal_before as u128)) as u64;
+    proxy.set_binary_margin_debt(key, new_margin, ctx);
+}
+
+/// Scale posted margin debt down when vault principal is partially repaid.
+fun reduce_range_margin_debt_pro_rata(
+    proxy: &mut UserProxy,
+    key: RangeKey,
+    ledger_principal_before: u64,
+    principal_repaid: u64,
+    ctx: &mut TxContext,
+) {
+    if (principal_repaid == 0 || ledger_principal_before == 0) return;
+    let margin = proxy.range_margin_debt(key);
+    if (margin == 0) return;
+    let remaining_principal = ledger_principal_before - principal_repaid;
+    let new_margin = ((margin as u128) * (remaining_principal as u128)
+        / (ledger_principal_before as u128)) as u64;
+    proxy.set_range_margin_debt(key, new_margin, ctx);
+}
+
 fun repay_from_payout_binary<Quote>(
     vault: &mut LeverageVault<Quote>,
     collector: &mut FeeCollector<Quote>,
@@ -2840,6 +2870,7 @@ fun repay_from_payout_binary<Quote>(
             ctx,
         );
         if (principal_repaid > 0) {
+            reduce_binary_margin_debt_pro_rata(proxy, key, ledger_principal, principal_repaid, ctx);
             proxy.record_repay_for_binary(key, principal_repaid);
         };
         events::emit_vault_repaid(
@@ -2858,7 +2889,7 @@ fun repay_from_payout_binary<Quote>(
         if (proxy.binary_borrowed_quote(key) > 0 || hold_surplus_for_remint) {
             proxy.credit_quote_for_binary(key, payout_coin, ctx);
         } else {
-            transfer::public_transfer(payout_coin, ctx.sender());
+            transfer::public_transfer(payout_coin, proxy.owner());
         };
     } else {
         coin::destroy_zero(payout_coin);
@@ -2898,7 +2929,7 @@ fun finalize_binary_key_after_redeem<Quote>(
     if (proxy.binary_borrowed_quote(key) == 0) {
         proxy.reset_binary_to_unleveraged(key, ctx);
         proxy.clear_binary_margin_debt(key);
-        user_proxy::sweep_binary_free_quote_to_sender<Quote>(proxy, key, ctx);
+        user_proxy::sweep_binary_free_quote_to<Quote>(proxy, key, proxy.owner(), ctx);
     };
 }
 
@@ -2925,7 +2956,7 @@ fun finalize_range_key_after_redeem<Quote>(
     if (proxy.range_borrowed_quote(key) == 0) {
         proxy.reset_range_to_unleveraged(key, ctx);
         proxy.clear_range_margin_debt(key);
-        user_proxy::sweep_range_free_quote_to_sender<Quote>(proxy, key, ctx);
+        user_proxy::sweep_range_free_quote_to<Quote>(proxy, key, proxy.owner(), ctx);
     };
 }
 
@@ -3006,6 +3037,7 @@ fun repay_from_payout_range<Quote>(
             ctx,
         );
         if (principal_repaid > 0) {
+            reduce_range_margin_debt_pro_rata(proxy, key, ledger_principal, principal_repaid, ctx);
             proxy.record_repay_for_range(key, principal_repaid);
         };
         events::emit_vault_repaid(
@@ -3024,7 +3056,7 @@ fun repay_from_payout_range<Quote>(
         if (proxy.range_borrowed_quote(key) > 0 || hold_surplus_for_remint) {
             proxy.credit_quote_for_range(key, payout_coin, ctx);
         } else {
-            transfer::public_transfer(payout_coin, ctx.sender());
+            transfer::public_transfer(payout_coin, proxy.owner());
         };
     } else {
         coin::destroy_zero(payout_coin);

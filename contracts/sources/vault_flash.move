@@ -30,10 +30,11 @@ public fun repay_flash_liquidity<Quote>(
     collector: &mut FeeCollector<Quote>,
     payment: Coin<Quote>,
     receipt: FlashReceipt,
+    liquidated_account_id: ID,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
     protocol_registry::assert_vault(registry, vault);
     protocol_registry::assert_fee_collector(registry, collector);
-    fee_collector::repay_flash_liquidity(vault, collector, payment, receipt, clock, ctx);
+    fee_collector::repay_flash_liquidity(vault, collector, payment, receipt, liquidated_account_id, clock, ctx);
 }

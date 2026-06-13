@@ -55,6 +55,7 @@ fun flash_loan_repay_credits_vault_and_splits_fee() {
         test_fixtures::collector_mut(&mut setup),
         borrowed,
         receipt,
+        object::id(test_fixtures::vault(&setup)),
         &clock,
         ctx,
     );
@@ -82,10 +83,35 @@ fun flash_repay_aborts_when_underpaid() {
         test_fixtures::collector_mut(&mut setup),
         underpay,
         leverage_vault::flash_receipt_for_testing(100, 1),
+        object::id(test_fixtures::vault(&setup)),
         &clock,
         ctx,
     );
 
     clock::destroy_for_testing(clock);
+    scenario.end();
+}
+
+#[test]
+fun distribute_liquidation_surplus_funds_insurance() {
+    let owner = @0xFEE;
+    let mut scenario = test_scenario::begin(owner);
+    let ctx = scenario.ctx();
+
+    let mut setup = test_fixtures::setup_protocol<test_fixtures::TestQuote>(&mut scenario);
+    let account_id = object::id(test_fixtures::vault(&setup));
+
+    let skim = test_fixtures::mint_quote(1_000, test_fixtures::quote_treasury_mut(&mut setup), ctx);
+    fee_collector::distribute_liquidation_surplus(
+        test_fixtures::vault_mut(&mut setup),
+        test_fixtures::collector_mut(&mut setup),
+        account_id,
+        skim,
+        ctx,
+    );
+
+    let insurance_share = protocol_constants::mul_bps(1_000, protocol_constants::vault_fee_share_bps());
+    assert!(leverage_vault::insurance_fund_balance(test_fixtures::vault(&setup)) == insurance_share, 0);
+
     scenario.end();
 }

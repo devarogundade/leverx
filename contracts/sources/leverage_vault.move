@@ -353,6 +353,18 @@ public(package) fun credit_lp_revenue<Quote>(
     vault.balance.join(revenue.into_balance());
 }
 
+/// Credit quote to the insurance backstop (liquidation surplus vault share).
+public(package) fun credit_insurance_fund<Quote>(
+    vault: &mut LeverageVault<Quote>,
+    funds: Coin<Quote>,
+) {
+    if (funds.value() == 0) {
+        coin::destroy_zero(funds);
+        return
+    };
+    vault.insurance_fund.join(funds.into_balance());
+}
+
 /// Move quote from the insurance backstop into circulation for debt repayment.
 public(package) fun take_insurance_fund<Quote>(
     vault: &mut LeverageVault<Quote>,

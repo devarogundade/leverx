@@ -32,6 +32,7 @@ fun borrow_and_repay_via_registry_wrappers() {
         test_fixtures::collector_mut(&mut setup),
         borrowed,
         receipt,
+        object::id(test_fixtures::vault(&setup)),
         &clock,
         ctx,
     );

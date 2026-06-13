@@ -165,6 +165,7 @@ fun flash_liquidate_binary_internal<Quote>(
         );
         proxy.record_repay_for_binary(key, ledger_principal);
         proxy.clear_binary_margin_debt(key);
+        proxy.reset_binary_to_unleveraged(key, ctx);
         events::emit_vault_repaid(
             object::id(vault),
             object::id(proxy),
@@ -179,6 +180,7 @@ fun flash_liquidate_binary_internal<Quote>(
         (payment, vault_debt, health)
     } else {
         proxy.clear_binary_margin_debt(key);
+        proxy.reset_binary_to_unleveraged(key, ctx);
         (payment, 0, health)
     }
 }
@@ -225,6 +227,7 @@ fun flash_liquidate_range_internal<Quote>(
         );
         proxy.record_repay_for_range(key, ledger_principal);
         proxy.clear_range_margin_debt(key);
+        proxy.reset_range_to_unleveraged(key, ctx);
         events::emit_vault_repaid(
             object::id(vault),
             object::id(proxy),
@@ -239,6 +242,7 @@ fun flash_liquidate_range_internal<Quote>(
         (payment, vault_debt, health)
     } else {
         proxy.clear_range_margin_debt(key);
+        proxy.reset_range_to_unleveraged(key, ctx);
         (payment, 0, health)
     }
 }

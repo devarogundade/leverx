@@ -171,11 +171,13 @@ public(package) fun repay_vault_for_ledger_principal<Quote>(
 }
 
 /// Repay a vault flash loan: principal returns to liquidity; fee is split 80/10/10.
+/// Any surplus after principal + fee is routed through liquidation skim (80% insurance / 10% treasury / 10% keeper).
 public(package) fun repay_flash_liquidity<Quote>(
     vault: &mut LeverageVault<Quote>,
     collector: &mut FeeCollector<Quote>,
     payment: Coin<Quote>,
     receipt: FlashReceipt,
+    liquidated_account_id: ID,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -198,7 +200,7 @@ public(package) fun repay_flash_liquidity<Quote>(
         );
     };
     if (pay.value() > 0) {
-        transfer::public_transfer(pay, ctx.sender());
+        distribute_liquidation_surplus(vault, collector, liquidated_account_id, pay, ctx);
     } else {
         coin::destroy_zero(pay);
     };
@@ -214,6 +216,59 @@ public(package) fun collect_protocol_skim<Quote>(
     ctx: &mut TxContext,
 ) {
     distribute_protocol_fee(vault, collector, skim, fee_source, ctx);
+}
+
+/// Liquidation profit skim: 80% to vault insurance fund, 10% treasury, 10% keeper.
+public(package) fun distribute_liquidation_surplus<Quote>(
+    vault: &mut LeverageVault<Quote>,
+    collector: &mut FeeCollector<Quote>,
+    account_id: ID,
+    skim: Coin<Quote>,
+    ctx: &mut TxContext,
+) {
+    let total = skim.value();
+    if (total == 0) {
+        coin::destroy_zero(skim);
+        return
+    };
+
+    events::emit_insurance_fund_skimmed(
+        object::id(vault),
+        account_id,
+        total,
+        protocol_constants::fee_source_liquidation(),
+    );
+
+    let vault_amt = protocol_constants::mul_bps(total, protocol_constants::vault_fee_share_bps());
+    let collector_amt = protocol_constants::mul_bps(total, protocol_constants::fee_collector_share_bps());
+    let keeper_amt = total - vault_amt - collector_amt;
+
+    let mut remaining = skim;
+    if (vault_amt > 0) {
+        let share = remaining.split(vault_amt, ctx);
+        vault_mod::credit_insurance_fund(vault, share);
+    };
+    if (collector_amt > 0) {
+        let share = remaining.split(collector_amt, ctx);
+        collector.balance.join(share.into_balance());
+        collector.total_collected = collector.total_collected + collector_amt;
+    };
+    if (keeper_amt > 0) {
+        let share = remaining.split(keeper_amt, ctx);
+        transfer::public_transfer(share, ctx.sender());
+    };
+    coin::destroy_zero(remaining);
+
+    events::emit_protocol_fee_distributed(
+        object::id(vault),
+        object::id(collector),
+        total,
+        vault_amt,
+        collector_amt,
+        keeper_amt,
+        ctx.sender(),
+        protocol_constants::fee_source_liquidation(),
+    );
 }
 
 // === Read API ===
