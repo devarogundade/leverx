@@ -340,7 +340,7 @@ export const tradeTerminalPositionsBody = cn(
 
 /** Mobile predictions workspace switcher (Trade vs Chart) — portaled to body */
 export const tradeMobileDock = cn(
-  "fixed inset-x-0 bottom-0 z-[60] flex justify-center md:hidden",
+  "fixed inset-x-0 bottom-[10px] z-[60] flex justify-center md:hidden",
   "pb-[max(0.5rem,env(safe-area-inset-bottom))]",
   "pointer-events-none",
 );
@@ -476,8 +476,7 @@ export const dataTableMobileCardStats = marketsTableMobileCardStats;
 
 export const dataTableMobileStatLabel = marketsTableMobileStatLabel;
 
-export const dataTableMobileCardFooter =
-  "flex flex-col gap-2 border-t border-border pt-3";
+export const dataTableMobileCardFooter = "flex flex-col gap-2 border-t border-border pt-3";
 
 /** Nested list rows inside settings panels — cards on mobile, compact rows on desktop. */
 export const settingsList = "space-y-3 lg:space-y-0 lg:divide-y lg:divide-border/60";
@@ -487,10 +486,7 @@ export const settingsListItem = cn(
   "lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:py-2 lg:shadow-none lg:first:pt-0 lg:last:pb-0",
 );
 
-export const settingsListItemHeader = cn(
-  dataTableMobileCardHeader,
-  "lg:border-0 lg:pb-0",
-);
+export const settingsListItemHeader = cn(dataTableMobileCardHeader, "lg:border-0 lg:pb-0");
 
 export const marketsTableDesktop = "hidden lg:block";
 

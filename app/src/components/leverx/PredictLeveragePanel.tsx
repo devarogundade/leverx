@@ -605,8 +605,6 @@ export function PredictLeveragePanel({
         errors.push(
           `Limit price must be between ${PREDICT_MIN_PREMIUM_CENTS}¢ and ${PREDICT_MAX_PREMIUM_CENTS}¢.`,
         );
-      } else if (liveAskLoading) {
-        errors.push("Waiting for live contract price…");
       } else if (liveAskPremium == null || liveAskPremium <= 0n) {
         errors.push(
           "Live contract price is unavailable. Wait for oracle updates or try another strike.",
@@ -657,9 +655,7 @@ export function PredictLeveragePanel({
       }
     }
     if (orderType === "market" && marginNum > 0 && tradeKey) {
-      if (quoteLoading) {
-        errors.push("Waiting for live contract price…");
-      } else if (expiryMs && expiryMs > 0 && expiryMs <= Date.now()) {
+      if (expiryMs && expiryMs > 0 && expiryMs <= Date.now()) {
         errors.push("This market has expired. Pick a live expiry or another strike.");
       } else if (mintQuote == null) {
         errors.push(

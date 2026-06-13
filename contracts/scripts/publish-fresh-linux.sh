@@ -1,39 +1,34 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="/mnt/c/Users/devar/Documents/leverx/contracts"
 export PATH="${HOME}/.local/bin:${HOME}/.cargo/bin:${PATH}"
+SUI="${HOME}/.local/bin/sui"
 
-# Prefer suiup-managed sui (toolchain 1.73.x for this package).
-if [[ -x "${HOME}/.local/bin/sui" ]]; then
-  SUI="${HOME}/.local/bin/sui"
-elif command -v suiup >/dev/null 2>&1; then
-  SUI="$(suiup which sui 2>/dev/null || true)"
-fi
-SUI="${SUI:-$(command -v sui)}"
+WORK="/tmp/leverx-contracts-$$"
+rm -rf "$WORK"
+cp -a /mnt/c/Users/devar/Documents/leverx/contracts "$WORK"
+cd "$WORK"
 
-cd "$ROOT"
 echo "Using sui: $SUI"
 "$SUI" --version
 echo "Active address: $("$SUI" client active-address)"
 
-"$SUI" move build
-echo "Build OK"
-
-# Fresh publish requires no prior entry in Published.toml for this environment.
 if [[ -f Published.toml ]]; then
   cp Published.toml "Published.toml.prev.$(date +%Y%m%d%H%M%S)"
   rm -f Published.toml
-  echo "Removed Published.toml for fresh publish (backup saved)."
+  echo "Removed Published.toml for fresh publish."
 fi
 
 # Move.lock from Windows builds stores backslash subdirs; regenerate on Linux.
 rm -f Move.lock
 
+"$SUI" move build
+echo "Build OK"
+
 echo "Publishing..."
 "$SUI" client publish --gas-budget 2000000000 --json > /tmp/leverx-publish.json
 
-python3 "$ROOT/scripts/parse-publish-json.py" /tmp/leverx-publish.json
+python3 "$WORK/scripts/parse-publish-json.py" /tmp/leverx-publish.json
 
 source /tmp/leverx-deploy.env
 
@@ -53,14 +48,15 @@ echo "Deploying shared objects (deploy_and_share)..."
   --gas-budget 200000000 \
   --json > /tmp/leverx-deploy-tx.json
 
-python3 "$ROOT/scripts/parse-publish-json.py" /tmp/leverx-deploy-tx.json
+python3 "$WORK/scripts/parse-publish-json.py" /tmp/leverx-deploy-tx.json
 
-python3 - <<'PY'
+OUT_REPO="/mnt/c/Users/devar/Documents/leverx/contracts/deploy-testnet.env"
+python3 - <<PY
 from pathlib import Path
 
 publish = Path("/tmp/leverx-deploy.env")
 deploy = Path("/tmp/leverx-deploy-tx-parsed.env")
-out_repo = Path("/mnt/c/Users/devar/Documents/leverx/contracts/deploy-testnet.env")
+out_repo = Path("$OUT_REPO")
 
 lines: dict[str, str] = {}
 for p in (publish, deploy):
@@ -95,3 +91,13 @@ out_repo.write_text(body, encoding="utf-8")
 print(f"Wrote {out_repo}")
 print(body)
 PY
+
+# Sync publish artifacts back to Windows tree
+for f in Published.toml Move.lock; do
+  if [[ -f "$f" ]]; then
+    cp "$f" "/mnt/c/Users/devar/Documents/leverx/contracts/$f"
+  fi
+done
+
+rm -rf "$WORK"
+echo "Done."

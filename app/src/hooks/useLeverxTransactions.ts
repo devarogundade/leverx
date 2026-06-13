@@ -6,7 +6,10 @@ import { appConfig } from "@/lib/config";
 import { invalidateLeverxQueries } from "@/lib/leverx/invalidate-queries";
 import type { LimitMintOrder, LeveragedPosition } from "@/lib/leverx/indexer-client";
 import type { MarketKeyArgs } from "@/lib/leverx/market-keys";
-import { fetchPackageIdsForProtocol } from "@/lib/leverx/package-resolution";
+import {
+  fetchPackageIdsForProtocol,
+  fetchRegistryFields,
+} from "@/lib/leverx/package-resolution";
 import { resolveLeverxProtocol } from "@/lib/leverx/protocol";
 import {
   executeCancelLimitOrder,
@@ -55,17 +58,33 @@ export function useLeverxProtocolConfig() {
     retry: 2,
   });
 
+  const { data: registryFields } = useQuery({
+    queryKey: ["leverx-registry-fields", registryId] as const,
+    queryFn: () => fetchRegistryFields(suiClient, registryId),
+    enabled: Boolean(registryId),
+    staleTime: 10 * 60_000,
+    retry: 2,
+  });
+
   const cfg = useMemo(() => {
     if (registryId && packagesLoading) {
       return null;
     }
 
-    return resolveLeverxProtocol(settings ?? null, {
+    const base = resolveLeverxProtocol(settings ?? null, {
       packageId: packageIds?.leverxPackageId ?? settings?.package_id,
       predictPackageId: packageIds?.predictPackageId ?? settings?.predict_package_id,
       allowEnvPackageFallback: !registryId || packagesError,
     });
-  }, [settings, packageIds, packagesLoading, packagesError, registryId]);
+    if (!base) return null;
+
+    return {
+      ...base,
+      predictId: registryFields?.predictId || base.predictId,
+      vaultId: registryFields?.vaultId || base.vaultId,
+      feeCollectorId: registryFields?.feeCollectorId || base.feeCollectorId,
+    };
+  }, [settings, packageIds, packagesLoading, packagesError, registryId, registryFields]);
 
   const isResolving = settingsLoading || (Boolean(registryId) && packagesLoading);
 

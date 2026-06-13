@@ -20,7 +20,7 @@ read_deploy_var() {
   echo "${fallback}"
 }
 
-CHECKPOINT="${FIRST_CHECKPOINT:-$(read_deploy_var FIRST_CHECKPOINT 346747492)}"
+CHECKPOINT="${FIRST_CHECKPOINT:-$(read_deploy_var FIRST_CHECKPOINT 347930845)}"
 
 cd "${ROOT}"
 if command -v docker-compose >/dev/null 2>&1; then

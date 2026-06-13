@@ -14,7 +14,7 @@ function Read-DeployVar([string]$Key, [string]$Fallback = "") {
     return $Fallback
 }
 
-$Checkpoint = if ($env:FIRST_CHECKPOINT) { $env:FIRST_CHECKPOINT } else { Read-DeployVar "FIRST_CHECKPOINT" "347610477" }
+$Checkpoint = if ($env:FIRST_CHECKPOINT) { $env:FIRST_CHECKPOINT } else { Read-DeployVar "FIRST_CHECKPOINT" "347930845" }
 $ExpectedRegistry = if ($env:LEVERX_REGISTRY_ID) { $env:LEVERX_REGISTRY_ID } else { Read-DeployVar "LEVERX_REGISTRY_ID" }
 
 Push-Location $Root
@@ -40,7 +40,7 @@ try {
     if (-not $healthy) { throw "Indexer health check timed out" }
 
     if (-not $ExpectedRegistry) {
-        Write-Host "LEVERX_REGISTRY_ID not set — skipping protocol poll."
+        Write-Host "LEVERX_REGISTRY_ID not set - skipping protocol poll."
         exit 0
     }
 
@@ -57,7 +57,7 @@ try {
         Start-Sleep -Seconds 5
     }
 
-    throw "Timed out waiting for protocol_settings. Check: docker compose -f indexer/docker-compose.ec2.yml logs --tail=80 indexer"
+    throw 'Timed out waiting for protocol_settings. Check: docker compose -f indexer/docker-compose.ec2.yml logs --tail=80 indexer'
 } finally {
     Pop-Location
 }

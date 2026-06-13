@@ -3,7 +3,10 @@ import type { WalletWithRequiredFeatures } from "@mysten/wallet-standard";
 import type { WalletAccount } from "@wallet-standard/core";
 import { fetchAccounts } from "@/lib/leverx/indexer-client";
 import { ONBOARD_GAS_BUDGET } from "@/lib/leverx/constants";
-import { objectMatchesStructType } from "@/lib/leverx/package-resolution";
+import {
+  objectMatchesStructType,
+  readProxyPredictManagerId,
+} from "@/lib/leverx/package-resolution";
 import type { LeverxOnboardingConfig } from "@/lib/leverx/protocol";
 import { executeWalletTransaction } from "@/lib/sui/execute-transaction";
 
@@ -83,6 +86,11 @@ export async function resolveLeverxAccount(
     `${cfg.packageId}::user_proxy::UserProxy`,
   );
   if (!proxyId) return null;
+
+  const linkedManagerId = await readProxyPredictManagerId(client, proxyId);
+  if (linkedManagerId) {
+    return { accountId: proxyId, predictManagerId: linkedManagerId };
+  }
 
   const managerId = await findOwnedObjectId(
     client,

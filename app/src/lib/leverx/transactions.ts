@@ -35,6 +35,7 @@ import {
   positionQuoteAtoms,
 } from "@/lib/leverx/trade-math";
 import type { LimitMintOrder, LeveragedPosition } from "@/lib/leverx/indexer-client";
+import { assertLeverxTradeCompatibility } from "@/lib/leverx/package-resolution";
 import { executeWalletTransaction } from "@/lib/sui/execute-transaction";
 
 export type LimitExecutionMode = "resting" | "immediate";
@@ -157,6 +158,14 @@ export async function executeOpenTrade(params: {
     maxMintCost: applySlippageBps(positionAtoms, marketSlippageBps),
     orderExpiresMs: input.orderExpiresMs ?? input.key.expiryMs,
   };
+
+  await assertLeverxTradeCompatibility({
+    client,
+    leverxPackageId: cfg.packageId,
+    predictId: cfg.predictId,
+    oracleId: input.key.oracleId,
+    predictManagerId: leverxAccount.predictManagerId!,
+  });
 
   return executeWalletTransaction(
     client,
