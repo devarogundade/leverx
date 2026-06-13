@@ -26,6 +26,8 @@ export const leverxInfo = {
   tpSlEntry: "Estimated entry premium for this trade — used to suggest TP/SL levels.",
   tpSlTakeProfit: "Close when the contract premium rises to this price (above entry).",
   tpSlStopLoss: "Close when the contract premium falls to this price (below entry).",
+  remintAfterDeleverage:
+    "If the pool force-deleverages your position, automatically reopen at 1× with any leftover margin. Turn off to stay in cash after deleverage.",
   strikePrice:
     "Price level for this bet. Market uses the current spot (rounded to the oracle tick). Presets offset from spot; Custom lets you enter any valid strike at or above the oracle minimum.",
   lowerStrike: "Bottom of the range — the bet pays if the final price lands inside your band.",

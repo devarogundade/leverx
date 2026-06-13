@@ -21,6 +21,7 @@ use leverx::{
     predict_client,
     protocol_registry::{Self, LeverxRegistry},
     leverage_vault::{Self as vault_mod, LeverageVault},
+    triggers,
 };
 use sui::{clock::Clock, coin::Coin};
 
@@ -67,6 +68,9 @@ public fun flash_liquidate_with_redeem_permissionless<Quote>(
         ctx,
     );
     emit_liquidation(proxy, key, debt, payment.value(), health, had_redeem, ctx);
+    if (had_redeem) {
+        triggers::maybe_clear_binary_triggers_if_flat(proxy, manager, key);
+    };
     payment
 }
 
@@ -113,6 +117,9 @@ public fun flash_liquidate_range_with_redeem_permissionless<Quote>(
         ctx,
     );
     emit_range_liquidation(proxy, key, debt, payment.value(), health, had_redeem, ctx);
+    if (had_redeem) {
+        triggers::maybe_clear_range_triggers_if_flat(proxy, manager, key);
+    };
     payment
 }
 
@@ -133,12 +140,13 @@ fun flash_liquidate_binary_internal<Quote>(
     let ledger_principal = proxy.binary_borrowed_quote(key);
     let vault_debt = vault_mod::debt_with_accrued_interest(vault, ledger_principal);
     let margin_debt = proxy.binary_margin_debt(key);
-    let health_debt = ltv::effective_health_debt(vault_debt, margin_debt);
+    let leverage_bps = proxy.binary_leverage_bps(key);
+    let health_debt = ltv::effective_health_debt(vault_debt, margin_debt, leverage_bps);
     let quote_balance = proxy.binary_quote_balance(key);
     assert!(health_debt > 0, errors::not_liquidatable());
     let health = ltv::evaluate_account_health(quote_balance, health_debt);
     assert!(
-        ltv::is_liquidatable(quote_balance, health_debt),
+        ltv::is_liquidatable(quote_balance, health_debt, protocol_registry::liquidation_bps(registry)),
         errors::not_liquidatable(),
     );
 
@@ -192,12 +200,13 @@ fun flash_liquidate_range_internal<Quote>(
     let ledger_principal = proxy.range_borrowed_quote(key);
     let vault_debt = vault_mod::debt_with_accrued_interest(vault, ledger_principal);
     let margin_debt = proxy.range_margin_debt(key);
-    let health_debt = ltv::effective_health_debt(vault_debt, margin_debt);
+    let leverage_bps = proxy.range_leverage_bps(key);
+    let health_debt = ltv::effective_health_debt(vault_debt, margin_debt, leverage_bps);
     let quote_balance = proxy.range_quote_balance(key);
     assert!(health_debt > 0, errors::not_liquidatable());
     let health = ltv::evaluate_account_health(quote_balance, health_debt);
     assert!(
-        ltv::is_liquidatable(quote_balance, health_debt),
+        ltv::is_liquidatable(quote_balance, health_debt, protocol_registry::liquidation_bps(registry)),
         errors::not_liquidatable(),
     );
 

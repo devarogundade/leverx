@@ -23,8 +23,14 @@ public fun borrow_for_leverage(position_quote: u64, margin_quote: u64): u64 {
     position_quote - margin_quote
 }
 
-/// Debt used for health: vault debt with interest takes precedence over posted margin.
-public fun effective_health_debt(vault_debt: u64, margin_debt: u64): u64 {
+/// True when leverage is above 1x (vault borrow permitted).
+public fun is_leveraged(leverage_bps: u64): bool {
+    leverage_bps > protocol_constants::bps()
+}
+
+/// Debt used for health: unleveraged (1x) positions are never liquidatable.
+public fun effective_health_debt(vault_debt: u64, margin_debt: u64, leverage_bps: u64): u64 {
+    if (!is_leveraged(leverage_bps)) return 0;
     if (vault_debt > 0) {
         vault_debt
     } else {
@@ -38,19 +44,20 @@ public fun evaluate_account_health(quote_balance: u64, debt: u64): u64 {
     quote_balance * protocol_constants::bps() / debt
 }
 
-/// Health factor using vault debt and posted margin debt.
+/// Health factor using vault debt, posted margin debt, and current leverage.
 public fun evaluate_position_health(
     quote_balance: u64,
     vault_debt: u64,
     margin_debt: u64,
+    leverage_bps: u64,
 ): u64 {
-    evaluate_account_health(quote_balance, effective_health_debt(vault_debt, margin_debt))
+    evaluate_account_health(quote_balance, effective_health_debt(vault_debt, margin_debt, leverage_bps))
 }
 
-/// True when account health is below the margin-call threshold.
-public fun is_liquidatable(quote_balance: u64, debt: u64): bool {
+/// True when account health is below the liquidation threshold.
+public fun is_liquidatable(quote_balance: u64, debt: u64, liquidation_bps: u64): bool {
     if (debt == 0) return false;
-    evaluate_account_health(quote_balance, debt) < protocol_constants::margin_call_bps()
+    evaluate_account_health(quote_balance, debt) < liquidation_bps
 }
 
 /// True when health is below the margin-call threshold (vault or posted margin debt).
@@ -58,8 +65,14 @@ public fun is_position_liquidatable(
     quote_balance: u64,
     vault_debt: u64,
     margin_debt: u64,
+    leverage_bps: u64,
+    liquidation_bps: u64,
 ): bool {
-    is_liquidatable(quote_balance, effective_health_debt(vault_debt, margin_debt))
+    is_liquidatable(
+        quote_balance,
+        effective_health_debt(vault_debt, margin_debt, leverage_bps),
+        liquidation_bps,
+    )
 }
 
 /// Assert leverage is within protocol min/max bounds.

@@ -158,6 +158,7 @@ export function PredictLeveragePanel({
     DEFAULT_LIMIT_ORDER_EXPIRY_MS,
   );
   const [limitExecution, setLimitExecution] = useState<LimitExecutionMode>("resting");
+  const [remintAfterDeleverage, setRemintAfterDeleverage] = useState(true);
   const [tpSl, setTpSl] = useState(false);
   const [tp, setTp] = useState("");
   const [sl, setSl] = useState("");
@@ -197,6 +198,7 @@ export function PredictLeveragePanel({
     setPlacementSlippagePct(5);
     setOrderExpiresOffsetMs(DEFAULT_LIMIT_ORDER_EXPIRY_MS);
     setLimitExecution("resting");
+    setRemintAfterDeleverage(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- strike props intentionally omitted
   }, [tradeContextKey]);
 
@@ -811,6 +813,7 @@ export function PredictLeveragePanel({
           orderType === "limit" && limitExecution === "resting"
             ? Math.min(Date.now() + orderExpiresOffsetMs, expiryMs)
             : undefined,
+        remintAfterDeleverage: lev > 1 ? remintAfterDeleverage : false,
         tpPremium: tpPremium > 0n ? tpPremium : undefined,
         slPremium: slPremium > 0n ? slPremium : undefined,
       },
@@ -1121,6 +1124,22 @@ export function PredictLeveragePanel({
               </div>
             ) : null}
           </div>
+
+          {lev > 1 ? (
+            <div className={tpSlBlock}>
+              <div className={tpSlHeader}>
+                <LabelWithInfo
+                  label="Continue prediction with 1x leverage after deleverage"
+                  labelClassName={labelCaps}
+                  info={leverxInfo.remintAfterDeleverage}
+                />
+                <Switch
+                  checked={remintAfterDeleverage}
+                  onCheckedChange={setRemintAfterDeleverage}
+                />
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div className="space-y-2 border-t border-border p-4">

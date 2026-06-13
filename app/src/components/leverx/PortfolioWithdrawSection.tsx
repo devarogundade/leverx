@@ -51,20 +51,25 @@ export function PortfolioWithdrawSection({ accountId, positions, className }: Pr
 
   return (
     <section className={cn(tradeSurface, "overflow-hidden", className)}>
-      <div className="border-b border-border px-4 py-3">
+      <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
         <LabelWithInfo
           label="Withdraw to wallet"
-          labelClassName="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+          labelClassName={labelCaps}
           info={leverxInfo.withdrawTradingBalance}
         />
+        {rows.length > 0 ? (
+          <span className="font-mono text-xs tabular-nums text-muted-foreground">
+            {rows.length} key{rows.length === 1 ? "" : "s"}
+          </span>
+        ) : null}
       </div>
       <div className="px-4 py-3">
         {isLoading && rows.length === 0 ? (
           <p className="text-xs text-muted-foreground">Loading balances…</p>
         ) : rows.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            No withdrawable dUSDC on your trading account. After closing a trade, proceeds stay on
-            the market key until you withdraw here (repay any borrow first).
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            No withdrawable dUSDC on your account right now. After closing a trade, free quote stays
+            on the market key until you withdraw here — repay any vault borrow first.
           </p>
         ) : (
           <ul className={settingsList}>

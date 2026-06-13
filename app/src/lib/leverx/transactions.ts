@@ -25,7 +25,7 @@ import {
   type MintOrderParams,
 } from "@/lib/leverx/ptb-builder";
 import { lxplpCoinType, type LeverxProtocolConfig } from "@/lib/leverx/protocol";
-import { fetchMintQuote, fetchRedeemQuote, simulateCloseWithdrawAtoms } from "@/lib/leverx/quotes";
+import { fetchMintQuote, fetchRedeemQuote } from "@/lib/leverx/quotes";
 import {
   applySlippageBps,
   applySlippageFloor,
@@ -51,6 +51,8 @@ export type OpenTradeInput = {
   marketSlippageBps?: number;
   placementSlippageBps?: number;
   orderExpiresMs?: number;
+  /** When true, keeper force-deleverage may remint a 1x position from free quote. */
+  remintAfterDeleverage?: boolean;
   tpPremium?: bigint;
   slPremium?: bigint;
 };
@@ -155,8 +157,10 @@ export async function executeOpenTrade(params: {
     quantity,
     limitPremiumPerUnit: limitPremiumRaw,
     placementSlippageBps,
+    marketSlippageBps: marketSlippageBps,
     maxMintCost: applySlippageBps(positionAtoms, marketSlippageBps),
     orderExpiresMs: input.orderExpiresMs ?? input.key.expiryMs,
+    remintAfterDeleverage: input.remintAfterDeleverage ?? true,
   };
 
   await assertLeverxTradeCompatibility({
@@ -236,24 +240,6 @@ export async function executeClosePosition(params: {
   }
 
   const key = positionToKey(position);
-  const withdrawAtoms = await simulateCloseWithdrawAtoms({
-    client: params.client,
-    cfg: params.cfg,
-    sender: params.account.address,
-    accountId: position.account_id,
-    key,
-    appendClose: (tx) => {
-      appendRedeem(tx, params.cfg, {
-        key,
-        accountId: position.account_id,
-        predictManagerId,
-        quantity: BigInt(position.open_quantity),
-        redeemMode,
-        minPayout: minPayout ?? 0n,
-        minPremiumPerUnit: params.input.minPremiumPerUnit,
-      });
-    },
-  });
 
   return executeWalletTransaction(
     params.client,
@@ -269,9 +255,6 @@ export async function executeClosePosition(params: {
         minPayout: minPayout ?? 0n,
         minPremiumPerUnit: params.input.minPremiumPerUnit,
       });
-      if (withdrawAtoms > 0n) {
-        appendWithdrawQuote(tx, params.cfg, position.account_id, key, withdrawAtoms);
-      }
     },
     { gasBudget: TRADE_GAS_BUDGET },
   );
@@ -318,21 +301,6 @@ export async function executeSettleExpired(params: {
   const predictManagerId = params.position.predict_manager_id;
 
   const key = positionToKey(params.position);
-  const withdrawAtoms = await simulateCloseWithdrawAtoms({
-    client: params.client,
-    cfg: params.cfg,
-    sender: params.account.address,
-    accountId: params.position.account_id,
-    key,
-    appendClose: (tx) => {
-      appendSettleExpired(tx, params.cfg, {
-        key,
-        accountId: params.position.account_id,
-        predictManagerId,
-        quantity: BigInt(params.position.open_quantity),
-      });
-    },
-  });
 
   return executeWalletTransaction(
     params.client,
@@ -345,9 +313,6 @@ export async function executeSettleExpired(params: {
         predictManagerId,
         quantity: BigInt(params.position.open_quantity),
       });
-      if (withdrawAtoms > 0n) {
-        appendWithdrawQuote(tx, params.cfg, params.position.account_id, key, withdrawAtoms);
-      }
     },
     { gasBudget: TRADE_GAS_BUDGET },
   );
@@ -377,6 +342,7 @@ export async function executeRepayDebt(params: {
         key: positionToKey(params.position),
         accountId: params.position.account_id,
         repaymentCoin,
+        slippageBps: DEFAULT_SLIPPAGE_BPS,
       });
     },
     { gasBudget: TRADE_GAS_BUDGET },

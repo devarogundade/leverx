@@ -4,6 +4,8 @@
 /// Protocol-wide numeric constants (named to avoid deepbook::constants collision at 0x0).
 module leverx::protocol_constants;
 
+use leverx::errors;
+
 // --- Basis points & token decimals ---
 
 const BPS: u64 = 10_000;
@@ -16,6 +18,8 @@ const MAX_LEVERAGE: u64 = 10;
 /// Minimum leverage in bps (10_000 bps = 1x, no vault borrow).
 const MIN_LEVERAGE_BPS: u64 = 10_000;
 const MARGIN_CALL_BPS: u64 = 9_500;
+/// Default liquidation health threshold at registry init (95% = liquidate when health < 9_500 bps).
+const DEFAULT_LIQUIDATION_BPS: u64 = MARGIN_CALL_BPS;
 
 /// Leveraged mints (>1x) are blocked in the final hour before oracle expiry.
 const LEVERAGED_MINT_WINDOW_MS: u64 = 3_600_000;
@@ -105,6 +109,15 @@ public fun max_margin_quote(): u64 { MAX_MARGIN_QUOTE }
 
 /// Margin-call health threshold in basis points (liquidate when health < this).
 public fun margin_call_bps(): u64 { MARGIN_CALL_BPS }
+
+/// Default liquidation threshold used when the registry is initialized (95%).
+public fun default_liquidation_bps(): u64 { DEFAULT_LIQUIDATION_BPS }
+
+/// Assert liquidation threshold is in `(0, bps()]`.
+public fun assert_liquidation_bps(liquidation_bps: u64) {
+    assert!(liquidation_bps > 0, errors::invalid_liquidation_bps());
+    assert!(liquidation_bps <= bps(), errors::invalid_liquidation_bps());
+}
 
 // --- Public getters: interest rate model ---
 

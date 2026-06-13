@@ -30,6 +30,8 @@ use deepbook_predict::{market_key::MarketKey, range_key::RangeKey};
 use leverx::{
     errors,
     events,
+    ltv,
+    protocol_constants,
     proxy_vault::{Self, BalanceManager, DepositCap, WithdrawCap},
 };
 use sui::{
@@ -57,8 +59,12 @@ public struct PositionLedger has store {
     quote_balance: u64,
     /// Quote borrowed from the protocol vault for this market key (subset of proxy total).
     borrowed_quote: u64,
-    /// Posted margin requirement for 1x health checks (vault borrow may be zero).
+    /// Posted margin requirement for leveraged health checks (zero at 1x).
     margin_debt: u64,
+    /// Current position leverage in basis points (10_000 = 1x, no vault borrow).
+    leverage_bps: u64,
+    /// When true, force-deleverage may remint a 1x position from free quote after repay.
+    remint_after_deleverage: bool,
 }
 
 /// Resting leveraged mint limit order — slippage is frozen at placement for keeper fills.
@@ -81,6 +87,8 @@ public struct PendingLimitMintOrder has copy, drop, store {
     placed_at_ms: u64,
     /// Address that placed the order (owner or registered executor).
     placed_by: address,
+    /// Remint 1x after deleverage when the resting order fills.
+    remint_after_deleverage: bool,
 }
 
 /// Shared on-chain account for one LeverX user.
@@ -260,6 +268,42 @@ public fun range_margin_debt(proxy: &UserProxy, key: RangeKey): u64 {
     }
 }
 
+/// Return leverage in basis points for a binary market key (10_000 = 1x).
+public fun binary_leverage_bps(proxy: &UserProxy, key: MarketKey): u64 {
+    if (proxy.binary_ledgers.contains(key)) {
+        proxy.binary_ledgers.borrow(key).leverage_bps
+    } else {
+        protocol_constants::bps()
+    }
+}
+
+/// Return leverage in basis points for a range market key (10_000 = 1x).
+public fun range_leverage_bps(proxy: &UserProxy, key: RangeKey): u64 {
+    if (proxy.range_ledgers.contains(key)) {
+        proxy.range_ledgers.borrow(key).leverage_bps
+    } else {
+        protocol_constants::bps()
+    }
+}
+
+/// Return whether force-deleverage should remint 1x for a binary key (default true).
+public fun binary_remint_after_deleverage(proxy: &UserProxy, key: MarketKey): bool {
+    if (proxy.binary_ledgers.contains(key)) {
+        proxy.binary_ledgers.borrow(key).remint_after_deleverage
+    } else {
+        true
+    }
+}
+
+/// Return whether force-deleverage should remint 1x for a range key (default true).
+public fun range_remint_after_deleverage(proxy: &UserProxy, key: RangeKey): bool {
+    if (proxy.range_ledgers.contains(key)) {
+        proxy.range_ledgers.borrow(key).remint_after_deleverage
+    } else {
+        true
+    }
+}
+
 /// Return `(take_profit_premium, stop_loss_premium)` for a binary key, or `(0, 0)`.
 public fun get_binary_triggers(proxy: &UserProxy, key: MarketKey): (u64, u64) {
     if (proxy.binary_triggers.contains(key)) {
@@ -353,7 +397,19 @@ public(package) fun withdraw_quote_from_binary<Quote>(
     amount: u64,
     ctx: &mut TxContext,
 ): Coin<Quote> {
-    debit_binary_quote(proxy, key, amount);
+    debit_binary_quote(proxy, key, amount, 0);
+    proxy.balance_manager.withdraw_with_cap(&proxy.withdraw_cap, amount, ctx)
+}
+
+/// Debit binary quote for funding a mint; `slippage_bps` tolerates rapid market moves vs quote.
+public(package) fun withdraw_quote_from_binary_with_slippage<Quote>(
+    proxy: &mut UserProxy,
+    key: MarketKey,
+    amount: u64,
+    slippage_bps: u64,
+    ctx: &mut TxContext,
+): Coin<Quote> {
+    debit_binary_quote(proxy, key, amount, slippage_bps);
     proxy.balance_manager.withdraw_with_cap(&proxy.withdraw_cap, amount, ctx)
 }
 
@@ -364,7 +420,19 @@ public(package) fun withdraw_quote_from_range<Quote>(
     amount: u64,
     ctx: &mut TxContext,
 ): Coin<Quote> {
-    debit_range_quote(proxy, key, amount);
+    debit_range_quote(proxy, key, amount, 0);
+    proxy.balance_manager.withdraw_with_cap(&proxy.withdraw_cap, amount, ctx)
+}
+
+/// Debit range quote for funding a mint; `slippage_bps` tolerates rapid market moves vs quote.
+public(package) fun withdraw_quote_from_range_with_slippage<Quote>(
+    proxy: &mut UserProxy,
+    key: RangeKey,
+    amount: u64,
+    slippage_bps: u64,
+    ctx: &mut TxContext,
+): Coin<Quote> {
+    debit_range_quote(proxy, key, amount, slippage_bps);
     proxy.balance_manager.withdraw_with_cap(&proxy.withdraw_cap, amount, ctx)
 }
 
@@ -405,7 +473,7 @@ public(package) fun reserve_binary_quote(
     amount: u64,
     _ctx: &mut TxContext,
 ) {
-    debit_binary_quote(proxy, key, amount);
+    debit_binary_quote(proxy, key, amount, 0);
 }
 
 /// Lock quote margin for a resting limit order on this range market key.
@@ -415,7 +483,7 @@ public(package) fun reserve_range_quote(
     amount: u64,
     _ctx: &mut TxContext,
 ) {
-    debit_range_quote(proxy, key, amount);
+    debit_range_quote(proxy, key, amount, 0);
 }
 
 /// Return reserved quote to the binary ledger (cancel / expire path).
@@ -540,6 +608,120 @@ public(package) fun clear_range_margin_debt(proxy: &mut UserProxy, key: RangeKey
     };
 }
 
+/// Set leverage for a binary market key.
+public(package) fun set_binary_leverage(
+    proxy: &mut UserProxy,
+    key: MarketKey,
+    leverage_bps: u64,
+    ctx: &mut TxContext,
+) {
+    let ledger = ensure_binary_ledger(proxy, key, ctx);
+    ledger.leverage_bps = leverage_bps;
+    if (!ltv::is_leveraged(leverage_bps)) {
+        ledger.margin_debt = 0;
+    };
+}
+
+/// Set leverage for a range market key.
+public(package) fun set_range_leverage(
+    proxy: &mut UserProxy,
+    key: RangeKey,
+    leverage_bps: u64,
+    ctx: &mut TxContext,
+) {
+    let ledger = ensure_range_ledger(proxy, key, ctx);
+    ledger.leverage_bps = leverage_bps;
+    if (!ltv::is_leveraged(leverage_bps)) {
+        ledger.margin_debt = 0;
+    };
+}
+
+/// Set post-deleverage remint preference for a binary market key.
+public(package) fun set_binary_remint_after_deleverage(
+    proxy: &mut UserProxy,
+    key: MarketKey,
+    remint_after_deleverage: bool,
+    ctx: &mut TxContext,
+) {
+    let ledger = ensure_binary_ledger(proxy, key, ctx);
+    ledger.remint_after_deleverage = remint_after_deleverage;
+}
+
+/// Set post-deleverage remint preference for a range market key.
+public(package) fun set_range_remint_after_deleverage(
+    proxy: &mut UserProxy,
+    key: RangeKey,
+    remint_after_deleverage: bool,
+    ctx: &mut TxContext,
+) {
+    let ledger = ensure_range_ledger(proxy, key, ctx);
+    ledger.remint_after_deleverage = remint_after_deleverage;
+}
+
+/// Reset binary key to unleveraged (1x) after full vault debt repayment.
+public(package) fun reset_binary_to_unleveraged(
+    proxy: &mut UserProxy,
+    key: MarketKey,
+    ctx: &mut TxContext,
+) {
+    set_binary_leverage(proxy, key, protocol_constants::bps(), ctx);
+}
+
+/// Reset range key to unleveraged (1x) after full vault debt repayment.
+public(package) fun reset_range_to_unleveraged(
+    proxy: &mut UserProxy,
+    key: RangeKey,
+    ctx: &mut TxContext,
+) {
+    set_range_leverage(proxy, key, protocol_constants::bps(), ctx);
+}
+
+/// Transfer all free quote on a binary key to `recipient` when vault debt is zero.
+public(package) fun sweep_binary_free_quote_to<Quote>(
+    proxy: &mut UserProxy,
+    key: MarketKey,
+    recipient: address,
+    ctx: &mut TxContext,
+) {
+    if (proxy.binary_borrowed_quote(key) > 0) return;
+    let free = proxy.binary_quote_balance(key);
+    if (free == 0) return;
+    let coin = withdraw_quote_from_binary<Quote>(proxy, key, free, ctx);
+    transfer::public_transfer(coin, recipient);
+}
+
+/// Transfer all free quote on a binary key to `ctx.sender()` when vault debt is zero.
+public(package) fun sweep_binary_free_quote_to_sender<Quote>(
+    proxy: &mut UserProxy,
+    key: MarketKey,
+    ctx: &mut TxContext,
+) {
+    sweep_binary_free_quote_to(proxy, key, ctx.sender(), ctx);
+}
+
+/// Transfer all free quote on a range key to `recipient` when vault debt is zero.
+public(package) fun sweep_range_free_quote_to<Quote>(
+    proxy: &mut UserProxy,
+    key: RangeKey,
+    recipient: address,
+    ctx: &mut TxContext,
+) {
+    if (proxy.range_borrowed_quote(key) > 0) return;
+    let free = proxy.range_quote_balance(key);
+    if (free == 0) return;
+    let coin = withdraw_quote_from_range<Quote>(proxy, key, free, ctx);
+    transfer::public_transfer(coin, recipient);
+}
+
+/// Transfer all free quote on a range key to `ctx.sender()` when vault debt is zero.
+public(package) fun sweep_range_free_quote_to_sender<Quote>(
+    proxy: &mut UserProxy,
+    key: RangeKey,
+    ctx: &mut TxContext,
+) {
+    sweep_range_free_quote_to(proxy, key, ctx.sender(), ctx);
+}
+
 // === Ledger ops (internal) ===
 
 fun ensure_binary_ledger(
@@ -552,6 +734,8 @@ fun ensure_binary_ledger(
             quote_balance: 0,
             borrowed_quote: 0,
             margin_debt: 0,
+            leverage_bps: protocol_constants::bps(),
+            remint_after_deleverage: true,
         });
     };
     proxy.binary_ledgers.borrow_mut(key)
@@ -567,6 +751,8 @@ fun ensure_range_ledger(
             quote_balance: 0,
             borrowed_quote: 0,
             margin_debt: 0,
+            leverage_bps: protocol_constants::bps(),
+            remint_after_deleverage: true,
         });
     };
     proxy.range_ledgers.borrow_mut(key)
@@ -585,7 +771,7 @@ fun credit_range_quote(proxy: &mut UserProxy, key: RangeKey, amount: u64, ctx: &
 }
 
 /// Decrease binary quote ledger balance; aborts if insufficient or ledger missing.
-fun debit_binary_quote(proxy: &mut UserProxy, key: MarketKey, amount: u64) {
+fun debit_binary_quote(proxy: &mut UserProxy, key: MarketKey, amount: u64, _slippage_bps: u64) {
     assert!(proxy.binary_ledgers.contains(key), errors::insufficient_margin());
     let ledger = proxy.binary_ledgers.borrow_mut(key);
     assert!(ledger.quote_balance >= amount, errors::insufficient_margin());
@@ -593,7 +779,7 @@ fun debit_binary_quote(proxy: &mut UserProxy, key: MarketKey, amount: u64) {
 }
 
 /// Decrease range quote ledger balance; aborts if insufficient or ledger missing.
-fun debit_range_quote(proxy: &mut UserProxy, key: RangeKey, amount: u64) {
+fun debit_range_quote(proxy: &mut UserProxy, key: RangeKey, amount: u64, _slippage_bps: u64) {
     assert!(proxy.range_ledgers.contains(key), errors::insufficient_margin());
     let ledger = proxy.range_ledgers.borrow_mut(key);
     assert!(ledger.quote_balance >= amount, errors::insufficient_margin());
@@ -627,6 +813,13 @@ public(package) fun clear_binary_triggers(proxy: &mut UserProxy, key: MarketKey)
     proxy.binary_triggers.remove(key);
 }
 
+/// Remove binary triggers when present; returns `true` if a row was removed.
+public(package) fun clear_binary_triggers_if_set(proxy: &mut UserProxy, key: MarketKey): bool {
+    if (!proxy.binary_triggers.contains(key)) return false;
+    proxy.binary_triggers.remove(key);
+    true
+}
+
 /// Set or update take-profit / stop-loss premiums for a range market key.
 public(package) fun set_range_triggers(
     proxy: &mut UserProxy,
@@ -650,6 +843,13 @@ public(package) fun set_range_triggers(
 public(package) fun clear_range_triggers(proxy: &mut UserProxy, key: RangeKey) {
     assert!(proxy.range_triggers.contains(key), errors::trigger_not_found());
     proxy.range_triggers.remove(key);
+}
+
+/// Remove range triggers when present; returns `true` if a row was removed.
+public(package) fun clear_range_triggers_if_set(proxy: &mut UserProxy, key: RangeKey): bool {
+    if (!proxy.range_triggers.contains(key)) return false;
+    proxy.range_triggers.remove(key);
+    true
 }
 
 // === Limit mint orders ===
@@ -789,6 +989,11 @@ public fun leverage_bps(order: &PendingLimitMintOrder): u64 {
     order.leverage_bps
 }
 
+/// Return whether to remint 1x after a future force-deleverage.
+public fun remint_after_deleverage(order: &PendingLimitMintOrder): bool {
+    order.remint_after_deleverage
+}
+
 /// Return outcome units to mint on fill.
 public fun quantity(order: &PendingLimitMintOrder): u64 {
     order.quantity
@@ -854,6 +1059,7 @@ public(package) fun new_pending_limit_mint_order(
     expires_ms: u64,
     placed_at_ms: u64,
     placed_by: address,
+    remint_after_deleverage: bool,
 ): PendingLimitMintOrder {
     PendingLimitMintOrder {
         limit_premium_per_unit,
@@ -865,6 +1071,7 @@ public(package) fun new_pending_limit_mint_order(
         expires_ms,
         placed_at_ms,
         placed_by,
+        remint_after_deleverage,
     }
 }
 

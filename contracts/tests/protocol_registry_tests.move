@@ -1,7 +1,7 @@
 #[test_only]
 module leverx::protocol_registry_tests;
 
-use leverx::protocol_registry;
+use leverx::{errors, protocol_registry};
 use sui::test_scenario;
 
 #[test]
@@ -14,6 +14,44 @@ fun trading_pause_flag_roundtrip() {
     assert!(!protocol_registry::trading_paused(&registry), 0);
     protocol_registry::set_trading_paused(&admin, &mut registry, true);
     assert!(protocol_registry::trading_paused(&registry), 0);
+
+    scenario.end();
+}
+
+#[test]
+fun liquidation_bps_defaults_to_ninety_five_percent() {
+    let owner = @0xAD;
+    let mut scenario = test_scenario::begin(owner);
+    let ctx = scenario.ctx();
+
+    let (_admin, registry) = protocol_registry::create_for_testing(ctx);
+    assert!(protocol_registry::liquidation_bps(&registry) == 9_500, 0);
+
+    scenario.end();
+}
+
+#[test]
+fun admin_can_update_liquidation_bps() {
+    let owner = @0xAD;
+    let mut scenario = test_scenario::begin(owner);
+    let ctx = scenario.ctx();
+
+    let (admin, mut registry) = protocol_registry::create_for_testing(ctx);
+    protocol_registry::set_liquidation_bps(&admin, &mut registry, 8_000);
+    assert!(protocol_registry::liquidation_bps(&registry) == 8_000, 0);
+
+    scenario.end();
+}
+
+#[test]
+#[expected_failure(abort_code = errors::E_INVALID_LIQUIDATION_BPS)]
+fun invalid_liquidation_bps_rejected() {
+    let owner = @0xAD;
+    let mut scenario = test_scenario::begin(owner);
+    let ctx = scenario.ctx();
+
+    let (admin, mut registry) = protocol_registry::create_for_testing(ctx);
+    protocol_registry::set_liquidation_bps(&admin, &mut registry, 0);
 
     scenario.end();
 }

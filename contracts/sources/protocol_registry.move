@@ -32,6 +32,8 @@ public struct LeverxRegistry has key {
     fee_collector_id: ID,
     /// When true, user-facing trade and borrow entry points abort.
     trading_paused: bool,
+    /// Liquidate when position health (bps) falls below this threshold (default 9_500 = 95%).
+    liquidation_bps: u64,
 }
 
 // === Init ===
@@ -57,9 +59,16 @@ public fun initialize(
         vault_id: vault,
         fee_collector_id: fee_collector,
         trading_paused: false,
+        liquidation_bps: protocol_constants::default_liquidation_bps(),
     };
     let registry_id = object::id(&registry);
-    events::emit_registry_initialized(registry_id, vault, fee_collector, predict_id);
+    events::emit_registry_initialized(
+        registry_id,
+        vault,
+        fee_collector,
+        predict_id,
+        registry.liquidation_bps,
+    );
     registry
 }
 
@@ -72,6 +81,26 @@ public fun share_registry(registry: LeverxRegistry) {
 public fun set_trading_paused(_admin: &AdminCap, registry: &mut LeverxRegistry, paused: bool) {
     registry.trading_paused = paused;
     events::emit_trading_paused_changed(object::id(registry), paused);
+}
+
+/// Update the liquidation health threshold (liquidate when health < `liquidation_bps`).
+public fun set_liquidation_bps(
+    _admin: &AdminCap,
+    registry: &mut LeverxRegistry,
+    liquidation_bps: u64,
+) {
+    protocol_constants::assert_liquidation_bps(liquidation_bps);
+    registry.liquidation_bps = liquidation_bps;
+    events::emit_liquidation_bps_updated(object::id(registry), liquidation_bps);
+}
+
+/// Transaction entry: update liquidation health threshold.
+public entry fun set_liquidation_bps_entry(
+    admin: &AdminCap,
+    registry: &mut LeverxRegistry,
+    liquidation_bps: u64,
+) {
+    set_liquidation_bps(admin, registry, liquidation_bps);
 }
 
 /// Transaction entry: pause or resume leveraged trading.
@@ -167,6 +196,11 @@ public fun trading_paused(registry: &LeverxRegistry): bool {
     registry.trading_paused
 }
 
+/// Liquidation health threshold in basis points (liquidate when health < this).
+public fun liquidation_bps(registry: &LeverxRegistry): u64 {
+    registry.liquidation_bps
+}
+
 /// Assert the vault object matches the registry deployment link.
 public fun assert_vault<Quote>(registry: &LeverxRegistry, vault: &LeverageVault<Quote>) {
     assert!(object::id(vault) == registry.vault_id, errors::invalid_protocol_vault());
@@ -191,6 +225,7 @@ public fun create_for_testing(ctx: &mut TxContext): (AdminCap, LeverxRegistry) {
         vault_id: object::id_from_address(@0x2),
         fee_collector_id: object::id_from_address(@0x3),
         trading_paused: false,
+        liquidation_bps: protocol_constants::default_liquidation_bps(),
     };
     (admin, registry)
 }

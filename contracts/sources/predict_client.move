@@ -289,6 +289,16 @@ public fun manager_balance<Quote>(manager: &PredictManager): u64 {
     manager.balance<Quote>()
 }
 
+/// Open binary contract quantity held in a Predict manager for `key`.
+public fun manager_binary_position(manager: &PredictManager, key: MarketKey): u64 {
+    manager.position(key)
+}
+
+/// Open range contract quantity held in a Predict manager for `key`.
+public fun manager_range_position(manager: &PredictManager, key: RangeKey): u64 {
+    manager.range_position(key)
+}
+
 /// Redeem binary contracts and credit only the incremental payout to a market key ledger.
 public fun redeem_binary_and_credit_key<Quote>(
     predict_obj: &mut Predict,

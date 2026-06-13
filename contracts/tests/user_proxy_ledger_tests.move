@@ -117,6 +117,7 @@ fun limit_order_reserve_release_and_cancel() {
         9_999_999_999,
         1,
         owner,
+        true,
     );
     user_proxy::reserve_binary_quote(&mut proxy, key, 400, ctx);
     user_proxy::place_binary_limit_mint(&mut proxy, key, order);
@@ -141,7 +142,7 @@ fun duplicate_limit_order_aborts() {
     let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_binary_key();
     let order = user_proxy::new_pending_limit_mint_order(
-        1, 0, 1, 1, 10_000, 1, 9, 1, owner,
+        1, 0, 1, 1, 10_000, 1, 9, 1, owner, true,
     );
 
     user_proxy::place_binary_limit_mint(&mut proxy, key, order);
@@ -168,6 +169,7 @@ fun limit_order_getters_expose_fields() {
         123_456,
         99,
         owner,
+        true,
     );
     user_proxy::place_binary_limit_mint(&mut proxy, key, order);
 
@@ -178,6 +180,7 @@ fun limit_order_getters_expose_fields() {
     assert!(user_proxy::slippage_bps(&order) == 250, 0);
     assert!(user_proxy::margin_quote(&order) == 1_000, 0);
     assert!(user_proxy::quantity(&order) == 7, 0);
+    assert!(user_proxy::remint_after_deleverage(&order), 0);
 
     scenario.end();
 }

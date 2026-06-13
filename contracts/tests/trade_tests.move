@@ -68,6 +68,7 @@ fun get_binary_limit_mint_order_delegates_to_proxy() {
         9_999_999_999,
         1,
         owner,
+        true,
     );
     user_proxy::place_binary_limit_mint(&mut proxy, key, order);
 
@@ -95,6 +96,7 @@ fun get_range_limit_mint_order_delegates_to_proxy() {
         9_999_999_999,
         1,
         owner,
+        true,
     );
     user_proxy::place_range_limit_mint(&mut proxy, key, order);
 
@@ -129,6 +131,7 @@ fun cancel_binary_limit_mint_order_releases_reserved_margin() {
         9_999_999_999,
         1,
         owner,
+        true,
     );
     user_proxy::reserve_binary_quote(&mut proxy, key, 400, ctx);
     user_proxy::place_binary_limit_mint(&mut proxy, key, order);
@@ -168,6 +171,7 @@ fun cancel_range_limit_mint_order_releases_reserved_margin() {
         9_999_999_999,
         1,
         owner,
+        true,
     );
     user_proxy::reserve_range_quote(&mut proxy, key, 300, ctx);
     user_proxy::place_range_limit_mint(&mut proxy, key, order);
@@ -239,6 +243,7 @@ fun deleverage_binary_partial_repay_reduces_key_debt() {
         &mut proxy,
         key,
         test_fixtures::mint_quote(400, test_fixtures::quote_treasury_mut(&mut setup), ctx),
+        0,
         &clock,
         ctx,
     );
@@ -271,12 +276,14 @@ fun deleverage_binary_overpay_credits_surplus_to_key() {
         &mut proxy,
         key,
         test_fixtures::mint_quote(1_500, test_fixtures::quote_treasury_mut(&mut setup), ctx),
+        0,
         &clock,
         ctx,
     );
 
     assert!(user_proxy::binary_borrowed_quote(&proxy, key) == 0, 0);
     assert!(user_proxy::binary_quote_balance(&proxy, key) == 500, 0);
+    assert!(user_proxy::binary_leverage_bps(&proxy, key) == protocol_constants::bps(), 0);
 
     clock::destroy_for_testing(clock);
     scenario.end();
@@ -303,6 +310,7 @@ fun deleverage_range_partial_repay_reduces_key_debt() {
         &mut proxy,
         key,
         test_fixtures::mint_quote(500, test_fixtures::quote_treasury_mut(&mut setup), ctx),
+        0,
         &clock,
         ctx,
     );
@@ -340,6 +348,7 @@ fun repay_debt_for_binary_uses_key_quote_balance() {
         test_fixtures::collector_mut(&mut setup),
         key,
         300,
+        0,
         &clock,
         ctx,
     );
@@ -378,6 +387,7 @@ fun repay_debt_for_range_uses_key_quote_balance() {
         test_fixtures::collector_mut(&mut setup),
         key,
         200,
+        0,
         &clock,
         ctx,
     );
@@ -408,6 +418,7 @@ fun deleverage_binary_rejects_zero_repayment() {
         &mut proxy,
         key,
         test_fixtures::mint_quote(0, test_fixtures::quote_treasury_mut(&mut setup), ctx),
+        0,
         &clock,
         ctx,
     );
@@ -533,7 +544,7 @@ fun cancel_binary_limit_requires_owner_or_executor() {
     let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_binary_key();
     let order = user_proxy::new_pending_limit_mint_order(
-        500_000_000, 100, 500_000_000, 400, 20_000, 5, 9_999_999_999, 1, owner,
+        500_000_000, 100, 500_000_000, 400, 20_000, 5, 9_999_999_999, 1, owner, true,
     );
     user_proxy::place_binary_limit_mint(&mut proxy, key, order);
 

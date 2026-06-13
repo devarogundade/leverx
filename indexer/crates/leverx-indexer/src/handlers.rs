@@ -440,6 +440,38 @@ impl Handler for LeverxEventsHandler {
             .await?;
         }
 
+        for close in &batch.position_closes {
+            rows += diesel::sql_query(
+                "UPDATE leveraged_positions SET \
+                 open_quantity = open_quantity - $1, \
+                 realized_payout = realized_payout + $2, \
+                 borrow_quote = $3, \
+                 margin_quote = CASE \
+                   WHEN open_quantity - $1 <= 0 THEN 0 \
+                   ELSE (margin_quote * GREATEST(open_quantity - $1, 0) / GREATEST(open_quantity, 1)) \
+                 END, \
+                 mint_cost = CASE \
+                   WHEN open_quantity - $1 <= 0 THEN 0 \
+                   ELSE (mint_cost * GREATEST(open_quantity - $1, 0) / GREATEST(open_quantity, 1)) \
+                 END, \
+                 status = CASE \
+                   WHEN open_quantity - $1 <= 0 THEN CASE WHEN $7 THEN 'settled' ELSE 'closed' END \
+                   ELSE 'open' \
+                 END, \
+                 closed_at_ms = CASE WHEN open_quantity - $1 <= 0 THEN $4 ELSE NULL END \
+                 WHERE position_key = $5 AND account_id = $6",
+            )
+            .bind::<diesel::sql_types::BigInt, _>(close.quantity)
+            .bind::<diesel::sql_types::BigInt, _>(close.payout)
+            .bind::<diesel::sql_types::BigInt, _>(close.remaining_borrow_quote)
+            .bind::<diesel::sql_types::BigInt, _>(close.closed_at_ms)
+            .bind::<diesel::sql_types::Text, _>(&close.position_key)
+            .bind::<diesel::sql_types::Text, _>(&close.account_id)
+            .bind::<diesel::sql_types::Bool, _>(close.settled)
+            .execute(conn)
+            .await?;
+        }
+
         for pos in &batch.positions_open {
             rows += diesel::insert_into(leveraged_positions::table)
                 .values(pos)
@@ -472,38 +504,6 @@ impl Handler for LeverxEventsHandler {
                 ))
                 .execute(conn)
                 .await?;
-        }
-
-        for close in &batch.position_closes {
-            rows += diesel::sql_query(
-                "UPDATE leveraged_positions SET \
-                 open_quantity = open_quantity - $1, \
-                 realized_payout = realized_payout + $2, \
-                 borrow_quote = $3, \
-                 margin_quote = CASE \
-                   WHEN open_quantity - $1 <= 0 THEN 0 \
-                   ELSE (margin_quote * GREATEST(open_quantity - $1, 0) / GREATEST(open_quantity, 1)) \
-                 END, \
-                 mint_cost = CASE \
-                   WHEN open_quantity - $1 <= 0 THEN 0 \
-                   ELSE (mint_cost * GREATEST(open_quantity - $1, 0) / GREATEST(open_quantity, 1)) \
-                 END, \
-                 status = CASE \
-                   WHEN open_quantity - $1 <= 0 THEN CASE WHEN $7 THEN 'settled' ELSE 'closed' END \
-                   ELSE 'open' \
-                 END, \
-                 closed_at_ms = CASE WHEN open_quantity - $1 <= 0 THEN $4 ELSE NULL END \
-                 WHERE position_key = $5 AND account_id = $6",
-            )
-            .bind::<diesel::sql_types::BigInt, _>(close.quantity)
-            .bind::<diesel::sql_types::BigInt, _>(close.payout)
-            .bind::<diesel::sql_types::BigInt, _>(close.remaining_borrow_quote)
-            .bind::<diesel::sql_types::BigInt, _>(close.closed_at_ms)
-            .bind::<diesel::sql_types::Text, _>(&close.position_key)
-            .bind::<diesel::sql_types::Text, _>(&close.account_id)
-            .bind::<diesel::sql_types::Bool, _>(close.settled)
-            .execute(conn)
-            .await?;
         }
 
         if !batch.trades.is_empty() {

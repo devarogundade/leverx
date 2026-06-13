@@ -75,6 +75,7 @@ const E_MUST_LIQUIDATE: u64 = 45;
 const E_NO_LEVERAGED_EXPOSURE: u64 = 46;
 const E_FORCE_DELEVERAGE_OUTSIDE_WINDOW: u64 = 47;
 const E_MARKET_STILL_OPEN: u64 = 48;
+const E_INVALID_LIQUIDATION_BPS: u64 = 49;
 
 // --- Auth & access control ---
 
@@ -212,3 +213,6 @@ public fun oracle_already_settled(): u64 { E_ORACLE_ALREADY_SETTLED }
 
 /// Post-expiry recovery called before the market expiry timestamp.
 public fun market_still_open(): u64 { E_MARKET_STILL_OPEN }
+
+/// Liquidation health threshold must be in `(0, 10_000]` basis points.
+public fun invalid_liquidation_bps(): u64 { E_INVALID_LIQUIDATION_BPS }

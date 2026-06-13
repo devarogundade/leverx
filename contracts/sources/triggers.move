@@ -5,8 +5,8 @@
 /// Premiums are DeepBook Predict 1e9-scaled per-contract values; keepers read them to auto-close positions.
 module leverx::triggers;
 
-use deepbook_predict::{market_key::MarketKey, range_key::RangeKey};
-use leverx::{events, user_proxy::UserProxy};
+use deepbook_predict::{market_key::MarketKey, predict_manager::PredictManager, range_key::RangeKey};
+use leverx::{events, predict_client, user_proxy::UserProxy};
 
 /// Wallet-friendly binary market path (call from PTB as a public function).
 public fun set_automated_triggers_entry(
@@ -88,4 +88,28 @@ public fun get_triggers(proxy: &UserProxy, market_key: MarketKey): (u64, u64) {
 /// Read range-market `(take_profit_premium, stop_loss_premium)` — zeros if unset.
 public fun get_range_triggers(proxy: &UserProxy, range_key: RangeKey): (u64, u64) {
     proxy.get_range_triggers(range_key)
+}
+
+/// Clear binary TP/SL when the Predict manager has no open contracts left on `key`.
+public(package) fun maybe_clear_binary_triggers_if_flat(
+    proxy: &mut UserProxy,
+    manager: &PredictManager,
+    key: MarketKey,
+) {
+    if (predict_client::manager_binary_position(manager, key) > 0) return;
+    if (proxy.clear_binary_triggers_if_set(key)) {
+        events::emit_triggers_cleared(object::id(proxy), key.oracle_id(), false);
+    };
+}
+
+/// Clear range TP/SL when the Predict manager has no open contracts left on `key`.
+public(package) fun maybe_clear_range_triggers_if_flat(
+    proxy: &mut UserProxy,
+    manager: &PredictManager,
+    key: RangeKey,
+) {
+    if (predict_client::manager_range_position(manager, key) > 0) return;
+    if (proxy.clear_range_triggers_if_set(key)) {
+        events::emit_triggers_cleared(object::id(proxy), key.oracle_id(), true);
+    };
 }

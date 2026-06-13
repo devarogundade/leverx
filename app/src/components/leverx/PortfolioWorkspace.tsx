@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Inbox, Settings2 } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Inbox, Settings2, TrendingUp } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { SurfaceSkeleton } from "@/components/ui/market-skeleton";
@@ -156,8 +157,17 @@ export function PortfolioWorkspace({
 
         {tab === "account" && !account ? (
           <EmptyState
-            title="No trading account"
-            description="Open a trade to create your LeverX account."
+            icon={TrendingUp}
+            title="No trading account yet"
+            description="Your LeverX account is created when you open your first trade. Link a Predict manager here afterward to trade on-chain."
+            action={
+              <Link
+                to="/markets"
+                className="inline-flex items-center justify-center rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent/90"
+              >
+                Browse markets
+              </Link>
+            }
             compact
           />
         ) : null}

@@ -32,6 +32,16 @@ public struct RegistryInitialized has copy, drop {
     fee_collector_id: ID,
     /// DeepBook Predict global object ID.
     predict_id: ID,
+    /// Initial liquidation health threshold in basis points.
+    liquidation_bps: u64,
+}
+
+/// Emitted when admin updates the liquidation health threshold.
+public struct LiquidationBpsUpdated has copy, drop {
+    /// `LeverxRegistry` object ID.
+    registry_id: ID,
+    /// New liquidation threshold in basis points.
+    liquidation_bps: u64,
 }
 
 /// Emitted when global trading pause state changes.
@@ -622,12 +632,22 @@ public(package) fun emit_registry_initialized(
     vault_id: ID,
     fee_collector_id: ID,
     predict_id: ID,
+    liquidation_bps: u64,
 ) {
     event::emit(RegistryInitialized {
         registry_id,
         vault_id,
         fee_collector_id,
         predict_id,
+        liquidation_bps,
+    });
+}
+
+/// Emit `LiquidationBpsUpdated`.
+public(package) fun emit_liquidation_bps_updated(registry_id: ID, liquidation_bps: u64) {
+    event::emit(LiquidationBpsUpdated {
+        registry_id,
+        liquidation_bps,
     });
 }
 

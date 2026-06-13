@@ -11,8 +11,11 @@ export type MintOrderParams = {
   quantity: bigint;
   limitPremiumPerUnit?: bigint;
   placementSlippageBps?: number;
+  marketSlippageBps?: number;
   maxMintCost?: bigint;
   orderExpiresMs?: number;
+  /** When true, keeper force-deleverage may remint a 1x position from free quote. */
+  remintAfterDeleverage?: boolean;
 };
 
 export type RedeemParams = {
@@ -144,6 +147,7 @@ export function appendLeveragedMint(
         tx.pure.u64(params.leverageBps),
         tx.pure.u64(params.quantity),
         tx.pure.u64(params.orderExpiresMs ?? params.key.expiryMs),
+        tx.pure.bool(params.remintAfterDeleverage ?? true),
         tx.object(SUI_CLOCK_OBJECT_ID),
       ],
     });
@@ -170,8 +174,10 @@ export function appendLeveragedMint(
     );
   } else {
     args.push(tx.pure.u64(params.maxMintCost ?? 0n));
+    args.push(tx.pure.u64(params.marketSlippageBps ?? 500));
   }
 
+  args.push(tx.pure.bool(params.remintAfterDeleverage ?? true));
   args.push(tx.object(SUI_CLOCK_OBJECT_ID));
 
   tx.moveCall({
@@ -261,6 +267,7 @@ export function appendDeleverageDebt(
     key: MarketKeyArgs;
     accountId: string;
     repaymentCoin: TransactionObjectArgument;
+    slippageBps?: number;
   },
 ): void {
   const marketKey = addMarketKey(tx, params.key, cfg.predictPackageId);
@@ -278,6 +285,7 @@ export function appendDeleverageDebt(
       tx.object(params.accountId),
       marketKey,
       params.repaymentCoin,
+      tx.pure.u64(params.slippageBps ?? 500),
       tx.object(SUI_CLOCK_OBJECT_ID),
     ],
   });

@@ -26,9 +26,10 @@ use leverx::{
     predict_client,
     protocol_registry::{Self, LeverxRegistry},
     leverage_vault::{Self as vault_mod, LeverageVault},
+    triggers,
 };
 use std::u128;
-use sui::{clock::Clock, coin::{Self, Coin}};
+use sui::{clock::Clock, coin::{Self, Coin}, transfer};
 
 fun assert_registry_predict(registry: &LeverxRegistry, predict: &Predict) {
     protocol_registry::assert_predict(registry, predict);
@@ -117,6 +118,28 @@ public fun withdraw_quote_for_range_market<Quote>(
     proxy.withdraw_quote_for_range<Quote>(key, amount, ctx);
 }
 
+/// Set whether force-deleverage should remint a 1x position for a binary market key.
+public fun set_remint_after_deleverage_binary_market(
+    proxy: &mut UserProxy,
+    key: MarketKey,
+    remint_after_deleverage: bool,
+    ctx: &mut TxContext,
+) {
+    proxy.assert_can_act(ctx);
+    proxy.set_binary_remint_after_deleverage(key, remint_after_deleverage, ctx);
+}
+
+/// Set whether force-deleverage should remint a 1x position for a range market key.
+public fun set_remint_after_deleverage_range_market(
+    proxy: &mut UserProxy,
+    key: RangeKey,
+    remint_after_deleverage: bool,
+    ctx: &mut TxContext,
+) {
+    proxy.assert_can_act(ctx);
+    proxy.set_range_remint_after_deleverage(key, remint_after_deleverage, ctx);
+}
+
 /// Market mint at current oracle ask with explicit slippage cap (`max_mint_cost`).
 public fun leveraged_mint_binary_market<Quote>(
     registry: &LeverxRegistry,
@@ -130,6 +153,8 @@ public fun leveraged_mint_binary_market<Quote>(
     leverage_bps: u64,
     quantity: u64,
     max_mint_cost: u64,
+    slippage_bps: u64,
+    remint_after_deleverage: bool,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -147,7 +172,8 @@ public fun leveraged_mint_binary_market<Quote>(
         protocol_constants::order_type_market(),
         0,
         max_mint_cost,
-        0,
+        slippage_bps,
+        remint_after_deleverage,
         true,
         clock,
         ctx,
@@ -168,6 +194,7 @@ public fun leveraged_mint_binary_limit<Quote>(
     quantity: u64,
     limit_premium_per_unit: u64,
     slippage_bps: u64,
+    remint_after_deleverage: bool,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -186,6 +213,7 @@ public fun leveraged_mint_binary_limit<Quote>(
         limit_premium_per_unit,
         0,
         slippage_bps,
+        remint_after_deleverage,
         true,
         clock,
         ctx,
@@ -275,6 +303,8 @@ public fun leveraged_mint_range_market<Quote>(
     leverage_bps: u64,
     quantity: u64,
     max_mint_cost: u64,
+    slippage_bps: u64,
+    remint_after_deleverage: bool,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -292,7 +322,8 @@ public fun leveraged_mint_range_market<Quote>(
         protocol_constants::order_type_market(),
         0,
         max_mint_cost,
-        0,
+        slippage_bps,
+        remint_after_deleverage,
         true,
         clock,
         ctx,
@@ -313,6 +344,7 @@ public fun leveraged_mint_range_limit<Quote>(
     quantity: u64,
     limit_premium_per_unit: u64,
     slippage_bps: u64,
+    remint_after_deleverage: bool,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -331,6 +363,7 @@ public fun leveraged_mint_range_limit<Quote>(
         limit_premium_per_unit,
         0,
         slippage_bps,
+        remint_after_deleverage,
         true,
         clock,
         ctx,
@@ -352,6 +385,7 @@ public fun place_binary_limit_mint_order<Quote>(
     leverage_bps: u64,
     quantity: u64,
     expires_ms: u64,
+    remint_after_deleverage: bool,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -394,6 +428,7 @@ public fun place_binary_limit_mint_order<Quote>(
         expires_ms,
         now,
         ctx.sender(),
+        remint_after_deleverage,
     );
     proxy.place_binary_limit_mint(key, order);
     user_proxy::reserve_binary_quote(proxy, key, margin_quote, ctx);
@@ -431,6 +466,7 @@ public fun place_range_limit_mint_order<Quote>(
     leverage_bps: u64,
     quantity: u64,
     expires_ms: u64,
+    remint_after_deleverage: bool,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -473,6 +509,7 @@ public fun place_range_limit_mint_order<Quote>(
         expires_ms,
         now,
         ctx.sender(),
+        remint_after_deleverage,
     );
     proxy.place_range_limit_mint(key, order);
     user_proxy::reserve_range_quote(proxy, key, margin_quote, ctx);
@@ -534,6 +571,7 @@ public fun execute_binary_limit_mint_order<Quote>(
         user_proxy::margin_quote(&order),
         user_proxy::leverage_bps(&order),
         user_proxy::quantity(&order),
+        user_proxy::remint_after_deleverage(&order),
         clock,
         ctx,
     );
@@ -593,6 +631,7 @@ public fun execute_range_limit_mint_order<Quote>(
         user_proxy::margin_quote(&order),
         user_proxy::leverage_bps(&order),
         user_proxy::quantity(&order),
+        user_proxy::remint_after_deleverage(&order),
         clock,
         ctx,
     );
@@ -913,7 +952,7 @@ fun settle_expired_proxy_position_inner<Quote>(
     );
     let payout = predict_client::manager_balance<Quote>(manager) - balance_before;
 
-    repay_from_payout_binary(vault, collector, proxy, manager, payout, key, quantity, true, clock, ctx);
+    repay_from_payout_binary(vault, collector, proxy, manager, payout, key, quantity, true, false, clock, ctx);
 }
 
 /// Redeem a settled range position after oracle expiry; payout repays key debt and credits surplus.
@@ -1012,7 +1051,7 @@ fun settle_expired_proxy_range_inner<Quote>(
     );
     let payout = predict_client::manager_balance<Quote>(manager) - balance_before;
 
-    repay_from_payout_range(vault, collector, proxy, manager, payout, key, quantity, true, clock, ctx);
+    repay_from_payout_range(vault, collector, proxy, manager, payout, key, quantity, true, false, clock, ctx);
 }
 
 // === Force deleverage (keeper, final hour before expiry) ===
@@ -1050,6 +1089,7 @@ public fun force_deleverage_binary_at_expiry<Quote>(
         key,
         quantity,
         vault_debt,
+        protocol_registry::liquidation_bps(registry),
         clock,
     );
 
@@ -1065,6 +1105,7 @@ public fun force_deleverage_binary_at_expiry<Quote>(
     );
     let payout = predict_client::manager_balance<Quote>(manager) - balance_before;
 
+    let remint_after = proxy.binary_remint_after_deleverage(key);
     repay_from_payout_binary(
         vault,
         collector,
@@ -1074,21 +1115,29 @@ public fun force_deleverage_binary_at_expiry<Quote>(
         key,
         quantity,
         false,
+        remint_after,
         clock,
         ctx,
     );
 
-    let remint_qty = try_remint_unleveraged_binary(
-        registry,
-        vault,
-        proxy,
-        predict_global,
-        manager,
-        oracle,
-        key,
-        clock,
-        ctx,
-    );
+    let remint_qty = if (remint_after) {
+        try_remint_unleveraged_binary(
+            registry,
+            vault,
+            proxy,
+            predict_global,
+            manager,
+            oracle,
+            key,
+            clock,
+            ctx,
+        )
+    } else {
+        0
+    };
+    if (remint_after) {
+        finalize_binary_key_after_force_deleverage_remint<Quote>(proxy, manager, key, ctx);
+    };
 
     events::emit_position_force_deleveraged(
         object::id(proxy),
@@ -1140,6 +1189,7 @@ public fun force_deleverage_range_at_expiry<Quote>(
         key,
         quantity,
         vault_debt,
+        protocol_registry::liquidation_bps(registry),
         clock,
     );
 
@@ -1155,6 +1205,7 @@ public fun force_deleverage_range_at_expiry<Quote>(
     );
     let payout = predict_client::manager_balance<Quote>(manager) - balance_before;
 
+    let remint_after = proxy.range_remint_after_deleverage(key);
     repay_from_payout_range(
         vault,
         collector,
@@ -1164,21 +1215,29 @@ public fun force_deleverage_range_at_expiry<Quote>(
         key,
         quantity,
         false,
+        remint_after,
         clock,
         ctx,
     );
 
-    let remint_qty = try_remint_unleveraged_range(
-        registry,
-        vault,
-        proxy,
-        predict_global,
-        manager,
-        oracle,
-        key,
-        clock,
-        ctx,
-    );
+    let remint_qty = if (remint_after) {
+        try_remint_unleveraged_range(
+            registry,
+            vault,
+            proxy,
+            predict_global,
+            manager,
+            oracle,
+            key,
+            clock,
+            ctx,
+        )
+    } else {
+        0
+    };
+    if (remint_after) {
+        finalize_range_key_after_force_deleverage_remint<Quote>(proxy, manager, key, ctx);
+    };
 
     events::emit_position_force_deleveraged(
         object::id(proxy),
@@ -1242,6 +1301,7 @@ public fun force_repay_binary_post_expiry<Quote>(
         payout,
         key,
         quantity,
+        false,
         false,
         clock,
         ctx,
@@ -1308,6 +1368,7 @@ public fun force_repay_range_post_expiry<Quote>(
         key,
         quantity,
         false,
+        false,
         clock,
         ctx,
     );
@@ -1351,10 +1412,12 @@ public fun deleverage_binary_account_balance<Quote>(
     proxy: &mut UserProxy,
     key: MarketKey,
     repayment_funds: Coin<Quote>,
+    slippage_bps: u64,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
     proxy.assert_can_act(ctx);
+    assert!(slippage_bps <= protocol_constants::max_limit_order_slippage_bps(), errors::slippage_too_high());
     protocol_registry::assert_vault(registry, vault);
     protocol_registry::assert_fee_collector(registry, collector);
     vault_mod::accrue_interest(vault, clock);
@@ -1366,15 +1429,19 @@ public fun deleverage_binary_account_balance<Quote>(
     let principal_repaid = principal_repaid_for_payment(repay_amt, debt, ledger_principal);
     let mut funds = repayment_funds;
     let repay_coin = funds.split(repay_amt, ctx);
-    fee_collector::repay_vault_for_ledger_principal(
-        vault,
-        collector,
-        repay_coin,
-        ledger_principal,
-        protocol_constants::fee_source_interest(),
-        clock,
-        ctx,
-    );
+    if (ledger_principal > 0) {
+        fee_collector::repay_vault_for_ledger_principal(
+            vault,
+            collector,
+            repay_coin,
+            ledger_principal,
+            protocol_constants::fee_source_interest(),
+            clock,
+            ctx,
+        );
+    } else {
+        coin::destroy_zero(repay_coin);
+    };
     if (principal_repaid > 0) {
         proxy.record_repay_for_binary(key, principal_repaid);
     };
@@ -1405,6 +1472,9 @@ public fun deleverage_binary_account_balance<Quote>(
         false,
         proxy.binary_borrowed_quote(key),
     );
+    if (proxy.binary_borrowed_quote(key) == 0) {
+        proxy.reset_binary_to_unleveraged(key, ctx);
+    };
 }
 
 /// Repay range key vault debt from external quote coins; surplus credited back to the key.
@@ -1415,10 +1485,12 @@ public fun deleverage_range_account_balance<Quote>(
     proxy: &mut UserProxy,
     key: RangeKey,
     repayment_funds: Coin<Quote>,
+    slippage_bps: u64,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
     proxy.assert_can_act(ctx);
+    assert!(slippage_bps <= protocol_constants::max_limit_order_slippage_bps(), errors::slippage_too_high());
     protocol_registry::assert_vault(registry, vault);
     protocol_registry::assert_fee_collector(registry, collector);
     vault_mod::accrue_interest(vault, clock);
@@ -1430,15 +1502,19 @@ public fun deleverage_range_account_balance<Quote>(
     let principal_repaid = principal_repaid_for_payment(repay_amt, debt, ledger_principal);
     let mut funds = repayment_funds;
     let repay_coin = funds.split(repay_amt, ctx);
-    fee_collector::repay_vault_for_ledger_principal(
-        vault,
-        collector,
-        repay_coin,
-        ledger_principal,
-        protocol_constants::fee_source_interest(),
-        clock,
-        ctx,
-    );
+    if (ledger_principal > 0) {
+        fee_collector::repay_vault_for_ledger_principal(
+            vault,
+            collector,
+            repay_coin,
+            ledger_principal,
+            protocol_constants::fee_source_interest(),
+            clock,
+            ctx,
+        );
+    } else {
+        coin::destroy_zero(repay_coin);
+    };
     if (principal_repaid > 0) {
         proxy.record_repay_for_range(key, principal_repaid);
     };
@@ -1469,6 +1545,9 @@ public fun deleverage_range_account_balance<Quote>(
         true,
         proxy.range_borrowed_quote(key),
     );
+    if (proxy.range_borrowed_quote(key) == 0) {
+        proxy.reset_range_to_unleveraged(key, ctx);
+    };
 }
 
 /// Repay binary key debt using quote already held on the market key.
@@ -1479,6 +1558,7 @@ public fun repay_debt_for_binary<Quote>(
     collector: &mut FeeCollector<Quote>,
     key: MarketKey,
     amount: u64,
+    slippage_bps: u64,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -1490,6 +1570,7 @@ public fun repay_debt_for_binary<Quote>(
         proxy,
         key,
         quote,
+        slippage_bps,
         clock,
         ctx,
     );
@@ -1503,6 +1584,7 @@ public fun repay_debt_for_range<Quote>(
     collector: &mut FeeCollector<Quote>,
     key: RangeKey,
     amount: u64,
+    slippage_bps: u64,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -1514,6 +1596,7 @@ public fun repay_debt_for_range<Quote>(
         proxy,
         key,
         quote,
+        slippage_bps,
         clock,
         ctx,
     );
@@ -1610,10 +1693,13 @@ public fun is_binary_position_liquidatable<Quote>(
     protocol_registry::assert_vault(registry, vault);
     vault_mod::accrue_interest(vault, clock);
     let vault_debt = vault_mod::debt_with_accrued_interest(vault, proxy.binary_borrowed_quote(key));
+    let liquidation_bps = protocol_registry::liquidation_bps(registry);
     ltv::is_position_liquidatable(
         proxy.binary_quote_balance(key),
         vault_debt,
         proxy.binary_margin_debt(key),
+        proxy.binary_leverage_bps(key),
+        liquidation_bps,
     )
 }
 
@@ -1636,7 +1722,14 @@ public fun is_binary_position_liquidatable_with_open_position<Quote>(
     let (_, expected_payout) =
         predict_client::market_bid_binary(predict_global, oracle, key, quantity, clock);
     let collateral = proxy.binary_quote_balance(key) + expected_payout;
-    ltv::is_position_liquidatable(collateral, vault_debt, proxy.binary_margin_debt(key))
+    let liquidation_bps = protocol_registry::liquidation_bps(registry);
+    ltv::is_position_liquidatable(
+        collateral,
+        vault_debt,
+        proxy.binary_margin_debt(key),
+        proxy.binary_leverage_bps(key),
+        liquidation_bps,
+    )
 }
 
 /// True when free quote on the key is below the margin-call threshold (ignores open contracts).
@@ -1650,10 +1743,13 @@ public fun is_range_position_liquidatable<Quote>(
     protocol_registry::assert_vault(registry, vault);
     vault_mod::accrue_interest(vault, clock);
     let vault_debt = vault_mod::debt_with_accrued_interest(vault, proxy.range_borrowed_quote(key));
+    let liquidation_bps = protocol_registry::liquidation_bps(registry);
     ltv::is_position_liquidatable(
         proxy.range_quote_balance(key),
         vault_debt,
         proxy.range_margin_debt(key),
+        proxy.range_leverage_bps(key),
+        liquidation_bps,
     )
 }
 
@@ -1676,7 +1772,14 @@ public fun is_range_position_liquidatable_with_open_position<Quote>(
     let (_, expected_payout) =
         predict_client::market_bid_range(predict_global, oracle, key, quantity, clock);
     let collateral = proxy.range_quote_balance(key) + expected_payout;
-    ltv::is_position_liquidatable(collateral, vault_debt, proxy.range_margin_debt(key))
+    let liquidation_bps = protocol_registry::liquidation_bps(registry);
+    ltv::is_position_liquidatable(
+        collateral,
+        vault_debt,
+        proxy.range_margin_debt(key),
+        proxy.range_leverage_bps(key),
+        liquidation_bps,
+    )
 }
 
 /// Current quote health for a binary market key, in basis points (free quote only).
@@ -1694,6 +1797,7 @@ public fun evaluate_binary_position_health<Quote>(
         proxy.binary_quote_balance(key),
         vault_debt,
         proxy.binary_margin_debt(key),
+        proxy.binary_leverage_bps(key),
     )
 }
 
@@ -1716,7 +1820,12 @@ public fun evaluate_binary_position_health_with_open_position<Quote>(
     let (_, expected_payout) =
         predict_client::market_bid_binary(predict_global, oracle, key, quantity, clock);
     let collateral = proxy.binary_quote_balance(key) + expected_payout;
-    ltv::evaluate_position_health(collateral, vault_debt, proxy.binary_margin_debt(key))
+    ltv::evaluate_position_health(
+        collateral,
+        vault_debt,
+        proxy.binary_margin_debt(key),
+        proxy.binary_leverage_bps(key),
+    )
 }
 
 /// Current quote health for a range market key, in basis points (free quote only).
@@ -1734,6 +1843,7 @@ public fun evaluate_range_position_health<Quote>(
         proxy.range_quote_balance(key),
         vault_debt,
         proxy.range_margin_debt(key),
+        proxy.range_leverage_bps(key),
     )
 }
 
@@ -1756,7 +1866,12 @@ public fun evaluate_range_position_health_with_open_position<Quote>(
     let (_, expected_payout) =
         predict_client::market_bid_range(predict_global, oracle, key, quantity, clock);
     let collateral = proxy.range_quote_balance(key) + expected_payout;
-    ltv::evaluate_position_health(collateral, vault_debt, proxy.range_margin_debt(key))
+    ltv::evaluate_position_health(
+        collateral,
+        vault_debt,
+        proxy.range_margin_debt(key),
+        proxy.range_leverage_bps(key),
+    )
 }
 
 // === Internal ===
@@ -1803,6 +1918,7 @@ fun execute_placed_limit_mint_binary<Quote>(
     margin_quote: u64,
     leverage_bps: u64,
     quantity: u64,
+    remint_after_deleverage: bool,
     clock: &Clock,
     ctx: &mut TxContext,
 ): (u64, u64) {
@@ -1823,6 +1939,7 @@ fun execute_placed_limit_mint_binary<Quote>(
         limit_premium_per_unit,
         0,
         slippage_bps,
+        remint_after_deleverage,
         false,
         clock,
         ctx,
@@ -1844,6 +1961,7 @@ fun execute_placed_limit_mint_range<Quote>(
     margin_quote: u64,
     leverage_bps: u64,
     quantity: u64,
+    remint_after_deleverage: bool,
     clock: &Clock,
     ctx: &mut TxContext,
 ): (u64, u64) {
@@ -1864,6 +1982,7 @@ fun execute_placed_limit_mint_range<Quote>(
         limit_premium_per_unit,
         0,
         slippage_bps,
+        remint_after_deleverage,
         false,
         clock,
         ctx,
@@ -1887,6 +2006,7 @@ fun execute_leveraged_mint_binary<Quote>(
     limit_premium_per_unit: u64,
     max_mint_cost: u64,
     slippage_bps: u64,
+    remint_after_deleverage: bool,
     require_auth: bool,
     clock: &Clock,
     ctx: &mut TxContext,
@@ -1920,7 +2040,12 @@ fun execute_leveraged_mint_binary<Quote>(
     assert!(mint_cost <= margin_quote + borrow_quote, errors::mint_cost_exceeds_position());
 
     execute_borrow_binary(registry, vault, proxy, key, borrow_quote, clock, ctx);
-    let funding = proxy.withdraw_quote_from_binary<Quote>(key, mint_cost, ctx);
+    let funding = proxy.withdraw_quote_from_binary_with_slippage<Quote>(
+        key,
+        mint_cost,
+        slippage_bps,
+        ctx,
+    );
     predict_client::deposit_quote(manager, funding, ctx);
     predict_client::mint_binary<Quote>(predict_global, manager, oracle, key, quantity, clock, ctx);
 
@@ -1938,7 +2063,11 @@ fun execute_leveraged_mint_binary<Quote>(
         market_ask,
         max_mint_cost,
     );
-    proxy.add_binary_margin_debt(key, margin_quote, ctx);
+    proxy.set_binary_leverage(key, leverage_bps, ctx);
+    if (ltv::is_leveraged(leverage_bps)) {
+        proxy.add_binary_margin_debt(key, margin_quote, ctx);
+    };
+    proxy.set_binary_remint_after_deleverage(key, remint_after_deleverage, ctx);
 }
 
 /// Core range leveraged mint: borrow, fund Predict manager, mint, and emit `LeveragedPositionOpened`.
@@ -1957,6 +2086,7 @@ fun execute_leveraged_mint_range<Quote>(
     limit_premium_per_unit: u64,
     max_mint_cost: u64,
     slippage_bps: u64,
+    remint_after_deleverage: bool,
     require_auth: bool,
     clock: &Clock,
     ctx: &mut TxContext,
@@ -1990,7 +2120,12 @@ fun execute_leveraged_mint_range<Quote>(
     assert!(mint_cost <= margin_quote + borrow_quote, errors::mint_cost_exceeds_position());
 
     execute_borrow_range(registry, vault, proxy, key, borrow_quote, clock, ctx);
-    let funding = proxy.withdraw_quote_from_range<Quote>(key, mint_cost, ctx);
+    let funding = proxy.withdraw_quote_from_range_with_slippage<Quote>(
+        key,
+        mint_cost,
+        slippage_bps,
+        ctx,
+    );
     predict_client::deposit_quote(manager, funding, ctx);
     predict_client::mint_range<Quote>(predict_global, manager, oracle, key, quantity, clock, ctx);
 
@@ -2008,7 +2143,11 @@ fun execute_leveraged_mint_range<Quote>(
         market_ask,
         max_mint_cost,
     );
-    proxy.add_range_margin_debt(key, margin_quote, ctx);
+    proxy.set_range_leverage(key, leverage_bps, ctx);
+    if (ltv::is_leveraged(leverage_bps)) {
+        proxy.add_range_margin_debt(key, margin_quote, ctx);
+    };
+    proxy.set_range_remint_after_deleverage(key, remint_after_deleverage, ctx);
 }
 
 fun assert_valid_order_type(order_type: u8) {
@@ -2082,7 +2221,7 @@ fun execute_leveraged_redeem_binary<Quote>(
     predict_client::redeem_binary<Quote>(predict_global, manager, oracle, key, quantity, clock, ctx);
     let payout = predict_client::manager_balance<Quote>(manager) - balance_before;
 
-    repay_from_payout_binary(vault, collector, proxy, manager, payout, key, quantity, is_settled, clock, ctx);
+    repay_from_payout_binary(vault, collector, proxy, manager, payout, key, quantity, is_settled, false, clock, ctx);
 }
 
 /// Core range redeem: validate order, redeem via Predict, repay key debt from payout.
@@ -2124,7 +2263,7 @@ fun execute_leveraged_redeem_range<Quote>(
     predict_client::redeem_range<Quote>(predict_global, manager, oracle, key, quantity, clock, ctx);
     let payout = predict_client::manager_balance<Quote>(manager) - balance_before;
 
-    repay_from_payout_range(vault, collector, proxy, manager, payout, key, quantity, is_settled, clock, ctx);
+    repay_from_payout_range(vault, collector, proxy, manager, payout, key, quantity, is_settled, false, clock, ctx);
 }
 
 fun principal_repaid_for_payment(
@@ -2204,6 +2343,7 @@ fun assert_force_deleverage_healthy_binary(
     key: MarketKey,
     quantity: u64,
     vault_debt: u64,
+    liquidation_bps: u64,
     clock: &Clock,
 ) {
     let (_, expected_payout) =
@@ -2214,6 +2354,8 @@ fun assert_force_deleverage_healthy_binary(
             collateral,
             vault_debt,
             proxy.binary_margin_debt(key),
+            proxy.binary_leverage_bps(key),
+            liquidation_bps,
         ),
         errors::must_liquidate(),
     );
@@ -2226,6 +2368,7 @@ fun assert_force_deleverage_healthy_range(
     key: RangeKey,
     quantity: u64,
     vault_debt: u64,
+    liquidation_bps: u64,
     clock: &Clock,
 ) {
     let (_, expected_payout) =
@@ -2236,6 +2379,8 @@ fun assert_force_deleverage_healthy_range(
             collateral,
             vault_debt,
             proxy.range_margin_debt(key),
+            proxy.range_leverage_bps(key),
+            liquidation_bps,
         ),
         errors::must_liquidate(),
     );
@@ -2322,6 +2467,7 @@ fun try_remint_unleveraged_binary<Quote>(
         0,
         mint_cost,
         0,
+        proxy.binary_remint_after_deleverage(key),
         false,
         clock,
         ctx,
@@ -2363,6 +2509,7 @@ fun try_remint_unleveraged_range<Quote>(
         0,
         mint_cost,
         0,
+        proxy.range_remint_after_deleverage(key),
         false,
         clock,
         ctx,
@@ -2640,6 +2787,7 @@ fun repay_from_payout_binary<Quote>(
     key: MarketKey,
     quantity: u64,
     is_settled: bool,
+    hold_surplus_for_remint: bool,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -2665,8 +2813,10 @@ fun repay_from_payout_binary<Quote>(
         );
         if (is_settled) {
             write_off_residual_binary_debt(vault, collector, proxy, key, clock, ctx);
-        } else if (ledger_principal == 0) {
-            proxy.clear_binary_margin_debt(key);
+        };
+        if (!hold_surplus_for_remint) {
+            triggers::maybe_clear_binary_triggers_if_flat(proxy, manager, key);
+            finalize_binary_key_after_redeem<Quote>(proxy, key, ctx);
         };
         return
     };
@@ -2678,7 +2828,7 @@ fun repay_from_payout_binary<Quote>(
     let surplus = payout - repay_amt;
 
     let mut payout_coin = predict_client::withdraw_quote(manager, payout, ctx);
-    if (repay_amt > 0) {
+    if (repay_amt > 0 && ledger_principal > 0) {
         let repay_coin = payout_coin.split(repay_amt, ctx);
         fee_collector::repay_vault_for_ledger_principal(
             vault,
@@ -2705,7 +2855,11 @@ fun repay_from_payout_binary<Quote>(
         events::emit_debt_repaid(object::id(proxy), proxy.owner(), repay_amt, proxy.borrowed_quote());
     };
     if (payout_coin.value() > 0) {
-        proxy.credit_quote_for_binary(key, payout_coin, ctx);
+        if (proxy.binary_borrowed_quote(key) > 0 || hold_surplus_for_remint) {
+            proxy.credit_quote_for_binary(key, payout_coin, ctx);
+        } else {
+            transfer::public_transfer(payout_coin, ctx.sender());
+        };
     } else {
         coin::destroy_zero(payout_coin);
     };
@@ -2729,9 +2883,65 @@ fun repay_from_payout_binary<Quote>(
     );
     if (is_settled) {
         write_off_residual_binary_debt(vault, collector, proxy, key, clock, ctx);
-    } else if (proxy.binary_borrowed_quote(key) == 0) {
-        proxy.clear_binary_margin_debt(key);
     };
+    if (!hold_surplus_for_remint) {
+        triggers::maybe_clear_binary_triggers_if_flat(proxy, manager, key);
+        finalize_binary_key_after_redeem<Quote>(proxy, key, ctx);
+    };
+}
+
+fun finalize_binary_key_after_redeem<Quote>(
+    proxy: &mut UserProxy,
+    key: MarketKey,
+    ctx: &mut TxContext,
+) {
+    if (proxy.binary_borrowed_quote(key) == 0) {
+        proxy.reset_binary_to_unleveraged(key, ctx);
+        proxy.clear_binary_margin_debt(key);
+        user_proxy::sweep_binary_free_quote_to_sender<Quote>(proxy, key, ctx);
+    };
+}
+
+/// After force-deleverage remint: reset leverage and return leftover key quote to the owner.
+fun finalize_binary_key_after_force_deleverage_remint<Quote>(
+    proxy: &mut UserProxy,
+    manager: &PredictManager,
+    key: MarketKey,
+    ctx: &mut TxContext,
+) {
+    if (proxy.binary_borrowed_quote(key) == 0) {
+        proxy.reset_binary_to_unleveraged(key, ctx);
+        proxy.clear_binary_margin_debt(key);
+        user_proxy::sweep_binary_free_quote_to<Quote>(proxy, key, proxy.owner(), ctx);
+    };
+    triggers::maybe_clear_binary_triggers_if_flat(proxy, manager, key);
+}
+
+fun finalize_range_key_after_redeem<Quote>(
+    proxy: &mut UserProxy,
+    key: RangeKey,
+    ctx: &mut TxContext,
+) {
+    if (proxy.range_borrowed_quote(key) == 0) {
+        proxy.reset_range_to_unleveraged(key, ctx);
+        proxy.clear_range_margin_debt(key);
+        user_proxy::sweep_range_free_quote_to_sender<Quote>(proxy, key, ctx);
+    };
+}
+
+/// After force-deleverage remint: reset leverage and return leftover key quote to the owner.
+fun finalize_range_key_after_force_deleverage_remint<Quote>(
+    proxy: &mut UserProxy,
+    manager: &PredictManager,
+    key: RangeKey,
+    ctx: &mut TxContext,
+) {
+    if (proxy.range_borrowed_quote(key) == 0) {
+        proxy.reset_range_to_unleveraged(key, ctx);
+        proxy.clear_range_margin_debt(key);
+        user_proxy::sweep_range_free_quote_to<Quote>(proxy, key, proxy.owner(), ctx);
+    };
+    triggers::maybe_clear_range_triggers_if_flat(proxy, manager, key);
 }
 
 fun repay_from_payout_range<Quote>(
@@ -2743,6 +2953,7 @@ fun repay_from_payout_range<Quote>(
     key: RangeKey,
     quantity: u64,
     is_settled: bool,
+    hold_surplus_for_remint: bool,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -2768,8 +2979,10 @@ fun repay_from_payout_range<Quote>(
         );
         if (is_settled) {
             write_off_residual_range_debt(vault, collector, proxy, key, clock, ctx);
-        } else if (ledger_principal == 0) {
-            proxy.clear_range_margin_debt(key);
+        };
+        if (!hold_surplus_for_remint) {
+            triggers::maybe_clear_range_triggers_if_flat(proxy, manager, key);
+            finalize_range_key_after_redeem<Quote>(proxy, key, ctx);
         };
         return
     };
@@ -2781,7 +2994,7 @@ fun repay_from_payout_range<Quote>(
     let surplus = payout - repay_amt;
 
     let mut payout_coin = predict_client::withdraw_quote(manager, payout, ctx);
-    if (repay_amt > 0) {
+    if (repay_amt > 0 && ledger_principal > 0) {
         let repay_coin = payout_coin.split(repay_amt, ctx);
         fee_collector::repay_vault_for_ledger_principal(
             vault,
@@ -2808,7 +3021,11 @@ fun repay_from_payout_range<Quote>(
         events::emit_debt_repaid(object::id(proxy), proxy.owner(), repay_amt, proxy.borrowed_quote());
     };
     if (payout_coin.value() > 0) {
-        proxy.credit_quote_for_range(key, payout_coin, ctx);
+        if (proxy.range_borrowed_quote(key) > 0 || hold_surplus_for_remint) {
+            proxy.credit_quote_for_range(key, payout_coin, ctx);
+        } else {
+            transfer::public_transfer(payout_coin, ctx.sender());
+        };
     } else {
         coin::destroy_zero(payout_coin);
     };
@@ -2832,8 +3049,10 @@ fun repay_from_payout_range<Quote>(
     );
     if (is_settled) {
         write_off_residual_range_debt(vault, collector, proxy, key, clock, ctx);
-    } else if (proxy.range_borrowed_quote(key) == 0) {
-        proxy.clear_range_margin_debt(key);
+    };
+    if (!hold_surplus_for_remint) {
+        triggers::maybe_clear_range_triggers_if_flat(proxy, manager, key);
+        finalize_range_key_after_redeem<Quote>(proxy, key, ctx);
     };
 }
 
