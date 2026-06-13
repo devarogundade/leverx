@@ -696,7 +696,7 @@ public(package) fun sweep_binary_free_quote_to_sender<Quote>(
     key: MarketKey,
     ctx: &mut TxContext,
 ) {
-    sweep_binary_free_quote_to(proxy, key, ctx.sender(), ctx);
+    sweep_binary_free_quote_to<Quote>(proxy, key, ctx.sender(), ctx);
 }
 
 /// Transfer all free quote on a range key to `recipient` when vault debt is zero.
@@ -719,7 +719,7 @@ public(package) fun sweep_range_free_quote_to_sender<Quote>(
     key: RangeKey,
     ctx: &mut TxContext,
 ) {
-    sweep_range_free_quote_to(proxy, key, ctx.sender(), ctx);
+    sweep_range_free_quote_to<Quote>(proxy, key, ctx.sender(), ctx);
 }
 
 // === Ledger ops (internal) ===
