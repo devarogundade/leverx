@@ -15,6 +15,7 @@ import { scaleQuoteAtoms } from "@/lib/predict/scaling";
 import { marginUsdToQuoteAtoms } from "@/lib/leverx/trade-math";
 import {
   inputInField,
+  labelCaps,
   pillToggleBtn,
   pillToggleIdle,
   settingsList,

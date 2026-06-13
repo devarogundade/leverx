@@ -49,6 +49,12 @@ export const segTabsStretch = cn(
   "sm:[&>*]:min-w-0 sm:[&>*]:flex-1",
 );
 
+/** UP/DOWN (and RANGE) outcome row — equal-width tabs at every breakpoint */
+export const segTabsOutcomesStretch = cn(
+  "flex w-full max-w-none",
+  "[&>*]:min-w-0 [&>*]:flex-1",
+);
+
 export const segTabsScroll = cn(
   "overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]",
   "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
@@ -97,12 +103,14 @@ export const predictSideChevron = "size-3 shrink-0 fill-current stroke-current s
 export function segTabsClass(
   ...variants: ("stretch" | "scroll" | "icon" | "plain" | "outcomes")[]
 ) {
+  const outcomes = variants.includes("outcomes");
+  const stretch = variants.includes("stretch");
   return cn(
     variants.includes("plain") ? segTabsPlain : segTabs,
-    variants.includes("stretch") && segTabsStretch,
+    stretch && (outcomes ? segTabsOutcomesStretch : segTabsStretch),
     variants.includes("scroll") && segTabsScroll,
     variants.includes("icon") && segTabsIcon,
-    variants.includes("outcomes") && "max-w-none w-full",
+    outcomes && !stretch && "max-w-none w-full",
   );
 }
 
