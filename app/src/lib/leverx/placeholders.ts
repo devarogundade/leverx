@@ -1,4 +1,5 @@
 import { formatUsdc } from "@/lib/copy";
+import { formatQuantity } from "@/lib/leverx/format-quantity";
 
 /** Shown when indexer data is missing or unreachable — never blocks the page. */
 export const DATA_PLACEHOLDER = "_";
@@ -40,6 +41,11 @@ export function formatPercentOrPlaceholder(
 export function formatCountOrPlaceholder(value: number | null | undefined): string {
   if (value == null || !Number.isFinite(value) || value < 0) return DATA_PLACEHOLDER;
   return value.toLocaleString();
+}
+
+export function formatQuantityOrPlaceholder(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value) || value <= 0) return DATA_PLACEHOLDER;
+  return formatQuantity(value);
 }
 
 /** USDC balance row — distinguishes zero (0 USDC) from unknown (_). */

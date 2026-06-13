@@ -21,6 +21,7 @@ import { predictSideFromBinary, type PredictSide } from "@/lib/predict/instrumen
 import { scaleQuote } from "@/lib/predict/scaling";
 import { formatUsdc, ui } from "@/lib/copy";
 import { resolveLiquidationBps } from "@/lib/leverx/protocol";
+import { formatQuantity } from "@/lib/leverx/format-quantity";
 import { formatCountdownStopwatch } from "@/lib/leverx/trade-limits";
 import { cn } from "@/lib/utils";
 import { labelCaps } from "@/lib/leverx/tw";
@@ -238,7 +239,7 @@ export function LeverxPositionsTable({
       mobileLabel: "Qty",
       cell: (r) => (
         <span className="font-mono text-sm tabular-nums">
-          {r.position.open_quantity > 0 ? r.position.open_quantity.toLocaleString() : "—"}
+          {r.position.open_quantity > 0 ? formatQuantity(r.position.open_quantity) : "—"}
         </span>
       ),
     },

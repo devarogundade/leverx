@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { DataTable, type Column } from "@/components/DataTable";
 import { CancelOrderTrigger } from "@/components/leverx/CancelOrderModal";
 import { usePredictOracleRows } from "@/hooks/usePredictOracles";
+import { formatQuantity } from "@/lib/leverx/format-quantity";
 import { formatPremiumCents } from "@/lib/leverx/indexer-markets";
 import type { LimitMintOrder } from "@/lib/leverx/indexer-client";
 import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
