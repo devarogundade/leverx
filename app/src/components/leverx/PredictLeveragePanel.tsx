@@ -660,14 +660,16 @@ export function PredictLeveragePanel({
     if (orderType === "market" && marginNum > 0 && tradeKey) {
       if (expiryMs && expiryMs > 0 && expiryMs <= Date.now()) {
         errors.push("This market has expired. Pick a live expiry or another strike.");
-      } else if (!quoteLoading && mintQuote == null) {
-        errors.push(
-          "Live contract price is unavailable or outside 1¢–99¢ (common near oracle expiry). Try another strike or wait for oracle updates.",
-        );
-      } else if (!isPremiumWithinPredictBounds(mintQuote.marketAskPerUnit)) {
-        errors.push(
-          `Live contract price must be between ${PREDICT_MIN_PREMIUM_CENTS}¢ and ${PREDICT_MAX_PREMIUM_CENTS}¢.`,
-        );
+      } else if (!quoteLoading) {
+        if (mintQuote == null) {
+          errors.push(
+            "Live contract price is unavailable or outside 1¢–99¢ (common near oracle expiry). Try another strike or wait for oracle updates.",
+          );
+        } else if (!isPremiumWithinPredictBounds(mintQuote.marketAskPerUnit)) {
+          errors.push(
+            `Live contract price must be between ${PREDICT_MIN_PREMIUM_CENTS}¢ and ${PREDICT_MAX_PREMIUM_CENTS}¢.`,
+          );
+        }
       }
     }
     if (isRange) {

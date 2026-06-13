@@ -23,7 +23,8 @@ export type KeeperTaskKind =
 export class KeeperOrchestratorService {
   private readonly logger = new Logger(KeeperOrchestratorService.name);
   private readonly cfg: KeeperConfig;
-  private running = false;
+  /** Per-kind locks so staggered crons do not starve each other. */
+  private readonly runningKinds = new Set<KeeperTaskKind>();
 
   constructor(
     config: ConfigService,
@@ -42,11 +43,17 @@ export class KeeperOrchestratorService {
   }
 
   isRunning(): boolean {
-    return this.running;
+    return this.runningKinds.size > 0;
+  }
+
+  private isLocked(kind: KeeperTaskKind): boolean {
+    if (this.runningKinds.has('all')) return true;
+    if (kind === 'all') return this.runningKinds.size > 0;
+    return this.runningKinds.has(kind);
   }
 
   async run(kind: KeeperTaskKind = 'all'): Promise<KeeperRunSummary> {
-    if (this.running) {
+    if (this.isLocked(kind)) {
       this.logger.debug(`keeper run skipped (${kind}): already_running`);
       return {
         startedAt: new Date().toISOString(),
@@ -55,7 +62,7 @@ export class KeeperOrchestratorService {
       };
     }
 
-    this.running = true;
+    this.runningKinds.add(kind);
     const startedAt = new Date().toISOString();
     const results: TaskResult[] = [];
 
