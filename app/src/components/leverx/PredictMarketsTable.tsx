@@ -54,6 +54,7 @@ import {
 } from "@/lib/leverx/tw";
 import { MarketLeverageBadge } from "@/components/leverx/MarketLeverageBadge";
 import { useNow } from "@/hooks/useNow";
+import { cn } from "@/lib/utils";
 
 type SortKey = "price" | "volume" | "liquidity" | "expiry";
 type SortDir = "asc" | "desc";

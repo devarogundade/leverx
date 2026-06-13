@@ -36,6 +36,7 @@ import {
 import { formatAutoClose } from "@/lib/leverx/placeholders";
 import { MarketLeverageBadge } from "@/components/leverx/MarketLeverageBadge";
 import { useNow } from "@/hooks/useNow";
+import { cn } from "@/lib/utils";
 
 interface Props {
   markets: LeverxMarketRow[];
