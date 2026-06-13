@@ -13,7 +13,7 @@ export class PtbBuilderService {
   ): TransactionObjectArgument {
     if (args.isRange) {
       return tx.moveCall({
-        target: `${cfg.predictPackageId}::range_key::new`,
+        target: `${cfg.packageId}::range_key::new`,
         arguments: [
           tx.pure.id(args.oracleId),
           tx.pure.u64(args.expiryMs),
@@ -25,7 +25,7 @@ export class PtbBuilderService {
 
     const fn = args.isUp ? 'up' : 'down';
     return tx.moveCall({
-      target: `${cfg.predictPackageId}::market_key::${fn}`,
+      target: `${cfg.packageId}::market_key::${fn}`,
       arguments: [
         tx.pure.id(args.oracleId),
         tx.pure.u64(args.expiryMs),

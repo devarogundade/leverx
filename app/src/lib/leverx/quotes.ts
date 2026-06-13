@@ -5,7 +5,7 @@ import {
   PREDICT_QUOTE_REFERENCE_QUANTITY,
   SUI_CLOCK_OBJECT_ID,
 } from "@/lib/leverx/constants";
-import { addMarketKey, type MarketKeyArgs } from "@/lib/leverx/market-keys";
+import { addLeverxMarketKey, addPredictMarketKey, type MarketKeyArgs } from "@/lib/leverx/market-keys";
 import type { LeverxProtocolConfig } from "@/lib/leverx/protocol";
 import {
   classifyPredictPremium,
@@ -77,10 +77,8 @@ async function devInspectMarketAsk(params: {
 }): Promise<{ marketAskPerUnit: bigint; mintCost: bigint } | null> {
   const tx = new Transaction();
   tx.setSender(READONLY_SENDER);
-  const marketKey = addMarketKey(tx, params.key, params.cfg.predictPackageId);
-  // Read via DeepBook Predict directly — leverx::predict_client dev-inspect can
-  // fail with TypeMismatch when the published leverx package links a different
-  // predict build than the live shared Predict object.
+  const marketKey = addPredictMarketKey(tx, params.key, params.cfg.predictPackageId);
+  // Read via DeepBook Predict directly — must use predict-package keys.
   const fn = params.key.isRange ? "get_range_trade_amounts" : "get_trade_amounts";
 
   tx.moveCall({
@@ -186,7 +184,7 @@ async function fetchMintBorrowQuote(params: {
 }): Promise<bigint | null> {
   const tx = new Transaction();
   tx.setSender(READONLY_SENDER);
-  const marketKey = addMarketKey(tx, params.key, params.cfg.predictPackageId);
+  const marketKey = addLeverxMarketKey(tx, params.key, params.cfg.packageId);
   const fn = params.key.isRange
     ? "quote_leveraged_mint_range"
     : "quote_leveraged_mint_binary";
@@ -277,13 +275,12 @@ export async function fetchMintQuote(params: {
 export async function fetchKeyQuoteBalance(params: {
   client: SuiJsonRpcClient;
   packageId: string;
-  predictPackageId: string;
   accountId: string;
   key: MarketKeyArgs;
 }): Promise<bigint> {
   const tx = new Transaction();
   tx.setSender(READONLY_SENDER);
-  const marketKey = addMarketKey(tx, params.key, params.predictPackageId);
+  const marketKey = addLeverxMarketKey(tx, params.key, params.packageId);
   const fn = params.key.isRange ? "range_quote_balance" : "binary_quote_balance";
 
   tx.moveCall({
@@ -312,7 +309,7 @@ export async function fetchRedeemQuote(params: {
 }): Promise<RedeemQuote | null> {
   const tx = new Transaction();
   tx.setSender(READONLY_SENDER);
-  const marketKey = addMarketKey(tx, params.key, params.cfg.predictPackageId);
+  const marketKey = addLeverxMarketKey(tx, params.key, params.cfg.packageId);
   const fn = params.key.isRange
     ? "quote_leveraged_redeem_range"
     : "quote_leveraged_redeem_binary";
@@ -373,7 +370,7 @@ export async function simulateCloseWithdrawAtoms(params: {
   tx.setSender(params.sender);
   params.appendClose(tx);
 
-  const marketKey = addMarketKey(tx, params.key, params.cfg.predictPackageId);
+  const marketKey = addLeverxMarketKey(tx, params.key, params.cfg.packageId);
   const borrowedFn = params.key.isRange ? "range_borrowed_quote" : "binary_borrowed_quote";
   const balanceFn = params.key.isRange ? "range_quote_balance" : "binary_quote_balance";
 

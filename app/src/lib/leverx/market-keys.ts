@@ -55,16 +55,14 @@ export function positionKeyFromArgs(args: MarketKeyArgs): string {
   return `${args.oracleId}:${args.expiryMs}:${args.strike}:${higherStrike}:${isUp ? 1 : 0}:${args.isRange ? 1 : 0}`;
 }
 
-export function addMarketKey(
+function buildMarketKey(
   tx: Transaction,
   args: MarketKeyArgs,
-  predictPackageId: string = appConfig.predictPackageId,
+  packageId: string,
 ): TransactionObjectArgument {
-  const pkg = predictPackageId;
-
   if (args.isRange) {
     return tx.moveCall({
-      target: `${pkg}::range_key::new`,
+      target: `${packageId}::range_key::new`,
       arguments: [
         tx.pure.id(args.oracleId),
         tx.pure.u64(args.expiryMs),
@@ -76,11 +74,38 @@ export function addMarketKey(
 
   const fn = args.isUp ? "up" : "down";
   return tx.moveCall({
-    target: `${pkg}::market_key::${fn}`,
+    target: `${packageId}::market_key::${fn}`,
     arguments: [
       tx.pure.id(args.oracleId),
       tx.pure.u64(args.expiryMs),
       tx.pure.u64(args.strike),
     ],
   })[0]!;
+}
+
+/** Keys for LeverX PTBs (`trade`, `user_proxy`, `triggers`). */
+export function addLeverxMarketKey(
+  tx: Transaction,
+  args: MarketKeyArgs,
+  leverxPackageId: string = appConfig.leverxPackageId,
+): TransactionObjectArgument {
+  return buildMarketKey(tx, args, leverxPackageId);
+}
+
+/** Keys for direct DeepBook Predict reads (`predict::get_trade_amounts`, etc.). */
+export function addPredictMarketKey(
+  tx: Transaction,
+  args: MarketKeyArgs,
+  predictPackageId: string = appConfig.predictPackageId,
+): TransactionObjectArgument {
+  return buildMarketKey(tx, args, predictPackageId);
+}
+
+/** @alias addLeverxMarketKey */
+export function addMarketKey(
+  tx: Transaction,
+  args: MarketKeyArgs,
+  leverxPackageId: string = appConfig.leverxPackageId,
+): TransactionObjectArgument {
+  return addLeverxMarketKey(tx, args, leverxPackageId);
 }

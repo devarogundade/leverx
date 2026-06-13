@@ -78,6 +78,12 @@ export function formatTxError(error: unknown): string {
     return "Trading account setup is incomplete. Open Portfolio → Account to link your Predict manager.";
   }
   if (
+    raw.includes("CommandArgumentError") &&
+    raw.includes("TypeMismatch")
+  ) {
+    return "Transaction could not be simulated — refresh the page and try again. If it persists, the app may be out of sync with the on-chain package.";
+  }
+  if (
     raw.includes("InsufficientCoinBalanceError") ||
     (raw.includes("Insufficient") && raw.includes("balance"))
   ) {

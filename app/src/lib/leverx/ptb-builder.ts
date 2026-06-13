@@ -76,7 +76,7 @@ export function buildDepositQuote(
   quoteCoin: TransactionObjectArgument,
 ): Transaction {
   const tx = new Transaction();
-  const marketKey = addMarketKey(tx, key, cfg.predictPackageId);
+  const marketKey = addMarketKey(tx, key, cfg.packageId);
 
   tx.moveCall({
     target: `${cfg.packageId}::trade::${depositQuoteFn(key.isRange)}`,
@@ -94,7 +94,7 @@ export function appendDepositQuote(
   key: MarketKeyArgs,
   quoteCoin: TransactionObjectArgument,
 ): void {
-  const marketKey = addMarketKey(tx, key, cfg.predictPackageId);
+  const marketKey = addMarketKey(tx, key, cfg.packageId);
   tx.moveCall({
     target: `${cfg.packageId}::trade::${depositQuoteFn(key.isRange)}`,
     typeArguments: [cfg.quoteType],
@@ -109,7 +109,7 @@ export function appendWithdrawQuote(
   key: MarketKeyArgs,
   amountAtoms: bigint,
 ): void {
-  const marketKey = addMarketKey(tx, key, cfg.predictPackageId);
+  const marketKey = addMarketKey(tx, key, cfg.packageId);
   tx.moveCall({
     target: `${cfg.packageId}::trade::${withdrawQuoteFn(key.isRange)}`,
     typeArguments: [cfg.quoteType],
@@ -125,7 +125,7 @@ export function appendLeveragedMint(
   params: MintOrderParams,
   orderType: "market" | "limit" | "place",
 ): void {
-  const marketKey = addMarketKey(tx, params.key, cfg.predictPackageId);
+  const marketKey = addMarketKey(tx, params.key, cfg.packageId);
   const fn = mintFn(orderType, params.key.isRange);
 
   if (orderType === "place") {
@@ -206,7 +206,7 @@ export function appendRedeem(
   cfg: LeverxProtocolConfig,
   params: RedeemParams,
 ): void {
-  const marketKey = addMarketKey(tx, params.key, cfg.predictPackageId);
+  const marketKey = addMarketKey(tx, params.key, cfg.packageId);
   const limit = params.redeemMode === "limit";
 
   tx.moveCall({
@@ -233,7 +233,7 @@ export function appendSettleExpired(
   cfg: LeverxProtocolConfig,
   params: RedeemParams,
 ): void {
-  const marketKey = addMarketKey(tx, params.key, cfg.predictPackageId);
+  const marketKey = addMarketKey(tx, params.key, cfg.packageId);
   const fn = params.key.isRange ? "settle_expired_proxy_range" : "settle_expired_proxy_position";
 
   tx.moveCall({
@@ -263,7 +263,7 @@ export function appendDeleverageDebt(
     repaymentCoin: TransactionObjectArgument;
   },
 ): void {
-  const marketKey = addMarketKey(tx, params.key, cfg.predictPackageId);
+  const marketKey = addMarketKey(tx, params.key, cfg.packageId);
   const fn = params.key.isRange
     ? "deleverage_range_account_balance"
     : "deleverage_binary_account_balance";
@@ -289,7 +289,7 @@ export function appendClearTriggers(
   accountId: string,
   key: MarketKeyArgs,
 ): void {
-  const marketKey = addMarketKey(tx, key, _cfg.predictPackageId);
+  const marketKey = addMarketKey(tx, key, _cfg.packageId);
   const fn = key.isRange ? "clear_range_triggers" : "clear_automated_triggers";
 
   tx.moveCall({
@@ -339,7 +339,7 @@ export function appendCancelLimit(
   cfg: LeverxProtocolConfig,
   params: { key: MarketKeyArgs; accountId: string },
 ): void {
-  const marketKey = addMarketKey(tx, params.key, cfg.predictPackageId);
+  const marketKey = addMarketKey(tx, params.key, cfg.packageId);
   tx.moveCall({
     target: `${cfg.packageId}::trade::${cancelFn(params.key.isRange)}`,
     arguments: [tx.object(params.accountId), marketKey],
@@ -348,7 +348,7 @@ export function appendCancelLimit(
 
 export function buildSetTriggersTx(cfg: LeverxProtocolConfig, params: TriggerParams): Transaction {
   const tx = new Transaction();
-  const marketKey = addMarketKey(tx, params.key, cfg.predictPackageId);
+  const marketKey = addMarketKey(tx, params.key, cfg.packageId);
   const fn = params.key.isRange ? "set_range_triggers" : "set_automated_triggers_entry";
 
   tx.moveCall({

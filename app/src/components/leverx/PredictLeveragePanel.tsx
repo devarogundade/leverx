@@ -267,13 +267,6 @@ export function PredictLeveragePanel({
       }
       return 0;
     }
-    if (
-      strikePreset === "market" &&
-      parentBinaryStrikeRaw != null &&
-      parentBinaryStrikeRaw > 0
-    ) {
-      return parentBinaryStrikeRaw;
-    }
     if (oracleSpotUsd != null && oracleSpotUsd > 0) {
       return strikeRawFromPreset(
         strikePreset,
@@ -281,6 +274,14 @@ export function PredictLeveragePanel({
         minStrikeRaw,
         tickSizeRaw,
       );
+    }
+    // Spot not loaded yet — fall back to parent strike for initial ATM display only.
+    if (
+      strikePreset === "market" &&
+      parentBinaryStrikeRaw != null &&
+      parentBinaryStrikeRaw > 0
+    ) {
+      return parentBinaryStrikeRaw;
     }
     return 0;
   }, [
