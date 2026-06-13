@@ -23,9 +23,7 @@ import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
 import { showTxError, showTxSuccess } from "@/lib/toast";
 import { predictSideLabel, type PredictSide } from "@/lib/predict/instruments";
 import {
-  DEFAULT_LIMIT_ORDER_EXPIRY_HOURS,
   MAX_LIMIT_ORDER_SLIPPAGE_PCT,
-  type LimitOrderExpiryHours,
 } from "@/lib/leverx/constants";
 import type { LimitExecutionMode } from "@/lib/leverx/transactions";
 import {
@@ -61,6 +59,9 @@ import {
   maxLeveragedRestingOrderExpiryMs,
   MAX_MARGIN_USD,
   MIN_MARGIN_USD,
+  DEFAULT_LIMIT_ORDER_EXPIRY_MS,
+  pickDefaultLimitOrderExpiryMs,
+  availableLimitOrderExpiryPresets,
 } from "@/lib/leverx/trade-limits";
 import { ui } from "@/lib/copy";
 import { StrikePriceSelector } from "@/components/leverx/StrikePriceSelector";
@@ -150,8 +151,9 @@ export function PredictLeveragePanel({
   const [margin, setMargin] = useState("");
   const [leverage, setLeverage] = useState(DEFAULT_LEVERAGE);
   const [placementSlippagePct, setPlacementSlippagePct] = useState(5);
-  const [orderExpiresHours, setOrderExpiresHours] =
-    useState<LimitOrderExpiryHours>(DEFAULT_LIMIT_ORDER_EXPIRY_HOURS);
+  const [orderExpiresOffsetMs, setOrderExpiresOffsetMs] = useState(
+    DEFAULT_LIMIT_ORDER_EXPIRY_MS,
+  );
   const [limitExecution, setLimitExecution] = useState<LimitExecutionMode>("resting");
   const [tpSl, setTpSl] = useState(false);
   const [tp, setTp] = useState("");
@@ -187,7 +189,7 @@ export function PredictLeveragePanel({
     setCustomStrikeUsd("");
     setLeverage(DEFAULT_LEVERAGE);
     setPlacementSlippagePct(5);
-    setOrderExpiresHours(DEFAULT_LIMIT_ORDER_EXPIRY_HOURS);
+    setOrderExpiresOffsetMs(DEFAULT_LIMIT_ORDER_EXPIRY_MS);
     setLimitExecution("resting");
     // eslint-disable-next-line react-hooks/exhaustive-deps -- strike props intentionally omitted
   }, [tradeContextKey]);
@@ -211,14 +213,43 @@ export function PredictLeveragePanel({
     expiryMs ?? 0,
     LEVERAGED_MINT_WINDOW_MS,
   );
+  const inFinalHour = Boolean(
+    expiryMs && isFinalHourBeforeExpiry(expiryMs, LEVERAGED_MINT_WINDOW_MS),
+  );
   const maxLeverageForMarket = leveragedMintAllowed ? LEVERAGE_MAX : LEVERAGE_MIN;
-  const marginNum = parseFloat(margin) || 0;
+  const restingLimitAllowed = Boolean(
+    expiryMs &&
+      expiryMs > Date.now() &&
+      availableLimitOrderExpiryPresets(expiryMs).length > 0,
+  );
 
   useEffect(() => {
     if (leverage > maxLeverageForMarket) {
       setLeverage(maxLeverageForMarket);
     }
   }, [leverage, maxLeverageForMarket]);
+
+  useEffect(() => {
+    if (!leveragedMintAllowed) {
+      setLeverage(LEVERAGE_MIN);
+    }
+  }, [leveragedMintAllowed]);
+
+  useEffect(() => {
+    if (!restingLimitAllowed && limitExecution === "resting") {
+      setLimitExecution("immediate");
+    }
+  }, [restingLimitAllowed, limitExecution]);
+
+  useEffect(() => {
+    if (!expiryMs || expiryMs <= 0) return;
+    const presets = availableLimitOrderExpiryPresets(expiryMs);
+    if (presets.length === 0) return;
+    if (!presets.some((p) => p.ms === orderExpiresOffsetMs)) {
+      setOrderExpiresOffsetMs(pickDefaultLimitOrderExpiryMs(expiryMs));
+    }
+  }, [expiryMs, orderExpiresOffsetMs]);
+  const marginNum = parseFloat(margin) || 0;
   const isRange = side === "range";
   const ctaClass = tradeCtaClass(side);
   const rangeLower = lowerStrikeRaw;
@@ -555,7 +586,7 @@ export function PredictLeveragePanel({
         errors.push(`Slippage cannot exceed ${MAX_LIMIT_ORDER_SLIPPAGE_PCT}%.`);
       }
       if (limitExecution === "resting" && expiryMs && expiryMs > 0) {
-        const restingExpiresMs = Date.now() + orderExpiresHours * 3_600_000;
+        const restingExpiresMs = Date.now() + orderExpiresOffsetMs;
         const maxLeveragedExpiryMs = maxLeveragedRestingOrderExpiryMs(
           expiryMs,
           LEVERAGED_MINT_WINDOW_MS,
@@ -665,7 +696,7 @@ export function PredictLeveragePanel({
     address,
     quoteLoading,
     mintQuote,
-    orderExpiresHours,
+    orderExpiresOffsetMs,
     expiryMs,
     tpSl,
     tp,
@@ -730,7 +761,7 @@ export function PredictLeveragePanel({
           orderType === "limit" ? percentToBps(placementSlippagePct) : undefined,
         orderExpiresMs:
           orderType === "limit" && limitExecution === "resting"
-            ? Math.min(Date.now() + orderExpiresHours * 3_600_000, expiryMs)
+            ? Math.min(Date.now() + orderExpiresOffsetMs, expiryMs)
             : undefined,
         tpPremium: tpPremium > 0n ? tpPremium : undefined,
         slPremium: slPremium > 0n ? slPremium : undefined,
@@ -837,10 +868,12 @@ export function PredictLeveragePanel({
           {orderType === "limit" ? (
             <SlippagePopover
               placementSlippagePct={placementSlippagePct}
-              orderExpiresHours={orderExpiresHours}
+              orderExpiresOffsetMs={orderExpiresOffsetMs}
               limitExecution={limitExecution}
+              marketExpiryMs={expiryMs}
+              restingAllowed={restingLimitAllowed}
               onPlacementSlippageChange={setPlacementSlippagePct}
-              onOrderExpiresHoursChange={setOrderExpiresHours}
+              onOrderExpiresOffsetMsChange={setOrderExpiresOffsetMs}
               onLimitExecutionChange={setLimitExecution}
             />
           ) : null}
@@ -966,7 +999,13 @@ export function PredictLeveragePanel({
             value={margin}
             onChange={(e) => setMargin(e.target.value)}
             placeholder="0.00"
-            suffix={<span className={leverageBadge}>{formatLeverageBadge(lev)} dUSDC</span>}
+            suffix={
+              leveragedMintAllowed ? (
+                <span className={leverageBadge}>{formatLeverageBadge(lev)} dUSDC</span>
+              ) : (
+                <span className="text-sm text-muted-foreground">dUSDC</span>
+              )
+            }
           />
           <div className="mt-2">
             <TradeQuickAmounts amounts={quickAmounts} onPick={setMargin} />
@@ -983,16 +1022,20 @@ export function PredictLeveragePanel({
           ) : null}
         </div>
 
-        <LeverageSlider
-          value={leverage}
-          onChange={setLeverage}
-          maxLeverage={maxLeverageForMarket}
-          info={
-            expiryMs && isFinalHourBeforeExpiry(expiryMs, LEVERAGED_MINT_WINDOW_MS)
-              ? leverxInfo.leveragedMintWindow
-              : leverxInfo.leverage
-          }
-        />
+        {inFinalHour ? (
+          <p className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-100/90">
+            Final hour — only 1× margin (no vault borrow) until this market closes.
+          </p>
+        ) : null}
+
+        {leveragedMintAllowed ? (
+          <LeverageSlider
+            value={leverage}
+            onChange={setLeverage}
+            maxLeverage={maxLeverageForMarket}
+            info={leverxInfo.leverage}
+          />
+        ) : null}
 
         <TradeQuoteSummary
           quote={mintQuote}

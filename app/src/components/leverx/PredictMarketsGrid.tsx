@@ -21,7 +21,6 @@ import {
 import { ui } from "@/lib/copy";
 import {
   landingCtaSecondary,
-  leverageBadge,
   marketCard,
   marketCardActions,
   marketCardBody,
@@ -35,7 +34,8 @@ import {
   pageState,
 } from "@/lib/leverx/tw";
 import { formatAutoClose } from "@/lib/leverx/placeholders";
-import { cn } from "@/lib/utils";
+import { MarketLeverageBadge } from "@/components/leverx/MarketLeverageBadge";
+import { useNow } from "@/hooks/useNow";
 
 interface Props {
   markets: LeverxMarketRow[];
@@ -62,6 +62,7 @@ export function PredictMarketsGrid({
   );
   const { markets: visibleMarkets } = useVisibleOracleSpots(pageMarkets);
   const { seriesByMarketId } = useMarketPremiumSparklines(visibleMarkets);
+  const now = useNow(1000);
 
   if (loading) {
     return <MarketGridSkeleton />;
@@ -115,7 +116,7 @@ export function PredictMarketsGrid({
                     <p className="line-clamp-2 text-xs font-medium leading-snug text-foreground transition-colors hover:text-accent">
                       {m.question}
                     </p>
-                    <span className={cn(leverageBadge, "mt-1")}>10X</span>
+                    <MarketLeverageBadge expiryMs={m.expiry} now={now} />
                   </Link>
                   <Link
                     {...marketHref}

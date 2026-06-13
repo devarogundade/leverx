@@ -18,7 +18,6 @@ import type { LeverxMarketRow } from "@/lib/leverx/indexer-markets";
 import { formatAutoClose, formatCompactUsdOrPlaceholder } from "@/lib/leverx/placeholders";
 import { ui } from "@/lib/copy";
 import {
-  leverageBadge,
   marketsBookmark,
   marketsMarketCell,
   marketsMarketLink,
@@ -53,7 +52,8 @@ import {
   marketsTradeActions,
   pageState,
 } from "@/lib/leverx/tw";
-import { cn } from "@/lib/utils";
+import { MarketLeverageBadge } from "@/components/leverx/MarketLeverageBadge";
+import { useNow } from "@/hooks/useNow";
 
 type SortKey = "price" | "volume" | "liquidity" | "expiry";
 type SortDir = "asc" | "desc";
@@ -97,10 +97,12 @@ function MarketMobileCard({
   market: m,
   liquidityLabel,
   premiumSeries,
+  now,
 }: {
   market: LeverxMarketRow;
   liquidityLabel: string;
   premiumSeries: readonly number[];
+  now: number;
 }) {
   return (
     <article className={marketsTableMobileCard}>
@@ -123,7 +125,7 @@ function MarketMobileCard({
           >
             {m.question}
           </Link>
-          <span className={cn(leverageBadge, "mt-1")}>10X</span>
+          <MarketLeverageBadge expiryMs={m.expiry} now={now} />
         </div>
         <MarketPremiumQuote
           series={premiumSeries}
@@ -220,6 +222,7 @@ export function PredictMarketsTable({
   );
   const { markets: visibleMarkets } = useVisibleOracleSpots(pageMarkets);
   const { seriesByMarketId } = useMarketPremiumSparklines(visibleMarkets);
+  const now = useNow(1000);
 
   if (loading) {
     return <MarketTableSkeleton />;
@@ -250,6 +253,7 @@ export function PredictMarketsTable({
             market={m}
             liquidityLabel={liquidityLabel}
             premiumSeries={seriesByMarketId.get(m.id) ?? []}
+            now={now}
           />
         ))}
       </div>
@@ -318,7 +322,7 @@ export function PredictMarketsTable({
                         >
                           {m.question}
                         </Link>
-                        <span className={cn(leverageBadge, "mt-1")}>10X</span>
+                        <MarketLeverageBadge expiryMs={m.expiry} now={now} />
                       </div>
                     </div>
                   </td>

@@ -281,6 +281,20 @@ export const tradeStatItemLabel = "text-[0.6875rem] text-muted-foreground";
 export const tradeStatItemValue =
   "font-mono text-[0.8125rem] font-medium tabular-nums text-foreground";
 
+export const leverageCountdown = cn(
+  "flex w-full min-w-[11rem] flex-col gap-1 rounded-lg border border-border bg-surface/80 px-3 py-2",
+  "sm:min-w-[12.5rem] sm:px-4 sm:py-2.5",
+  "lg:w-auto lg:shrink-0",
+);
+
+export const leverageCountdownTime =
+  "font-mono text-base font-semibold tabular-nums tracking-tight text-foreground sm:text-lg";
+
+export const tradeTerminalHeaderMetricsRow = cn(
+  "flex flex-col gap-3",
+  "lg:flex-row lg:items-stretch lg:justify-between lg:gap-4",
+);
+
 export const tradeTerminalBody = "flex flex-col gap-[var(--trade-gap)]";
 
 export const tradeTerminalWorkspace = cn(

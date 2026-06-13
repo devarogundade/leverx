@@ -6,12 +6,13 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { AssetBadge } from "@/components/AssetBadge";
 import { formatPremiumOrPlaceholder, type LeverxMarketRow } from "@/lib/leverx/indexer-markets";
 import { ui } from "@/lib/copy";
+import { MarketLeverageBadge } from "@/components/leverx/MarketLeverageBadge";
+import { useNow } from "@/hooks/useNow";
 import {
   btnIcon,
   featuredCarouselRow,
   featuredCarouselRowEmpty,
   heroPanel,
-  leverageBadge,
   livePulse,
 } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,7 @@ interface Props {
 
 export function FeaturedCarousel({ markets, loading }: Props) {
   const [page, setPage] = useState(0);
+  const now = useNow(1000);
   const perPage = 3;
   const pages = Math.max(1, Math.ceil(markets.length / perPage));
   const slice = markets.slice(page * perPage, page * perPage + perPage);
@@ -55,7 +57,7 @@ export function FeaturedCarousel({ markets, loading }: Props) {
                   <p className="text-[10px] text-muted-foreground">DeepBook Predict</p>
                 </div>
                 <div className="shrink-0 text-right">
-                  <span className={leverageBadge}>10X</span>
+                  <MarketLeverageBadge expiryMs={m.expiry} now={now} className="mt-0" />
                   <div className="mt-0.5 text-sm font-semibold tabular-nums">
                     {formatPremiumOrPlaceholder(m.lastAskPremium)}
                   </div>

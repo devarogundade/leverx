@@ -15,6 +15,8 @@ export const leverxInfo = {
     "Multiplier on your deposit (1×–10×). At 1× there is no vault borrow. Leverage above 1× closes one hour before market expiry.",
   leveragedMintWindow:
     "New leveraged positions cannot be opened in the final hour before expiry. Existing borrowed positions in that window are force-deleveraged to 1× (or liquidated if underwater).",
+  leverageCountdown:
+    "Countdown until new trades are limited to 1× margin (no vault borrow). In the final hour, only the market settlement timer remains.",
   preTradeQuote: "Estimated cost before you confirm. Connect your wallet for the most accurate number.",
   askPerUnit: "Best available price per contract right now.",
   mintCost: "Total cost to open, including your deposit and any fees.",

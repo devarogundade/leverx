@@ -84,7 +84,7 @@ export function buildCandleAutoscaleInfo(
   return { priceRange: withYPadding(bounds.min, bounds.max, PREDICT_CANDLE_Y_PAD_RATIO) };
 }
 
-/** Spread the full series across the time axis. */
+/** Spread the full series across the time axis (initial load only). */
 export function applyPredictChartViewport(
   chart: IChartApi,
   dataLength: number,
@@ -92,10 +92,7 @@ export function applyPredictChartViewport(
 ): void {
   chart.timeScale().applyOptions(predictChartTimeScaleOptions(mode));
 
-  if (dataLength < 2) {
-    chart.timeScale().fitContent();
-    return;
-  }
+  if (dataLength < 1) return;
 
   chart.timeScale().fitContent();
 }

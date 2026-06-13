@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, Inbox } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { UnderlineTabs } from "@/components/leverx/UnderlineTabs";
+import { LeverageWindowCountdown } from "@/components/leverx/LeverageWindowCountdown";
 import { PredictLeveragePanel } from "@/components/leverx/PredictLeveragePanel";
 import { LeverxLimitOrdersTable } from "@/components/leverx/LeverxLimitOrdersTable";
 import { LeverxPositionsTable } from "@/components/leverx/LeverxPositionsTable";
@@ -44,11 +45,15 @@ import { baseFromUnderlying } from "@/lib/markets";
 import { formatPrice } from "@/lib/copy";
 import {
   DATA_PLACEHOLDER,
-  formatAutoClose,
   formatCountOrPlaceholder,
   formatUsdcOrPlaceholder,
 } from "@/lib/leverx/placeholders";
 import { summarizeGlobalTrades } from "@/lib/leverx/trade-stats";
+import { LEVERAGED_MINT_WINDOW_MS } from "@/lib/leverx/constants";
+import {
+  formatMarketCloses,
+  isFinalHourBeforeExpiry,
+} from "@/lib/leverx/trade-limits";
 import {
   buildPositionStrikeChartLevels,
   buildStrikeChartLevels,
@@ -84,6 +89,7 @@ import {
   tradeOracleNavBtnDisabled,
   tradeTerminalWorkspace,
   tradeStatRow,
+  tradeTerminalHeaderMetricsRow,
   tradeMobileDock,
   tradeMobileDockTab,
   tradeMobileDockTabActive,
@@ -558,6 +564,9 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   const expiry = market?.expiry ?? oracleSummary?.expiry ?? oracleState?.expiry;
   const isOracleExpired =
     expiry != null && expiry > 0 && expiry <= Date.now();
+  const inFinalHour = Boolean(
+    expiry && expiry > Date.now() && isFinalHourBeforeExpiry(expiry, LEVERAGED_MINT_WINDOW_MS),
+  );
   const liquidity = vaultSummary?.snapshot?.nav
     ? scaleQuote(vaultSummary.snapshot.nav)
     : null;
@@ -710,38 +719,42 @@ export function PredictTradeTerminal({ oracleId }: Props) {
         </div>
 
         <div className={tradeTerminalHeaderMetrics}>
-          <div className={tradeStatRow}>
-            <StatItem
-              label={ui.markPrice}
-              info={leverxInfo.markPrice}
-              value={
-                oracleSpot != null && oracleSpot > 0
-                  ? formatPrice(asset, oracleSpot)
-                  : DATA_PLACEHOLDER
-              }
-            />
-            <StatItem
-              label="Contract price"
-              info={leverxInfo.premium}
-              value={formatPremiumOrPlaceholder(activePremium)}
-            />
-            <StatItem
-              label="Volume (24h)"
-              info={leverxInfo.volume24h}
-              value={formatUsdcOrPlaceholder(
-                tradeStats.volume24h > 0 ? tradeStats.volume24h : null,
-              )}
-            />
-            <StatItem
-              label="Pool size"
-              info={leverxInfo.vaultNav}
-              value={formatUsdcOrPlaceholder(liquidity)}
-            />
-            <StatItem
-              label="Closes"
-              info={leverxInfo.autoClose}
-              value={expiry ? formatAutoClose(expiry) : DATA_PLACEHOLDER}
-            />
+          <div className={tradeTerminalHeaderMetricsRow}>
+            <div className={tradeStatRow}>
+              <StatItem
+                label={ui.markPrice}
+                info={leverxInfo.markPrice}
+                value={
+                  oracleSpot != null && oracleSpot > 0
+                    ? formatPrice(asset, oracleSpot)
+                    : DATA_PLACEHOLDER
+                }
+              />
+              <StatItem
+                label="Contract price"
+                info={leverxInfo.premium}
+                value={formatPremiumOrPlaceholder(activePremium)}
+              />
+              <StatItem
+                label="Volume (24h)"
+                info={leverxInfo.volume24h}
+                value={formatUsdcOrPlaceholder(
+                  tradeStats.volume24h > 0 ? tradeStats.volume24h : null,
+                )}
+              />
+              <StatItem
+                label="Pool size"
+                info={leverxInfo.vaultNav}
+                value={formatUsdcOrPlaceholder(liquidity)}
+              />
+              <StatItem
+                label="Closes"
+                info={inFinalHour ? leverxInfo.leveragedMintWindow : leverxInfo.autoClose}
+                value={expiry ? formatMarketCloses(expiry) : DATA_PLACEHOLDER}
+                tone={isOracleExpired ? "destructive" : inFinalHour ? "destructive" : undefined}
+              />
+            </div>
+            <LeverageWindowCountdown expiryMs={expiry} className="lg:self-center" />
           </div>
         </div>
       </header>

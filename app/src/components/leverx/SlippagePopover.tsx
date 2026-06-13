@@ -2,22 +2,33 @@ import { Settings2 } from "lucide-react";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
-import {
-  LIMIT_ORDER_EXPIRY_HOURS,
-  type LimitOrderExpiryHours,
-} from "@/lib/leverx/constants";
 import { leverxInfo } from "@/lib/leverx/info-copy";
+import {
+  availableLimitOrderExpiryPresets,
+  formatLimitOrderExpiryLabel,
+} from "@/lib/leverx/trade-limits";
 import { cn } from "@/lib/utils";
-import { inputInField, labelCaps, pillToggleActive, pillToggleBtn, pillToggleGroup, pillToggleIdle } from "@/lib/leverx/tw";
+import {
+  inputInField,
+  labelCaps,
+  pillToggleActive,
+  pillToggleBtn,
+  pillToggleGroup,
+  pillToggleIdle,
+} from "@/lib/leverx/tw";
 import type { LimitExecutionMode } from "@/lib/leverx/transactions";
 
 interface Props {
   placementSlippagePct: number;
-  orderExpiresHours: LimitOrderExpiryHours;
+  orderExpiresOffsetMs: number;
   limitExecution: LimitExecutionMode;
   onPlacementSlippageChange: (value: number) => void;
-  onOrderExpiresHoursChange: (value: LimitOrderExpiryHours) => void;
+  onOrderExpiresOffsetMsChange: (value: number) => void;
   onLimitExecutionChange: (value: LimitExecutionMode) => void;
+  /** Market expiry — filters resting duration presets. */
+  marketExpiryMs?: number;
+  /** When false, only immediate limit fills are offered. */
+  restingAllowed?: boolean;
   className?: string;
 }
 
@@ -27,14 +38,23 @@ function formatSlippagePct(value: number): string {
 
 export function SlippagePopover({
   placementSlippagePct,
-  orderExpiresHours,
+  orderExpiresOffsetMs,
   limitExecution,
   onPlacementSlippageChange,
-  onOrderExpiresHoursChange,
+  onOrderExpiresOffsetMsChange,
   onLimitExecutionChange,
+  marketExpiryMs,
+  restingAllowed = true,
   className,
 }: Props) {
-  const summary = `${formatSlippagePct(placementSlippagePct)} | ${orderExpiresHours}h`;
+  const expiryPresets =
+    marketExpiryMs && marketExpiryMs > 0
+      ? availableLimitOrderExpiryPresets(marketExpiryMs)
+      : [];
+  const canRest = restingAllowed && expiryPresets.length > 0;
+  const summary = canRest
+    ? `${formatSlippagePct(placementSlippagePct)} | ${formatLimitOrderExpiryLabel(orderExpiresOffsetMs)}`
+    : `${formatSlippagePct(placementSlippagePct)} | Fill now`;
 
   return (
     <Popover>
@@ -64,7 +84,9 @@ export function SlippagePopover({
               className={cn(
                 pillToggleBtn,
                 limitExecution === "resting" ? pillToggleActive : pillToggleIdle,
+                !canRest && "pointer-events-none opacity-40",
               )}
+              disabled={!canRest}
               onClick={() => onLimitExecutionChange("resting")}
             >
               Resting
@@ -80,6 +102,11 @@ export function SlippagePopover({
               Fill now
             </button>
           </div>
+          {!canRest ? (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Resting orders are unavailable in the final hour or when the market closes too soon.
+            </p>
+          ) : null}
         </div>
         <div>
           <LabelWithInfo
@@ -103,29 +130,31 @@ export function SlippagePopover({
             className={cn(inputInField, "mt-2 h-9 rounded-md border border-border px-3 font-mono")}
           />
         </div>
-        <div>
-          <LabelWithInfo
-            label="Order expires"
-            labelClassName={labelCaps}
-            info={leverxInfo.orderExpires}
-          />
-          <div className={cn(pillToggleGroup, "mt-2 flex-wrap")} role="group">
-            {LIMIT_ORDER_EXPIRY_HOURS.map((hours) => (
-              <button
-                key={hours}
-                type="button"
-                className={cn(
-                  pillToggleBtn,
-                  orderExpiresHours === hours ? pillToggleActive : pillToggleIdle,
-                )}
-                onClick={() => onOrderExpiresHoursChange(hours)}
-                aria-pressed={orderExpiresHours === hours}
-              >
-                {hours}h
-              </button>
-            ))}
+        {canRest && limitExecution === "resting" ? (
+          <div>
+            <LabelWithInfo
+              label="Order expires"
+              labelClassName={labelCaps}
+              info={leverxInfo.orderExpires}
+            />
+            <div className={cn(pillToggleGroup, "mt-2 flex-wrap")} role="group">
+              {expiryPresets.map((preset) => (
+                <button
+                  key={preset.ms}
+                  type="button"
+                  className={cn(
+                    pillToggleBtn,
+                    orderExpiresOffsetMs === preset.ms ? pillToggleActive : pillToggleIdle,
+                  )}
+                  onClick={() => onOrderExpiresOffsetMsChange(preset.ms)}
+                  aria-pressed={orderExpiresOffsetMs === preset.ms}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        ) : null}
       </PopoverContent>
     </Popover>
   );
