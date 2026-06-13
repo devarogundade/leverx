@@ -77,11 +77,14 @@ export function formatTxError(error: unknown): string {
   ) {
     return "Trading account setup is incomplete. Open Portfolio → Account to link your Predict manager.";
   }
+  if (raw.includes("FunctionNotFound")) {
+    return "This app build is out of sync with the on-chain LeverX package. Refresh the page; if it persists, open Portfolio → Account to set up a new trading account.";
+  }
   if (
     raw.includes("CommandArgumentError") &&
     raw.includes("TypeMismatch")
   ) {
-    return "Transaction could not be simulated — refresh the page and try again. If it persists, the app may be out of sync with the on-chain package.";
+    return "Transaction could not be simulated — refresh the page and try again. If it persists, the app may be out of sync with the on-chain package, or your trading account may need to be recreated from Portfolio → Account.";
   }
   if (
     raw.includes("InsufficientCoinBalanceError") ||

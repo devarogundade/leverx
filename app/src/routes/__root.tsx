@@ -103,10 +103,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@600;700;800&display=swap",
-      },
       { rel: "stylesheet", href: appCss },
     ],
   }),
@@ -126,7 +122,7 @@ function RootShell({ children }: { children: ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body
-        className="min-h-dvh bg-background text-foreground antialiased"
+        className="min-h-dvh bg-background font-sans text-foreground antialiased"
         suppressHydrationWarning
       >
         {children}

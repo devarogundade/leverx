@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap");
 @import "tailwindcss" source(none);
 @source "./";
 @import "tw-animate-css";
@@ -6,9 +7,9 @@
 @custom-variant light (&:is(.light *));
 
 @theme inline {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Syne", "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: "Barlow";
+  --font-display: var(--font-sans);
+  --font-mono: "JetBrains Mono";
 
   /* Radius scale */
   --radius-xs: 0.125rem;
@@ -60,6 +61,11 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+}
+
+@utility tabular-nums {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 :root {
@@ -273,7 +279,7 @@
   --palette-chart-bullish: var(--palette-green-300);
   --palette-chart-bearish: var(--palette-red-400);
 
-  /* LeverX tokens — aligned with leverx (sand accent, neutral dark) */
+  /* LeverX tokens — blue accent, neutral dark */
   --background: #191919;
   --elevated: #1f1f1f;
   --surface: #232323;
@@ -294,20 +300,20 @@
   --muted: #232323;
   --muted-foreground: #9a9a97;
 
-  --accent: #d4c5b0;
-  --accent-foreground: #111;
-  --sand: #d4c5b0;
+  --accent: #298dff;
+  --accent-foreground: #ffffff;
+  --sand: #298dff;
 
   --destructive: #f87171;
   --destructive-foreground: #fff;
   --success: #34d399;
   --warning: #fbbf24;
-  --info: #d4c5b0;
+  --info: #298dff;
 
   --border: #ffffff14;
   --border-strong: #ffffff1f;
   --input: #ffffff14;
-  --ring: #d4c5b0;
+  --ring: #298dff;
 
   --sidebar: #191919;
   --sidebar-foreground: var(--foreground);
@@ -320,8 +326,8 @@
 
   --chart-1: #34d399;
   --chart-2: #fbbf24;
-  --chart-3: #d4c5b0;
-  --chart-4: #d4c5b0;
+  --chart-3: #298dff;
+  --chart-4: #5ca8ff;
   --chart-5: #f87171;
 
   --long-bg: #162d21;
@@ -388,6 +394,7 @@
   html,
   body {
     font-family: var(--font-sans);
+    font-weight: 400;
     color-scheme: dark;
   }
   body {
@@ -396,9 +403,46 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    font-feature-settings:
+      "kern" 1,
+      "liga" 1;
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+  code,
+  kbd,
+  samp,
+  pre {
+    font-family: var(--font-mono);
+  }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not(
+      [type="submit"]
+    ):not([type="button"]):not([type="reset"]),
+  textarea,
+  [cmdk-input] {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+  button,
+  select {
+    font-family: inherit;
+  }
+  .font-mono,
+  [data-numeric="true"] {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
   }
   #root,
   #app {
@@ -914,6 +958,7 @@ select {
   }
 
   .stat-value {
+    font-family: var(--font-mono);
     font-size: 1.5rem;
     font-weight: 700;
     letter-spacing: -0.025em;
@@ -2913,7 +2958,7 @@ select {
   border-radius: var(--radius-sm);
   border: 1px solid color-mix(in oklab, var(--color-accent) 35%, transparent);
   background: color-mix(in oklab, var(--color-accent) 12%, transparent);
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 0.8125rem;
   font-weight: 700;
   color: var(--color-accent);
@@ -2929,7 +2974,7 @@ select {
 
 .landing-eyebrow {
   margin-bottom: 1rem;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 0.6875rem;
   font-weight: 500;
   letter-spacing: 0.14em;
@@ -2940,7 +2985,7 @@ select {
 .landing-hero-title {
   font-family: var(--font-display);
   font-size: clamp(2.5rem, 6.5vw, 4.25rem);
-  font-weight: 800;
+  font-weight: 500;
   line-height: 1.05;
   letter-spacing: -0.035em;
   color: var(--color-foreground);
@@ -2986,7 +3031,7 @@ select {
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
   padding: 0.25rem 0.75rem;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -3739,7 +3784,7 @@ select {
 }
 
 /* ════════════════════════════════════════════════════════════════
-   leverx ALIGNMENT — sand accent · neutral dark (see leverx.vercel.app)
+   leverx ALIGNMENT — blue accent · neutral dark
    ════════════════════════════════════════════════════════════════ */
 
 :root,
@@ -3752,7 +3797,7 @@ select {
   color-scheme: dark;
 }
 
-/* Light theme — sand accent on warm neutral */
+/* Light theme — blue accent on warm neutral */
 .light {
   --background: #f5f5f3;
   --elevated: #eeecea;
@@ -3763,9 +3808,9 @@ select {
   --popover: #ffffff;
   --muted: #e8e8e5;
   --muted-foreground: #6b6b68;
-  --accent: #8b7d6b;
+  --accent: #298dff;
   --accent-foreground: #ffffff;
-  --sand: #8b7d6b;
+  --sand: #298dff;
   --primary: #111111;
   --primary-foreground: #f5f5f3;
   --secondary: #0000000a;
@@ -3773,7 +3818,7 @@ select {
   --border: #00000014;
   --border-strong: #0000001f;
   --input: #0000000a;
-  --ring: #8b7d6b;
+  --ring: #298dff;
   --long-bg: #d1fae5;
   --long-text: #059669;
   --short-bg: #fee2e2;
@@ -4139,7 +4184,7 @@ tbody tr:hover {
   background: color-mix(in oklab, var(--brand-500) 5%, var(--color-hover));
 }
 thead th {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 0.6875rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -4318,7 +4363,7 @@ button:disabled {
   letter-spacing: -0.01em;
 }
 .label-caps {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 0.6875rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -5104,7 +5149,7 @@ button:disabled {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   gap: 0.75rem;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 0.75rem;
 }
 .landing-illus-ob-col {
@@ -5133,6 +5178,8 @@ button:disabled {
   border-radius: var(--radius-sm);
   background: color-mix(in oklab, var(--color-surface) 65%, transparent);
   color: var(--color-muted-foreground);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 .landing-illus-ob-col:last-child .landing-illus-ob-row {
   flex-direction: row-reverse;
@@ -5153,7 +5200,9 @@ button:disabled {
   color: var(--color-muted-foreground);
 }
 .landing-illus-ob-spread-val {
+  font-family: var(--font-mono);
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   color: var(--color-foreground);
 }
 
@@ -5465,7 +5514,7 @@ button:disabled {
   border-radius: var(--radius-md);
 }
 
-/* Site logo — sand accent mark */
+/* Site logo — accent mark */
 .site-header .bg-accent {
   border-radius: var(--radius-md) !important;
 }

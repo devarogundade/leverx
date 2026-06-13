@@ -184,6 +184,10 @@ export type ProtocolSettings = {
   registry_id: string;
   vault_id: string | null;
   predict_id: string | null;
+  /** Canonical LeverX package (indexer or on-chain resolution). */
+  package_id?: string | null;
+  /** Canonical DeepBook Predict package. */
+  predict_package_id?: string | null;
   fee_collector_id: string | null;
   trading_paused: boolean;
   base_rate_bps: number | null;

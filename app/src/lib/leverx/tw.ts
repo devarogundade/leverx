@@ -31,7 +31,7 @@ export const tradeInputCard = cn(
 
 /** Input nested inside a bordered field shell — no inner border or focus ring */
 export const inputInField = cn(
-  "h-auto min-h-0 flex-1 border-0 bg-transparent p-0 shadow-none",
+  "h-auto min-h-0 flex-1 border-0 bg-transparent p-0 font-mono tabular-nums shadow-none",
   "outline-none ring-0 focus-visible:outline-none focus-visible:ring-0",
 );
 
@@ -129,7 +129,7 @@ export const pageBlockRuled = "border-t border-border pt-6";
 export const statTile = "py-2";
 
 export const statValue =
-  "text-2xl font-bold tracking-tight tabular-nums text-foreground sm:text-3xl";
+  "font-mono text-2xl font-bold tracking-tight tabular-nums text-foreground sm:text-3xl";
 
 /** Soft pill toggle — secondary choices without bordered seg-tab chrome */
 export const pillToggleGroup =
@@ -572,7 +572,7 @@ export const catalogPagination = cn(
   "flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 mt-2",
 );
 
-export const catalogPaginationInfo = "text-xs text-muted-foreground tabular-nums";
+export const catalogPaginationInfo = "font-mono text-xs text-muted-foreground tabular-nums";
 
 /** Featured carousel / hero */
 export const heroPanel = "flex h-full min-h-[var(--markets-hero-h)] flex-col py-1";

@@ -3,6 +3,7 @@ import type { WalletWithRequiredFeatures } from "@mysten/wallet-standard";
 import type { WalletAccount } from "@wallet-standard/core";
 import { fetchAccounts } from "@/lib/leverx/indexer-client";
 import { ONBOARD_GAS_BUDGET } from "@/lib/leverx/constants";
+import { objectMatchesStructType } from "@/lib/leverx/package-resolution";
 import type { LeverxOnboardingConfig } from "@/lib/leverx/protocol";
 import { executeWalletTransaction } from "@/lib/sui/execute-transaction";
 
@@ -59,10 +60,18 @@ export async function resolveLeverxAccount(
     const { items } = await fetchAccounts({ owner, limit: 5 });
     const row = items[0];
     if (row?.account_id) {
-      return {
-        accountId: row.account_id,
-        predictManagerId: row.predict_manager_id,
-      };
+      const proxyType = `${cfg.packageId}::user_proxy::UserProxy`;
+      const proxyMatches = await objectMatchesStructType(
+        client,
+        row.account_id,
+        proxyType,
+      );
+      if (proxyMatches) {
+        return {
+          accountId: row.account_id,
+          predictManagerId: row.predict_manager_id,
+        };
+      }
     }
   } catch {
     // Indexer may be offline — fall back to RPC.

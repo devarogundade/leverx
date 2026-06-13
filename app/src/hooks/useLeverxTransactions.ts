@@ -1,9 +1,12 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { useWallet } from "@/context/WalletContext";
 import { useIndexerProtocol } from "@/hooks/useIndexer";
+import { appConfig } from "@/lib/config";
 import { invalidateLeverxQueries } from "@/lib/leverx/invalidate-queries";
 import type { LimitMintOrder, LeveragedPosition } from "@/lib/leverx/indexer-client";
 import type { MarketKeyArgs } from "@/lib/leverx/market-keys";
+import { fetchPackageIdsForProtocol } from "@/lib/leverx/package-resolution";
 import { resolveLeverxProtocol } from "@/lib/leverx/protocol";
 import {
   executeCancelLimitOrder,
@@ -23,16 +26,56 @@ import {
   type WithdrawQuoteInput,
 } from "@/lib/leverx/transactions";
 import { formatTxError } from "@/lib/leverx/tx-errors";
+import { suiClient } from "@/lib/sui/client";
+
+const leverxPackageKeys = {
+  ids: (registryId: string, predictId: string) =>
+    ["leverx-package-ids", registryId, predictId] as const,
+};
 
 export function useLeverxProtocolConfig() {
-  const { data: settings } = useIndexerProtocol();
-  return resolveLeverxProtocol(settings ?? null);
+  const { data: settings, isLoading: settingsLoading } = useIndexerProtocol();
+
+  const registryId = settings?.registry_id?.trim() || appConfig.leverxRegistryId;
+  const predictId = settings?.predict_id?.trim() || appConfig.predictId;
+
+  const {
+    data: packageIds,
+    isLoading: packagesLoading,
+    isError: packagesError,
+  } = useQuery({
+    queryKey: leverxPackageKeys.ids(registryId, predictId),
+    queryFn: () =>
+      fetchPackageIdsForProtocol(suiClient, {
+        registryId,
+        predictId,
+      }),
+    enabled: Boolean(registryId),
+    staleTime: 10 * 60_000,
+    retry: 2,
+  });
+
+  const cfg = useMemo(() => {
+    if (registryId && packagesLoading) {
+      return null;
+    }
+
+    return resolveLeverxProtocol(settings ?? null, {
+      packageId: packageIds?.leverxPackageId ?? settings?.package_id,
+      predictPackageId: packageIds?.predictPackageId ?? settings?.predict_package_id,
+      allowEnvPackageFallback: !registryId || packagesError,
+    });
+  }, [settings, packageIds, packagesLoading, packagesError, registryId]);
+
+  const isResolving = settingsLoading || (Boolean(registryId) && packagesLoading);
+
+  return { cfg, isResolving };
 }
 
 export function useLeverxTransactions() {
   const queryClient = useQueryClient();
   const { client, wallet, account } = useWallet();
-  const cfg = useLeverxProtocolConfig();
+  const { cfg, isResolving } = useLeverxProtocolConfig();
 
   const invalidate = () => invalidateLeverxQueries(queryClient);
 
@@ -223,7 +266,7 @@ export function useLeverxTransactions() {
 
   return {
     cfg,
-    isProtocolReady: Boolean(cfg),
+    isProtocolReady: Boolean(cfg) && !isResolving,
     openTrade,
     closePosition,
     settleExpired,

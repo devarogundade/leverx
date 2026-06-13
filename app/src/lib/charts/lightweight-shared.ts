@@ -10,13 +10,13 @@ export function levelLineColor(tone: PriceLevel["tone"]): string {
     case "entry-down":
       return readCssVar("--short-text", "#ef5350");
     case "entry-range":
-      return readCssVar("--accent", "#d4c5b0");
+      return readCssVar("--accent", "#298dff");
     case "strike":
       return "#eab308";
     case "current":
       return "#71d886";
     case "settlement":
-      return "#d4c5b0";
+      return "#298dff";
   }
 }
 
@@ -80,7 +80,7 @@ export function lightweightChartOptions(
     layout: {
       background: { type: ColorType.Solid, color: background },
       textColor: text,
-      fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+      fontFamily: "JetBrains Mono",
       fontSize: 11,
     },
     grid: {
@@ -109,7 +109,7 @@ export function lightweightChartOptions(
 }
 
 export function lineSeriesAccentColor(): string {
-  return readCssVar("--accent", "#d4c5b0");
+  return readCssVar("--accent", "#298dff");
 }
 
 export function lineSeriesWinColor(): string {

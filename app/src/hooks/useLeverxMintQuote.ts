@@ -1,11 +1,9 @@
-import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useWallet } from "@/context/WalletContext";
-import { useIndexerAccounts, useIndexerProtocol } from "@/hooks/useIndexer";
+import { useIndexerAccounts } from "@/hooks/useIndexer";
 import { useLeverxProtocolConfig } from "@/hooks/useLeverxTransactions";
 import type { MarketKeyArgs } from "@/lib/leverx/market-keys";
 import { fetchMintQuote } from "@/lib/leverx/quotes";
-import { resolveLeverxProtocol } from "@/lib/leverx/protocol";
 import { leverageToBps, marginUsdToQuoteAtoms } from "@/lib/leverx/trade-math";
 
 export function useLeverxMintQuote(args: {
@@ -18,12 +16,7 @@ export function useLeverxMintQuote(args: {
   referencePremiumOverride?: bigint;
 }) {
   const { client } = useWallet();
-  const fullCfg = useLeverxProtocolConfig();
-  const { data: protocol } = useIndexerProtocol();
-  const cfg = useMemo(
-    () => fullCfg ?? resolveLeverxProtocol(protocol ?? null),
-    [fullCfg, protocol],
-  );
+  const { cfg } = useLeverxProtocolConfig();
   const { data: accounts = [] } = useIndexerAccounts(args.owner);
   const accountId = accounts[0]?.account_id;
 

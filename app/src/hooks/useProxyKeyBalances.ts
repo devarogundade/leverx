@@ -34,7 +34,7 @@ export function useProxyKeyBalances(
   positions: readonly LeveragedPosition[],
 ) {
   const { client } = useWallet();
-  const cfg = useLeverxProtocolConfig();
+  const { cfg } = useLeverxProtocolConfig();
 
   const uniquePositions = useMemo(() => {
     const byKey = new Map<string, LeveragedPosition>();

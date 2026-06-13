@@ -25,24 +25,46 @@ function nonEmpty(value: string | null | undefined): string {
   return value?.trim() ?? "";
 }
 
-export function resolveLeverxOnboardingConfig(): LeverxOnboardingConfig {
-  return {
-    packageId: appConfig.leverxPackageId,
-    predictPackageId: appConfig.predictPackageId,
-  };
+export type LeverxPackageOverrides = {
+  packageId?: string | null;
+  predictPackageId?: string | null;
+  /** When false, omit env fallbacks for package IDs (wait for on-chain resolution). */
+  allowEnvPackageFallback?: boolean;
+};
+
+export function resolveLeverxOnboardingConfig(
+  overrides?: Pick<LeverxPackageOverrides, "packageId" | "predictPackageId" | "allowEnvPackageFallback">,
+): LeverxOnboardingConfig {
+  const allowEnv = overrides?.allowEnvPackageFallback !== false;
+  const packageId =
+    nonEmpty(overrides?.packageId) || (allowEnv ? appConfig.leverxPackageId : "");
+  const predictPackageId =
+    nonEmpty(overrides?.predictPackageId) ||
+    (allowEnv ? appConfig.predictPackageId : "");
+
+  return { packageId, predictPackageId };
 }
 
 export function resolveLeverxProtocol(
   settings: ProtocolSettings | null | undefined,
+  overrides?: LeverxPackageOverrides,
 ): LeverxProtocolConfig | null {
+  const allowEnv = overrides?.allowEnvPackageFallback !== false;
   const registryId =
     nonEmpty(settings?.registry_id) || appConfig.leverxRegistryId;
   const vaultId = nonEmpty(settings?.vault_id) || appConfig.leverxVaultId;
-  const packageId = appConfig.leverxPackageId;
+  const packageId =
+    nonEmpty(overrides?.packageId) ||
+    nonEmpty(settings?.package_id) ||
+    (allowEnv ? appConfig.leverxPackageId : "");
   const feeCollectorId =
     nonEmpty(settings?.fee_collector_id) || appConfig.feeCollectorId;
+  const predictPackageId =
+    nonEmpty(overrides?.predictPackageId) ||
+    nonEmpty(settings?.predict_package_id) ||
+    (allowEnv ? appConfig.predictPackageId : "");
 
-  if (!packageId || !registryId || !vaultId || !feeCollectorId) {
+  if (!packageId || !registryId || !vaultId || !feeCollectorId || !predictPackageId) {
     return null;
   }
 
@@ -53,7 +75,7 @@ export function resolveLeverxProtocol(
     feeCollectorId,
     predictId: nonEmpty(settings?.predict_id) || appConfig.predictId,
     predictRegistryId: appConfig.predictRegistryId,
-    predictPackageId: appConfig.predictPackageId,
+    predictPackageId,
     quoteType: appConfig.quoteType,
   };
 }

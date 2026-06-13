@@ -25,7 +25,7 @@ function positionToMarketKey(position: LeveragedPosition) {
 
 export function usePositionsMarkToMarket(positions: readonly LeveragedPosition[]) {
   const { client } = useWallet();
-  const cfg = useLeverxProtocolConfig();
+  const { cfg } = useLeverxProtocolConfig();
 
   const openPositions = useMemo(
     () => positions.filter(isActiveOpenPosition),

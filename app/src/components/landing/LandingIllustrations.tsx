@@ -33,7 +33,7 @@ export function LandingChartIllustration() {
           <line key={y} x1="24" y1={y} x2="456" y2={y} stroke="var(--color-border)" strokeWidth="1" opacity="0.5" />
         ))}
         <line x1="24" y1="140" x2="456" y2="140" stroke="#eab308" strokeWidth="2" strokeDasharray="6 4" />
-        <text x="32" y="132" fill="#eab308" fontSize="10" fontFamily="JetBrains Mono, monospace">
+        <text x="32" y="132" fill="#eab308" fontSize="10" fontFamily="JetBrains Mono">
           Target
         </text>
         <polyline
@@ -52,18 +52,18 @@ export function LandingChartIllustration() {
         />
         <circle cx="456" cy="82" r="4" fill="#38ef7d" />
         <rect x="360" y="24" width="108" height="52" rx="6" fill="var(--color-card)" stroke="var(--color-border)" />
-        <text x="372" y="44" fill="var(--color-muted-foreground)" fontSize="9" fontFamily="Inter, sans-serif">
+        <text x="372" y="44" fill="var(--color-muted-foreground)" fontSize="9" fontFamily="Barlow">
           Now
         </text>
-        <text x="372" y="62" fill="var(--color-foreground)" fontSize="13" fontWeight="600" fontFamily="JetBrains Mono, monospace">
+        <text x="372" y="62" fill="var(--color-foreground)" fontSize="13" fontWeight="600" fontFamily="JetBrains Mono">
           $67,842
         </text>
         <rect x="24" y="228" width="72" height="22" rx="4" fill="#38ef7d" fillOpacity="0.18" />
-        <text x="32" y="243" fill="#38ef7d" fontSize="10" fontWeight="600" fontFamily="Inter, sans-serif">
+        <text x="32" y="243" fill="#38ef7d" fontSize="10" fontWeight="600" fontFamily="Barlow">
           Winning
         </text>
         <rect x="104" y="228" width="72" height="22" rx="4" fill="var(--color-surface)" stroke="var(--color-border)" />
-        <text x="112" y="243" fill="var(--color-muted-foreground)" fontSize="10" fontFamily="Inter, sans-serif">
+        <text x="112" y="243" fill="var(--color-muted-foreground)" fontSize="10" fontFamily="JetBrains Mono">
           10× max
         </text>
       </svg>

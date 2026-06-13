@@ -22,15 +22,13 @@ function quoteCfg(
 /** Live per-contract ask for a market (no margin / account required). */
 export function useLeverxMarketAsk(key?: MarketKeyArgs) {
   const { client } = useWallet();
-  const fullCfg = useLeverxProtocolConfig();
+  const { cfg: fullCfg } = useLeverxProtocolConfig();
   const cfg = useMemo(
     () =>
-      quoteCfg(
-        fullCfg?.packageId ?? appConfig.leverxPackageId,
-        fullCfg?.predictId,
-        fullCfg?.predictPackageId,
-      ),
-    [fullCfg?.packageId, fullCfg?.predictId, fullCfg?.predictPackageId],
+      fullCfg
+        ? quoteCfg(fullCfg.packageId, fullCfg.predictId, fullCfg.predictPackageId)
+        : null,
+    [fullCfg],
   );
 
   return useQuery({

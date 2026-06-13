@@ -50,7 +50,7 @@ export function AssetBadge({
     <span
       aria-hidden
       className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded-full font-mono font-semibold ring-1",
+        "inline-flex shrink-0 items-center justify-center rounded-full font-sans font-semibold ring-1",
         sizeClass,
         cls,
         className,
