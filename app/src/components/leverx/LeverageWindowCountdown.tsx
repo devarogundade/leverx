@@ -68,7 +68,7 @@ export function LeverageWindowCountdown({ expiryMs, className }: Props) {
       </div>
       <p
         className={cn(
-          "text-[0.625rem] leading-snug text-muted-foreground",
+          "text-sm leading-snug text-muted-foreground",
           inFinalHour && "text-amber-200/80",
         )}
       >

@@ -50,10 +50,7 @@ export const segTabsStretch = cn(
 );
 
 /** UP/DOWN (and RANGE) outcome row — equal-width tabs at every breakpoint */
-export const segTabsOutcomesStretch = cn(
-  "flex w-full max-w-none",
-  "[&>*]:min-w-0 [&>*]:flex-1",
-);
+export const segTabsOutcomesStretch = cn("flex w-full max-w-none", "[&>*]:min-w-0 [&>*]:flex-1");
 
 export const segTabsScroll = cn(
   "overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]",
@@ -444,7 +441,7 @@ export const landingCtaSecondary = cn(
 /** Order book */
 export const orderbookSideHeader = cn(
   "grid shrink-0 grid-cols-3 gap-1 px-2 pb-1.5",
-  "text-[0.625rem] font-medium uppercase tracking-wider text-muted-foreground",
+  "text-sm font-medium uppercase tracking-wider text-muted-foreground",
 );
 
 export const orderbookRow = "relative grid grid-cols-3 gap-1 px-2 py-0.5";
@@ -461,8 +458,7 @@ export const orderbookStackRows = "flex min-h-0 flex-1 flex-col overflow-y-auto"
 
 export const orderbookSentiment = "flex h-1 overflow-hidden rounded-full";
 
-export const orderbookSentimentLabels =
-  "mt-1.5 flex justify-between text-[0.625rem] text-muted-foreground";
+export const orderbookSentimentLabels = "mt-1.5 flex justify-between text-sm text-muted-foreground";
 
 /** Markets table */
 export const marketsTableShell =
@@ -519,7 +515,7 @@ export const marketsTh = cn(
 
 export const marketsThBtn = cn(
   "inline-flex cursor-pointer items-center gap-1 border-0 bg-transparent p-0",
-  "text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground",
+  "text-sm font-semibold uppercase tracking-wider text-muted-foreground",
   "transition-colors duration-150 hover:text-foreground",
 );
 
