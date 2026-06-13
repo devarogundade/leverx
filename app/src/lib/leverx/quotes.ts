@@ -271,6 +271,37 @@ export async function fetchMintQuote(params: {
   return { ...resolved, borrowQuote };
 }
 
+/** Open contract quantity held in a Predict manager for a market key. */
+export async function fetchManagerOpenQuantity(params: {
+  client: SuiJsonRpcClient;
+  packageId: string;
+  predictPackageId: string;
+  predictManagerId: string;
+  key: MarketKeyArgs;
+}): Promise<bigint> {
+  const tx = new Transaction();
+  tx.setSender(READONLY_SENDER);
+  const marketKey = addLeverxMarketKey(tx, params.key, params.predictPackageId);
+  const fn = params.key.isRange ? "manager_range_position" : "manager_binary_position";
+
+  tx.moveCall({
+    target: `${params.packageId}::predict_client::${fn}`,
+    arguments: [tx.object(params.predictManagerId), marketKey],
+  });
+
+  try {
+    const inspect = await params.client.devInspectTransactionBlock({
+      transactionBlock: tx,
+      sender: READONLY_SENDER,
+    });
+    if (inspect.effects?.status?.status !== "success") return 0n;
+    const tuple = findReturnTuple(inspect.results, 1);
+    return tuple?.[0] ?? 0n;
+  } catch {
+    return 0n;
+  }
+}
+
 /** On-chain quote balance held on a market key ledger (not in wallet). */
 export async function fetchKeyQuoteBalance(params: {
   client: SuiJsonRpcClient;

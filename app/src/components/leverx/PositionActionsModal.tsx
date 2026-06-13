@@ -1,16 +1,20 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, Loader2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/leverx/ConfirmDialog";
 import { ResponsiveModal } from "@/components/leverx/ResponsiveModal";
 import { InfoPopover } from "@/components/leverx/InfoPopover";
 import { Input } from "@/components/ui/input";
+import { useWallet } from "@/context/WalletContext";
+import { useLeverxProtocolConfig, useLeverxTransactions } from "@/hooks/useLeverxTransactions";
 import { leverxInfo } from "@/lib/leverx/info-copy";
-import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
+import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
+import { positionKeyFromArgs, type MarketKeyArgs } from "@/lib/leverx/market-keys";
+import { fetchManagerOpenQuantity } from "@/lib/leverx/quotes";
 import { showTxError, showTxSuccess } from "@/lib/toast";
 import { usePredictOracleRows } from "@/hooks/usePredictOracles";
-import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
-import { assetLabelForOracleId } from "@/lib/predict/oracles";
+import { assetLabelForOracleId, isOracleSettledForTrade } from "@/lib/predict/oracles";
 import { centsToPremiumRaw, marginUsdToQuoteAtoms, isLimitCentsWithinPredictBounds, PREDICT_MAX_PREMIUM_CENTS, PREDICT_MIN_PREMIUM_CENTS } from "@/lib/leverx/trade-math";
 import { scaleQuote } from "@/lib/predict/scaling";
 import { cn } from "@/lib/utils";
@@ -25,13 +29,49 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-function PositionDetailGrid({ position }: { position: LeveragedPosition; }) {
+function positionToKey(position: LeveragedPosition): MarketKeyArgs {
+  return {
+    oracleId: position.oracle_id,
+    expiryMs: position.expiry_ms,
+    strike: position.strike,
+    higherStrike: position.higher_strike,
+    isUp: position.is_up,
+    isRange: position.is_range,
+  };
+}
+
+function PositionDetailGrid({
+  position,
+  contractQuantity,
+  quantityLoading,
+}: {
+  position: LeveragedPosition;
+  contractQuantity?: bigint | null;
+  quantityLoading?: boolean;
+}) {
+  const indexerQty = position.open_quantity;
+  const onChainQty = contractQuantity != null ? Number(contractQuantity) : null;
+  const displayQty = onChainQty ?? indexerQty;
+  const qtyStale =
+    onChainQty != null && onChainQty > 0 && onChainQty !== indexerQty;
+
   return (
     <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
       <dt className="text-muted-foreground">Quantity</dt>
       <dd className="text-right font-mono tabular-nums">
-        {position.open_quantity.toLocaleString()}
+        {quantityLoading ? (
+          <Loader2 className="ml-auto h-3.5 w-3.5 animate-spin" />
+        ) : (
+          displayQty.toLocaleString()
+        )}
       </dd>
+      {qtyStale ? (
+        <>
+          <dt className="col-span-2 text-xs text-muted-foreground">
+            On-chain quantity (portfolio index may be stale).
+          </dt>
+        </>
+      ) : null}
       <dt className="text-muted-foreground">Margin</dt>
       <dd className="text-right font-mono tabular-nums">
         {scaleQuote(position.margin_quote).toFixed(2)} dUSDC
@@ -49,6 +89,8 @@ function PositionDetailGrid({ position }: { position: LeveragedPosition; }) {
 }
 
 export function PositionActionsModal({ position, open, onOpenChange }: Props) {
+  const { client } = useWallet();
+  const { cfg } = useLeverxProtocolConfig();
   const { data: oracles = [] } = usePredictOracleRows();
   const {
     closePosition,
@@ -56,6 +98,31 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
     repayDebt,
     isProtocolReady,
   } = useLeverxTransactions();
+
+  const marketKey = positionKeyFromArgs(positionToKey(position));
+  const { data: onChainQuantity, isLoading: quantityLoading } = useQuery({
+    queryKey: [
+      "manager-open-qty",
+      position.predict_manager_id,
+      marketKey,
+      cfg?.packageId,
+      cfg?.predictPackageId,
+    ],
+    queryFn: () =>
+      fetchManagerOpenQuantity({
+        client,
+        packageId: cfg!.packageId,
+        predictPackageId: cfg!.predictPackageId,
+        predictManagerId: position.predict_manager_id!,
+        key: positionToKey(position),
+      }),
+    enabled: Boolean(open && cfg && position.predict_manager_id),
+    staleTime: 10_000,
+    retry: 1,
+  });
+
+  const oracleRow = oracles.find((o) => o.oracle_id === position.oracle_id);
+  const oracleSettled = isOracleSettledForTrade(oracleRow);
 
   const [view, setView] = useState<ActionView>("menu");
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
@@ -66,7 +133,10 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
     closePosition.isPending || settleExpired.isPending || repayDebt.isPending;
   const expired = position.expiry_ms > 0 && position.expiry_ms < Date.now();
   const hasDebt = position.borrow_quote > 0;
-  const hasOpenQuantity = position.open_quantity > 0;
+  const hasOnChainQuantity = onChainQuantity != null && onChainQuantity > 0n;
+  const hasOpenQuantity =
+    hasOnChainQuantity || (onChainQuantity == null && position.open_quantity > 0);
+  const canSettle = expired && oracleSettled && hasOnChainQuantity;
   const borrowedUsd = scaleQuote(position.borrow_quote);
   const repayNum = parseFloat(repayUsd) || 0;
   const repayExceedsDebt = repayNum > borrowedUsd + 1e-6;
@@ -134,7 +204,11 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
 
         {view === "menu" ? (
           <div className="space-y-3">
-            <PositionDetailGrid position={position} />
+            <PositionDetailGrid
+              position={position}
+              contractQuantity={onChainQuantity}
+              quantityLoading={quantityLoading}
+            />
             <div className="space-y-2">
               <ActionButton
                 label="Close at market"
@@ -162,9 +236,15 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
               {expired ? (
                 <ActionButton
                   label="Settle expired"
-                  hint="Redeem after oracle settlement"
+                  hint={
+                    oracleSettled
+                      ? hasOnChainQuantity
+                        ? "Redeem after oracle settlement"
+                        : "No contracts left on-chain — refresh portfolio"
+                      : "Waiting for oracle settlement"
+                  }
                   info={leverxInfo.settleExpired}
-                  disabled={!isProtocolReady || pending || !hasOpenQuantity}
+                  disabled={!isProtocolReady || pending || !canSettle || quantityLoading}
                   onClick={() => setConfirmAction("settle")}
                 />
               ) : null}
@@ -289,7 +369,11 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
           )
         }
       >
-        <PositionDetailGrid position={position} />
+        <PositionDetailGrid
+          position={position}
+          contractQuantity={onChainQuantity}
+          quantityLoading={quantityLoading}
+        />
       </ConfirmDialog>
 
       <ConfirmDialog
@@ -298,7 +382,11 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
           if (!next) setConfirmAction(null);
         }}
         title={`Settle expired ${asset} ${side}?`}
-        description="Finalize redemption after oracle settlement."
+        description={
+          oracleSettled
+            ? "Finalize redemption after oracle settlement."
+            : "Oracle has not settled yet — settlement is not available."
+        }
         confirmLabel="Settle position"
         variant="destructive"
         pending={settleExpired.isPending}
@@ -312,7 +400,11 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
           })
         }
       >
-        <PositionDetailGrid position={position} />
+        <PositionDetailGrid
+          position={position}
+          contractQuantity={onChainQuantity}
+          quantityLoading={quantityLoading}
+        />
       </ConfirmDialog>
     </>
   );

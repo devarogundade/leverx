@@ -135,6 +135,7 @@ export function useLeverxTransactions() {
 
   const closePosition = useMutation({
     mutationFn: async (input: ClosePositionInput) => {
+      primeSuccessSound();
       const ready = requireReady();
       return executeClosePosition({
         client,
@@ -144,11 +145,15 @@ export function useLeverxTransactions() {
         input,
       });
     },
-    onSuccess: () => invalidate(),
+    onSuccess: () => {
+      playSuccessSound();
+      invalidate();
+    },
   });
 
   const settleExpired = useMutation({
     mutationFn: async (position: LeveragedPosition) => {
+      primeSuccessSound();
       const ready = requireReady();
       return executeSettleExpired({
         client,
@@ -158,7 +163,10 @@ export function useLeverxTransactions() {
         position,
       });
     },
-    onSuccess: () => invalidate(),
+    onSuccess: () => {
+      playSuccessSound();
+      invalidate();
+    },
   });
 
   const repayDebt = useMutation({

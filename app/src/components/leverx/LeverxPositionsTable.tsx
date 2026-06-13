@@ -21,6 +21,7 @@ import { predictSideFromBinary, type PredictSide } from "@/lib/predict/instrumen
 import { scaleQuote } from "@/lib/predict/scaling";
 import { formatUsdc, ui } from "@/lib/copy";
 import { resolveLiquidationBps } from "@/lib/leverx/protocol";
+import { formatCountdownStopwatch } from "@/lib/leverx/trade-limits";
 import { cn } from "@/lib/utils";
 import { labelCaps } from "@/lib/leverx/tw";
 
@@ -62,11 +63,7 @@ function formatExpiry(expiryMs: number): string {
       day: "numeric",
     });
   }
-  const hours = Math.floor(remaining / 3_600_000);
-  const days = Math.floor(hours / 24);
-  if (days > 0) return `${days}d left`;
-  if (hours > 0) return `${hours}h left`;
-  return "<1h left";
+  return `${formatCountdownStopwatch(remaining)} left`;
 }
 
 function buildRows(

@@ -175,16 +175,15 @@ export function leverageCountdownState(
   };
 }
 
-/** Stopwatch display — HH:MM:SS when ≥1h, else MM:SS. */
+/** Stopwatch display — always HH:MM:SS. */
 export function formatCountdownStopwatch(remainingMs: number): string {
-  if (remainingMs <= 0) return "00:00";
+  if (remainingMs <= 0) return "00:00:00";
   const totalSec = Math.floor(remainingMs / 1000);
   const hours = Math.floor(totalSec / 3600);
   const minutes = Math.floor((totalSec % 3600) / 60);
   const seconds = totalSec % 60;
   const pad = (n: number) => String(n).padStart(2, "0");
-  if (hours > 0) return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
-  return `${pad(minutes)}:${pad(seconds)}`;
+  return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
 }
 
 export function maxLeverageLabelForExpiry(

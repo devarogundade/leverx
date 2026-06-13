@@ -22,6 +22,9 @@ const LEVERAGED_MINT_OUTSIDE_WINDOW_MESSAGE =
 const FORCE_DELEVERAGE_OUTSIDE_WINDOW_MESSAGE =
   "Force deleverage is only available in the final hour before this market expires.";
 
+const INSUFFICIENT_POSITION_MESSAGE =
+  "Your Predict manager does not hold enough contracts for this market. Refresh your portfolio — the position may already be settled or the index may be stale.";
+
 export function formatTxError(error: unknown): string {
   const raw =
     error instanceof Error
@@ -67,6 +70,12 @@ export function formatTxError(error: unknown): string {
     (raw.includes("trade") && raw.includes(", 47)"))
   ) {
     return FORCE_DELEVERAGE_OUTSIDE_WINDOW_MESSAGE;
+  }
+  if (
+    raw.includes("decrease_position") ||
+    (raw.includes("predict_manager") && raw.includes(", 1)"))
+  ) {
+    return INSUFFICIENT_POSITION_MESSAGE;
   }
   if (raw.includes("Predict manager is not linked")) {
     return "Predict manager is not linked. Open Portfolio → Account to link your manager.";

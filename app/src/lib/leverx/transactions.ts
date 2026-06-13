@@ -25,7 +25,7 @@ import {
   type MintOrderParams,
 } from "@/lib/leverx/ptb-builder";
 import { lxplpCoinType, type LeverxProtocolConfig } from "@/lib/leverx/protocol";
-import { fetchMintQuote, fetchRedeemQuote } from "@/lib/leverx/quotes";
+import { fetchManagerOpenQuantity, fetchMintQuote, fetchRedeemQuote } from "@/lib/leverx/quotes";
 import {
   applySlippageBps,
   applySlippageFloor,
@@ -80,6 +80,27 @@ function positionToKey(position: LeveragedPosition): MarketKeyArgs {
     isUp: position.is_up,
     isRange: position.is_range,
   };
+}
+
+async function resolveRedeemQuantity(params: {
+  client: SuiJsonRpcClient;
+  cfg: LeverxProtocolConfig;
+  position: LeveragedPosition;
+}): Promise<bigint> {
+  if (!params.position.predict_manager_id) {
+    throw new Error("Position is missing a linked Predict manager.");
+  }
+  const onChain = await fetchManagerOpenQuantity({
+    client: params.client,
+    packageId: params.cfg.packageId,
+    predictPackageId: params.cfg.predictPackageId,
+    predictManagerId: params.position.predict_manager_id,
+    key: positionToKey(params.position),
+  });
+  if (onChain > 0n) return onChain;
+  throw new Error(
+    "No open contracts remain in your Predict manager for this market. Refresh your portfolio — it may already be settled.",
+  );
 }
 
 function orderToKey(order: LimitMintOrder): MarketKeyArgs {
@@ -226,6 +247,11 @@ export async function executeClosePosition(params: {
   }
   const predictManagerId = position.predict_manager_id;
   const redeemMode = params.input.redeemMode ?? "market";
+  const quantity = await resolveRedeemQuantity({
+    client: params.client,
+    cfg: params.cfg,
+    position,
+  });
   let minPayout = params.input.minPayout;
 
   if (redeemMode === "market" && minPayout == null) {
@@ -233,7 +259,7 @@ export async function executeClosePosition(params: {
       client: params.client,
       cfg: params.cfg,
       key: positionToKey(position),
-      quantity: BigInt(position.open_quantity),
+      quantity,
     });
     const slippageBps = params.input.marketSlippageBps ?? DEFAULT_SLIPPAGE_BPS;
     minPayout = quote ? applySlippageFloor(quote.expectedPayout, slippageBps) : 0n;
@@ -250,7 +276,7 @@ export async function executeClosePosition(params: {
         key,
         accountId: position.account_id,
         predictManagerId,
-        quantity: BigInt(position.open_quantity),
+        quantity,
         redeemMode,
         minPayout: minPayout ?? 0n,
         minPremiumPerUnit: params.input.minPremiumPerUnit,
@@ -299,6 +325,11 @@ export async function executeSettleExpired(params: {
     throw new Error("Position is missing a linked Predict manager.");
   }
   const predictManagerId = params.position.predict_manager_id;
+  const quantity = await resolveRedeemQuantity({
+    client: params.client,
+    cfg: params.cfg,
+    position: params.position,
+  });
 
   const key = positionToKey(params.position);
 
@@ -311,7 +342,7 @@ export async function executeSettleExpired(params: {
         key,
         accountId: params.position.account_id,
         predictManagerId,
-        quantity: BigInt(params.position.open_quantity),
+        quantity,
       });
     },
     { gasBudget: TRADE_GAS_BUDGET },

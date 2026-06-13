@@ -81,7 +81,7 @@ export const leverxInfo = {
   closeMarket: "Close now at the best available price.",
   closeLimit: "Close only if the price meets your minimum.",
   repayDebt: "Pay back borrowed dUSDC without fully closing the trade.",
-  settleExpired: "Finalize a trade after the market has expired.",
+  settleExpired: "Finalize redemption after the oracle has settled. Uses on-chain contract quantity, not the portfolio index.",
   tradingPaused:
     "New opens, limit fills, and triggers are paused. You can still close, repay debt, and settle expired positions.",
   protocolNotConfigured:
