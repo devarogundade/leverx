@@ -27,7 +27,12 @@ echo "Building indexer (no cache)..."
 "${COMPOSE[@]}" -f "$COMPOSE_FILE" build --no-cache
 
 echo "Starting fresh sync from FIRST_CHECKPOINT..."
-"${COMPOSE[@]}" -f "$COMPOSE_FILE" up -d
+CHECKPOINT="$(grep -E '^FIRST_CHECKPOINT=' contracts/deploy-testnet.env 2>/dev/null | tail -1 | cut -d= -f2- || true)"
+if [[ -n "${CHECKPOINT}" ]]; then
+  FIRST_CHECKPOINT="${CHECKPOINT}" "${COMPOSE[@]}" -f "$COMPOSE_FILE" up -d
+else
+  "${COMPOSE[@]}" -f "$COMPOSE_FILE" up -d
+fi
 
 echo "Waiting for health..."
 for i in $(seq 1 120); do
