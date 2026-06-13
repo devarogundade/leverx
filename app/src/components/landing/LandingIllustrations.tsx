@@ -74,9 +74,9 @@ export function LandingChartIllustration() {
 /** UP / DOWN / RANGE market cards. */
 export function LandingMarketsIllustration() {
   const cards = [
-    { side: "UP", color: "#38ef7d", strike: "$68,000", premium: "42¢" },
-    { side: "DOWN", color: "#ef5350", strike: "$68,000", premium: "38¢" },
-    { side: "RANGE", color: "var(--color-accent)", strike: "$67.5k–68.5k", premium: "55¢" },
+    { side: "UP", color: "#38ef7d", strike: "$95,000", premium: "42¢" },
+    { side: "DOWN", color: "#ef5350", strike: "$95,000", premium: "38¢" },
+    { side: "RANGE", color: "var(--color-accent)", strike: "$94k–96k", premium: "55¢" },
   ];
 
   return (

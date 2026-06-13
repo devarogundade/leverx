@@ -23,7 +23,7 @@ function TermsPage() {
       <PageHeader
         icon={<ScrollText className="h-5 w-5 text-accent" />}
         title="Terms of Service"
-        subtitle="Last updated June 3, 2026"
+        subtitle="Last updated June 13, 2026"
       />
       <article className="space-y-6 text-sm leading-relaxed text-muted-foreground">
           <Clause n="1" title="Using the service">

@@ -56,7 +56,7 @@ export const SITE_NAV_ENTRIES: SiteNavEntry[] = [
       {
         label: "Pool",
         to: "/vault",
-        hint: "Deposit USDC and earn from trading",
+        hint: "Deposit dUSDC and earn from trading",
       },
       {
         label: "Helper",

@@ -28,7 +28,7 @@ export const landingCopy = {
   marketsEyebrow: "Markets",
   marketsTitle: "Pick a direction on live prices",
   marketsLead:
-    "Will Bitcoin finish above $68,000? Below it? Inside a band? Choose a market, set your view, and size your trade — the app handles the rest.",
+    "Will BTC finish above your strike? Below it? Inside a band? Choose a market, set your view, and size your trade — the app handles the rest.",
   marketsBullets: [
     "Price-up, price-down, and range markets on major assets",
     "Target prices update as the market moves",
