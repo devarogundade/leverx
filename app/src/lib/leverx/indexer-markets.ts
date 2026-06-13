@@ -40,6 +40,22 @@ export function formatPremiumOrPlaceholder(premium: number | null | undefined): 
   return formatPremiumCents(premium);
 }
 
+/** Prefer live on-chain ask; fall back to indexer catalog premium. */
+export function formatContractPremiumLabel(args: {
+  liveAskRaw?: bigint | null;
+  catalogPremium?: number | null;
+  loading?: boolean;
+}): string {
+  if (args.liveAskRaw != null && args.liveAskRaw > 0n) {
+    return formatPremiumCents(Number(args.liveAskRaw));
+  }
+  if (args.catalogPremium != null && args.catalogPremium > 0) {
+    return formatPremiumOrPlaceholder(args.catalogPremium);
+  }
+  if (args.loading) return "…";
+  return formatPremiumOrPlaceholder(null);
+}
+
 function formatStrikeUsd(strike: number): string {
   return `$${(strike / SCALE).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 }

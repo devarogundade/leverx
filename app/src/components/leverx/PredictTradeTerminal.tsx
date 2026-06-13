@@ -26,13 +26,13 @@ import {
   useMarketCatalog,
 } from "@/hooks/useIndexer";
 import { useChartPriceSeries } from "@/hooks/useChartPriceSeries";
+import { useLiveContractPremium } from "@/hooks/useLiveContractPremium";
 import { useOraclePriceLatest } from "@/hooks/useOracleSpotPriceSeries";
 import { useOracleNeighbors, usePredictOracleRows } from "@/hooks/usePredictOracles";
 import { usePredictOracleState } from "@/hooks/usePredictOracleState";
 import {
   buildQuestion,
   catalogToMarketRows,
-  formatPremiumOrPlaceholder,
 } from "@/lib/leverx/indexer-markets";
 import {
   atmStrikeRaw,
@@ -478,9 +478,8 @@ export function PredictTradeTerminal({ oracleId }: Props) {
         oracleStrikeConfig.tickSizeRaw,
       );
     }
-    const up = marketRows.find((m) => m.oracleId === oracleId && !m.isRange && m.isUp);
-    return up?.strikeRaw ?? 0;
-  }, [oracleSpot, oracleStrikeConfig, marketRows, oracleId]);
+    return 0;
+  }, [oracleSpot, oracleStrikeConfig]);
 
   const activeBinaryStrikeRaw = useMemo(() => {
     if (activeSide === "range") return 0;
@@ -603,7 +602,14 @@ export function PredictTradeTerminal({ oracleId }: Props) {
     rangeUpper,
   ]);
 
-  const activePremium = market?.lastAskPremium;
+  const contractPremium = useLiveContractPremium({
+    oracleId,
+    expiryMs: expiry,
+    strikeRaw: activeSide === "range" ? rangeLower : activeBinaryStrikeRaw || undefined,
+    higherStrikeRaw: activeSide === "range" ? rangeUpper : undefined,
+    side: activeSide,
+    catalogPremium: market?.lastAskPremium,
+  });
 
   const chartStrikePrice = useMemo(() => {
     if (activeSide === "range") return undefined;
@@ -733,7 +739,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
               <StatItem
                 label="Contract price"
                 info={leverxInfo.premium}
-                value={formatPremiumOrPlaceholder(activePremium)}
+                value={contractPremium.label}
               />
               <StatItem
                 label="Volume (24h)"
@@ -788,9 +794,10 @@ export function PredictTradeTerminal({ oracleId }: Props) {
               minStrikeRaw={oracleStrikeConfig.minStrikeRaw}
               tickSizeRaw={oracleStrikeConfig.tickSizeRaw}
               onStrikeRawChange={setSelectedStrikeRaw}
+              binaryStrikeRaw={activeBinaryStrikeRaw > 0 ? activeBinaryStrikeRaw : undefined}
               lowerStrikeRaw={rangeLower}
               upperStrikeRaw={rangeUpper}
-              lastAskPremium={market?.lastAskPremium ?? undefined}
+              lastAskPremium={contractPremium.premiumRaw ?? undefined}
               openPositions={openOraclePositions}
               disabled={isOracleSettled || isOracleExpired}
               onTradeSuccess={handleTradeSuccess}
@@ -838,9 +845,10 @@ export function PredictTradeTerminal({ oracleId }: Props) {
               minStrikeRaw={oracleStrikeConfig.minStrikeRaw}
               tickSizeRaw={oracleStrikeConfig.tickSizeRaw}
               onStrikeRawChange={setSelectedStrikeRaw}
+              binaryStrikeRaw={activeBinaryStrikeRaw > 0 ? activeBinaryStrikeRaw : undefined}
               lowerStrikeRaw={rangeLower}
               upperStrikeRaw={rangeUpper}
-              lastAskPremium={market?.lastAskPremium ?? undefined}
+              lastAskPremium={contractPremium.premiumRaw ?? undefined}
               openPositions={openOraclePositions}
               disabled={isOracleSettled || isOracleExpired}
               onTradeSuccess={handleTradeSuccess}

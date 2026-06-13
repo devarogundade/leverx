@@ -108,6 +108,8 @@ interface Props {
   upperStrikeRaw?: number;
   /** Notifies parent when the resolved binary strike changes (chart / order book). */
   onStrikeRawChange?: (strikeRaw: number) => void;
+  /** Parent-resolved strike (catalog / chart) — keeps quotes in sync before spot loads. */
+  binaryStrikeRaw?: number;
   lastAskPremium?: number;
   /** Open positions on this oracle — used to block duplicate market keys. */
   openPositions?: readonly LeveragedPosition[];
@@ -137,6 +139,7 @@ export function PredictLeveragePanel({
   disabled = false,
   onStrikeRawChange,
   onTradeSuccess,
+  binaryStrikeRaw: parentBinaryStrikeRaw,
 }: Props) {
   const { isWalletConnected, address } = useWallet();
   const { openTrade, isProtocolReady } = useLeverxTransactions();
@@ -264,6 +267,13 @@ export function PredictLeveragePanel({
       }
       return 0;
     }
+    if (
+      strikePreset === "market" &&
+      parentBinaryStrikeRaw != null &&
+      parentBinaryStrikeRaw > 0
+    ) {
+      return parentBinaryStrikeRaw;
+    }
     if (oracleSpotUsd != null && oracleSpotUsd > 0) {
       return strikeRawFromPreset(
         strikePreset,
@@ -277,6 +287,7 @@ export function PredictLeveragePanel({
     isRange,
     strikePreset,
     customStrikeUsd,
+    parentBinaryStrikeRaw,
     oracleSpotUsd,
     minStrikeRaw,
     tickSizeRaw,
@@ -358,9 +369,7 @@ export function PredictLeveragePanel({
     [walletQuoteBalance],
   );
 
-  const { data: liveAskPremium, isLoading: liveAskLoading } = useLeverxMarketAsk(
-    orderType === "limit" ? tradeKey : undefined,
-  );
+  const { data: liveAskPremium, isLoading: liveAskLoading } = useLeverxMarketAsk(tradeKey);
 
   const quoteReferencePremium = useMemo(() => {
     if (orderType !== "limit" || limitExecution !== "resting" || !limitPrice) return undefined;
@@ -608,7 +617,7 @@ export function PredictLeveragePanel({
         }
       }
     }
-    if (orderType === "market" && marginNum > 0) {
+    if (orderType === "market" && marginNum > 0 && tradeKey) {
       if (quoteLoading) {
         errors.push("Waiting for live contract price…");
       } else if (expiryMs && expiryMs > 0 && expiryMs <= Date.now()) {
@@ -693,6 +702,7 @@ export function PredictLeveragePanel({
     minStrikeRaw,
     tickSizeRaw,
     resolvedBinaryStrikeRaw,
+    tradeKey,
     address,
     quoteLoading,
     mintQuote,

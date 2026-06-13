@@ -1,5 +1,6 @@
 import { Transaction, type TransactionObjectArgument } from "@mysten/sui/transactions";
 import { appConfig } from "@/lib/config";
+import type { PredictSide } from "@/lib/predict/instruments";
 
 export type MarketKeyArgs = {
   oracleId: string;
@@ -26,6 +27,28 @@ export function marketKeyMatchesPosition(
 }
 
 /** Canonical `position_key` / `market_key` string (matches indexer encoding). */
+/** Build a market key from trade-terminal context (oracle, expiry, strike, side). */
+export function tradeSideToMarketKey(args: {
+  oracleId: string;
+  expiryMs: number;
+  strike: number;
+  higherStrike?: number;
+  side: PredictSide;
+}): MarketKeyArgs | undefined {
+  if (args.expiryMs <= 0 || args.strike <= 0) return undefined;
+  const isRange = args.side === "range";
+  const higherStrike = args.higherStrike ?? 0;
+  if (isRange && higherStrike <= args.strike) return undefined;
+  return {
+    oracleId: args.oracleId,
+    expiryMs: args.expiryMs,
+    strike: args.strike,
+    higherStrike: isRange ? higherStrike : 0,
+    isUp: isRange ? true : args.side === "up",
+    isRange,
+  };
+}
+
 export function positionKeyFromArgs(args: MarketKeyArgs): string {
   const higherStrike = args.isRange ? (args.higherStrike ?? 0) : 0;
   const isUp = args.isRange ? true : args.isUp;

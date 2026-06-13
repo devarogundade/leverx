@@ -23,6 +23,12 @@ export function costFromPremiumPerUnit(premiumPerUnit: bigint, quantity: bigint)
   return (premiumPerUnit * quantity) / PREDICT_PRICE_SCALE;
 }
 
+/** Matches on-chain `predict_client::premium_per_unit` (divide-and-round-up). */
+export function premiumPerUnitFromMintCost(mintCost: bigint, quantity: bigint): bigint {
+  if (mintCost <= 0n || quantity <= 0n) return 0n;
+  return (mintCost * PREDICT_PRICE_SCALE + quantity - 1n) / quantity;
+}
+
 /** Classify a live per-contract ask returned from Predict (1e9 scale). */
 export function classifyPredictPremium(
   premium: bigint,

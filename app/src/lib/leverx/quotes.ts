@@ -11,6 +11,7 @@ import {
   classifyPredictPremium,
   estimateQuantity,
   maxMintBudgetAtoms,
+  premiumPerUnitFromMintCost,
 } from "@/lib/leverx/trade-math";
 
 export type PredictQuoteConfig = Pick<
@@ -77,10 +78,13 @@ async function devInspectMarketAsk(params: {
   const tx = new Transaction();
   tx.setSender(READONLY_SENDER);
   const marketKey = addMarketKey(tx, params.key, params.cfg.predictPackageId);
-  const fn = params.key.isRange ? "market_ask_range" : "market_ask_binary";
+  // Read via DeepBook Predict directly — leverx::predict_client dev-inspect can
+  // fail with TypeMismatch when the published leverx package links a different
+  // predict build than the live shared Predict object.
+  const fn = params.key.isRange ? "get_range_trade_amounts" : "get_trade_amounts";
 
   tx.moveCall({
-    target: `${params.cfg.packageId}::predict_client::${fn}`,
+    target: `${params.cfg.predictPackageId}::predict::${fn}`,
     arguments: [
       tx.object(params.cfg.predictId),
       tx.object(params.key.oracleId),
@@ -98,7 +102,8 @@ async function devInspectMarketAsk(params: {
     if (inspect.effects?.status?.status !== "success") return null;
     const tuple = findReturnTuple(inspect.results, 2);
     if (!tuple) return null;
-    const [marketAskPerUnit, mintCost] = tuple;
+    const [mintCost] = tuple;
+    const marketAskPerUnit = premiumPerUnitFromMintCost(mintCost, params.quantity);
     return { marketAskPerUnit, mintCost };
   } catch {
     return null;

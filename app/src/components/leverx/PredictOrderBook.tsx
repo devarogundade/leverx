@@ -6,7 +6,7 @@ import { useIndexerOrderBook } from "@/hooks/useIndexer";
 import { useLeverxMarketAsk } from "@/hooks/useLeverxMarketAsk";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import { formatPremiumOrPlaceholder } from "@/lib/leverx/indexer-markets";
-import type { MarketKeyArgs } from "@/lib/leverx/market-keys";
+import { tradeSideToMarketKey } from "@/lib/leverx/market-keys";
 import { DATA_PLACEHOLDER } from "@/lib/leverx/placeholders";
 import type { OrderBookLevel } from "@/lib/leverx/indexer-client";
 import { PREDICT_QUOTE_REFERENCE_QUANTITY } from "@/lib/leverx/constants";
@@ -64,25 +64,6 @@ function formatLevelNotionalUsd(price: number, size: number): string {
 function maxTotal(levels: OrderBookLevel[]): number {
   if (levels.length === 0) return 1;
   return Math.max(...levels.map((l) => l.total), 1);
-}
-
-function sideToMarketKey(args: {
-  oracleId: string;
-  expiryMs: number;
-  strike: number;
-  higherStrike: number;
-  side: PredictSide;
-}): MarketKeyArgs | undefined {
-  if (args.expiryMs <= 0 || args.strike <= 0) return undefined;
-  const isRange = args.side === "range";
-  return {
-    oracleId: args.oracleId,
-    expiryMs: args.expiryMs,
-    strike: args.strike,
-    higherStrike: isRange ? args.higherStrike : 0,
-    isUp: isRange ? true : args.side === "up",
-    isRange,
-  };
 }
 
 function OrderBookShell({
@@ -266,7 +247,7 @@ export function PredictOrderBook({
   const isUp = isRange ? true : side === "up";
   const marketKey = useMemo(
     () =>
-      sideToMarketKey({
+      tradeSideToMarketKey({
         oracleId,
         expiryMs,
         strike,
