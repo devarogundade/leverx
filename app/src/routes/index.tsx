@@ -24,10 +24,10 @@ function LandingPage() {
             <div className="landing-grid-bg" />
             <LandingAssetGrid />
           </div>
-          <div className="landing-brand">
+          {/* <div className="landing-brand">
             <div className="landing-logo bg-accent text-accent-foreground">LX</div>
             <span className="landing-brand-name">{APP_NAME}</span>
-          </div>
+          </div> */}
 
           <p className="landing-eyebrow">{landingCopy.eyebrow}</p>
 
