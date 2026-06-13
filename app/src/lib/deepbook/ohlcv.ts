@@ -3,7 +3,7 @@ import { appConfig } from "@/lib/config";
 import { normalizeProtectionBase } from "@/lib/markets";
 import type { PricePoint } from "@/lib/predict/price-point";
 
-/** `[timestamp_sec, open, high, low, close, volume]` — DeepBook indexer uses Unix seconds. */
+/** `[timestamp_ms, open, high, low, close, volume]` — DeepBook indexer uses Unix milliseconds. */
 export type OhlcvCandle = [number, number, number, number, number, number];
 
 export type OhlcvInterval = "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
@@ -22,9 +22,14 @@ export function deepbookPairForAsset(asset: string): string | null {
   return DEEPBOOK_PAIRS[base] ?? null;
 }
 
+/** Normalize indexer candle time to Unix seconds (Lightweight Charts). */
+export function ohlcvTimeToSec(t: number): number {
+  return t > 1e12 ? Math.floor(t / 1000) : Math.floor(t);
+}
+
 export function ohlcvCandlesToPricePoints(candles: readonly OhlcvCandle[]): PricePoint[] {
   return candles
-    .map(([t, , , , close]) => ({ t: t * 1000, price: close }))
+    .map(([t, , , , close]) => ({ t: ohlcvTimeToSec(t) * 1000, price: close }))
     .filter((p) => p.t > 0 && Number.isFinite(p.price) && p.price > 0)
     .sort((a, b) => a.t - b.t);
 }
@@ -52,8 +57,8 @@ export async function fetchDeepbookOhlcv(
   const url =
     `${base}/ohclv/${encodeURIComponent(pair)}` +
     `?interval=${interval}` +
-    `&start_time=${Math.floor(startTimeMs / 1000)}` +
-    `&end_time=${Math.floor(endTimeMs / 1000)}`;
+    `&start_time=${Math.floor(startTimeMs)}` +
+    `&end_time=${Math.floor(endTimeMs)}`;
 
   const data = await fetchJson<{ candles?: OhlcvCandle[] }>(url, { timeoutMs: 20_000 });
   return Array.isArray(data.candles) ? data.candles : [];

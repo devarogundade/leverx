@@ -1,5 +1,5 @@
 import type { CandlestickData, UTCTimestamp } from "lightweight-charts";
-import type { OhlcvCandle } from "@/lib/deepbook/ohlcv";
+import { ohlcvTimeToSec, type OhlcvCandle } from "@/lib/deepbook/ohlcv";
 
 export function ohlcvToCandlestickData(
   candles: readonly OhlcvCandle[],
@@ -8,7 +8,7 @@ export function ohlcvToCandlestickData(
 
   for (const [t, open, high, low, close] of candles) {
     if (t <= 0 || !Number.isFinite(close) || close <= 0) continue;
-    const time = t as UTCTimestamp;
+    const time = ohlcvTimeToSec(t) as UTCTimestamp;
     byTime.set(time, {
       time,
       open,
