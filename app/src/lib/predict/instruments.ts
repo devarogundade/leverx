@@ -49,6 +49,13 @@ export function isUpFromSide(side: PredictSide): boolean | undefined {
   return undefined;
 }
 
+/** Text color for UP / DOWN labels in lists and tables. */
+export function predictSideTextClass(side: PredictSide): string {
+  if (side === "up") return "text-[var(--long-text)]";
+  if (side === "down") return "text-[var(--short-text)]";
+  return "text-muted-foreground";
+}
+
 /** CSS modifier for existing long/short toggle styles. */
 export function sideToggleClass(side: PredictSide, active: boolean): string {
   if (!active) return "border border-border text-muted-foreground";

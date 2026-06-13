@@ -217,8 +217,8 @@ export function LeverxPositionsTable({
               >
                 {r.asset}
               </Link>
-              <p className="text-[11px] text-muted-foreground">
-                <PredictSideLabel side={r.side} />
+              <p className="text-[11px]">
+                <PredictSideLabel side={r.side} colored />
               </p>
             </div>
           </div>

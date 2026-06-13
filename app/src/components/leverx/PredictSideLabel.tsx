@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import {
   predictSideLabel,
+  predictSideTextClass,
   tradePanelSideLabel,
   type PredictSide,
 } from "@/lib/predict/instruments";
@@ -11,6 +12,8 @@ interface Props {
   side: PredictSide;
   /** LONG / SHORT instead of UP / DOWN (trade panel dual toggle). */
   variant?: "outcome" | "trade";
+  /** Green UP / red DOWN (for position and order lists). */
+  colored?: boolean;
   className?: string;
   iconClassName?: string;
   noIcon?: boolean;
@@ -19,6 +22,7 @@ interface Props {
 export function PredictSideLabel({
   side,
   variant = "outcome",
+  colored = false,
   className,
   iconClassName,
   noIcon = false,
@@ -35,7 +39,13 @@ export function PredictSideLabel({
   const Icon = side === "up" ? ChevronUp : ChevronDown;
 
   return (
-    <span className={cn("inline-flex items-center gap-1", className)}>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1",
+        colored && predictSideTextClass(side),
+        className,
+      )}
+    >
       {!noIcon ? <Icon className={cn(predictSideChevron, iconClassName)} aria-hidden /> : null}
       <span>{label}</span>
     </span>
