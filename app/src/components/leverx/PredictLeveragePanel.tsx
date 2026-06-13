@@ -308,15 +308,6 @@ export function PredictLeveragePanel({
           : 0;
       return { lower, upper };
     }
-    if (
-      rangePreset === "market" &&
-      lowerStrikeRaw != null &&
-      lowerStrikeRaw > 0 &&
-      upperStrikeRaw != null &&
-      upperStrikeRaw > lowerStrikeRaw
-    ) {
-      return { lower: lowerStrikeRaw, upper: upperStrikeRaw };
-    }
     if (oracleSpotUsd != null && oracleSpotUsd > 0) {
       return rangeBoundsFromPreset(
         rangePreset,
@@ -324,6 +315,14 @@ export function PredictLeveragePanel({
         minStrikeRaw,
         tickSizeRaw,
       );
+    }
+    if (
+      lowerStrikeRaw != null &&
+      lowerStrikeRaw > 0 &&
+      upperStrikeRaw != null &&
+      upperStrikeRaw > lowerStrikeRaw
+    ) {
+      return { lower: lowerStrikeRaw, upper: upperStrikeRaw };
     }
     return { lower: 0, upper: 0 };
   }, [
