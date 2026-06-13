@@ -107,7 +107,7 @@
   --btn-height-lg: 2.75rem;
   --input-height: 2.25rem;
   --btn-connect-h: 2.5rem;
-  --btn-action-h: 3rem;
+  --btn-action-h: 4rem;
 
   /* Design palette — dark-theme semantic tokens */
 
@@ -3078,17 +3078,17 @@ select {
   justify-content: center;
   gap: 0.5rem;
   height: var(--btn-action-h);
-  padding-inline: 1.75rem;
+  padding-inline: 3rem;
   border-radius: var(--radius-sm);
   border: 1px solid color-mix(in oklab, var(--color-accent) 50%, transparent);
   background: linear-gradient(
     180deg,
-    color-mix(in oklab, var(--color-accent) 96%, white) 0%,
-    var(--color-accent) 100%
+    color-mix(in oklab, var(--color-foreground) 96%, white) 0%,
+    var(--color-foreground) 100%
   );
   font-family: var(--font-display);
   font-size: 1rem;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: -0.01em;
   color: var(--color-accent-foreground);
   box-shadow:

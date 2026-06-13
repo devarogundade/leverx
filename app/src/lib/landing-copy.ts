@@ -1,10 +1,10 @@
 /** Plain-language copy for the marketing landing page. */
 export const landingCopy = {
   eyebrow: "Live on Sui · Demo mode",
-  heroTitle: "Trade with leverage.",
-  heroTitleAccent: "Earn by supporting the pool.",
+  heroTitle: "Predict with leverage.",
+  heroTitleAccent: "Margin Layer of DeepBook Predict.",
   heroLead:
-    "Bet on where prices go with dUSDC margin at up to 10× leverage. Or earn by adding funds to the pool or running a small helper that keeps markets running smoothly.",
+    "Bet on where prices go with dUSDC margin at up to 10× leverage. Or earn by adding funds to the pool.",
   ctaTrade: "Start trading",
   ctaHow: "How it works",
 

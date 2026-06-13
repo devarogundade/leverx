@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, BookOpen } from "lucide-react";
 import { LandingAssetGrid } from "@/components/landing/LandingAssetGrid";
-import { LandingHeader } from "@/components/landing/LandingHeader";
+// import { LandingHeader } from "@/components/landing/LandingHeader";
 import { LandingChartIllustration } from "@/components/landing/LandingIllustrations";
-import { APP_NAME } from "@/lib/brand";
+// import { APP_NAME } from "@/lib/brand";
 import { landingCopy } from "@/lib/landing-copy";
 import { routePendingOptions } from "@/lib/router/route-options";
 
@@ -16,7 +16,7 @@ export const Route = createFileRoute("/")({
 function LandingPage() {
   return (
     <div className="landing-page">
-      <LandingHeader />
+      {/* <LandingHeader /> */}
 
       <div className="landing-scroll stagger">
         <section className="landing-hero">
@@ -44,10 +44,10 @@ function LandingPage() {
               {landingCopy.ctaTrade}
               <ArrowRight className="h-4 w-4" aria-hidden />
             </Link>
-            <Link to="/guide" className="landing-cta-secondary">
+            {/* <Link to="/guide" className="landing-cta-secondary">
               <BookOpen className="h-4 w-4" aria-hidden />
               {landingCopy.ctaHow}
-            </Link>
+            </Link> */}
           </div>
 
           <div className="landing-hero-visual">
