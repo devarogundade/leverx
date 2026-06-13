@@ -10,21 +10,21 @@ export function toOracleStrikeRaw(value: number | undefined | null): number {
   return value < 1_000_000 ? Math.round(value * SCALE) : Math.round(value);
 }
 
-export function oracleStrikeBounds(args: {
-  minStrike?: number | null;
-  tickSize?: number | null;
-}): { minStrikeRaw: number; tickSizeRaw: number } {
+export function oracleStrikeBounds(args: { minStrike?: number | null; tickSize?: number | null }): {
+  minStrikeRaw: number;
+  tickSizeRaw: number;
+} {
   const minStrikeRaw = toOracleStrikeRaw(args.minStrike);
   const tickSizeRaw = toOracleStrikeRaw(args.tickSize) || minStrikeRaw || SCALE;
   return { minStrikeRaw, tickSizeRaw };
 }
 
 export const STRIKE_PRESET_OFFSETS = {
-  pct_neg_10: -10,
-  pct_neg_5: -5,
+  pct_neg_3: -3,
+  pct_neg_2: -2,
   market: 0,
-  pct_pos_5: 5,
-  pct_pos_10: 10,
+  pct_pos_2: 2,
+  pct_pos_3: 3,
 } as const;
 
 export type StrikePresetId = keyof typeof STRIKE_PRESET_OFFSETS | "custom";
@@ -33,11 +33,11 @@ export const STRIKE_PRESET_OPTIONS: readonly {
   id: StrikePresetId;
   label: string;
 }[] = [
-  { id: "pct_neg_10", label: "−10%" },
-  { id: "pct_neg_5", label: "−5%" },
+  { id: "pct_neg_3", label: "−3%" },
+  { id: "pct_neg_2", label: "−2%" },
   { id: "market", label: "Market" },
-  { id: "pct_pos_5", label: "+5%" },
-  { id: "pct_pos_10", label: "+10%" },
+  { id: "pct_pos_2", label: "+2%" },
+  { id: "pct_pos_3", label: "+3%" },
   { id: "custom", label: "Custom" },
 ];
 
@@ -84,9 +84,9 @@ export function strikeUsdFromRaw(strikeRaw: number): number {
 
 export const RANGE_PRESET_WIDTHS = {
   market: null,
+  pct_1: 0.01,
   pct_2: 0.02,
-  pct_5: 0.05,
-  pct_10: 0.1,
+  pct_3: 0.03,
 } as const;
 
 export type RangePresetId = keyof typeof RANGE_PRESET_WIDTHS | "custom";
@@ -96,9 +96,9 @@ export const RANGE_PRESET_OPTIONS: readonly {
   label: string;
 }[] = [
   { id: "market", label: "Market" },
+  { id: "pct_1", label: "±1%" },
   { id: "pct_2", label: "±2%" },
-  { id: "pct_5", label: "±5%" },
-  { id: "pct_10", label: "±10%" },
+  { id: "pct_3", label: "±3%" },
   { id: "custom", label: "Custom" },
 ];
 
