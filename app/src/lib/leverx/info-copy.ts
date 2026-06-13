@@ -24,6 +24,8 @@ export const leverxInfo = {
   tpSlEntry: "Estimated entry premium for this trade — used to suggest TP/SL levels.",
   tpSlTakeProfit: "Close when the contract premium rises to this price (above entry).",
   tpSlStopLoss: "Close when the contract premium falls to this price (below entry).",
+  strikePrice:
+    "Price level for this bet. Market uses the current spot (rounded to the oracle tick). Presets offset from spot; Custom lets you enter any valid strike at or above the oracle minimum.",
   lowerStrike: "Bottom of the range — the bet pays if the final price lands inside your band.",
   upperStrike: "Top of the range — the bet pays if the final price lands inside your band.",
   limitPrice: "Most you will pay per contract when placing a limit order.",

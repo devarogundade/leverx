@@ -39,6 +39,7 @@ import {
   resolveRangeBounds,
   resolveTradeMarket,
 } from "@/lib/leverx/predict-oracle-markets";
+import { oracleStrikeBounds } from "@/lib/leverx/strike-selection";
 import { baseFromUnderlying } from "@/lib/markets";
 import { formatPrice } from "@/lib/copy";
 import {
@@ -395,6 +396,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   const [positionsFilter, setPositionsFilter] = useState<"open" | "closed">("open");
   const [mobileWorkspace, setMobileWorkspace] = useState<MobileWorkspaceTab>("trade");
   const [dockMounted, setDockMounted] = useState(false);
+  const [selectedStrikeRaw, setSelectedStrikeRaw] = useState<number | undefined>();
   const { address } = useWallet();
 
   useEffect(() => {
@@ -449,6 +451,36 @@ export function PredictTradeTerminal({ oracleId }: Props) {
     const spot = oracleSpot ?? undefined;
     return rows.map((row) => enrichMarketRow(row, oracleSummary, spot));
   }, [catalog, oracleSummary, oracleSpot]);
+  useEffect(() => {
+    setSelectedStrikeRaw(undefined);
+  }, [oracleId, activeSide]);
+
+  const oracleStrikeConfig = useMemo(
+    () =>
+      oracleStrikeBounds({
+        minStrike: oracleSummary?.min_strike,
+        tickSize: oracleSummary?.tick_size,
+      }),
+    [oracleSummary?.min_strike, oracleSummary?.tick_size],
+  );
+
+  const defaultBinaryStrikeRaw = useMemo(() => {
+    if (oracleSpot != null && oracleSpot > 0) {
+      return atmStrikeRaw(
+        oracleSpot,
+        oracleStrikeConfig.minStrikeRaw,
+        oracleStrikeConfig.tickSizeRaw,
+      );
+    }
+    const up = marketRows.find((m) => m.oracleId === oracleId && !m.isRange && m.isUp);
+    return up?.strikeRaw ?? 0;
+  }, [oracleSpot, oracleStrikeConfig, marketRows, oracleId]);
+
+  const activeBinaryStrikeRaw = useMemo(() => {
+    if (activeSide === "range") return 0;
+    return selectedStrikeRaw ?? defaultBinaryStrikeRaw;
+  }, [activeSide, selectedStrikeRaw, defaultBinaryStrikeRaw]);
+
   const rangeBounds = useMemo(
     () =>
       resolveRangeBounds({
@@ -467,11 +499,23 @@ export function PredictTradeTerminal({ oracleId }: Props) {
         oracle: oracleSummary,
         oracleSpot,
         catalogRows: marketRows,
+        strikeRaw:
+          activeSide !== "range" && activeBinaryStrikeRaw > 0
+            ? activeBinaryStrikeRaw
+            : undefined,
         lowerStrikeRaw: rangeBounds?.lower,
         upperStrikeRaw: rangeBounds?.upper,
         side: activeSide,
       }),
-    [oracleId, oracleSummary, oracleSpot, marketRows, rangeBounds, activeSide],
+    [
+      oracleId,
+      oracleSummary,
+      oracleSpot,
+      marketRows,
+      rangeBounds,
+      activeSide,
+      activeBinaryStrikeRaw,
+    ],
   );
 
   const { data: trades = [], isLoading: tradesLoading } = useIndexerGlobalTrades(oracleId);
@@ -521,35 +565,13 @@ export function PredictTradeTerminal({ oracleId }: Props) {
 
   const rangeLower = rangeBounds?.lower ?? market?.strikeRaw;
   const rangeUpper = rangeBounds?.upper ?? market?.higherStrikeRaw;
-  const binaryStrikeRaw = useMemo(() => {
-    if (activeSide !== "range") {
-      return market?.strikeRaw;
-    }
-    const up = marketRows.find((m) => m.oracleId === oracleId && !m.isRange && m.isUp);
-    if (up?.strikeRaw) return up.strikeRaw;
-    if (rangeBounds) {
-      return Math.round((rangeBounds.lower + rangeBounds.upper) / 2);
-    }
-    if (oracleSummary && oracleSpot != null && oracleSpot > 0) {
-      const minRaw =
-        oracleSummary.min_strike != null && oracleSummary.min_strike > 0
-          ? Math.round(oracleSummary.min_strike * 1e9)
-          : 0;
-      const tickRaw =
-        oracleSummary.tick_size != null && oracleSummary.tick_size > 0
-          ? Math.round(oracleSummary.tick_size * 1e9)
-          : minRaw;
-      return atmStrikeRaw(oracleSpot, minRaw, tickRaw);
-    }
-    return undefined;
-  }, [activeSide, market?.strikeRaw, marketRows, oracleId, rangeBounds, oracleSummary, oracleSpot]);
 
   const question = useMemo(() => {
     if (activeSide === "range" && rangeLower && rangeUpper) {
       return `Will ${asset} settle in ${formatRangeStrikes(rangeLower / 1e9, rangeUpper / 1e9)}?`;
     }
     if (market?.question) return market.question;
-    const strike = binaryStrikeRaw;
+    const strike = activeBinaryStrikeRaw;
     if (strike && expiry) {
       return buildQuestion(
         asset,
@@ -567,7 +589,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
     rangeUpper,
     asset,
     market?.question,
-    binaryStrikeRaw,
+    activeBinaryStrikeRaw,
     expiry,
     rangeUpper,
   ]);
@@ -576,10 +598,9 @@ export function PredictTradeTerminal({ oracleId }: Props) {
 
   const chartStrikePrice = useMemo(() => {
     if (activeSide === "range") return undefined;
-    if (market?.strikeRaw && market.strikeRaw > 0) return scaleSpot(market.strikeRaw);
-    if (binaryStrikeRaw && binaryStrikeRaw > 0) return scaleSpot(binaryStrikeRaw);
+    if (activeBinaryStrikeRaw > 0) return scaleSpot(activeBinaryStrikeRaw);
     return undefined;
-  }, [activeSide, rangeLower, rangeUpper, market?.strikeRaw, binaryStrikeRaw]);
+  }, [activeSide, activeBinaryStrikeRaw]);
 
   const chartRangeLower = rangeLower ? scaleSpot(rangeLower) : undefined;
   const chartRangeUpper = rangeUpper ? scaleSpot(rangeUpper) : undefined;
@@ -750,7 +771,10 @@ export function PredictTradeTerminal({ oracleId }: Props) {
               side={activeSide}
               onSideChange={setActiveSide}
               expiryMs={expiry}
-              strikeRaw={binaryStrikeRaw}
+              oracleSpotUsd={oracleSpot}
+              minStrikeRaw={oracleStrikeConfig.minStrikeRaw}
+              tickSizeRaw={oracleStrikeConfig.tickSizeRaw}
+              onStrikeRawChange={setSelectedStrikeRaw}
               lowerStrikeRaw={rangeLower}
               upperStrikeRaw={rangeUpper}
               lastAskPremium={market?.lastAskPremium ?? undefined}
@@ -797,7 +821,10 @@ export function PredictTradeTerminal({ oracleId }: Props) {
               side={activeSide}
               onSideChange={setActiveSide}
               expiryMs={expiry}
-              strikeRaw={binaryStrikeRaw}
+              oracleSpotUsd={oracleSpot}
+              minStrikeRaw={oracleStrikeConfig.minStrikeRaw}
+              tickSizeRaw={oracleStrikeConfig.tickSizeRaw}
+              onStrikeRawChange={setSelectedStrikeRaw}
               lowerStrikeRaw={rangeLower}
               upperStrikeRaw={rangeUpper}
               lastAskPremium={market?.lastAskPremium ?? undefined}
