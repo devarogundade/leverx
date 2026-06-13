@@ -20,16 +20,22 @@ export const KEEPER_CONTRACT_CALLS: Record<KeeperTaskKind, string[]> = {
   limit_order: [
     'trade::execute_binary_limit_mint_order',
     'trade::execute_range_limit_mint_order',
+    'trade::expire_binary_limit_mint_order',
+    'trade::expire_range_limit_mint_order',
   ],
   liquidation: [
     'vault_flash::borrow_flash_liquidity',
     'vault_flash::repay_flash_liquidity',
     'liquidation::flash_liquidate_with_redeem_permissionless',
     'liquidation::flash_liquidate_range_with_redeem_permissionless',
+    'trade::is_binary_position_liquidatable_with_open_position',
+    'trade::is_range_position_liquidatable_with_open_position',
   ],
   trigger: [
     'trade::leveraged_redeem_binary_market',
     'trade::leveraged_redeem_range_market',
+    'triggers::get_triggers',
+    'triggers::get_range_triggers',
   ],
   force_close: [
     'trade::force_deleverage_binary_at_expiry',

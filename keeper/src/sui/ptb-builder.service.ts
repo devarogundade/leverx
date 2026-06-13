@@ -307,6 +307,19 @@ export class PtbBuilderService {
     return tx;
   }
 
+  /** Read on-chain TP/SL premiums for a position's market key. */
+  buildGetTriggers(cfg: KeeperConfig, position: LeveragedPosition): Transaction {
+    const tx = new Transaction();
+    const key = this.addMarketKey(tx, cfg, this.keyFromPosition(position));
+    const fn = position.is_range ? 'get_range_triggers' : 'get_triggers';
+
+    tx.moveCall({
+      target: `${cfg.packageId}::triggers::${fn}`,
+      arguments: [tx.object(position.account_id), key],
+    });
+    return tx;
+  }
+
   /** Vault flash loan + permissionless redeem/liquidate (dUSDC quote-only). */
   buildLiquidation(
     tx: Transaction,

@@ -113,7 +113,7 @@ export class IndexerService {
   }
 
   /** Open keys with posted margin plus any keys with residual vault borrow. */
-  async fetchLiquidationCandidates(limit = 500): Promise<LeveragedPosition[]> {
+  async fetchLiquidationCandidates(): Promise<LeveragedPosition[]> {
     const [withMargin, withBorrow] = await Promise.all([
       this.fetchAllPages((offset, pageSize) =>
         this.fetchPositions({
@@ -144,7 +144,6 @@ export class IndexerService {
       if (seen.has(key)) continue;
       seen.add(key);
       merged.push(position);
-      if (merged.length >= limit) break;
     }
     return merged;
   }

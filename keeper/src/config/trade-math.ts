@@ -38,6 +38,14 @@ export function isLeveragedMintAllowed(
  * Uses vault debt when present; otherwise falls back to posted margin debt.
  */
 
+/** Position has vault borrow and/or posted margin debt eligible for liquidation. */
+export function hasLiquidationDebt(
+  borrowQuote: number | string,
+  marginQuote: number | string,
+): boolean {
+  return BigInt(borrowQuote || 0) > 0n || BigInt(marginQuote || 0) > 0n;
+}
+
 export function flashBorrowAmountForLiquidation(
   borrowQuote: number | string,
   marginQuote: number | string,

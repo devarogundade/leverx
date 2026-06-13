@@ -16,7 +16,11 @@ export class LimitOrderService {
     private readonly ptb: PtbBuilderService,
   ) {}
 
-  async run(limit: number): Promise<TaskResult[]> {
+  async run(
+    limit: number,
+    options?: { allowFills?: boolean },
+  ): Promise<TaskResult[]> {
+    const allowFills = options?.allowFills ?? true;
     const cfg = this.sui.getConfig();
     const readiness = this.sui.getTaskReadiness();
     if (!readiness.tasks.limit_order) {
@@ -35,7 +39,7 @@ export class LimitOrderService {
     const results: TaskResult[] = [];
 
     // Leveraged limit fills need vault + predict wiring (same as settlement/liquidation).
-    if (readiness.txReady) {
+    if (readiness.txReady && allowFills) {
       const fillable = await this.indexer.fetchAllPages((offset, pageSize) =>
         this.indexer.fetchLimitOrders({
           status: 'open',

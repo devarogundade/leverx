@@ -1,31 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Transaction } from '@mysten/sui/transactions';
 import { FLASH_BORROW_BUFFER_BPS } from '../config/constants';
-import { flashBorrowAmountForLiquidation } from '../config/trade-math';
+import {
+  flashBorrowAmountForLiquidation,
+  hasLiquidationDebt,
+} from '../config/trade-math';
 import { IndexerService } from '../indexer/indexer.service';
 import type { LeveragedPosition } from '../indexer/indexer.types';
 import type { TaskResult } from '../keeper/keeper.types';
 import { PtbBuilderService } from '../sui/ptb-builder.service';
 import { SuiService } from '../sui/sui.service';
-
-function positionKey(position: LeveragedPosition): string {
-  return `${position.account_id}:${position.position_key}`;
-}
-
-function mergeLiquidationCandidates(
-  withMargin: LeveragedPosition[],
-  withBorrow: LeveragedPosition[],
-): LeveragedPosition[] {
-  const seen = new Set<string>();
-  const merged: LeveragedPosition[] = [];
-  for (const position of [...withMargin, ...withBorrow]) {
-    const key = positionKey(position);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    merged.push(position);
-  }
-  return merged;
-}
 
 @Injectable()
 export class LiquidationService {
@@ -52,37 +36,29 @@ export class LiquidationService {
       ];
     }
 
-    const [withMargin, withBorrow] = await Promise.all([
-      this.indexer.fetchAllPages((offset, pageSize) =>
-        this.indexer.fetchPositions({
-          status: 'open',
-          hasMargin: true,
-          hasPredictManager: true,
-          excludeStatus: 'liquidated',
-          limit: pageSize,
-          offset,
-        }),
-      ),
-      this.indexer.fetchAllPages((offset, pageSize) =>
-        this.indexer.fetchPositions({
-          status: 'all',
-          minBorrowQuote: 1,
-          hasPredictManager: true,
-          excludeStatus: 'liquidated',
-          limit: pageSize,
-          offset,
-        }),
-      ),
-    ]);
-    const candidates = mergeLiquidationCandidates(withMargin, withBorrow);
-
+    const candidates = await this.indexer.fetchLiquidationCandidates();
     const results: TaskResult[] = [];
+
     for (const position of candidates) {
       if (results.filter((r) => r.success).length >= limit) break;
 
       const target = `${position.account_id}:${position.position_key}`;
       try {
-        if (position.borrow_quote < 1) {
+        if (!hasLiquidationDebt(position.borrow_quote, position.margin_quote)) {
+          continue;
+        }
+
+        const liquidatable = await this.isLiquidatable(position);
+        if (liquidatable === null) {
+          results.push({
+            kind: 'liquidation',
+            target,
+            success: false,
+            error: 'liquidation_check_unreachable',
+          });
+          continue;
+        }
+        if (!liquidatable) {
           continue;
         }
 
@@ -118,5 +94,13 @@ export class LiquidationService {
     }
 
     return results;
+  }
+
+  private async isLiquidatable(
+    position: LeveragedPosition,
+  ): Promise<boolean | null> {
+    const cfg = this.sui.getConfig();
+    const tx = this.ptb.buildIsLiquidatable(cfg, position);
+    return this.sui.devInspectBool(tx);
   }
 }

@@ -182,6 +182,39 @@ export class SuiService implements OnModuleInit {
     return Buffer.from(bytes).readUInt8(0) === 1;
   }
 
+  /** Read a Move `(u64, u64)` return tuple from the last PTB command. */
+  async devInspectU64Pair(
+    tx: Transaction,
+    sender?: string,
+  ): Promise<[bigint, bigint] | null> {
+    const address = sender ?? this.keypair?.getPublicKey().toSuiAddress();
+    if (!address) return null;
+
+    const result = await this.client.devInspectTransactionBlock({
+      transactionBlock: tx,
+      sender: address,
+    });
+    if (result.effects?.status?.status !== 'success') {
+      return null;
+    }
+
+    const returnValues = result.results?.at(-1)?.returnValues;
+    if (!returnValues || returnValues.length < 2) return null;
+
+    const readU64 = (index: number): bigint | null => {
+      const entry = returnValues[index];
+      if (!entry) return null;
+      const [bytes] = entry;
+      if (bytes.length < 8) return null;
+      return Buffer.from(bytes).readBigUInt64LE(0);
+    };
+
+    const first = readU64(0);
+    const second = readU64(1);
+    if (first === null || second === null) return null;
+    return [first, second];
+  }
+
   async devInspect(tx: Transaction, sender?: string): Promise<boolean> {
     const address = sender ?? this.keypair?.getPublicKey().toSuiAddress();
     if (!address) return false;

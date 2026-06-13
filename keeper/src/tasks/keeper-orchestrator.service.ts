@@ -60,35 +60,40 @@ export class KeeperOrchestratorService {
 
     try {
       await this.sui.refreshProtocolState();
-      if (this.sui.isTradingPaused()) {
-        return {
-          startedAt,
-          finishedAt: new Date().toISOString(),
-          results: [
-            {
-              kind,
-              target: '-',
-              success: false,
-              error: 'trading_paused',
-            },
-          ],
-        };
-      }
+      const tradingPaused = this.sui.isTradingPaused();
 
       if (kind === 'all' || kind === 'limit_order') {
-        results.push(...(await this.limitOrders.run(this.cfg.limits.limitFills)));
+        results.push(
+          ...(await this.limitOrders.run(this.cfg.limits.limitFills, {
+            allowFills: !tradingPaused,
+          })),
+        );
       }
+      // Liquidation and limit expiry are not gated by trading_paused on-chain.
       if (kind === 'all' || kind === 'liquidation') {
         results.push(...(await this.liquidation.run(this.cfg.limits.liquidations)));
       }
-      if (kind === 'all' || kind === 'force_close') {
-        results.push(...(await this.forceClose.run(this.cfg.limits.forceCloses)));
-      }
-      if (kind === 'all' || kind === 'settlement') {
-        results.push(...(await this.settlement.run(this.cfg.limits.settlements)));
-      }
-      if (kind === 'all' || kind === 'trigger') {
-        results.push(...(await this.triggers.run(this.cfg.limits.triggers)));
+      if (!tradingPaused) {
+        if (kind === 'all' || kind === 'force_close') {
+          results.push(...(await this.forceClose.run(this.cfg.limits.forceCloses)));
+        }
+        if (kind === 'all' || kind === 'settlement') {
+          results.push(...(await this.settlement.run(this.cfg.limits.settlements)));
+        }
+        if (kind === 'all' || kind === 'trigger') {
+          results.push(...(await this.triggers.run(this.cfg.limits.triggers)));
+        }
+      } else if (
+        kind === 'force_close' ||
+        kind === 'settlement' ||
+        kind === 'trigger'
+      ) {
+        results.push({
+          kind,
+          target: '-',
+          success: false,
+          error: 'trading_paused',
+        });
       }
     } catch (err) {
       this.logger.error(formatError(`keeper run failed (${kind})`, err));

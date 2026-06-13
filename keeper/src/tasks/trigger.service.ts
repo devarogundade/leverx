@@ -35,11 +35,6 @@ export class TriggerService {
     }
 
     const cfg = this.sui.getConfig();
-    const triggers = await this.indexer.fetchAllPages((offset, pageSize) =>
-      this.indexer.fetchActiveTriggers({ limit: pageSize, offset }),
-    );
-    if (triggers.length === 0) return [];
-
     const positions = await this.indexer.fetchAllPages((offset, pageSize) =>
       this.indexer.fetchPositions({
         status: 'open',
@@ -51,45 +46,53 @@ export class TriggerService {
     );
 
     const results: TaskResult[] = [];
-    for (const trigger of triggers) {
+    for (const position of positions) {
       if (results.filter((r) => r.success).length >= limit) break;
 
-      const matches = positions.filter(
-        (p) =>
-          p.account_id === trigger.account_id &&
-          p.oracle_id === trigger.oracle_id &&
-          p.is_range === trigger.is_range,
-      );
+      const target = `${position.account_id}:${position.position_key}`;
+      try {
+        const triggers = await this.readOnChainTriggers(position);
+        if (!triggers) continue;
 
-      for (const position of matches) {
-        const target = `${position.account_id}:${position.position_key}`;
-        try {
-          const action = await this.resolveTriggerAction(position, trigger);
-          if (!action) continue;
+        const [takeProfitPremium, stopLossPremium] = triggers;
+        if (takeProfitPremium <= 0n && stopLossPremium <= 0n) continue;
 
-          const minPayout = this.computeTriggerMinPayout(position, action.bid);
-          const tx = this.ptb.buildTriggerRedeem(cfg, position, minPayout);
-          if (!(await this.sui.devInspect(tx))) {
-            results.push({
-              kind: 'trigger',
-              target,
-              success: false,
-              error: 'simulation_failed',
-            });
-            continue;
-          }
+        const action = await this.resolveTriggerAction(position, {
+          take_profit_premium: Number(takeProfitPremium),
+          stop_loss_premium: Number(stopLossPremium),
+        });
+        if (!action) continue;
 
-          const digest = await this.sui.execute(tx);
-          this.logger.log(`trigger ${action.kind} ${target} digest=${digest}`);
-          results.push({ kind: 'trigger', target, success: true, digest });
-        } catch (err) {
-          const error = String(err);
-          this.logger.warn(`trigger ${target}: ${error}`);
-          results.push({ kind: 'trigger', target, success: false, error });
+        const minPayout = this.computeTriggerMinPayout(position, action.bid);
+        const tx = this.ptb.buildTriggerRedeem(cfg, position, minPayout);
+        if (!(await this.sui.devInspect(tx))) {
+          results.push({
+            kind: 'trigger',
+            target,
+            success: false,
+            error: 'simulation_failed',
+          });
+          continue;
         }
+
+        const digest = await this.sui.execute(tx);
+        this.logger.log(`trigger ${action.kind} ${target} digest=${digest}`);
+        results.push({ kind: 'trigger', target, success: true, digest });
+      } catch (err) {
+        const error = String(err);
+        this.logger.warn(`trigger ${target}: ${error}`);
+        results.push({ kind: 'trigger', target, success: false, error });
       }
     }
     return results;
+  }
+
+  private async readOnChainTriggers(
+    position: LeveragedPosition,
+  ): Promise<[bigint, bigint] | null> {
+    const cfg = this.sui.getConfig();
+    const tx = this.ptb.buildGetTriggers(cfg, position);
+    return this.sui.devInspectU64Pair(tx);
   }
 
   private computeTriggerMinPayout(
