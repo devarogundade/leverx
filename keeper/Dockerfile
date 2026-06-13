@@ -30,6 +30,7 @@ COPY --from=builder /build/package.json ./package.json
 
 ENV NODE_ENV=production
 ENV PORT=3001
+ENV INDEXER_URL=https://indexer.suileverx.xyz
 
 EXPOSE 3001
 

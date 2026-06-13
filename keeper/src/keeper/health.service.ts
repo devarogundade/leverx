@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { KeeperConfig } from '../config/keeper.config';
+import { logKeeperError } from '../lib/keeper-log';
 import { IndexerService } from '../indexer/indexer.service';
 import { KeeperOrchestratorService } from '../tasks/keeper-orchestrator.service';
 import { SuiService } from '../sui/sui.service';
@@ -65,6 +66,8 @@ export type HealthReport = {
 
 @Injectable()
 export class HealthService {
+  private readonly logger = new Logger(HealthService.name);
+
   constructor(
     private readonly sui: SuiService,
     private readonly indexer: IndexerService,
@@ -90,7 +93,8 @@ export class HealthService {
     try {
       chain = await this.sui.getClient().getChainIdentifier();
       rpcOk = true;
-    } catch {
+    } catch (err) {
+      logKeeperError(this.logger, 'RPC chain identifier check failed', err);
       chain = null;
     }
 

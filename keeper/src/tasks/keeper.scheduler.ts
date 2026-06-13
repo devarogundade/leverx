@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob } from 'cron';
-import { formatError } from '../lib/format-error';
+import { logKeeperError } from '../lib/keeper-log';
 import type { KeeperConfig } from '../config/keeper.config';
 import { KeeperOrchestratorService } from './keeper-orchestrator.service';
 
@@ -47,7 +47,7 @@ export class KeeperScheduler implements OnModuleInit {
       try {
         await fn();
       } catch (err) {
-        this.logger.error(formatError(`cron "${name}" failed`, err));
+        logKeeperError(this.logger, `cron "${name}" failed`, err);
       }
     });
     this.schedulerRegistry.addCronJob(name, job);

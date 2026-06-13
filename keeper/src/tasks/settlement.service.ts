@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { formatError } from '../lib/format-error';
+import { logKeeperError, logKeeperWarn } from '../lib/keeper-log';
 import { IndexerService } from '../indexer/indexer.service';
 import type { LeveragedPosition } from '../indexer/indexer.types';
 import type { TaskResult } from '../keeper/keeper.types';
@@ -90,8 +90,7 @@ export class SettlementService {
         this.logger.log(`settled ${target} digest=${digest}`);
         results.push({ kind: 'settlement', target, success: true, digest });
       } catch (err) {
-        const error = String(err);
-        this.logger.warn(`settlement ${target}: ${error}`);
+        const error = logKeeperError(this.logger, `settlement ${target}`, err);
         results.push({ kind: 'settlement', target, success: false, error });
       }
     }
@@ -109,8 +108,11 @@ export class SettlementService {
       if (state.is_settled === true) return true;
       return String(state.status ?? '').toLowerCase() === 'settled';
     } catch (err) {
-      this.logger.warn(
-        formatError(`oracle state fetch failed for ${oracleId}`, err, { url }),
+      logKeeperWarn(
+        this.logger,
+        `oracle state fetch failed for ${oracleId}`,
+        err,
+        { url },
       );
       return 'unreachable';
     }

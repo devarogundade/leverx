@@ -3,6 +3,7 @@ import { isLeveragedMintAllowed } from '../config/trade-math';
 import { IndexerService } from '../indexer/indexer.service';
 import type { LimitMintOrder } from '../indexer/indexer.types';
 import type { TaskResult } from '../keeper/keeper.types';
+import { logKeeperError } from '../lib/keeper-log';
 import { PtbBuilderService } from '../sui/ptb-builder.service';
 import { SuiService } from '../sui/sui.service';
 
@@ -90,8 +91,7 @@ export class LimitOrderService {
           this.logger.log(`filled limit ${target} digest=${digest}`);
           results.push({ kind: 'limit_order', target, success: true, digest });
         } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          this.logger.warn(`limit fill failed ${target}: ${message}`);
+          const message = logKeeperError(this.logger, `limit fill failed ${target}`, err);
           results.push({ kind: 'limit_order', target, success: false, error: message });
         }
       }
@@ -128,8 +128,7 @@ export class LimitOrderService {
         results.push({ kind: 'limit_order_expire', target, success: true, digest });
         expiredCount += 1;
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        this.logger.warn(`limit expire failed ${target}: ${message}`);
+        const message = logKeeperError(this.logger, `limit expire failed ${target}`, err);
         results.push({
           kind: 'limit_order_expire',
           target,

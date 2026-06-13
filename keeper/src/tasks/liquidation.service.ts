@@ -8,6 +8,7 @@ import {
 import { IndexerService } from '../indexer/indexer.service';
 import type { LeveragedPosition } from '../indexer/indexer.types';
 import type { TaskResult } from '../keeper/keeper.types';
+import { logKeeperError, logKeeperWarn } from '../lib/keeper-log';
 import { PtbBuilderService } from '../sui/ptb-builder.service';
 import { SuiService } from '../sui/sui.service';
 
@@ -71,7 +72,8 @@ export class LiquidationService {
         const tx = new Transaction();
         this.ptb.buildLiquidation(tx, cfg, position, borrowAmount);
         if (!(await this.sui.devInspect(tx))) {
-          this.logger.warn(
+          logKeeperWarn(
+            this.logger,
             `liquidation simulation failed ${target} (flash_liquidate abort — redeem may not cover vault debt)`,
           );
           results.push({
@@ -87,8 +89,7 @@ export class LiquidationService {
         this.logger.log(`liquidated ${target} digest=${digest}`);
         results.push({ kind: 'liquidation', target, success: true, digest });
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        this.logger.warn(`liquidation failed ${target}: ${message}`);
+        const message = logKeeperError(this.logger, `liquidation failed ${target}`, err);
         results.push({ kind: 'liquidation', target, success: false, error: message });
       }
     }

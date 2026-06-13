@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { KeeperConfig } from '../config/keeper.config';
-import { formatError } from '../lib/format-error';
+import { logKeeperError, logKeeperWarn } from '../lib/keeper-log';
 import type {
   LeveragedPosition,
   LeverxEvent,
@@ -45,11 +45,10 @@ export class IndexerService {
       }
       return res.json() as Promise<T>;
     } catch (err) {
-      const message = formatError(`indexer GET ${path}`, err, {
+      const message = logKeeperError(this.logger, `indexer GET ${path}`, err, {
         url,
         baseUrl: this.baseUrl,
       });
-      this.logger.error(message);
       throw new Error(message);
     }
   }
@@ -77,7 +76,7 @@ export class IndexerService {
     try {
       return await this.get('/health');
     } catch (err) {
-      this.logger.warn(`indexer health check failed: ${String(err)}`);
+      logKeeperWarn(this.logger, 'indexer health check failed', err);
       return { ok: false };
     }
   }

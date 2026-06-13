@@ -20,8 +20,7 @@ export const TESTNET_LEVERX = {
     '0xe6345a6251057614904a4de8971cfd5d9d7dd5ce6bb7b4c036ca13e8f0dcbd78',
   registryId:
     '0x63a9128e375110edd51b7abc57de2b37eacdd1cf06ae72339e5bc41da791d3d5',
-  vaultId:
-    '0xa541e32a9338fca1953a5626a238f1723b969839a3896ff61a174b34e4c30b0a',
+  vaultId: '0xa541e32a9338fca1953a5626a238f1723b969839a3896ff61a174b34e4c30b0a',
   feeCollectorId:
     '0xe506020d1f29c88c00f91460af0197760b1fce5893a680c386595f1b508d2cd2',
 } as const;
@@ -59,8 +58,8 @@ export const SUI_RPC_URLS: Record<string, string> = {
   testnet: 'https://fullnode.testnet.sui.io:443',
 };
 
-/** leverx-server URL (same host when running leverx stack). */
-export const INDEXER_URL = 'http://127.0.0.1:3100';
+/** Public leverx-server (standalone keeper / Docker). Override for local stack. */
+export const INDEXER_URL = 'https://indexer.suileverx.xyz';
 
 export const DEFAULT_PORT = 3001;
 

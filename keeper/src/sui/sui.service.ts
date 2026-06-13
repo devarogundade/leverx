@@ -4,7 +4,7 @@ import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 import { Transaction } from '@mysten/sui/transactions';
 import type { KeeperConfig } from '../config/keeper.config';
-import { formatError } from '../lib/format-error';
+import { logKeeperError, logKeeperWarn } from '../lib/keeper-log';
 import type { ProtocolSettings } from '../indexer/indexer.types';
 
 @Injectable()
@@ -26,19 +26,24 @@ export class SuiService implements OnModuleInit {
       | 'testnet'
       | 'devnet'
       | 'localnet';
-    const url =
-      this.cfg.suiRpcUrl || getJsonRpcFullnodeUrl(network);
+    const url = this.cfg.suiRpcUrl || getJsonRpcFullnodeUrl(network);
     this.client = new SuiJsonRpcClient({ url, network });
+
+    this.logger.log(`indexer: ${this.cfg.indexerUrl}`);
 
     if (this.cfg.privateKey) {
       try {
         this.keypair = Ed25519Keypair.fromSecretKey(this.cfg.privateKey);
-        this.logger.log(`keeper signer: ${this.keypair.getPublicKey().toSuiAddress()}`);
+        this.logger.log(
+          `keeper signer: ${this.keypair.getPublicKey().toSuiAddress()}`,
+        );
       } catch (err) {
-        this.logger.error(`invalid KEEPER_PRIVATE_KEY: ${String(err)}`);
+        logKeeperError(this.logger, 'invalid KEEPER_PRIVATE_KEY', err);
       }
     } else {
-      this.logger.warn('KEEPER_PRIVATE_KEY not set — on-chain tasks will be skipped');
+      this.logger.warn(
+        'KEEPER_PRIVATE_KEY not set — on-chain tasks will be skipped',
+      );
     }
 
     await this.loadIndexerProtocol();
@@ -48,11 +53,13 @@ export class SuiService implements OnModuleInit {
     const url = `${this.cfg.indexerUrl}/v1/protocol`;
     try {
       const res = await fetch(url);
+      console.log('res', res);
       if (!res.ok) {
-        this.logger.warn(
-          formatError('indexer protocol load failed', new Error(`HTTP ${res.status}`), {
-            url,
-          }),
+        logKeeperWarn(
+          this.logger,
+          'indexer protocol load failed',
+          new Error(`HTTP ${res.status}`),
+          { url },
         );
         return;
       }
@@ -78,7 +85,7 @@ export class SuiService implements OnModuleInit {
         `indexer protocol: registry=${merged.registryId || 'unset'} vault=${merged.vaultId || 'unset'} paused=${this.tradingPaused}`,
       );
     } catch (err) {
-      this.logger.error(formatError('indexer protocol load failed', err, { url }));
+      logKeeperError(this.logger, 'indexer protocol load failed', err, { url });
     }
   }
 
@@ -162,7 +169,10 @@ export class SuiService implements OnModuleInit {
     };
   }
 
-  async devInspectBool(tx: Transaction, sender?: string): Promise<boolean | null> {
+  async devInspectBool(
+    tx: Transaction,
+    sender?: string,
+  ): Promise<boolean | null> {
     const address = sender ?? this.keypair?.getPublicKey().toSuiAddress();
     if (!address) return null;
 
@@ -229,7 +239,7 @@ export class SuiService implements OnModuleInit {
         result.error ??
         result.effects?.status?.error ??
         JSON.stringify(result.effects?.status);
-      this.logger.debug(`devInspect failed: ${err}`);
+      logKeeperWarn(this.logger, `devInspect failed: ${err}`);
       return false;
     }
     return true;
@@ -250,9 +260,7 @@ export class SuiService implements OnModuleInit {
 
     const status = result.effects?.status?.status;
     if (status !== 'success') {
-      throw new Error(
-        result.effects?.status?.error ?? 'transaction failed',
-      );
+      throw new Error(result.effects?.status?.error ?? 'transaction failed');
     }
     return result.digest;
   }

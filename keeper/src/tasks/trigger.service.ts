@@ -7,6 +7,7 @@ import {
 import { IndexerService } from '../indexer/indexer.service';
 import type { LeveragedPosition } from '../indexer/indexer.types';
 import type { TaskResult } from '../keeper/keeper.types';
+import { logKeeperError } from '../lib/keeper-log';
 import { PtbBuilderService } from '../sui/ptb-builder.service';
 import { SuiService } from '../sui/sui.service';
 
@@ -79,8 +80,7 @@ export class TriggerService {
         this.logger.log(`trigger ${action.kind} ${target} digest=${digest}`);
         results.push({ kind: 'trigger', target, success: true, digest });
       } catch (err) {
-        const error = String(err);
-        this.logger.warn(`trigger ${target}: ${error}`);
+        const error = logKeeperError(this.logger, `trigger ${target}`, err);
         results.push({ kind: 'trigger', target, success: false, error });
       }
     }

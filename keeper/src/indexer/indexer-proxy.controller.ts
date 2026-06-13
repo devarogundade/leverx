@@ -8,6 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import type { KeeperConfig } from '../config/keeper.config';
+import { logKeeperError } from '../lib/keeper-log';
 
 /** Forwards /v1/* to leverx-server so the app can use a single URL (port 3001 in docker). */
 @Controller('v1')
@@ -42,7 +43,7 @@ export class IndexerProxyController {
       );
       res.send(body);
     } catch (err) {
-      this.logger.error(`proxy ${url}: ${String(err)}`);
+      logKeeperError(this.logger, `proxy ${url}`, err);
       res.status(502).json({ error: 'indexer_unavailable' });
     }
   }

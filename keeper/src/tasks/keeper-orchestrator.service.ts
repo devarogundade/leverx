@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { KeeperConfig } from '../config/keeper.config';
 import { formatError } from '../lib/format-error';
+import { logKeeperError, logTaskFailure } from '../lib/keeper-log';
 import type { KeeperRunSummary, TaskResult } from '../keeper/keeper.types';
 import { SuiService } from '../sui/sui.service';
 import { LimitOrderService } from './limit-order.service';
@@ -96,7 +97,7 @@ export class KeeperOrchestratorService {
         });
       }
     } catch (err) {
-      this.logger.error(formatError(`keeper run failed (${kind})`, err));
+      logKeeperError(this.logger, `keeper run failed (${kind})`, err);
       results.push({
         kind,
         target: '-',
@@ -109,8 +110,11 @@ export class KeeperOrchestratorService {
 
     for (const result of results) {
       if (result.success) continue;
-      this.logger.warn(
-        `task failed | kind=${result.kind} target=${result.target} error=${result.error ?? 'unknown'}`,
+      logTaskFailure(
+        this.logger,
+        result.kind,
+        result.target,
+        result.error ?? 'unknown',
       );
     }
 
