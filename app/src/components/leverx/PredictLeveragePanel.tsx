@@ -20,6 +20,7 @@ import {
 import { WalletConnectButton } from "@/components/WalletConnectButton";
 import { useWallet } from "@/context/WalletContext";
 import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
+import { useNow } from "@/hooks/useNow";
 import { showTxError, showTxSuccess } from "@/lib/toast";
 import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
 import { predictSideLabel, coercePredictSide, TRADE_PREDICT_SIDES, type PredictSide } from "@/lib/predict/instruments";
@@ -221,19 +222,22 @@ export function PredictLeveragePanel({
   }, [orderType, tradeContextKey]);
   const { data: walletQuoteBalance } = useWalletCoinBalance(appConfig.quoteType, 6);
 
+  const now = useNow(1000);
+
   const lev = leverage;
   const leveragedMintAllowed = isLeveragedMintAllowed(
     expiryMs ?? 0,
     LEVERAGED_MINT_WINDOW_MS,
+    now,
   );
   const inFinalHour = Boolean(
-    expiryMs && isFinalHourBeforeExpiry(expiryMs, LEVERAGED_MINT_WINDOW_MS),
+    expiryMs && isFinalHourBeforeExpiry(expiryMs, LEVERAGED_MINT_WINDOW_MS, now),
   );
   const maxLeverageForMarket = leveragedMintAllowed ? LEVERAGE_MAX : LEVERAGE_MIN;
   const restingLimitAllowed = Boolean(
     expiryMs &&
-    expiryMs > Date.now() &&
-    availableLimitOrderExpiryPresets(expiryMs).length > 0,
+    expiryMs > now &&
+    availableLimitOrderExpiryPresets(expiryMs, now).length > 0,
   );
 
   useEffect(() => {
@@ -585,7 +589,7 @@ export function PredictLeveragePanel({
     if (
       lev > LEVERAGE_MIN + 1e-6 &&
       expiryMs &&
-      !isLeveragedMintAllowed(expiryMs, LEVERAGED_MINT_WINDOW_MS)
+      !isLeveragedMintAllowed(expiryMs, LEVERAGED_MINT_WINDOW_MS, now)
     ) {
       errors.push(
         "Leverage above 1× closes one hour before this market expires.",
@@ -642,12 +646,12 @@ export function PredictLeveragePanel({
         errors.push(`Slippage cannot exceed ${MAX_LIMIT_ORDER_SLIPPAGE_PCT}%.`);
       }
       if (expiryMs && expiryMs > 0) {
-        const restingExpiresMs = Date.now() + orderExpiresOffsetMs;
+        const restingExpiresMs = now + orderExpiresOffsetMs;
         const maxLeveragedExpiryMs = maxLeveragedRestingOrderExpiryMs(
           expiryMs,
           LEVERAGED_MINT_WINDOW_MS,
         );
-        if (restingExpiresMs <= Date.now()) {
+        if (restingExpiresMs <= now) {
           errors.push("Order expiry must be in the future.");
         } else if (restingExpiresMs > expiryMs) {
           errors.push("Order expiry cannot be after this market closes. Pick a shorter duration.");
@@ -659,7 +663,7 @@ export function PredictLeveragePanel({
           errors.push(
             "Leveraged resting orders must expire at least one hour before this market closes.",
           );
-        } else if (expiryMs <= Date.now() + 60_000) {
+        } else if (expiryMs <= now + 60_000) {
           errors.push("Market closes too soon for a resting limit order.");
         }
       }
@@ -672,7 +676,7 @@ export function PredictLeveragePanel({
       }
     }
     if (orderType === "market" && marginNum > 0 && tradeKey) {
-      if (expiryMs && expiryMs > 0 && expiryMs <= Date.now()) {
+      if (expiryMs && expiryMs > 0 && expiryMs <= now) {
         errors.push("This market has expired. Pick a live expiry or another strike.");
       } else if (!quoteLoading) {
         if (mintQuote == null) {
@@ -783,6 +787,7 @@ export function PredictLeveragePanel({
     hasLinkedManager,
     duplicateOpenPosition,
     lev,
+    now,
   ]);
 
   const canSubmit =
@@ -793,6 +798,7 @@ export function PredictLeveragePanel({
     marginNum > 0 &&
     expiryMs &&
     expiryMs > 0 &&
+    expiryMs > now &&
     validationErrors.length === 0 &&
     (isRange
       ? resolvedRangeLowerRaw > 0 && resolvedRangeUpperRaw > resolvedRangeLowerRaw
@@ -849,7 +855,7 @@ export function PredictLeveragePanel({
           className="border-b border-border bg-muted/40 px-4 py-2.5 text-center text-sm text-muted-foreground"
           role="status"
         >
-          {expiryMs && expiryMs > 0 && expiryMs <= Date.now()
+          {expiryMs && expiryMs > 0 && expiryMs <= now
             ? "This market has expired. New orders are not accepted."
             : "This market has settled. New orders are not accepted."}
         </div>

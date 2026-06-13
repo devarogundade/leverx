@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, Inbox } from "lucide-react";
@@ -27,6 +27,7 @@ import {
 } from "@/hooks/useIndexer";
 import { useChartPriceSeries } from "@/hooks/useChartPriceSeries";
 import { useLiveContractPremium } from "@/hooks/useLiveContractPremium";
+import { useNow } from "@/hooks/useNow";
 import { useOraclePriceLatest } from "@/hooks/useOracleSpotPriceSeries";
 import { useOracleNeighbors, usePredictOracleRows } from "@/hooks/usePredictOracles";
 import { usePredictOracleState } from "@/hooks/usePredictOracleState";
@@ -439,17 +440,29 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   const vaultId = protocol?.vault_id ?? undefined;
   const { data: vaultSummary } = useIndexerVaultSummary(vaultId);
   const { data: catalog = [] } = useMarketCatalog({ oracleId, limit: 200 });
-  const { data: oracles = [] } = usePredictOracleRows();
+  const { data: oracles = [], refetch: refetchOracles } = usePredictOracleRows();
   const { prev: prevOracle, next: nextOracle } = useOracleNeighbors(oracleId, {
     activeOnly: true,
   });
-  const { data: oracleState } = usePredictOracleState(oracleId);
-  const { data: latestPrice } = useOraclePriceLatest(oracleId);
 
   const oracleSummary = useMemo(
     () => oracles.find((o) => o.oracle_id === oracleId),
     [oracles, oracleId],
   );
+
+  const now = useNow(1000);
+  const expiryForPolling = oracleSummary?.expiry;
+  const oracleStateRefetchMs = useMemo(() => {
+    if (!expiryForPolling || expiryForPolling <= 0) return 60_000;
+    if (expiryForPolling <= now) return 5_000;
+    if (expiryForPolling - now < LEVERAGED_MINT_WINDOW_MS) return 15_000;
+    return 60_000;
+  }, [expiryForPolling, now]);
+
+  const { data: oracleState } = usePredictOracleState(oracleId, {
+    refetchInterval: oracleStateRefetchMs,
+  });
+  const { data: latestPrice } = useOraclePriceLatest(oracleId);
 
   const chartAsset =
     baseFromUnderlying(oracleSummary?.underlying_asset ?? oracleState?.underlying_asset ?? "") ||
@@ -589,10 +602,22 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   const asset = chartAsset || market?.asset || oracleId.slice(2, 6).toUpperCase();
   const expiry = market?.expiry ?? oracleSummary?.expiry ?? oracleState?.expiry;
   const isOracleExpired =
-    expiry != null && expiry > 0 && expiry <= Date.now();
+    expiry != null && expiry > 0 && expiry <= now;
   const inFinalHour = Boolean(
-    expiry && expiry > Date.now() && isFinalHourBeforeExpiry(expiry, LEVERAGED_MINT_WINDOW_MS),
+    expiry &&
+      expiry > now &&
+      isFinalHourBeforeExpiry(expiry, LEVERAGED_MINT_WINDOW_MS, now),
   );
+
+  const expiredRefetchDone = useRef(false);
+  useEffect(() => {
+    expiredRefetchDone.current = false;
+  }, [oracleId]);
+  useEffect(() => {
+    if (!isOracleExpired || expiredRefetchDone.current) return;
+    expiredRefetchDone.current = true;
+    void refetchOracles();
+  }, [isOracleExpired, refetchOracles]);
   const liquidity = vaultSummary?.snapshot?.nav
     ? scaleQuote(vaultSummary.snapshot.nav)
     : null;
@@ -783,7 +808,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
               <StatItem
                 label="Closes"
                 info={inFinalHour ? leverxInfo.leveragedMintWindow : leverxInfo.autoClose}
-                value={expiry ? formatMarketCloses(expiry) : DATA_PLACEHOLDER}
+                value={expiry ? formatMarketCloses(expiry, now) : DATA_PLACEHOLDER}
                 tone={isOracleExpired ? "destructive" : inFinalHour ? "destructive" : undefined}
               />
             </div>

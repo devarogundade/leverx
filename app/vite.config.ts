@@ -35,6 +35,9 @@ export default defineConfig(({ mode }) => {
       tsconfigPaths({ projects: ["./tsconfig.json"] }),
       tanstackStart({
         server: { entry: "server" },
+        spa: {
+          enabled: true,
+        },
         importProtection: {
           behavior: "error",
           client: {
