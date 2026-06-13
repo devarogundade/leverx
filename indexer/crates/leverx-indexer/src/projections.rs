@@ -11,7 +11,7 @@ use sui_types::event::Event;
 use crate::handlers::{
     BorrowRatePatch, DebtRepaidPatch, KeyBorrowPatch, LeverxBatch, LimitCancelPatch,
     LimitExecutePatch, LiquidationBpsPatch, LiquidationPositionPatch, PositionClosePatch,
-    TradingPausedPatch,
+    PositionOpenPatch, TradingPausedPatch,
 };
 use crate::keys::{limit_order_key, position_key};
 use crate::points::record_volume;
@@ -210,7 +210,9 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                 } else {
                     ev.market_ask_at_fill
                 };
-                batch.positions_open.push(NewLeveragedPosition {
+                batch.positions_open.push(PositionOpenPatch {
+                    event_digest: ctx.event_digest.to_string(),
+                    row: NewLeveragedPosition {
                     position_key: pk.clone(),
                     account_id: ev.account_id.to_string(),
                     owner: ev.owner.to_string(),
@@ -231,6 +233,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     opened_at_ms: Some(ctx.timestamp_ms),
                     closed_at_ms: None,
                     realized_payout: 0,
+                    },
                 });
                 batch.trades.push(NewMarketTrade {
                     event_digest: ctx.event_digest.to_string(),
@@ -282,6 +285,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     ev.is_range,
                 );
                 batch.position_closes.push(PositionClosePatch {
+                    event_digest: ctx.event_digest.to_string(),
                     position_key: pk.clone(),
                     account_id: ev.account_id.to_string(),
                     quantity: ev.quantity as i64,
@@ -652,6 +656,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                 });
                 if ev.socialized > 0 {
                     batch.position_closes.push(PositionClosePatch {
+                        event_digest: ctx.event_digest.to_string(),
                         position_key: pk.clone(),
                         account_id: ev.account_id.to_string(),
                         quantity: 0,

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -41,7 +41,7 @@ pub struct LeverxBatch {
     pub limit_placed: Vec<NewLimitMintOrder>,
     pub limit_executed: Vec<LimitExecutePatch>,
     pub limit_cancelled: Vec<LimitCancelPatch>,
-    pub positions_open: Vec<NewLeveragedPosition>,
+    pub positions_open: Vec<PositionOpenPatch>,
     pub position_closes: Vec<PositionClosePatch>,
     pub trades: Vec<NewMarketTrade>,
     pub global_trades: Vec<NewGlobalMarketTrade>,
@@ -88,7 +88,13 @@ pub struct LimitCancelPatch {
     pub cancelled_by: String,
 }
 
+pub struct PositionOpenPatch {
+    pub event_digest: String,
+    pub row: NewLeveragedPosition,
+}
+
 pub struct PositionClosePatch {
+    pub event_digest: String,
     pub position_key: String,
     pub account_id: String,
     pub quantity: i64,
@@ -327,14 +333,20 @@ impl Handler for LeverxEventsHandler {
             .execute(conn)
             .await?;
 
-        if !batch.events.is_empty() {
-            rows += diesel::insert_into(leverx_events::table)
+        let fresh_event_digests: HashSet<String> = if batch.events.is_empty() {
+            HashSet::new()
+        } else {
+            diesel::insert_into(leverx_events::table)
                 .values(&batch.events)
                 .on_conflict(leverx_events::event_digest)
                 .do_nothing()
-                .execute(conn)
-                .await?;
-        }
+                .returning(leverx_events::event_digest)
+                .get_results::<String>(conn)
+                .await?
+                .into_iter()
+                .collect()
+        };
+        rows += fresh_event_digests.len();
 
         let market_rows = dedupe_markets(&batch.markets);
         if !market_rows.is_empty() {
@@ -449,28 +461,31 @@ impl Handler for LeverxEventsHandler {
         }
 
         for close in &batch.position_closes {
+            if !fresh_event_digests.contains(&close.event_digest) {
+                continue;
+            }
             rows += diesel::sql_query(
                 "UPDATE leveraged_positions SET \
-                 open_quantity = open_quantity - $1, \
+                 open_quantity = GREATEST(open_quantity - $1, 0), \
                  realized_payout = realized_payout + $2, \
                  borrow_quote = $3, \
                  margin_quote = CASE \
-                   WHEN open_quantity - $1 <= 0 THEN 0 \
+                   WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN 0 \
                    ELSE (margin_quote * GREATEST(open_quantity - $1, 0) / GREATEST(open_quantity, 1)) \
                  END, \
                  mint_cost = CASE \
-                   WHEN open_quantity - $1 <= 0 THEN 0 \
+                   WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN 0 \
                    ELSE (mint_cost * GREATEST(open_quantity - $1, 0) / GREATEST(open_quantity, 1)) \
                  END, \
                  leverage_bps = CASE \
-                   WHEN open_quantity - $1 <= 0 THEN 10000 \
+                   WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN 10000 \
                    ELSE leverage_bps \
                  END, \
                  status = CASE \
-                   WHEN open_quantity - $1 <= 0 THEN CASE WHEN $7 THEN 'settled' ELSE 'closed' END \
+                   WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN CASE WHEN $7 THEN 'settled' ELSE 'closed' END \
                    ELSE 'open' \
                  END, \
-                 closed_at_ms = CASE WHEN open_quantity - $1 <= 0 THEN $4 ELSE NULL END \
+                 closed_at_ms = CASE WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN $4 ELSE NULL END \
                  WHERE position_key = $5 AND account_id = $6",
             )
             .bind::<diesel::sql_types::BigInt, _>(close.quantity)
@@ -484,7 +499,11 @@ impl Handler for LeverxEventsHandler {
             .await?;
         }
 
-        for pos in &batch.positions_open {
+        for patch in &batch.positions_open {
+            if !fresh_event_digests.contains(&patch.event_digest) {
+                continue;
+            }
+            let pos = &patch.row;
             rows += diesel::insert_into(leveraged_positions::table)
                 .values(pos)
                 .on_conflict((leveraged_positions::position_key, leveraged_positions::account_id))
@@ -493,9 +512,11 @@ impl Handler for LeverxEventsHandler {
                     leveraged_positions::owner.eq(excluded(leveraged_positions::owner)),
                     leveraged_positions::predict_manager_id
                         .eq(excluded(leveraged_positions::predict_manager_id)),
-                    leveraged_positions::open_quantity.eq(
-                        leveraged_positions::open_quantity + excluded(leveraged_positions::open_quantity),
-                    ),
+                    leveraged_positions::open_quantity.eq(sql::<BigInt>(
+                        "CASE WHEN leveraged_positions.open_quantity <= 0 \
+                         THEN excluded.open_quantity \
+                         ELSE leveraged_positions.open_quantity + excluded.open_quantity END",
+                    )),
                     leveraged_positions::margin_quote.eq(
                         leveraged_positions::margin_quote + excluded(leveraged_positions::margin_quote),
                     ),
