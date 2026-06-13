@@ -13,6 +13,7 @@ interface Props {
   variant?: "outcome" | "trade";
   className?: string;
   iconClassName?: string;
+  noIcon?: boolean;
 }
 
 export function PredictSideLabel({
@@ -20,6 +21,7 @@ export function PredictSideLabel({
   variant = "outcome",
   className,
   iconClassName,
+  noIcon = false,
 }: Props) {
   const label =
     variant === "trade" && (side === "up" || side === "down")
@@ -34,7 +36,7 @@ export function PredictSideLabel({
 
   return (
     <span className={cn("inline-flex items-center gap-1", className)}>
-      <Icon className={cn(predictSideChevron, iconClassName)} aria-hidden />
+      {!noIcon ? <Icon className={cn(predictSideChevron, iconClassName)} aria-hidden /> : null}
       <span>{label}</span>
     </span>
   );

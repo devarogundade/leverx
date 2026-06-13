@@ -122,7 +122,7 @@ function OrderBookShell({
                 onClick={() => onSideChange(option)}
                 aria-pressed={side === option}
               >
-                <PredictSideLabel side={option} />
+                <PredictSideLabel side={option} noIcon={true} />
               </button>
             ))}
           </div>
