@@ -219,8 +219,8 @@ export function PredictLeveragePanel({
   const maxLeverageForMarket = leveragedMintAllowed ? LEVERAGE_MAX : LEVERAGE_MIN;
   const restingLimitAllowed = Boolean(
     expiryMs &&
-      expiryMs > Date.now() &&
-      availableLimitOrderExpiryPresets(expiryMs).length > 0,
+    expiryMs > Date.now() &&
+    availableLimitOrderExpiryPresets(expiryMs).length > 0,
   );
 
   useEffect(() => {
@@ -439,9 +439,9 @@ export function PredictLeveragePanel({
     () =>
       entryCents > 0
         ? TP_SL_OFFSET_PRESETS.map((offset) => ({
-            label: `+${offset}¢`,
-            value: tpPremiumCentsFromEntry(entryCents, offset).toFixed(1),
-          }))
+          label: `+${offset}¢`,
+          value: tpPremiumCentsFromEntry(entryCents, offset).toFixed(1),
+        }))
         : [],
     [entryCents],
   );
@@ -450,9 +450,9 @@ export function PredictLeveragePanel({
     () =>
       entryCents > 0
         ? TP_SL_OFFSET_PRESETS.map((offset) => ({
-            label: `−${offset}¢`,
-            value: slPremiumCentsFromEntry(entryCents, offset).toFixed(1),
-          }))
+          label: `−${offset}¢`,
+          value: slPremiumCentsFromEntry(entryCents, offset).toFixed(1),
+        }))
         : [],
     [entryCents],
   );
@@ -794,366 +794,360 @@ export function PredictLeveragePanel({
         </div>
       ) : null}
       <div className={cn(disabled && "pointer-events-none select-none opacity-50")}>
-      <div className="border-b border-border p-3">
-        <div className={segTabsClass("stretch", "outcomes")} role="group" aria-label="Outcome">
-          {canSwitchOutcome ? (
-            <>
-              <button
-                type="button"
-                onClick={() => onSideChange("up")}
-                className={cn(
-                  segTabOutcome,
-                  side === "up" && segTabActive,
-                  side === "up" && sideToggleLongActive,
-                )}
-              >
-                {predictSideLabel.up}
-              </button>
-              <button
-                type="button"
-                onClick={() => onSideChange("down")}
-                className={cn(
-                  segTabOutcome,
-                  side === "down" && segTabActive,
-                  side === "down" && sideToggleShortActive,
-                )}
-              >
-                {predictSideLabel.down}
-              </button>
-              <button
-                type="button"
-                onClick={() => onSideChange("range")}
-                className={cn(
-                  segTabOutcome,
-                  side === "range" && segTabActive,
-                  side === "range" && segTabRangeActive,
-                )}
-              >
-                {predictSideLabel.range}
-              </button>
-            </>
-          ) : (
-            <>
-              <span className={cn(segTabOutcome, "opacity-50")}>{predictSideLabel.up}</span>
-              <span className={cn(segTabOutcome, "opacity-50")}>{predictSideLabel.down}</span>
-              <span className={cn(segTabOutcome, "opacity-50")}>{predictSideLabel.range}</span>
-            </>
-          )}
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-3 border-b border-border px-4 py-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <LabelWithInfo
-          label="Order type"
-          labelClassName={labelCaps}
-          info={leverxInfo.orderType}
-        />
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <div className={pillToggleGroup} role="group" aria-label="Order type">
-            {ORDER_TYPES.map((type) => (
-              <button
-                key={type}
-                type="button"
-                className={cn(
-                  pillToggleBtn,
-                  orderType === type ? pillToggleActive : pillToggleIdle,
-                )}
-                onClick={() => setOrderType(type)}
-                aria-pressed={orderType === type}
-              >
-                {type}
-              </button>
-            ))}
-          </div>
-          {orderType === "limit" ? (
-            <SlippagePopover
-              placementSlippagePct={placementSlippagePct}
-              orderExpiresOffsetMs={orderExpiresOffsetMs}
-              limitExecution={limitExecution}
-              marketExpiryMs={expiryMs}
-              restingAllowed={restingLimitAllowed}
-              onPlacementSlippageChange={setPlacementSlippagePct}
-              onOrderExpiresOffsetMsChange={setOrderExpiresOffsetMs}
-              onLimitExecutionChange={setLimitExecution}
-            />
-          ) : null}
-        </div>
-      </div>
-
-      <div className="flex flex-col space-y-5 p-4">
-        {!isRange ? (
-          <StrikePriceSelector
-            preset={strikePreset}
-            onPresetChange={handleStrikePresetChange}
-            customStrikeUsd={customStrikeUsd}
-            onCustomStrikeChange={setCustomStrikeUsd}
-            resolvedStrikeRaw={resolvedBinaryStrikeRaw}
-            oracleSpotUsd={oracleSpotUsd}
-            minStrikeRaw={minStrikeRaw}
-            disabled={disabled}
-          />
-        ) : null}
-
-        {isRange ? (
-          <div>
-            <LabelWithInfo
-              className="mb-2"
-              labelClassName="text-xs text-muted-foreground"
-              label="Range bet — pays if the final price lands inside your band."
-              info={leverxInfo.rangeMarket}
-            />
-            {rangeFromChart ? (
-              <p className="font-mono text-sm text-foreground">
-                ${(lowerStrikeRaw! / 1e9).toLocaleString()} – ${(upperStrikeRaw! / 1e9).toLocaleString()}
-              </p>
+        <div className="border-b border-border p-3">
+          <div className={segTabsClass("stretch", "outcomes")} role="group" aria-label="Outcome">
+            {canSwitchOutcome ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onSideChange("up")}
+                  className={cn(
+                    segTabOutcome,
+                    side === "up" && segTabActive,
+                    side === "up" && sideToggleLongActive,
+                  )}
+                >
+                  {predictSideLabel.up}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onSideChange("down")}
+                  className={cn(
+                    segTabOutcome,
+                    side === "down" && segTabActive,
+                    side === "down" && sideToggleShortActive,
+                  )}
+                >
+                  {predictSideLabel.down}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onSideChange("range")}
+                  className={cn(
+                    segTabOutcome,
+                    side === "range" && segTabActive,
+                    side === "range" && segTabRangeActive,
+                  )}
+                >
+                  {predictSideLabel.range}
+                </button>
+              </>
             ) : (
-              <div className="space-y-3">
-                <div>
-                  <LabelWithInfo
-                    className={cn(labelCaps, "mb-2")}
-                    label="Low end"
-                    labelClassName={labelCaps}
-                    info={leverxInfo.lowerStrike}
-                  />
-                  <TradeAmountInput
-                    prefix="$"
-                    large
-                    type="number"
-                    inputMode="decimal"
-                    min={0}
-                    value={lowerStrike}
-                    onChange={(e) => setLowerStrike(e.target.value)}
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <LabelWithInfo
-                    className={cn(labelCaps, "mb-2")}
-                    label="High end"
-                    labelClassName={labelCaps}
-                    info={leverxInfo.upperStrike}
-                  />
-                  <TradeAmountInput
-                    prefix="$"
-                    large
-                    type="number"
-                    inputMode="decimal"
-                    min={0}
-                    value={upperStrike}
-                    onChange={(e) => setUpperStrike(e.target.value)}
-                    placeholder="0"
-                  />
-                </div>
-              </div>
+              <>
+                <span className={cn(segTabOutcome, "opacity-50")}>{predictSideLabel.up}</span>
+                <span className={cn(segTabOutcome, "opacity-50")}>{predictSideLabel.down}</span>
+                <span className={cn(segTabOutcome, "opacity-50")}>{predictSideLabel.range}</span>
+              </>
             )}
           </div>
-        ) : orderType === "limit" ? (
-          <div>
-            <div className="mb-2">
-              <LabelWithInfo
-                label={`Limit price (${predictSideLabel[side]})`}
-                labelClassName={labelCaps}
-                info={leverxInfo.limitPrice}
+        </div>
+
+        <div className="flex flex-col gap-3 border-b border-border px-4 py-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <LabelWithInfo
+            label="Order type"
+            labelClassName={labelCaps}
+            info={leverxInfo.orderType}
+          />
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <div className={pillToggleGroup} role="group" aria-label="Order type">
+              {ORDER_TYPES.map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  className={cn(
+                    pillToggleBtn,
+                    orderType === type ? pillToggleActive : pillToggleIdle,
+                  )}
+                  onClick={() => setOrderType(type)}
+                  aria-pressed={orderType === type}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+            {orderType === "limit" ? (
+              <SlippagePopover
+                placementSlippagePct={placementSlippagePct}
+                orderExpiresOffsetMs={orderExpiresOffsetMs}
+                limitExecution={limitExecution}
+                marketExpiryMs={expiryMs}
+                restingAllowed={restingLimitAllowed}
+                onPlacementSlippageChange={setPlacementSlippagePct}
+                onOrderExpiresOffsetMsChange={setOrderExpiresOffsetMs}
+                onLimitExecutionChange={setLimitExecution}
               />
+            ) : null}
+          </div>
+        </div>
+
+        <div className="flex flex-col space-y-5 p-4">
+          {!isRange ? (
+            <StrikePriceSelector
+              preset={strikePreset}
+              onPresetChange={handleStrikePresetChange}
+              customStrikeUsd={customStrikeUsd}
+              onCustomStrikeChange={setCustomStrikeUsd}
+              resolvedStrikeRaw={resolvedBinaryStrikeRaw}
+              oracleSpotUsd={oracleSpotUsd}
+              minStrikeRaw={minStrikeRaw}
+              disabled={disabled}
+            />
+          ) : null}
+
+          {isRange ? (
+            <div>
+              <LabelWithInfo
+                className="mb-2"
+                labelClassName="text-xs text-muted-foreground"
+                label="Range bet — pays if the final price lands inside your band."
+                info={leverxInfo.rangeMarket}
+              />
+              {rangeFromChart ? (
+                <p className="font-mono text-sm text-foreground">
+                  ${(lowerStrikeRaw! / 1e9).toLocaleString()} – ${(upperStrikeRaw! / 1e9).toLocaleString()}
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <LabelWithInfo
+                      className={cn(labelCaps, "mb-2")}
+                      label="Low end"
+                      labelClassName={labelCaps}
+                      info={leverxInfo.lowerStrike}
+                    />
+                    <TradeAmountInput
+                      prefix="$"
+                      large
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      value={lowerStrike}
+                      onChange={(e) => setLowerStrike(e.target.value)}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <LabelWithInfo
+                      className={cn(labelCaps, "mb-2")}
+                      label="High end"
+                      labelClassName={labelCaps}
+                      info={leverxInfo.upperStrike}
+                    />
+                    <TradeAmountInput
+                      prefix="$"
+                      large
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      value={upperStrike}
+                      onChange={(e) => setUpperStrike(e.target.value)}
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : orderType === "limit" ? (
+            <div>
+              <div className="mb-2">
+                <LabelWithInfo
+                  label={`Limit price (${predictSideLabel[side]})`}
+                  labelClassName={labelCaps}
+                  info={leverxInfo.limitPrice}
+                />
+              </div>
+              <TradeAmountInput
+                large
+                type="number"
+                inputMode="decimal"
+                min={0.1}
+                step={0.1}
+                value={limitPrice}
+                onChange={(e) => setLimitPrice(e.target.value)}
+                suffix={<span className="text-sm text-muted-foreground">¢</span>}
+              />
+              <p className="mt-2 text-xs text-muted-foreground">
+                Live contract price:{" "}
+                <span className="font-mono text-foreground">
+                  {liveAskLoading
+                    ? "…"
+                    : liveAskCents != null && liveAskCents > 0
+                      ? `${liveAskCents.toFixed(1)}¢`
+                      : "—"}
+                </span>
+              </p>
+            </div>
+          ) : null}
+
+          <div>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <LabelWithInfo
+                label="Your deposit"
+                labelClassName={labelCaps}
+                info={leverxInfo.margin}
+              />
+              <span className="text-xs text-muted-foreground">
+                {ui.balanceAvailable}{" "}
+                <span className="font-mono text-foreground">{quoteBalanceLabel}</span>
+              </span>
             </div>
             <TradeAmountInput
+              prefix={<span className="font-mono text-sm">$</span>}
               large
               type="number"
               inputMode="decimal"
-              min={0.1}
-              step={0.1}
-              value={limitPrice}
-              onChange={(e) => setLimitPrice(e.target.value)}
-              suffix={<span className="text-sm text-muted-foreground">¢</span>}
+              value={margin}
+              onChange={(e) => setMargin(e.target.value)}
+              placeholder="0.00"
+              suffix={
+                leveragedMintAllowed ? (
+                  <span className={leverageBadge}>{formatLeverageBadge(lev)} dUSDC</span>
+                ) : (
+                  <span className="text-sm text-muted-foreground">dUSDC</span>
+                )
+              }
             />
-            <p className="mt-2 text-xs text-muted-foreground">
-              Live contract price:{" "}
-              <span className="font-mono text-foreground">
-                {liveAskLoading
-                  ? "…"
-                  : liveAskCents != null && liveAskCents > 0
-                    ? `${liveAskCents.toFixed(1)}¢`
-                    : "—"}
-              </span>
-            </p>
-          </div>
-        ) : null}
-
-        <div>
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <LabelWithInfo
-              label="Your deposit"
-              labelClassName={labelCaps}
-              info={leverxInfo.margin}
-            />
-            <span className="text-xs text-muted-foreground">
-              {ui.balanceAvailable}{" "}
-              <span className="font-mono text-foreground">{quoteBalanceLabel}</span>
-            </span>
-          </div>
-          <TradeAmountInput
-            prefix={<span className="font-mono text-sm">$</span>}
-            large
-            type="number"
-            inputMode="decimal"
-            value={margin}
-            onChange={(e) => setMargin(e.target.value)}
-            placeholder="0.00"
-            suffix={
-              leveragedMintAllowed ? (
-                <span className={leverageBadge}>{formatLeverageBadge(lev)} dUSDC</span>
-              ) : (
-                <span className="text-sm text-muted-foreground">dUSDC</span>
-              )
-            }
-          />
-          <div className="mt-2">
-            <TradeQuickAmounts amounts={quickAmounts} onPick={setMargin} />
-          </div>
-          {marginNum > 0 ? (
-            <p className="mt-2 text-xs text-muted-foreground">
-              Position size:{" "}
-              <span className="font-mono text-foreground">
-                {formatCollateralAmount(appConfig.quoteType, marginNum * lev)}
-              </span>
-              {" · "}
-              Margin call at {(MARGIN_CALL_BPS / 100).toFixed(0)}%
-            </p>
-          ) : null}
-        </div>
-
-        {inFinalHour ? (
-          <p className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-100/90">
-            Final hour — only 1× margin (no vault borrow) until this market closes.
-          </p>
-        ) : null}
-
-        {leveragedMintAllowed ? (
-          <LeverageSlider
-            value={leverage}
-            onChange={setLeverage}
-            maxLeverage={maxLeverageForMarket}
-            info={leverxInfo.leverage}
-          />
-        ) : null}
-
-        <TradeQuoteSummary
-          quote={mintQuote}
-          isLoading={quoteLoading}
-          isRefreshing={quoteRefreshing && !quoteLoading}
-        />
-
-        <div className={tpSlBlock}>
-          <div className={tpSlHeader}>
-            <LabelWithInfo
-              label="Take profit / Stop loss"
-              labelClassName={labelCaps}
-              info={leverxInfo.tpSl}
-            />
-            <Switch checked={tpSl} onCheckedChange={handleTpSlToggle} />
-          </div>
-          {tpSl ? (
-            <div className={tpSlFields}>
-              <p className="text-xs text-muted-foreground">
-                <LabelWithInfo
-                  label="Entry premium"
-                  labelClassName="inline text-xs text-muted-foreground"
-                  info={leverxInfo.tpSlEntry}
-                />
-                {": "}
-                <span className="font-mono text-foreground">
-                  {entryCents > 0 ? `${entryCents.toFixed(1)}¢` : quoteLoading ? "…" : "—"}
-                </span>
-              </p>
-              <div>
-                <LabelWithInfo
-                  className="mb-2"
-                  label="Take profit"
-                  labelClassName={labelCaps}
-                  info={leverxInfo.tpSlTakeProfit}
-                />
-                <TradeAmountInput
-                  type="number"
-                  inputMode="decimal"
-                  min={0.1}
-                  step={0.1}
-                  value={tp}
-                  onChange={(e) => setTp(e.target.value)}
-                  placeholder={entryCents > 0 ? defaultTpSlPremiumsFromEntry(entryCents).tp : "0.0"}
-                  suffix={<span className="text-sm text-muted-foreground">¢</span>}
-                />
-                {tpPresets.length > 0 ? (
-                  <div className="mt-2">
-                    <TradeQuickAmounts amounts={tpPresets} onPick={setTp} />
-                  </div>
-                ) : null}
-              </div>
-              <div>
-                <LabelWithInfo
-                  className="mb-2"
-                  label="Stop loss"
-                  labelClassName={labelCaps}
-                  info={leverxInfo.tpSlStopLoss}
-                />
-                <TradeAmountInput
-                  type="number"
-                  inputMode="decimal"
-                  min={0.1}
-                  step={0.1}
-                  value={sl}
-                  onChange={(e) => setSl(e.target.value)}
-                  placeholder={entryCents > 0 ? defaultTpSlPremiumsFromEntry(entryCents).sl : "0.0"}
-                  suffix={<span className="text-sm text-muted-foreground">¢</span>}
-                />
-                {slPresets.length > 0 ? (
-                  <div className="mt-2">
-                    <TradeQuickAmounts amounts={slPresets} onPick={setSl} />
-                  </div>
-                ) : null}
-              </div>
+            <div className="mt-2">
+              <TradeQuickAmounts amounts={quickAmounts} onPick={setMargin} />
             </div>
-          ) : null}
-        </div>
-      </div>
+            {marginNum > 0 ? (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Position size:{" "}
+                <span className="font-mono text-foreground">
+                  {formatCollateralAmount(appConfig.quoteType, marginNum * lev)}
+                </span>
+                {" · "}
+                Margin call at {(MARGIN_CALL_BPS / 100).toFixed(0)}%
+              </p>
+            ) : null}
+          </div>
 
-      <div className="space-y-2 border-t border-border p-4">
-        {protocol?.trading_paused ? (
-          <p className="flex items-center gap-1 text-xs text-destructive">
-            Trading is temporarily paused.
-            <InfoPopover title="Trading paused">{leverxInfo.tradingPaused}</InfoPopover>
-          </p>
-        ) : null}
-        {!isProtocolReady && isWalletConnected ? (
-          <p className="flex items-center gap-1 text-xs text-muted-foreground">
-            Trading is not available yet. Check back soon.
-            <InfoPopover title="Setup">{leverxInfo.protocolNotConfigured}</InfoPopover>
-          </p>
-        ) : null}
-        {validationErrors.map((err) => (
-          <p key={err} className="text-xs text-destructive">
-            {err}
-          </p>
-        ))}
-        {isWalletConnected ? (
-          <button
-            type="button"
-            className={ctaClass}
-            disabled={!canSubmit || openTrade.isPending}
-            onClick={handleSubmit}
-          >
-            {openTrade.isPending ? (
-              <>
-                <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
-                Submitting…
-              </>
-            ) : (
-              submitLabel
-            )}
-          </button>
-        ) : (
-          <WalletConnectButton fullWidth large className={ctaClass} />
-        )}
-      </div>
+          {leveragedMintAllowed ? (
+            <LeverageSlider
+              value={leverage}
+              onChange={setLeverage}
+              maxLeverage={maxLeverageForMarket}
+              info={leverxInfo.leverage}
+            />
+          ) : null}
+
+          <TradeQuoteSummary
+            quote={mintQuote}
+            isLoading={quoteLoading}
+            isRefreshing={quoteRefreshing && !quoteLoading}
+          />
+
+          <div className={tpSlBlock}>
+            <div className={tpSlHeader}>
+              <LabelWithInfo
+                label="Take profit / Stop loss"
+                labelClassName={labelCaps}
+                info={leverxInfo.tpSl}
+              />
+              <Switch checked={tpSl} onCheckedChange={handleTpSlToggle} />
+            </div>
+            {tpSl ? (
+              <div className={tpSlFields}>
+                <p className="text-xs text-muted-foreground">
+                  <LabelWithInfo
+                    label="Entry premium"
+                    labelClassName="inline text-xs text-muted-foreground"
+                    info={leverxInfo.tpSlEntry}
+                  />
+                  {": "}
+                  <span className="font-mono text-foreground">
+                    {entryCents > 0 ? `${entryCents.toFixed(1)}¢` : quoteLoading ? "…" : "—"}
+                  </span>
+                </p>
+                <div>
+                  <LabelWithInfo
+                    className="mb-2"
+                    label="Take profit"
+                    labelClassName={labelCaps}
+                    info={leverxInfo.tpSlTakeProfit}
+                  />
+                  <TradeAmountInput
+                    type="number"
+                    inputMode="decimal"
+                    min={0.1}
+                    step={0.1}
+                    value={tp}
+                    onChange={(e) => setTp(e.target.value)}
+                    placeholder={entryCents > 0 ? defaultTpSlPremiumsFromEntry(entryCents).tp : "0.0"}
+                    suffix={<span className="text-sm text-muted-foreground">¢</span>}
+                  />
+                  {tpPresets.length > 0 ? (
+                    <div className="mt-2">
+                      <TradeQuickAmounts amounts={tpPresets} onPick={setTp} />
+                    </div>
+                  ) : null}
+                </div>
+                <div>
+                  <LabelWithInfo
+                    className="mb-2"
+                    label="Stop loss"
+                    labelClassName={labelCaps}
+                    info={leverxInfo.tpSlStopLoss}
+                  />
+                  <TradeAmountInput
+                    type="number"
+                    inputMode="decimal"
+                    min={0.1}
+                    step={0.1}
+                    value={sl}
+                    onChange={(e) => setSl(e.target.value)}
+                    placeholder={entryCents > 0 ? defaultTpSlPremiumsFromEntry(entryCents).sl : "0.0"}
+                    suffix={<span className="text-sm text-muted-foreground">¢</span>}
+                  />
+                  {slPresets.length > 0 ? (
+                    <div className="mt-2">
+                      <TradeQuickAmounts amounts={slPresets} onPick={setSl} />
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="space-y-2 border-t border-border p-4">
+          {protocol?.trading_paused ? (
+            <p className="flex items-center gap-1 text-xs text-destructive">
+              Trading is temporarily paused.
+              <InfoPopover title="Trading paused">{leverxInfo.tradingPaused}</InfoPopover>
+            </p>
+          ) : null}
+          {!isProtocolReady && isWalletConnected ? (
+            <p className="flex items-center gap-1 text-xs text-muted-foreground">
+              Trading is not available yet. Check back soon.
+              <InfoPopover title="Setup">{leverxInfo.protocolNotConfigured}</InfoPopover>
+            </p>
+          ) : null}
+          {validationErrors.map((err) => (
+            <p key={err} className="text-xs text-destructive">
+              {err}
+            </p>
+          ))}
+          {isWalletConnected ? (
+            <button
+              type="button"
+              className={ctaClass}
+              disabled={!canSubmit || openTrade.isPending}
+              onClick={handleSubmit}
+            >
+              {openTrade.isPending ? (
+                <>
+                  <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
+                  Submitting…
+                </>
+              ) : (
+                submitLabel
+              )}
+            </button>
+          ) : (
+            <WalletConnectButton fullWidth large className={ctaClass} />
+          )}
+        </div>
       </div>
     </div>
   );
