@@ -1,8 +1,0 @@
-[published.testnet]
-chain-id = "4c78adac"
-original-id = "0x6e9540e900a6bf28d9b8ab43a706ae24a089586eca90545c2e958dff21838043"
-published-at = "0x6e9540e900a6bf28d9b8ab43a706ae24a089586eca90545c2e958dff21838043"
-version = 1
-toolchain-version = "1.73.0"
-build-config = { flavor = "sui", edition = "2024.beta" }
-upgrade-capability = "0x166126aaf4b5dd812da6735c36c3912d6574a68da8553a6b8956050f86d88efc"

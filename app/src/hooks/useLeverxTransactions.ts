@@ -4,6 +4,7 @@ import { useWallet } from "@/context/WalletContext";
 import { useIndexerProtocol } from "@/hooks/useIndexer";
 import { appConfig } from "@/lib/config";
 import { invalidateLeverxQueries } from "@/lib/leverx/invalidate-queries";
+import { playSuccessSound, primeSuccessSound } from "@/lib/sounds";
 import type { LimitMintOrder, LeveragedPosition } from "@/lib/leverx/indexer-client";
 import type { MarketKeyArgs } from "@/lib/leverx/market-keys";
 import {
@@ -112,6 +113,7 @@ export function useLeverxTransactions() {
 
   const openTrade = useMutation({
     mutationFn: async (input: OpenTradeInput) => {
+      primeSuccessSound();
       const ready = requireReady();
       return executeOpenTrade({
         client,
@@ -121,7 +123,14 @@ export function useLeverxTransactions() {
         input,
       });
     },
-    onSuccess: () => invalidate(),
+    onSuccess: (_data, input) => {
+      const positionMinted =
+        input.orderType === "market" || input.limitExecution === "immediate";
+      if (positionMinted) {
+        playSuccessSound();
+      }
+      invalidate();
+    },
   });
 
   const closePosition = useMutation({
