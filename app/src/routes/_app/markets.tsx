@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { AnimatedCompactUsd } from "@/components/ui/animated-numbers";
 import { createFileRoute } from "@tanstack/react-router";
 import { LayoutGrid, List, Search } from "lucide-react";
@@ -35,6 +35,11 @@ import {
 } from "@/lib/leverx/market-sort";
 import { loadMarketsRoute } from "@/lib/router/route-loaders";
 import { routePendingOptions } from "@/lib/router/route-options";
+import {
+  readMarketListView,
+  writeMarketListView,
+  type MarketListView,
+} from "@/lib/market-list-view";
 
 const CATEGORIES = ["All", "Live", "Favorites", "Closed"] as const;
 type MarketsTab = (typeof CATEGORIES)[number];
@@ -57,7 +62,11 @@ export const Route = createFileRoute("/_app/markets")({
 function MarketsPage() {
   const [category, setCategory] = useState<MarketsTab>("Live");
   const [search, setSearch] = useState("");
-  const [view, setView] = useState<"grid" | "list">("grid");
+  const [view, setViewState] = useState<MarketListView>(readMarketListView);
+  const setView = useCallback((next: MarketListView) => {
+    setViewState(next);
+    writeMarketListView(next);
+  }, []);
   const [sort, setSort] = useState<MarketSortId>(DEFAULT_MARKET_SORT);
   const [notPausedOnly, setNotPausedOnly] = useState(false);
   const { favorites, favoriteCount } = useMarketFavorites();

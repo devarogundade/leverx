@@ -14,6 +14,7 @@ import {
 import { DATA_PLACEHOLDER } from "@/lib/leverx/placeholders";
 import type { OrderBookLevel } from "@/lib/leverx/indexer-client";
 import { PREDICT_QUOTE_REFERENCE_QUANTITY } from "@/lib/leverx/constants";
+import { tradeSideToMarketKey } from "@/lib/leverx/market-keys";
 import { premiumRawToCents } from "@/lib/leverx/trade-math";
 import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
 import { TRADE_PREDICT_SIDES, type PredictSide } from "@/lib/predict/instruments";
