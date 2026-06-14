@@ -12,7 +12,7 @@ import { leverxInfo } from "@/lib/leverx/info-copy";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { positionKeyFromArgs, type MarketKeyArgs } from "@/lib/leverx/market-keys";
 import { formatQuantity } from "@/lib/leverx/format-quantity";
-import { fetchManagerOpenQuantity } from "@/lib/leverx/quotes";
+import { fetchKeyQuoteBalance, fetchManagerOpenQuantity } from "@/lib/leverx/quotes";
 import {
   hasIndexerOpenQuantity,
   settleContractQuantity,
@@ -23,11 +23,11 @@ import { usePredictOracleRows } from "@/hooks/usePredictOracles";
 import { predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
 import { assetLabelForOracleId, isOracleSettledForTrade } from "@/lib/predict/oracles";
 import { centsToPremiumRaw, marginUsdToQuoteAtoms, isLimitCentsWithinPredictBounds, PREDICT_MAX_PREMIUM_CENTS, PREDICT_MIN_PREMIUM_CENTS } from "@/lib/leverx/trade-math";
-import { scaleQuote } from "@/lib/predict/scaling";
+import { scaleQuote, scaleQuoteAtoms } from "@/lib/predict/scaling";
 import { cn } from "@/lib/utils";
 import { pillToggleBtn, pillToggleIdle } from "@/lib/leverx/tw";
 
-type ActionView = "menu" | "close_limit" | "repay_debt";
+type ActionView = "menu" | "close_limit" | "repay_debt" | "withdraw_surplus";
 type ConfirmAction = "market_close" | "settle" | null;
 
 interface Props {
@@ -51,6 +51,7 @@ type PositionActionAvailability = {
   canCloseRedeem: boolean;
   canSettle: boolean;
   canRepayDebt: boolean;
+  canWithdrawSurplus: boolean;
   hasAnyAction: boolean;
   emptyMessage: string | null;
 };
@@ -61,9 +62,18 @@ function getPositionActionAvailability(params: {
   onChainQuantity: OnChainQuantityRead;
   quantityLoading: boolean;
   oracleSettled: boolean;
+  keyQuoteBalanceAtoms: bigint | null | undefined;
+  keyBalanceLoading: boolean;
   now?: number;
 }): PositionActionAvailability {
-  const { position, onChainQuantity, quantityLoading, oracleSettled } = params;
+  const {
+    position,
+    onChainQuantity,
+    quantityLoading,
+    oracleSettled,
+    keyQuoteBalanceAtoms,
+    keyBalanceLoading,
+  } = params;
   const now = params.now ?? Date.now();
   const expired = position.expiry_ms > 0 && position.expiry_ms < now;
   const hasDebt = position.borrow_quote > 0;
@@ -74,29 +84,34 @@ function getPositionActionAvailability(params: {
       ? onChainQuantity > 0n
       : hasIndexerOpenQuantity(position);
 
-  // Live market/limit redeem — only while oracle is unsettled and contracts remain.
   const canCloseRedeem = hasRedeemableQuantity && !oracleSettled;
-
-  // Post-expiry settlement — oracle settled; use on-chain qty with indexer fallback (keeper path).
   const canSettle = expired && oracleSettled && settleQty > 0n && !quantityLoading;
-
   const canRepayDebt = hasDebt;
+  const canWithdrawSurplus =
+    !keyBalanceLoading &&
+    keyQuoteBalanceAtoms != null &&
+    keyQuoteBalanceAtoms > 0n &&
+    !hasDebt;
 
   let emptyMessage: string | null = null;
-  if (!quantityLoading && !canCloseRedeem && !canSettle && !canRepayDebt) {
-    if (settleQty === 0n && !hasIndexerOpenQuantity(position)) {
+  if (
+    !quantityLoading &&
+    !keyBalanceLoading &&
+    !canCloseRedeem &&
+    !canSettle &&
+    !canRepayDebt &&
+    !canWithdrawSurplus
+  ) {
+    const indexStale =
+      onChainQuantity === 0n && hasIndexerOpenQuantity(position);
+    if (indexStale) {
+      emptyMessage =
+        "Contracts are already redeemed on-chain. The portfolio index is stale — this row should clear after refresh. No withdrawable dUSDC was found on this market key.";
+    } else if (settleQty === 0n && !hasIndexerOpenQuantity(position)) {
       emptyMessage =
         "Contracts fully redeemed. Any remaining dUSDC may be in Withdraw to wallet below your positions.";
     } else if (expired && !oracleSettled && hasIndexerOpenQuantity(position)) {
       emptyMessage = "Waiting for oracle settlement before you can settle.";
-    } else if (
-      onChainQuantity === 0n &&
-      hasIndexerOpenQuantity(position) &&
-      expired &&
-      oracleSettled
-    ) {
-      emptyMessage =
-        "On-chain reads no contracts but the portfolio index still lists this position. Try Settle expired — if that fails, refresh or check Withdraw to wallet.";
     } else {
       emptyMessage = "No actions available for this position.";
     }
@@ -106,7 +121,8 @@ function getPositionActionAvailability(params: {
     canCloseRedeem,
     canSettle,
     canRepayDebt,
-    hasAnyAction: canCloseRedeem || canSettle || canRepayDebt,
+    canWithdrawSurplus,
+    hasAnyAction: canCloseRedeem || canSettle || canRepayDebt || canWithdrawSurplus,
     emptyMessage,
   };
 }
@@ -122,12 +138,10 @@ function PositionDetailGrid({
 }) {
   const indexerQty = position.open_quantity;
   const onChainQty = contractQuantity != null ? Number(contractQuantity) : null;
-  const settleQty = Number(settleContractQuantity(contractQuantity ?? null, position));
-  const displayQty = onChainQty != null && onChainQty > 0 ? onChainQty : settleQty;
+  const displayQty = onChainQty ?? indexerQty;
   const qtyStaleHigh =
     onChainQty != null && onChainQty > 0 && onChainQty !== indexerQty;
-  const qtyStaleLow =
-    onChainQty === 0 && indexerQty > 0;
+  const qtyStaleLow = onChainQty === 0 && indexerQty > 0;
 
   return (
     <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
@@ -149,7 +163,7 @@ function PositionDetailGrid({
       ) : null}
       {qtyStaleLow ? (
         <dt className="col-span-2 text-xs text-muted-foreground">
-          Portfolio index still lists contracts; on-chain read is zero — settle uses index size.
+          On-chain contracts are zero — portfolio index still lists this position.
         </dt>
       ) : null}
       <dt className="text-muted-foreground">Margin</dt>
@@ -176,10 +190,12 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
     closePosition,
     settleExpired,
     repayDebt,
+    withdrawQuote,
     isProtocolReady,
   } = useLeverxTransactions();
 
-  const marketKey = positionKeyFromArgs(positionToKey(position));
+  const positionKey = positionToKey(position);
+  const marketKey = positionKeyFromArgs(positionKey);
   const { data: onChainQuantity, isLoading: quantityLoading } = useQuery({
     queryKey: [
       "manager-open-qty",
@@ -194,9 +210,30 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
         packageId: cfg!.packageId,
         predictPackageId: cfg!.predictPackageId,
         predictManagerId: position.predict_manager_id!,
-        key: positionToKey(position),
+        key: positionKey,
       }),
     enabled: Boolean(open && cfg && position.predict_manager_id),
+    staleTime: 10_000,
+    retry: 1,
+  });
+
+  const { data: keyQuoteBalanceAtoms, isLoading: keyBalanceLoading } = useQuery({
+    queryKey: [
+      "proxy-key-balance",
+      position.account_id,
+      marketKey,
+      cfg?.packageId,
+      cfg?.predictPackageId,
+    ],
+    queryFn: () =>
+      fetchKeyQuoteBalance({
+        client,
+        leverxPackageId: cfg!.packageId,
+        predictPackageId: cfg!.predictPackageId,
+        accountId: position.account_id,
+        key: positionKey,
+      }),
+    enabled: Boolean(open && cfg?.packageId && cfg?.predictPackageId && position.account_id),
     staleTime: 10_000,
     retry: 1,
   });
@@ -211,17 +248,25 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [limitCents, setLimitCents] = useState("");
   const [repayUsd, setRepayUsd] = useState("");
+  const [withdrawUsd, setWithdrawUsd] = useState("");
 
   const pending =
-    closePosition.isPending || settleExpired.isPending || repayDebt.isPending;
-  const { canCloseRedeem, canSettle, canRepayDebt, emptyMessage } =
+    closePosition.isPending ||
+    settleExpired.isPending ||
+    repayDebt.isPending ||
+    withdrawQuote.isPending;
+  const { canCloseRedeem, canSettle, canRepayDebt, canWithdrawSurplus, emptyMessage } =
     getPositionActionAvailability({
       position,
       onChainQuantity: onChainQtyRead,
       quantityLoading,
       oracleSettled,
+      keyQuoteBalanceAtoms,
+      keyBalanceLoading,
     });
   const borrowedUsd = scaleQuote(position.borrow_quote);
+  const withdrawableUsd =
+    keyQuoteBalanceAtoms != null ? scaleQuoteAtoms(keyQuoteBalanceAtoms) : 0;
   const repayNum = parseFloat(repayUsd) || 0;
   const repayExceedsDebt = repayNum > borrowedUsd + 1e-6;
   const limitCentsNum = parseFloat(limitCents);
@@ -230,6 +275,9 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
     limitCentsNum <= 0 ||
     !isLimitCentsWithinPredictBounds(limitCentsNum);
   const repayInvalid = !Number.isFinite(repayNum) || repayNum <= 0;
+  const withdrawNum = parseFloat(withdrawUsd) || 0;
+  const withdrawExceedsBalance = withdrawNum > withdrawableUsd + 1e-6;
+  const withdrawInvalid = !Number.isFinite(withdrawNum) || withdrawNum <= 0;
 
   const reset = () => {
     setView("menu");
@@ -255,14 +303,18 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
       ? `${asset} · ${side}`
       : view === "close_limit"
         ? "Close at limit"
-        : "Repay debt";
+        : view === "withdraw_surplus"
+          ? "Withdraw to wallet"
+          : "Repay debt";
 
   const description =
     view === "menu"
       ? "Choose how to manage this position."
       : view === "close_limit"
         ? leverxInfo.closeLimit
-        : leverxInfo.repayDebt;
+        : view === "withdraw_surplus"
+          ? leverxInfo.withdrawTradingBalance
+          : leverxInfo.repayDebt;
 
   return (
     <>
@@ -332,6 +384,22 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
                   info={leverxInfo.settleExpired}
                   disabled={!isProtocolReady || pending}
                   onClick={() => setConfirmAction("settle")}
+                />
+              ) : null}
+              {canWithdrawSurplus ? (
+                <ActionButton
+                  label="Withdraw to wallet"
+                  hint={
+                    <span className="inline-flex items-center gap-1">
+                      <QuoteAmount amount={withdrawableUsd} digits={2} /> available on this key
+                    </span>
+                  }
+                  info={leverxInfo.withdrawTradingBalance}
+                  disabled={!isProtocolReady || pending}
+                  onClick={() => {
+                    setWithdrawUsd(withdrawableUsd.toFixed(2));
+                    setView("withdraw_surplus");
+                  }}
                 />
               ) : null}
               {emptyMessage ? (
@@ -435,6 +503,65 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
                 <Loader2 className="mx-auto h-4 w-4 animate-spin" />
               ) : (
                 "Confirm repay"
+              )}
+            </button>
+          </div>
+        ) : null}
+
+        {view === "withdraw_surplus" ? (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Available on this market key:{" "}
+              <QuoteAmount
+                amount={withdrawableUsd}
+                digits={2}
+                className="text-foreground"
+                amountClassName="text-foreground"
+              />
+            </p>
+            <Input
+              type="number"
+              inputMode="decimal"
+              min={0}
+              step={0.01}
+              placeholder="Withdraw amount"
+              value={withdrawUsd}
+              onChange={(e) => setWithdrawUsd(e.target.value)}
+              className="font-mono"
+            />
+            {withdrawExceedsBalance ? (
+              <p className="text-sm text-destructive">Amount exceeds available balance.</p>
+            ) : null}
+            <button
+              type="button"
+              className={cn(pillToggleBtn, pillToggleIdle, "w-full")}
+              disabled={pending || withdrawExceedsBalance || withdrawInvalid}
+              onClick={() => {
+                const usd = parseFloat(withdrawUsd);
+                if (
+                  !Number.isFinite(usd) ||
+                  usd <= 0 ||
+                  usd > withdrawableUsd + 1e-6
+                ) {
+                  return;
+                }
+                withdrawQuote.mutate(
+                  {
+                    accountId: position.account_id,
+                    key: positionKey,
+                    amountAtoms: marginUsdToQuoteAtoms(usd),
+                  },
+                  {
+                    onError,
+                    onSuccess: () => onSuccess("dUSDC withdrawn to wallet"),
+                  },
+                );
+              }}
+            >
+              {withdrawQuote.isPending ? (
+                <Loader2 className="mx-auto h-4 w-4 animate-spin" />
+              ) : (
+                "Confirm withdraw"
               )}
             </button>
           </div>
@@ -551,9 +678,13 @@ interface TriggerProps {
 /** Opens position actions in a dialog (desktop) or bottom sheet (mobile). */
 export function PositionActionsTrigger({ position, className }: TriggerProps) {
   const [open, setOpen] = useState(false);
-  const { isProtocolReady, closePosition, settleExpired, repayDebt } = useLeverxTransactions();
+  const { isProtocolReady, closePosition, settleExpired, repayDebt, withdrawQuote } =
+    useLeverxTransactions();
   const pending =
-    closePosition.isPending || settleExpired.isPending || repayDebt.isPending;
+    closePosition.isPending ||
+    settleExpired.isPending ||
+    repayDebt.isPending ||
+    withdrawQuote.isPending;
 
   return (
     <>
