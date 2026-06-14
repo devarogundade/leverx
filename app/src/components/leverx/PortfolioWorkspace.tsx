@@ -2,8 +2,7 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Inbox, Settings2, TrendingUp } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
-import { LoadingState } from "@/components/ui/loading-state";
-import { SurfaceSkeleton } from "@/components/ui/market-skeleton";
+import { PositionsTableSkeleton, LimitOrdersTableSkeleton } from "@/components/ui/market-skeleton";
 import { UnderlineTabs } from "@/components/leverx/UnderlineTabs";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { LeverxLimitOrdersTable } from "@/components/leverx/LeverxLimitOrdersTable";
@@ -11,6 +10,8 @@ import { LeverxPositionsTable } from "@/components/leverx/LeverxPositionsTable";
 import { PortfolioAccountPanel } from "@/components/leverx/PortfolioAccountPanel";
 import type { LeveragedPosition, LimitMintOrder, UserProxy } from "@/lib/leverx/indexer-client";
 import type { PositionMarkToMarket } from "@/lib/leverx/position-metrics";
+import { TradingPausedNotice } from "@/components/leverx/TradingPausedNotice";
+import { useIndexerProtocol } from "@/hooks/useIndexer";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import { tradeSurface } from "@/lib/leverx/tw";
 import { ui } from "@/lib/copy";
@@ -57,6 +58,7 @@ export function PortfolioWorkspace({
   className,
 }: Props) {
   const [tab, setTab] = useState<PortfolioTab>("positions");
+  const { data: protocol } = useIndexerProtocol();
   const byPositionId = markToMarket;
 
   const tabOptions = TABS.map((value) => ({
@@ -87,9 +89,12 @@ export function PortfolioWorkspace({
       </div>
 
       <div className="p-3 sm:p-4">
+        {protocol?.trading_paused ? (
+          <TradingPausedNotice className="mb-3" />
+        ) : null}
         {tab === "positions" ? (
           loading && openPositions.length === 0 ? (
-            <SurfaceSkeleton lines={5} variant="plain" hideHeader />
+            <PositionsTableSkeleton rows={5} />
           ) : openPositions.length === 0 ? (
             <EmptyState
               icon={Inbox}
@@ -110,7 +115,10 @@ export function PortfolioWorkspace({
 
         {tab === "orders" ? (
           loading && limitOrders.length === 0 ? (
-            <LoadingState label="Loading orders…" compact />
+            <div className="space-y-3" aria-hidden>
+              <div className="lx-skeleton h-4 w-36" />
+              <LimitOrdersTableSkeleton rows={4} />
+            </div>
           ) : limitOrders.length === 0 ? (
             <EmptyState
               icon={Inbox}
@@ -132,7 +140,10 @@ export function PortfolioWorkspace({
 
         {tab === "closed" ? (
           loading && closedPositions.length === 0 ? (
-            <LoadingState label="Loading history…" compact />
+            <div className="space-y-3" aria-hidden>
+              <div className="lx-skeleton h-4 w-36" />
+              <PositionsTableSkeleton rows={4} />
+            </div>
           ) : closedPositions.length === 0 ? (
             <EmptyState
               icon={Inbox}

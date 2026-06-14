@@ -43,15 +43,15 @@ export function changePercentEndpoints(values: readonly number[]): number {
   return ((last - first) / first) * 100;
 }
 
-/** Map a numeric series into SVG polyline points within a view box. */
-export function seriesToPolylinePoints(
+/** Map a numeric series into SVG point coordinates within a view box. */
+function seriesToPoints(
   values: readonly number[],
   viewWidth: number,
   viewHeight: number,
   padding = 1,
-): string {
+): { x: number; y: number }[] {
   const finite = values.filter((value) => Number.isFinite(value));
-  if (finite.length === 0) return "";
+  if (finite.length === 0) return [];
 
   const innerW = Math.max(1, viewWidth - padding * 2);
   const innerH = Math.max(1, viewHeight - padding * 2);
@@ -61,14 +61,47 @@ export function seriesToPolylinePoints(
 
   if (finite.length === 1) {
     const y = padding + innerH / 2;
-    return `${padding},${y} ${padding + innerW},${y}`;
+    return [
+      { x: padding, y },
+      { x: padding + innerW, y },
+    ];
   }
 
-  return finite
-    .map((value, index) => {
-      const x = padding + (index / (finite.length - 1)) * innerW;
-      const y = padding + innerH - ((value - min) / range) * innerH;
-      return `${x},${y}`;
-    })
-    .join(" ");
+  return finite.map((value, index) => ({
+    x: padding + (index / (finite.length - 1)) * innerW,
+    y: padding + innerH - ((value - min) / range) * innerH,
+  }));
+}
+
+/** Map a numeric series into SVG polyline points within a view box. */
+export function seriesToPolylinePoints(
+  values: readonly number[],
+  viewWidth: number,
+  viewHeight: number,
+  padding = 1,
+): string {
+  const points = seriesToPoints(values, viewWidth, viewHeight, padding);
+  if (points.length === 0) return "";
+  return points.map(({ x, y }) => `${x},${y}`).join(" ");
+}
+
+/** Closed area path under the sparkline for gradient fills. */
+export function seriesToAreaPath(
+  values: readonly number[],
+  viewWidth: number,
+  viewHeight: number,
+  padding = 1,
+): string {
+  const points = seriesToPoints(values, viewWidth, viewHeight, padding);
+  if (points.length === 0) return "";
+
+  const bottom = viewHeight - padding;
+  const [first, ...rest] = points;
+  const line = [
+    `M ${first!.x},${first!.y}`,
+    ...rest.map(({ x, y }) => `L ${x},${y}`),
+  ].join(" ");
+  const last = points[points.length - 1]!;
+
+  return `${line} L ${last.x},${bottom} L ${first!.x},${bottom} Z`;
 }

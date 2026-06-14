@@ -10,7 +10,7 @@ export function MarketQuotePausedBadge({ className }: Props) {
     <span
       className={cn(
         leverageBadge,
-        "border-amber-500/30 text-amber-300/90",
+        "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
         className,
       )}
     >

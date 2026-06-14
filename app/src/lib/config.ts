@@ -82,6 +82,7 @@ function resolveLeverxWsUrl(apiUrl: string): string | null {
 }
 
 const leverxApiUrl = resolveLeverxApiUrl();
+const leverxIndexerWsUrl = resolveLeverxWsUrl(leverxApiUrl);
 
 export const appConfig = {
   suiNetwork: "testnet" as const,
@@ -108,7 +109,10 @@ export const appConfig = {
   leverxIndexerUrl: leverxApiUrl,
 
   /** Direct leverx-server WebSocket endpoint (`/v1/ws`). */
-  leverxIndexerWsUrl: resolveLeverxWsUrl(leverxApiUrl),
+  leverxIndexerWsUrl,
+
+  /** True when `leverxIndexerWsUrl` is configured (streams require direct indexer host). */
+  indexerStreamEnabled: Boolean(leverxIndexerWsUrl),
 
   /** DeepBook spot OHLCV (chart visualization only). */
   deepbookIndexerUrl:

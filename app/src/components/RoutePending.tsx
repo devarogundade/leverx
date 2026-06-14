@@ -6,6 +6,9 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { UnderlineTabs } from "@/components/leverx/UnderlineTabs";
 import {
   MarketGridSkeleton,
+  PointsLeaderboardSkeleton,
+  PortfolioPageSkeleton,
+  PositionsTableSkeleton,
   SurfaceSkeleton,
   TradeTerminalSkeleton,
 } from "@/components/ui/market-skeleton";
@@ -102,7 +105,13 @@ export function RoutePendingContent() {
             <p className="mt-1 text-sm text-muted-foreground">{pageHeader.hint}</p>
           ) : null}
         </div>
-        <SurfaceSkeleton lines={6} hideHeader />
+        {pathname === "/portfolio" ? (
+          <PortfolioPageSkeleton />
+        ) : pathname === "/points" ? (
+          <PointsLeaderboardSkeleton rows={10} />
+        ) : (
+          <SurfaceSkeleton lines={6} hideHeader />
+        )}
       </section>
     );
   }

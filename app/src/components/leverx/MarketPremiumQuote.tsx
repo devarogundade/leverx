@@ -41,14 +41,20 @@ export function MarketPremiumQuote({
           className,
         )}
       >
-        <MarketSparkline series={series} height={32} width="100%" positive={positive} />
+        <MarketSparkline
+          series={series}
+          height={32}
+          width="100%"
+          edgeToEdge={footer}
+          viewWidth={footer ? 240 : 104}
+        />
       </div>
     );
   }
 
   return (
     <div className={cn(marketsPriceCell, className)}>
-      <MarketSparkline series={series} width={52} height={20} positive={positive} />
+      <MarketSparkline series={series} width={52} height={20} />
       <AnimatedMarketPremium
         className={marketsPriceValue}
         premium={lastAskPremium}

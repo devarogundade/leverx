@@ -18,7 +18,8 @@ export function MarketLeverageBadge({ expiryMs, now, className }: Props) {
       className={cn(
         leverageBadge,
         "mt-1",
-        isReduced && "border-amber-500/30 text-amber-300/90",
+        isReduced &&
+          "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
         className,
       )}
     >

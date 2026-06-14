@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { LeverageSlider } from "@/components/leverx/LeverageSlider";
 import { InfoPopover, LabelWithInfo } from "@/components/leverx/InfoPopover";
+import { TradingPausedNotice } from "@/components/leverx/TradingPausedNotice";
 import { SlippagePopover, MarketSlippagePopover } from "@/components/leverx/SlippagePopover";
 import { TradeQuoteSummary } from "@/components/leverx/TradeQuoteSummary";
 import { QuoteAmount, QuoteIcon } from "@/components/leverx/QuoteAmount";
@@ -1259,12 +1260,7 @@ export function PredictLeveragePanel({
         </div>
 
         <div className="space-y-2 border-t border-border p-4">
-          {protocol?.trading_paused ? (
-            <p className="flex items-center gap-1 text-sm text-destructive">
-              Trading is temporarily paused.
-              <InfoPopover title="Trading paused">{leverxInfo.tradingPaused}</InfoPopover>
-            </p>
-          ) : null}
+          {protocol?.trading_paused ? <TradingPausedNotice compact /> : null}
           {!isProtocolReady && isWalletConnected ? (
             <p className="flex items-center gap-1 text-sm text-muted-foreground">
               Trading is not available yet. Check back soon.

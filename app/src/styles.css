@@ -3623,6 +3623,11 @@ select {
 }
 
 .markets-sparkline {
+  --markets-sparkline-stroke: #d4c5b0;
+  --markets-sparkline-fill-opacity-start: 0.38;
+  --markets-sparkline-fill-opacity-end: 0;
+  --markets-sparkline-stroke-opacity-start: 0.35;
+  --markets-sparkline-stroke-opacity-end: 1;
   flex-shrink: 0;
   opacity: 0.9;
 }

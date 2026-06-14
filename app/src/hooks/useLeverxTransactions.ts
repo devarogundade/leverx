@@ -100,6 +100,7 @@ export function useLeverxTransactions() {
   const queryClient = useQueryClient();
   const { client, wallet, account } = useWallet();
   const { cfg, isResolving } = useLeverxProtocolConfig();
+  const { data: protocol } = useIndexerProtocol();
 
   const invalidate = () => invalidateLeverxQueries(queryClient);
 
@@ -117,6 +118,9 @@ export function useLeverxTransactions() {
 
   const openTrade = useMutation({
     mutationFn: async (input: OpenTradeInput) => {
+      if (protocol?.trading_paused) {
+        throw new Error("trading_paused");
+      }
       primeSuccessSound();
       const ready = requireReady();
       return executeOpenTrade({

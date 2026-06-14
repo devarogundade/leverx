@@ -176,7 +176,7 @@ export const marketsGrid =
 
 /** Market card shell */
 export const marketCard = cn(
-  "group relative flex min-h-[11.5rem] cursor-pointer flex-col overflow-hidden",
+  "group relative flex w-full min-h-[11.5rem] cursor-pointer flex-col overflow-hidden",
   "rounded-xl border border-border",
   "bg-gradient-to-b from-[color-mix(in_oklab,var(--color-card)_92%,white_8%)] to-card",
   "shadow-[0_1px_0_0_color-mix(in_oklab,white_5%,transparent)_inset,0_2px_6px_-3px_color-mix(in_oklab,black_22%,transparent)]",
@@ -252,7 +252,7 @@ export const marketCardSparkline =
   "pointer-events-none relative z-0 h-8 bg-[color-mix(in_oklab,var(--color-surface)_50%,transparent)]";
 
 export const marketCardSparklineFooter =
-  "pointer-events-none relative z-0 mt-auto h-8 w-full shrink-0 bg-transparent";
+  "pointer-events-none relative z-0 mt-auto flex h-8 w-full min-w-0 shrink-0 overflow-hidden bg-transparent [&_.markets-sparkline]:block [&_.markets-sparkline]:h-full [&_.markets-sparkline]:w-full";
 
 /** Trade terminal layout */
 export const tradeTerminal = "trade-terminal flex w-full flex-1 flex-col min-h-0";

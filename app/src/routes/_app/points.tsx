@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Trophy } from "lucide-react";
 import { DataTable, type Column } from "@/components/DataTable";
 import { EmptyState } from "@/components/ui/empty-state";
-import { LoadingState } from "@/components/ui/loading-state";
+import { PointsLeaderboardSkeleton } from "@/components/ui/market-skeleton";
 import { usePointsLeaderboard } from "@/hooks/useIndexer";
 import { pageTitle } from "@/lib/brand";
 import type { LeaderboardEntry } from "@/lib/leverx/indexer-client";
@@ -86,7 +86,7 @@ function PointsPage() {
       </div>
 
       {isLoading ? (
-        <LoadingState label="Loading leaderboard…" />
+        <PointsLeaderboardSkeleton rows={10} />
       ) : isError || entries.length === 0 ? (
         <EmptyState
           icon={Trophy}

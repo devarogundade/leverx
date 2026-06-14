@@ -191,7 +191,8 @@ export function useIndexerPositions(
   args?: { status?: string; oracleId?: string },
 ) {
   const { isLive } = useIndexerStream();
-  const streamEnabled = enabled && Boolean(owner) && (args?.status ?? "open") === "open";
+  // WS snapshots are open-only; subscribe whenever we have an owner so closed tabs refresh on close.
+  const streamEnabled = enabled && Boolean(owner);
   const channel = useMemo(
     () => (owner ? positionsChannel(owner, args?.oracleId) : ""),
     [owner, args?.oracleId],

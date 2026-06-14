@@ -92,6 +92,14 @@ function applyStreamMessage(queryClient: ReturnType<typeof useQueryClient>, mess
       indexerKeys.positions(parsed.owner, "open", parsed.oracleId),
       page.items,
     );
+    // WS only streams open rows; closed history and account debt change on close/liquidation.
+    void queryClient.invalidateQueries({
+      queryKey: ["indexer-positions", parsed.owner, "closed"],
+    });
+    void queryClient.invalidateQueries({ queryKey: ["indexer-liquidations"] });
+    void queryClient.invalidateQueries({
+      queryKey: ["indexer-accounts", parsed.owner],
+    });
     return;
   }
 
@@ -108,7 +116,7 @@ function applyStreamMessage(queryClient: ReturnType<typeof useQueryClient>, mess
 
 export function IndexerStreamProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
-  const enabled = Boolean(appConfig.leverxIndexerUrl);
+  const enabled = appConfig.indexerStreamEnabled;
   const ws = useMemo(() => getIndexerWebSocket(), []);
   const [status, setStatus] = useState<IndexerWsConnectionStatus>("idle");
 
@@ -151,7 +159,7 @@ export function useIndexerChannelSubscription(
   const ws = useMemo(() => getIndexerWebSocket(), []);
 
   useEffect(() => {
-    if (!enabled || !appConfig.leverxIndexerUrl || channels.length === 0) return;
+    if (!enabled || channels.length === 0) return;
     ws.subscribe(channels);
     return () => {
       ws.unsubscribe(channels);

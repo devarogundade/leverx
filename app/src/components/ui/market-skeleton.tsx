@@ -12,8 +12,10 @@ import { cn } from "@/lib/utils";
 import {
   labelCaps,
   marketCard,
+  marketCardActions,
   marketCardBody,
   marketCardHeader,
+  marketCardMeta,
   marketCardSparklineFooter,
   marketsGrid,
   marketsRow,
@@ -37,15 +39,22 @@ import {
   marketsThHideSm,
   marketsThMarket,
   marketsThTrade,
+  dataTableMobileCard,
+  dataTableMobileCardFooter,
+  dataTableMobileCardHeader,
+  dataTableMobileCardStats,
+  dataTableMobileList,
+  dataTableMobileStatLabel,
   orderbookSideHeader,
   pageBlock,
   pillToggleActive,
   pillToggleBtn,
   pillToggleGroup,
   pillToggleIdle,
+  segTab,
+  segTabsClass,
   segTabActive,
   segTabOutcome,
-  segTabsClass,
   textFilterActive,
   textFilterBtn,
   textFilterGroup,
@@ -92,12 +101,20 @@ function SkeletonActionsRow({ plain = false }: { plain?: boolean }) {
         plain ? "gap-0" : "gap-1 overflow-hidden rounded-md border border-border bg-surface p-0",
       )}
     >
-      <SkeletonBar className={cn("h-8", plain ? "rounded-none" : "rounded-md")} />
       <SkeletonBar
-        className={cn("h-8", plain ? "rounded-none border-l border-border/50" : "rounded-md")}
+        className={cn("min-h-11 sm:h-8", plain ? "rounded-none" : "rounded-md")}
       />
       <SkeletonBar
-        className={cn("h-8", plain ? "rounded-none border-l border-border/50" : "rounded-md")}
+        className={cn(
+          "min-h-11 sm:h-8",
+          plain ? "rounded-none border-l border-border/50" : "rounded-md",
+        )}
+      />
+      <SkeletonBar
+        className={cn(
+          "min-h-11 sm:h-8",
+          plain ? "rounded-none border-l border-border/50" : "rounded-md",
+        )}
       />
     </div>
   );
@@ -129,19 +146,26 @@ export function MarketCardSkeleton() {
       <div className={marketCardBody}>
         <div className={marketCardHeader}>
           <SkeletonIcon />
-          <div className="min-w-0 flex-1 space-y-2">
-            <SkeletonBar className="h-2.5 w-full" />
-            <SkeletonBar className="h-2.5 w-2/3" />
-            <SkeletonBar className="h-4 w-8" />
+          <div className="min-w-0 flex-1">
+            <div className="space-y-1">
+              <SkeletonBar className="h-4 w-full" />
+              <SkeletonBar className="h-4 w-5/6" />
+            </div>
+            <SkeletonBar className="mt-1 h-5 w-20" />
           </div>
-          <SkeletonBar className="h-5 w-10 shrink-0" />
+          <SkeletonBar className="h-5 w-12 shrink-0 sm:h-6" />
         </div>
 
-        <SkeletonActionsRow />
+        <div className={marketCardActions}>
+          <SkeletonActionsRow />
+        </div>
 
-        <div className="flex items-center justify-between gap-2">
-          <SkeletonBar className="h-2.5 w-24" />
-          <SkeletonBar className="h-2.5 w-16" />
+        <div className={marketCardMeta}>
+          <SkeletonBar className="h-3.5 w-28" />
+          <div className="flex items-center gap-2">
+            <SkeletonBar className="h-3.5 w-14" />
+            <SkeletonBar className="h-7 w-7 shrink-0 rounded-md" />
+          </div>
         </div>
       </div>
 
@@ -185,6 +209,320 @@ export function MarketGridSkeleton({ count = 8 }: { count?: number }) {
       {Array.from({ length: count }, (_, i) => (
         <MarketCardSkeleton key={i} />
       ))}
+    </div>
+  );
+}
+
+type DataTableSkeletonColumn = {
+  header: string;
+  align?: "left" | "right";
+  width?: string;
+  mobileEmphasis?: boolean;
+  mobileTrailing?: boolean;
+  hideOnMobile?: boolean;
+};
+
+function DataTableMobileRowSkeleton({
+  columns,
+}: {
+  columns: readonly DataTableSkeletonColumn[];
+}) {
+  const emphasis = columns.filter((c) => c.mobileEmphasis);
+  const trailing = columns.filter((c) => c.mobileTrailing);
+  const stats = columns.filter(
+    (c) => !c.mobileEmphasis && !c.mobileTrailing && !c.hideOnMobile,
+  );
+
+  return (
+    <article className={cn(dataTableMobileCard, "pointer-events-none")} aria-hidden>
+      {(emphasis.length > 0 || trailing.length > 0) && (
+        <div className={dataTableMobileCardHeader}>
+          <div className="min-w-0 flex-1 space-y-1">
+            {emphasis.length > 0 ? (
+              <>
+                <SkeletonBar className="h-4 w-32" />
+                <SkeletonBar className="h-3 w-16" />
+              </>
+            ) : (
+              <SkeletonBar className="h-4 w-24" />
+            )}
+          </div>
+          {trailing.length > 0 ? (
+            <SkeletonBar className="h-5 w-14 shrink-0" />
+          ) : null}
+        </div>
+      )}
+      {stats.length > 0 ? (
+        <dl className={dataTableMobileCardStats}>
+          {stats.map((col) => (
+            <div
+              key={col.header}
+              className="flex min-w-0 items-baseline justify-between gap-3"
+            >
+              <span className={cn(dataTableMobileStatLabel, "shrink-0")}>
+                <SkeletonBar className="h-3 w-12" />
+              </span>
+              <SkeletonBar className={cn("h-4 shrink-0", col.width ?? "w-14")} />
+            </div>
+          ))}
+        </dl>
+      ) : null}
+    </article>
+  );
+}
+
+export function DataTableSkeleton({
+  columns,
+  rows = 8,
+}: {
+  columns: readonly DataTableSkeletonColumn[];
+  rows?: number;
+}) {
+  return (
+    <>
+      <div className="data-table-wrap hidden overflow-x-auto overscroll-x-contain lg:block">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-[11px] uppercase tracking-wider text-muted-foreground">
+              {columns.map((col) => (
+                <th
+                  key={col.header}
+                  className={cn(
+                    "px-4 py-3 text-left font-medium",
+                    col.align === "right" && "text-right",
+                  )}
+                >
+                  <SkeletonBar className="h-3 w-12" />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {Array.from({ length: rows }, (_, rowIndex) => (
+              <tr key={rowIndex}>
+                {columns.map((col) => (
+                  <td
+                    key={col.header}
+                    className={cn(
+                      "px-4 py-3 align-middle",
+                      col.align === "right" && "text-right",
+                    )}
+                  >
+                    <SkeletonBar
+                      className={cn(
+                        "h-4",
+                        col.align === "right" ? "ml-auto" : undefined,
+                        col.width ?? "w-16",
+                      )}
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className={dataTableMobileList}>
+        {Array.from({ length: Math.min(rows, 4) }, (_, i) => (
+          <DataTableMobileRowSkeleton key={i} columns={columns} />
+        ))}
+      </div>
+    </>
+  );
+}
+
+const POINTS_LEADERBOARD_COLUMNS: DataTableSkeletonColumn[] = [
+  { header: "Rank", width: "w-10" },
+  { header: "Trader", width: "w-28", mobileEmphasis: true },
+  { header: "Volume", width: "w-16", align: "right" },
+  { header: "Trades", width: "w-10", align: "right" },
+  { header: "Points", width: "w-14", align: "right", mobileTrailing: true },
+];
+
+export function PointsLeaderboardSkeleton({ rows = 10 }: { rows?: number }) {
+  return <DataTableSkeleton columns={POINTS_LEADERBOARD_COLUMNS} rows={rows} />;
+}
+
+const LIMIT_ORDERS_COLUMNS: DataTableSkeletonColumn[] = [
+  { header: "Market", width: "w-20", mobileEmphasis: true },
+  { header: "Limit", width: "w-14", align: "right", mobileTrailing: true },
+  { header: "Qty", width: "w-10", align: "right" },
+  { header: "Margin", width: "w-14", align: "right" },
+  { header: "Lev", width: "w-10", align: "right" },
+  { header: "Expires", width: "w-20", align: "right" },
+  { header: "Status", width: "w-12", align: "right" },
+  { header: "Actions", width: "w-14", align: "right", hideOnMobile: true },
+];
+
+export function LimitOrdersTableSkeleton({ rows = 5 }: { rows?: number }) {
+  return <DataTableSkeleton columns={LIMIT_ORDERS_COLUMNS} rows={rows} />;
+}
+
+export function PortfolioSummaryBarSkeleton({ className }: { className?: string }) {
+  return (
+    <div className={cn(tradeSurface, className)} aria-hidden>
+      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
+        <div className="space-y-2">
+          <SkeletonBar className="h-3 w-32" />
+          <SkeletonBar className="h-4 w-56" />
+        </div>
+      </div>
+      <div className="grid divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
+        {Array.from({ length: 4 }, (_, i) => (
+          <div key={i} className="min-w-0 px-4 py-3.5">
+            <SkeletonBar className="h-3 w-20" />
+            <SkeletonBar className="mt-1 h-7 w-24 sm:h-8" />
+            <SkeletonBar className="mt-1.5 h-3 w-28" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PortfolioTabsSkeleton() {
+  const tabs = ["Positions", "Orders", "Closed", "Account"] as const;
+  return (
+    <div
+      className={cn(
+        segTabsClass("stretch"),
+        "pointer-events-none border-b border-border px-3 pt-2 sm:px-4",
+      )}
+      aria-hidden
+    >
+      {tabs.map((tab) => (
+        <div key={tab} className={cn(segTab, "flex min-h-10 flex-1 items-center justify-center")}>
+          <SkeletonBar className="h-4 w-16 sm:w-20" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PositionTableMobileCardSkeleton() {
+  return (
+    <article className={cn(dataTableMobileCard, "pointer-events-none")} aria-hidden>
+      <div className={dataTableMobileCardHeader}>
+        <div className="flex min-w-0 flex-1 items-start gap-2">
+          <SkeletonIcon />
+          <div className="min-w-0 flex-1 space-y-1">
+            <SkeletonBar className="h-4 w-16" />
+            <SkeletonBar className="h-3 w-10" />
+          </div>
+        </div>
+        <SkeletonBar className="h-5 w-14 shrink-0" />
+      </div>
+      <dl className={dataTableMobileCardStats}>
+        {Array.from({ length: 5 }, (_, i) => (
+          <div key={i} className="flex min-w-0 items-baseline justify-between gap-3">
+            <SkeletonBar className="h-3 w-10" />
+            <SkeletonBar className="h-4 w-14" />
+          </div>
+        ))}
+      </dl>
+      <div className={dataTableMobileCardFooter}>
+        <SkeletonBar className="ml-auto h-8 w-20 rounded-md" />
+      </div>
+    </article>
+  );
+}
+
+export function PositionsTableSkeleton({ rows = 5 }: { rows?: number }) {
+  const desktopCols = [
+    { width: "w-28" },
+    { width: "w-12" },
+    { width: "w-16" },
+    { width: "w-10", align: "right" as const },
+    { width: "w-12", align: "right" as const },
+    { width: "w-12", align: "right" as const },
+    { width: "w-14", align: "right" as const },
+    { width: "w-20", align: "right" as const },
+    { width: "w-14", align: "right" as const },
+    { width: "w-14", align: "right" as const },
+    { width: "w-14", align: "right" as const },
+  ];
+
+  return (
+    <>
+      <div className="data-table-wrap hidden overflow-x-auto overscroll-x-contain lg:block">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border text-[11px] uppercase tracking-wider text-muted-foreground">
+              {Array.from({ length: desktopCols.length }, (_, i) => (
+                <th
+                  key={i}
+                  className={cn(
+                    "px-4 py-3 text-left font-medium",
+                    desktopCols[i]?.align === "right" && "text-right",
+                  )}
+                >
+                  <SkeletonBar className="h-3 w-12" />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {Array.from({ length: rows }, (_, rowIndex) => (
+              <tr key={rowIndex}>
+                {desktopCols.map((col, colIndex) => (
+                  <td
+                    key={colIndex}
+                    className={cn(
+                      "px-4 py-3 align-middle",
+                      col.align === "right" && "text-right",
+                    )}
+                  >
+                    {colIndex === 0 ? (
+                      <div className="flex items-center gap-2">
+                        <SkeletonIcon className="h-5 w-5" />
+                        <div className="space-y-1">
+                          <SkeletonBar className="h-4 w-16" />
+                          <SkeletonBar className="h-3 w-10" />
+                        </div>
+                      </div>
+                    ) : (
+                      <SkeletonBar
+                        className={cn(
+                          "h-4",
+                          col.align === "right" ? "ml-auto" : undefined,
+                          col.width,
+                        )}
+                      />
+                    )}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className={dataTableMobileList}>
+        {Array.from({ length: Math.min(rows, 4) }, (_, i) => (
+          <PositionTableMobileCardSkeleton key={i} />
+        ))}
+      </div>
+    </>
+  );
+}
+
+export function PortfolioWorkspaceSkeleton() {
+  return (
+    <div className={tradeSurface} aria-hidden>
+      <PortfolioTabsSkeleton />
+      <div className="p-3 sm:p-4">
+        <PositionsTableSkeleton rows={5} />
+      </div>
+    </div>
+  );
+}
+
+export function PortfolioPageSkeleton() {
+  return (
+    <div className="space-y-4" aria-hidden>
+      <PortfolioSummaryBarSkeleton />
+      <PortfolioWorkspaceSkeleton />
     </div>
   );
 }

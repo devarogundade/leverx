@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { WalletConnectPrompt } from "@/components/WalletConnectPrompt";
 import { PortfolioSummaryBar } from "@/components/leverx/PortfolioSummaryBar";
 import { PortfolioWorkspace } from "@/components/leverx/PortfolioWorkspace";
-import { SurfaceSkeleton } from "@/components/ui/market-skeleton";
+import { PortfolioPageSkeleton } from "@/components/ui/market-skeleton";
 import { useWallet } from "@/context/WalletContext";
 import {
   useIndexerAccounts,
@@ -94,7 +94,7 @@ function PortfolioPage() {
           description="Connect your wallet to see your trades, orders, and account settings."
         />
       ) : isLoading && !account && activeOpenPositions.length === 0 ? (
-        <SurfaceSkeleton lines={6} hideHeader />
+        <PortfolioPageSkeleton />
       ) : (
         <div className="space-y-4">
           <PortfolioSummaryBar summary={summary} loading={!statsReady && activeOpenPositions.length > 0} />
