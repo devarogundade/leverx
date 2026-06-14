@@ -302,6 +302,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     open_quantity: ev.quantity as i64,
                     margin_quote: ev.margin_quote as i64,
                     borrow_quote: ev.borrow_quote as i64,
+                    peak_borrow_quote: ev.borrow_quote as i64,
                     leverage_bps: ev.leverage_bps as i64,
                     mint_cost: ev.mint_cost as i64,
                     last_order_type: Some(ev.order_type as i16),

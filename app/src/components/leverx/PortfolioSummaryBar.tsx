@@ -61,8 +61,8 @@ export function PortfolioSummaryBar({ summary, loading, className }: Props) {
           : "muted";
 
   const pnlValue =
-    loading || !summary ? (
-      "…"
+    loading ? "…" : !summary ? (
+      "0"
     ) : summary.liveMarkCount > 0 ? (
       <AnimatedPnl value={summary.unrealizedPnlUsd} />
     ) : (
@@ -90,8 +90,8 @@ export function PortfolioSummaryBar({ summary, loading, className }: Props) {
           label="Net equity"
           info={leverxInfo.balanceTotal}
           value={
-            loading || !summary ? (
-              "…"
+            loading ? "…" : !summary ? (
+              "0"
             ) : (
               <QuoteAmount amount={summary.netEquityUsd} hideZero />
             )
@@ -129,8 +129,8 @@ export function PortfolioSummaryBar({ summary, loading, className }: Props) {
           label="Margin posted"
           info={leverxInfo.marginOpen}
           value={
-            loading || !summary ? (
-              "…"
+            loading ? "…" : !summary ? (
+              "0"
             ) : (
               <QuoteAmount amount={summary.marginTotalUsd} hideZero />
             )
@@ -140,8 +140,8 @@ export function PortfolioSummaryBar({ summary, loading, className }: Props) {
           label="Borrowed"
           info={leverxInfo.borrowedQuote}
           value={
-            loading || !summary ? (
-              "…"
+            loading ? "…" : !summary ? (
+              "0"
             ) : (
               <QuoteAmount amount={summary.borrowedTotalUsd} hideZero />
             )

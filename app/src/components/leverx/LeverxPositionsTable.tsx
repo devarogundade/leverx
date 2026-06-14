@@ -27,6 +27,7 @@ import {
   positionRowId,
   realizedPnlPct,
   realizedPnlUsd,
+  walletRepaidPrincipalUsd,
   type PositionMarkToMarket,
 } from "@/lib/leverx/position-metrics";
 import { premiumRawToCents } from "@/lib/leverx/trade-math";
@@ -174,13 +175,29 @@ function PnlCell({
           </div>
           <div className="px-3 py-1">
             <PnlBreakdownRow
-              label="Borrow repaid"
-              value={<QuoteAmount amount={breakdown.borrowRepaidUsd} hideZero={false} />}
+              label="Margin posted"
+              value={<QuoteAmount amount={breakdown.marginPostedUsd} hideZero={false} />}
+            />
+            {breakdown.walletRepaidUsd > 0 ? (
+              <PnlBreakdownRow
+                label="Wallet repaid"
+                value={<QuoteAmount amount={breakdown.walletRepaidUsd} hideZero={false} />}
+              />
+            ) : null}
+            <PnlBreakdownRow
+              label="Cash back"
+              value={<QuoteAmount amount={breakdown.cashBackUsd} hideZero={false} />}
             />
             <PnlBreakdownRow
-              label="Interest paid"
-              value={<QuoteAmount amount={breakdown.interestPaidUsd} hideZero={false} />}
+              label="Borrow at close"
+              value={<QuoteAmount amount={breakdown.borrowRepaidUsd} hideZero={false} />}
             />
+            {breakdown.interestPaidUsd > 0 ? (
+              <PnlBreakdownRow
+                label="Interest at close"
+                value={<QuoteAmount amount={breakdown.interestPaidUsd} hideZero={false} />}
+              />
+            ) : null}
             <PnlBreakdownRow
               label="Net P&L"
               value={
@@ -304,6 +321,7 @@ function MarginBorrowCell({ position }: { position: LeveragedPosition }) {
   const marginUsd = positionMarginUsd(position);
   const borrowUsd = positionBorrowUsd(position);
   const leverage = positionLeverageMultiplier(position);
+  const walletRepaidUsd = walletRepaidPrincipalUsd(position);
 
   return (
     <>
@@ -320,6 +338,11 @@ function MarginBorrowCell({ position }: { position: LeveragedPosition }) {
           </>
         ) : null}
       </div>
+      {walletRepaidUsd > 0 ? (
+        <div className="text-[11px] tabular-nums text-muted-foreground">
+          <QuoteAmount amount={walletRepaidUsd} digits={2} className="inline-flex" /> repaid
+        </div>
+      ) : null}
     </>
   );
 }

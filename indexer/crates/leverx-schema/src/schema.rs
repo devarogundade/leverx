@@ -96,6 +96,7 @@ diesel::table! {
         open_quantity -> Int8,
         margin_quote -> Int8,
         borrow_quote -> Int8,
+        peak_borrow_quote -> Int8,
         leverage_bps -> Int8,
         mint_cost -> Int8,
         last_order_type -> Nullable<Int2>,

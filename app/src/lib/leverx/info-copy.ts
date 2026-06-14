@@ -45,11 +45,11 @@ export const leverxInfo = {
   positionNow:
     "Current redeem bid per contract (open positions) or average exit price when you closed.",
   positionPnlMargin:
-    "Return on the margin you posted. Leveraged closes can be positive even when the per-contract price fell, because redeem first repays borrow and the remainder is yours.",
+    "Net cash back minus everything you put in from your wallet: posted margin plus any repay/deleverage payments while the position was open.",
   positionMarginBorrow:
     "Your posted margin and vault borrow on this market key. Borrow drops when you repay; leverage updates with it.",
   closedPnlBreakdown:
-    "Net return on your posted margin after the redeem payout repays vault debt. Borrow repaid is principal; interest is the borrow-fee portion of that repayment.",
+    "Cash you received after close, minus margin posted and any wallet repayments made before close (deleverage/repay debt). Borrow repaid at close comes from the redeem payout, not your wallet.",
   accountSettings:
     "Link your trading account and allow trusted addresses to trade on your behalf.",
   predictManager: "Your on-chain trading account that holds positions.",

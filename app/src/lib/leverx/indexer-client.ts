@@ -107,6 +107,8 @@ export type LeveragedPosition = {
   open_quantity: number;
   margin_quote: number;
   borrow_quote: number;
+  /** Max vault borrow on this key; used to infer wallet repayments. */
+  peak_borrow_quote?: number;
   leverage_bps: number;
   mint_cost: number;
   last_order_type: number | null;

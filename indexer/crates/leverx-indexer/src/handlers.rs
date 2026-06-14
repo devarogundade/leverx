@@ -548,6 +548,12 @@ impl Handler for LeverxEventsHandler {
                          THEN excluded.borrow_quote \
                          ELSE leveraged_positions.borrow_quote + excluded.borrow_quote END",
                     )),
+                    leveraged_positions::peak_borrow_quote.eq(sql::<BigInt>(
+                        "GREATEST(leveraged_positions.peak_borrow_quote, \
+                         CASE WHEN leveraged_positions.status != 'open' \
+                         THEN excluded.peak_borrow_quote \
+                         ELSE leveraged_positions.borrow_quote + excluded.borrow_quote END)",
+                    )),
                     leveraged_positions::leverage_bps.eq(excluded(leveraged_positions::leverage_bps)),
                     leveraged_positions::mint_cost.eq(sql::<BigInt>(
                         "CASE WHEN leveraged_positions.status != 'open' \
@@ -770,13 +776,23 @@ impl Handler for LeverxEventsHandler {
                         .set((
                             leveraged_positions::borrow_quote.eq(patch.key_borrowed_quote),
                             leveraged_positions::leverage_bps.eq(leverage),
+                            leveraged_positions::peak_borrow_quote.eq(sql::<BigInt>(&format!(
+                                "GREATEST(leveraged_positions.peak_borrow_quote, {})",
+                                patch.key_borrowed_quote
+                            ))),
                         ))
                         .execute(conn)
                         .await?
                 }
                 None => {
                     diesel::update(filter)
-                        .set(leveraged_positions::borrow_quote.eq(patch.key_borrowed_quote))
+                        .set((
+                            leveraged_positions::borrow_quote.eq(patch.key_borrowed_quote),
+                            leveraged_positions::peak_borrow_quote.eq(sql::<BigInt>(&format!(
+                                "GREATEST(leveraged_positions.peak_borrow_quote, {})",
+                                patch.key_borrowed_quote
+                            ))),
+                        ))
                         .execute(conn)
                         .await?
                 }
