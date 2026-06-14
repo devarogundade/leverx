@@ -14,6 +14,7 @@ use crate::handlers::{
     PositionOpenPatch, TradingPausedPatch,
 };
 use crate::keys::{limit_order_key, normalize_type_name, position_key};
+use crate::predict_math::premium_per_unit_from_quote;
 use crate::points::record_volume;
 use crate::relation_upserts::{ensure_market, ensure_predict_manager};
 use crate::move_events::{
@@ -92,11 +93,7 @@ fn push_leverx_global_close(
     ev: &LeveragedPositionClosed,
     market_key: &str,
 ) {
-    let bid_price = if ev.quantity > 0 {
-        Some((ev.payout / ev.quantity) as i64)
-    } else {
-        None
-    };
+    let bid_price = premium_per_unit_from_quote(ev.payout, ev.quantity);
     batch.global_trades.push(NewGlobalMarketTrade {
         event_digest: ctx.event_digest.to_string(),
         event_type: ctx.event_name.to_string(),
@@ -288,11 +285,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     ev.is_up,
                     ev.is_range,
                 );
-                let premium = if ev.order_type == 1 {
-                    ev.limit_premium_per_unit
-                } else {
-                    ev.market_ask_at_fill
-                };
+                let premium = premium_per_unit_from_quote(ev.mint_cost, ev.quantity);
                 batch.positions_open.push(PositionOpenPatch {
                     event_digest: ctx.event_digest.to_string(),
                     row: NewLeveragedPosition {
@@ -316,7 +309,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     opened_at_ms: Some(ctx.timestamp_ms),
                     closed_at_ms: None,
                     realized_payout: 0,
-                    entry_mark: Some(premium as i64),
+                    entry_mark: premium,
                     closing_mark: None,
                     close_debt_repaid: 0,
                     close_interest_paid: 0,
@@ -330,14 +323,20 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     trade_kind: "open".into(),
                     side: "buy".into(),
                     quantity: ev.quantity as i64,
-                    premium_per_unit: Some(premium as i64),
+                    premium_per_unit: premium,
                     notional_quote: Some(ev.mint_cost as i64),
                     account_id: Some(ev.account_id.to_string()),
                     owner: Some(ev.owner.to_string()),
                     order_type: Some(ev.order_type as i16),
                     timestamp_ms: ctx.timestamp_ms,
                 });
-                push_leverx_global_open(batch, &ctx, &ev, &pk, premium);
+                push_leverx_global_open(
+                    batch,
+                    &ctx,
+                    &ev,
+                    &pk,
+                    premium.unwrap_or(0) as u64,
+                );
                 record_volume(
                     batch,
                     &ev.owner.to_string(),
@@ -382,11 +381,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     payout: ev.payout as i64,
                     debt_repaid: ev.debt_repaid as i64,
                     surplus_quote: ev.surplus_quote as i64,
-                    closing_mark: if ev.quantity > 0 {
-                        Some((ev.payout / ev.quantity) as i64)
-                    } else {
-                        None
-                    },
+                    closing_mark: premium_per_unit_from_quote(ev.payout, ev.quantity),
                     settled: ev.is_settled,
                     closed_at_ms: ctx.timestamp_ms,
                     remaining_borrow_quote: ev.remaining_debt as i64,
@@ -398,11 +393,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     trade_kind: "close".into(),
                     side: "sell".into(),
                     quantity: ev.quantity as i64,
-                    premium_per_unit: if ev.quantity > 0 {
-                        Some((ev.payout / ev.quantity) as i64)
-                    } else {
-                        None
-                    },
+                    premium_per_unit: premium_per_unit_from_quote(ev.payout, ev.quantity),
                     notional_quote: Some(ev.payout as i64),
                     account_id: Some(ev.account_id.to_string()),
                     owner: Some(ev.owner.to_string()),

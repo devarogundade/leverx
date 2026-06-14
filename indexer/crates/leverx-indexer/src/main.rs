@@ -3,6 +3,7 @@ mod handlers;
 mod keys;
 mod move_events;
 mod points;
+mod predict_math;
 mod predict_events;
 mod predict_projections;
 mod projections;

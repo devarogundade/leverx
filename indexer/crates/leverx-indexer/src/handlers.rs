@@ -554,12 +554,15 @@ impl Handler for LeverxEventsHandler {
                     )),
                     leveraged_positions::entry_mark.eq(sql::<Nullable<BigInt>>(
                         "CASE \
-                         WHEN excluded.entry_mark IS NULL THEN leveraged_positions.entry_mark \
+                         WHEN leveraged_positions.status != 'open' AND excluded.mint_cost > 0 AND excluded.open_quantity > 0 THEN \
+                           (excluded.mint_cost * 1000000000 + excluded.open_quantity - 1) / excluded.open_quantity \
                          WHEN leveraged_positions.status != 'open' THEN excluded.entry_mark \
-                         WHEN leveraged_positions.entry_mark IS NULL THEN excluded.entry_mark \
-                         ELSE (leveraged_positions.entry_mark * leveraged_positions.open_quantity \
-                               + excluded.entry_mark * excluded.open_quantity) \
-                              / GREATEST(leveraged_positions.open_quantity + excluded.open_quantity, 1) \
+                         WHEN (leveraged_positions.mint_cost + excluded.mint_cost) > 0 \
+                              AND (leveraged_positions.open_quantity + excluded.open_quantity) > 0 THEN \
+                           ((leveraged_positions.mint_cost + excluded.mint_cost) * 1000000000 \
+                            + leveraged_positions.open_quantity + excluded.open_quantity - 1) \
+                           / (leveraged_positions.open_quantity + excluded.open_quantity) \
+                         ELSE excluded.entry_mark \
                          END",
                     )),
                     leveraged_positions::last_order_type.eq(excluded(leveraged_positions::last_order_type)),
