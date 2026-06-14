@@ -70,7 +70,7 @@ export function LeverxLimitOrdersTable({ orders, className }: Props) {
       mobileLabel: "Qty",
       cell: (r) => (
         <span className="font-mono text-sm tabular-nums">
-          {r.order.quantity.toLocaleString()}
+          {formatQuantity(r.order.quantity)}
         </span>
       ),
     },

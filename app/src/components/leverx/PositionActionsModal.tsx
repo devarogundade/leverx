@@ -10,6 +10,7 @@ import { useLeverxProtocolConfig, useLeverxTransactions } from "@/hooks/useLever
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { positionKeyFromArgs, type MarketKeyArgs } from "@/lib/leverx/market-keys";
+import { formatQuantity } from "@/lib/leverx/format-quantity";
 import { fetchManagerOpenQuantity } from "@/lib/leverx/quotes";
 import { showTxError, showTxSuccess } from "@/lib/toast";
 import { usePredictOracleRows } from "@/hooks/usePredictOracles";
@@ -58,11 +59,14 @@ function PositionDetailGrid({
   return (
     <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
       <dt className="text-muted-foreground">Quantity</dt>
-      <dd className="text-right font-mono tabular-nums">
+      <dd
+        className="text-right font-mono tabular-nums"
+        title={displayQty >= 1_000 ? displayQty.toLocaleString("en-US") : undefined}
+      >
         {quantityLoading ? (
           <Loader2 className="ml-auto h-3.5 w-3.5 animate-spin" />
         ) : (
-          displayQty.toLocaleString()
+          formatQuantity(displayQty)
         )}
       </dd>
       {qtyStale ? (

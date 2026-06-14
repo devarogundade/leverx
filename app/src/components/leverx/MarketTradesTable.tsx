@@ -1,6 +1,7 @@
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { DataTable, type Column } from "@/components/DataTable";
 import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
+import { formatQuantity } from "@/lib/leverx/format-quantity";
 import { formatPremiumCents } from "@/lib/leverx/indexer-markets";
 import type { GlobalMarketTrade } from "@/lib/leverx/indexer-client";
 import { cn } from "@/lib/utils";
@@ -84,7 +85,7 @@ export function MarketTradesTable({ trades, limit = 12, className }: Props) {
       align: "right",
       cell: (r) => (
         <span className="font-mono text-sm tabular-nums">
-          {r.trade.quantity.toLocaleString()}
+          {formatQuantity(r.trade.quantity)}
         </span>
       ),
     },

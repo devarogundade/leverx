@@ -7,6 +7,7 @@ import { useLeverxMarketAsk } from "@/hooks/useLeverxMarketAsk";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import { formatPremiumOrPlaceholder } from "@/lib/leverx/indexer-markets";
 import { tradeSideToMarketKey } from "@/lib/leverx/market-keys";
+import { formatQuantity } from "@/lib/leverx/format-quantity";
 import { DATA_PLACEHOLDER } from "@/lib/leverx/placeholders";
 import type { OrderBookLevel } from "@/lib/leverx/indexer-client";
 import { PREDICT_QUOTE_REFERENCE_QUANTITY } from "@/lib/leverx/constants";
@@ -46,12 +47,6 @@ interface Props {
 }
 
 const MAX_LEVELS = 8;
-
-function formatSize(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
-  return String(Math.round(n));
-}
 
 function formatLevelNotionalUsd(price: number, size: number): string {
   if (price <= 0 || size <= 0) return DATA_PLACEHOLDER;
@@ -202,7 +197,7 @@ function OrderBookShell({
                     {formatPremiumOrPlaceholder(row.price)}
                   </span>
                   <span className="relative text-center font-mono text-sm tabular-nums text-muted-foreground">
-                    {formatSize(row.size)}
+                    {formatQuantity(row.size)}
                   </span>
                   <span className="relative text-right font-mono text-sm tabular-nums text-muted-foreground">
                     {formatLevelNotionalUsd(row.price, row.size)}

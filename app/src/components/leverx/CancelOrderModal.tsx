@@ -4,6 +4,7 @@ import { ResponsiveModal } from "@/components/leverx/ResponsiveModal";
 import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
 import { showTxError, showTxSuccess } from "@/lib/toast";
 import type { LimitMintOrder } from "@/lib/leverx/indexer-client";
+import { formatQuantity } from "@/lib/leverx/format-quantity";
 import { formatPremiumCents } from "@/lib/leverx/indexer-markets";
 import { predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
 import { scaleQuote } from "@/lib/predict/scaling";
@@ -51,7 +52,7 @@ export function CancelOrderTrigger({ order, className }: Props) {
       >
         <dl className="mb-4 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
           <dt className="text-muted-foreground">Quantity</dt>
-          <dd className="font-mono text-right">{order.quantity.toLocaleString()}</dd>
+          <dd className="font-mono text-right">{formatQuantity(order.quantity)}</dd>
           <dt className="text-muted-foreground">Margin reserved</dt>
           <dd className="font-mono text-right">
             {scaleQuote(order.margin_quote).toFixed(2)} dUSDC
