@@ -22,8 +22,8 @@ import { showTxError, showTxSuccess } from "@/lib/toast";
 import { usePredictOracleRows } from "@/hooks/usePredictOracles";
 import { predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
 import { assetLabelForOracleId, isOracleSettledForTrade } from "@/lib/predict/oracles";
-import { centsToPremiumRaw, marginUsdToQuoteAtoms, isLimitCentsWithinPredictBounds, PREDICT_MAX_PREMIUM_CENTS, PREDICT_MIN_PREMIUM_CENTS } from "@/lib/leverx/trade-math";
-import { scaleQuote, scaleQuoteAtoms } from "@/lib/predict/scaling";
+import { centsToPremiumRaw, marginUsdToQuoteAtoms, isLimitCentsWithinPredictBounds, PREDICT_MAX_PREMIUM_CENTS, PREDICT_MIN_PREMIUM_CENTS, clampUsdToQuoteAtoms, formatMaxWithdrawUsd, usdExceedsQuoteAtoms, withdrawUsdDecimals, withdrawUsdDisplayAmount } from "@/lib/leverx/trade-math";
+import { scaleQuote } from "@/lib/predict/scaling";
 import { cn } from "@/lib/utils";
 import { pillToggleBtn, pillToggleIdle } from "@/lib/leverx/tw";
 
@@ -265,8 +265,9 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
       keyBalanceLoading,
     });
   const borrowedUsd = scaleQuote(position.borrow_quote);
-  const withdrawableUsd =
-    keyQuoteBalanceAtoms != null ? scaleQuoteAtoms(keyQuoteBalanceAtoms) : 0;
+  const withdrawableAtoms = keyQuoteBalanceAtoms ?? 0n;
+  const withdrawableUsd = withdrawUsdDisplayAmount(withdrawableAtoms);
+  const withdrawableDigits = withdrawUsdDecimals(withdrawableAtoms);
   const repayNum = parseFloat(repayUsd) || 0;
   const repayExceedsDebt = repayNum > borrowedUsd + 1e-6;
   const limitCentsNum = parseFloat(limitCents);
@@ -276,8 +277,13 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
     !isLimitCentsWithinPredictBounds(limitCentsNum);
   const repayInvalid = !Number.isFinite(repayNum) || repayNum <= 0;
   const withdrawNum = parseFloat(withdrawUsd) || 0;
-  const withdrawExceedsBalance = withdrawNum > withdrawableUsd + 1e-6;
-  const withdrawInvalid = !Number.isFinite(withdrawNum) || withdrawNum <= 0;
+  const withdrawExceedsBalance =
+    withdrawableAtoms > 0n && usdExceedsQuoteAtoms(withdrawNum, withdrawableAtoms);
+  const withdrawInvalid =
+    withdrawableAtoms <= 0n ||
+    !Number.isFinite(withdrawNum) ||
+    withdrawNum <= 0 ||
+    withdrawExceedsBalance;
 
   const reset = () => {
     setView("menu");
@@ -391,13 +397,17 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
                   label="Withdraw to wallet"
                   hint={
                     <span className="inline-flex items-center gap-1">
-                      <QuoteAmount amount={withdrawableUsd} digits={2} /> available on this key
+                      <QuoteAmount
+                        amount={withdrawableUsd}
+                        digits={withdrawableDigits}
+                      />{" "}
+                      available on this key
                     </span>
                   }
                   info={leverxInfo.withdrawTradingBalance}
                   disabled={!isProtocolReady || pending}
                   onClick={() => {
-                    setWithdrawUsd(withdrawableUsd.toFixed(2));
+                    setWithdrawUsd(formatMaxWithdrawUsd(withdrawableAtoms));
                     setView("withdraw_surplus");
                   }}
                 />
@@ -514,7 +524,7 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
               Available on this market key:{" "}
               <QuoteAmount
                 amount={withdrawableUsd}
-                digits={2}
+                digits={withdrawableDigits}
                 className="text-foreground"
                 amountClassName="text-foreground"
               />
@@ -523,33 +533,37 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
               type="number"
               inputMode="decimal"
               min={0}
-              step={0.01}
+              step={withdrawableDigits >= 6 ? 0.000001 : withdrawableDigits >= 4 ? 0.0001 : 0.01}
               placeholder="Withdraw amount"
               value={withdrawUsd}
               onChange={(e) => setWithdrawUsd(e.target.value)}
               className="font-mono"
             />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className={cn(pillToggleBtn, pillToggleIdle, "flex-1 text-sm")}
+                onClick={() => setWithdrawUsd(formatMaxWithdrawUsd(withdrawableAtoms))}
+              >
+                Max
+              </button>
+            </div>
             {withdrawExceedsBalance ? (
               <p className="text-sm text-destructive">Amount exceeds available balance.</p>
             ) : null}
             <button
               type="button"
               className={cn(pillToggleBtn, pillToggleIdle, "w-full")}
-              disabled={pending || withdrawExceedsBalance || withdrawInvalid}
+              disabled={pending || withdrawInvalid}
               onClick={() => {
                 const usd = parseFloat(withdrawUsd);
-                if (
-                  !Number.isFinite(usd) ||
-                  usd <= 0 ||
-                  usd > withdrawableUsd + 1e-6
-                ) {
-                  return;
-                }
+                const amountAtoms = clampUsdToQuoteAtoms(usd, withdrawableAtoms);
+                if (amountAtoms <= 0n) return;
                 withdrawQuote.mutate(
                   {
                     accountId: position.account_id,
                     key: positionKey,
-                    amountAtoms: marginUsdToQuoteAtoms(usd),
+                    amountAtoms,
                   },
                   {
                     onError,

@@ -11,8 +11,13 @@ import { showTxError, showTxSuccess } from "@/lib/toast";
 import { assetLabelForOracleId } from "@/lib/predict/oracles";
 import { predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
 import { usePredictOracleRows } from "@/hooks/usePredictOracles";
-import { scaleQuoteAtoms } from "@/lib/predict/scaling";
-import { marginUsdToQuoteAtoms } from "@/lib/leverx/trade-math";
+import {
+  clampUsdToQuoteAtoms,
+  formatMaxWithdrawUsd,
+  usdExceedsQuoteAtoms,
+  withdrawUsdDecimals,
+  withdrawUsdDisplayAmount,
+} from "@/lib/leverx/trade-math";
 import {
   inputInField,
   labelCaps,
@@ -46,9 +51,15 @@ export function PortfolioWithdrawSection({ accountId, positions, className }: Pr
   const [amountUsd, setAmountUsd] = useState("");
 
   const activeRow = rows.find((r) => r.position.position_key === activeKey) ?? null;
-  const maxUsd = activeRow ? scaleQuoteAtoms(activeRow.balanceAtoms) : 0;
+  const maxAtoms = activeRow?.balanceAtoms ?? 0n;
+  const maxUsd = withdrawUsdDisplayAmount(maxAtoms);
+  const maxDigits = withdrawUsdDecimals(maxAtoms);
   const amountNum = parseFloat(amountUsd) || 0;
-  const amountInvalid = !Number.isFinite(amountNum) || amountNum <= 0 || amountNum > maxUsd + 1e-6;
+  const amountInvalid =
+    maxAtoms <= 0n ||
+    !Number.isFinite(amountNum) ||
+    amountNum <= 0 ||
+    usdExceedsQuoteAtoms(amountNum, maxAtoms);
 
   return (
     <section className={cn(tradeSurface, "overflow-hidden", className)}>
@@ -76,7 +87,8 @@ export function PortfolioWithdrawSection({ accountId, positions, className }: Pr
           <ul className={settingsList}>
             {rows.map((row) => {
               const asset = assetLabelForOracleId(row.position.oracle_id, oracles);
-              const balanceUsd = scaleQuoteAtoms(row.balanceAtoms);
+              const balanceUsd = withdrawUsdDisplayAmount(row.balanceAtoms);
+              const balanceDigits = withdrawUsdDecimals(row.balanceAtoms);
               const isOpen = activeKey === row.position.position_key;
 
               return (
@@ -86,7 +98,12 @@ export function PortfolioWithdrawSection({ accountId, positions, className }: Pr
                       <p className="text-sm font-medium">{marketLabel(row, asset)}</p>
                       <p className="font-mono text-[11px] text-muted-foreground">
                         Available{" "}
-                        <QuoteAmount amount={balanceUsd} hideZero className="inline-flex text-[11px]" />
+                        <QuoteAmount
+                          amount={balanceUsd}
+                          digits={balanceDigits}
+                          hideZero
+                          className="inline-flex text-[11px]"
+                        />
                       </p>
                     </div>
                     <button
@@ -95,7 +112,7 @@ export function PortfolioWithdrawSection({ accountId, positions, className }: Pr
                       disabled={!isProtocolReady || withdrawQuote.isPending}
                       onClick={() => {
                         setActiveKey(row.position.position_key);
-                        setAmountUsd(balanceUsd.toFixed(2));
+                        setAmountUsd(formatMaxWithdrawUsd(row.balanceAtoms));
                       }}
                     >
                       <Wallet className="h-3.5 w-3.5" />
@@ -109,7 +126,7 @@ export function PortfolioWithdrawSection({ accountId, positions, className }: Pr
                         type="number"
                         inputMode="decimal"
                         min={0}
-                        step={0.01}
+                        step={balanceDigits >= 6 ? 0.000001 : balanceDigits >= 4 ? 0.0001 : 0.01}
                         value={amountUsd}
                         onChange={(e) => setAmountUsd(e.target.value)}
                         placeholder="Amount"
@@ -119,7 +136,7 @@ export function PortfolioWithdrawSection({ accountId, positions, className }: Pr
                         <button
                           type="button"
                           className={cn(pillToggleBtn, pillToggleIdle, "flex-1 text-sm")}
-                          onClick={() => setAmountUsd(balanceUsd.toFixed(2))}
+                          onClick={() => setAmountUsd(formatMaxWithdrawUsd(row.balanceAtoms))}
                         >
                           Max
                         </button>
@@ -133,12 +150,13 @@ export function PortfolioWithdrawSection({ accountId, positions, className }: Pr
                           }
                           onClick={() => {
                             const usd = parseFloat(amountUsd);
-                            if (!Number.isFinite(usd) || usd <= 0 || usd > maxUsd + 1e-6) return;
+                            const amountAtoms = clampUsdToQuoteAtoms(usd, row.balanceAtoms);
+                            if (amountAtoms <= 0n) return;
                             withdrawQuote.mutate(
                               {
                                 accountId,
                                 key: row.key,
-                                amountAtoms: marginUsdToQuoteAtoms(usd),
+                                amountAtoms,
                               },
                               {
                                 onSuccess: () => {
@@ -161,7 +179,7 @@ export function PortfolioWithdrawSection({ accountId, positions, className }: Pr
                       {amountInvalid && amountUsd ? (
                         <p className="text-sm text-destructive">
                           Enter an amount up to{" "}
-                          <QuoteAmountInline amount={balanceUsd} digits={2} suffix="." />
+                          <QuoteAmountInline amount={maxUsd} digits={maxDigits} suffix="." />
                         </p>
                       ) : null}
                     </div>

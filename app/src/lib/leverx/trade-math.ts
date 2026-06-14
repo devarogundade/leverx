@@ -45,6 +45,43 @@ export function marginUsdToQuoteAtoms(marginUsd: number): bigint {
   return BigInt(Math.round(marginUsd * Number(QUOTE_UNIT)));
 }
 
+/** Floor USD from quote atoms — never rounds above on-chain balance. */
+export function floorUsdFromQuoteAtoms(atoms: bigint, decimals = 6): number {
+  if (atoms <= 0n) return 0;
+  const factor = 10n ** BigInt(decimals);
+  return Number((atoms * factor) / QUOTE_UNIT) / Number(factor);
+}
+
+/** Decimals for withdraw UI — enough precision for dust without misleading round-up. */
+export function withdrawUsdDecimals(atoms: bigint): number {
+  if (atoms < 10_000n) return 6;
+  if (atoms < QUOTE_UNIT) return 4;
+  return 2;
+}
+
+export function withdrawUsdDisplayAmount(atoms: bigint): number {
+  const decimals = withdrawUsdDecimals(atoms);
+  return floorUsdFromQuoteAtoms(atoms, decimals);
+}
+
+/** Max withdraw input string (floored, never exceeds `atoms`). */
+export function formatMaxWithdrawUsd(atoms: bigint): string {
+  const decimals = withdrawUsdDecimals(atoms);
+  return floorUsdFromQuoteAtoms(atoms, decimals).toFixed(decimals);
+}
+
+export function usdExceedsQuoteAtoms(usd: number, maxAtoms: bigint): boolean {
+  if (!Number.isFinite(usd) || usd <= 0) return true;
+  return marginUsdToQuoteAtoms(usd) > maxAtoms;
+}
+
+/** Clamp a USD input to what on-chain atoms allow (for submit). */
+export function clampUsdToQuoteAtoms(usd: number, maxAtoms: bigint): bigint {
+  const requested = marginUsdToQuoteAtoms(usd);
+  if (requested <= 0n) return 0n;
+  return requested > maxAtoms ? maxAtoms : requested;
+}
+
 /** Leverage multiplier → basis points (2x → 20_000). */
 export function leverageToBps(leverage: number): bigint {
   return BigInt(Math.round(clampLeverage(leverage) * 10_000));
