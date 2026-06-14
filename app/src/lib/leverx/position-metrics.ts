@@ -156,13 +156,29 @@ function effectiveHealthDebtUsd(
   return marginDebtUsd;
 }
 
-/** Matches on-chain `predict_client::premium_per_unit` (divide-and-round-up). */
+/** Average fill premium — always mint_cost ÷ qty (unchanged by repay / deleverage). */
 export function entryPremiumPerUnitRaw(position: LeveragedPosition): bigint | null {
-  const mintCost = effectiveMintCostAtoms(position);
-  if (position.open_quantity <= 0 || mintCost <= 0) return null;
-  const numerator = BigInt(mintCost) * PREDICT_PRICE_SCALE;
-  const quantity = BigInt(position.open_quantity);
-  return (numerator + quantity - 1n) / quantity;
+  if (position.open_quantity <= 0 || position.mint_cost <= 0) return null;
+  return premiumPerUnitFromMintCost(
+    BigInt(position.mint_cost),
+    BigInt(position.open_quantity),
+  );
+}
+
+export function positionMintCostUsd(position: LeveragedPosition): number {
+  return scaleQuote(position.mint_cost);
+}
+
+export function positionMarginUsd(position: LeveragedPosition): number {
+  return scaleQuote(position.margin_quote);
+}
+
+export function positionBorrowUsd(position: LeveragedPosition): number {
+  return scaleQuote(position.borrow_quote);
+}
+
+export function positionLeverageMultiplier(position: LeveragedPosition): number {
+  return position.leverage_bps / 10_000;
 }
 
 export function computePositionMarkToMarket(
@@ -171,7 +187,7 @@ export function computePositionMarkToMarket(
   quoteLoading: boolean,
   liquidationBps: number = DEFAULT_LIQUIDATION_BPS,
 ): PositionMarkToMarket {
-  const entryCostUsd = scaleQuote(effectiveMintCostAtoms(position));
+  const entryCostUsd = scaleQuote(position.mint_cost);
   const marginUsd = scaleQuote(position.margin_quote);
   const borrowedUsd = scaleQuote(position.borrow_quote);
   const positionSizeUsd = marginUsd + borrowedUsd;
@@ -198,11 +214,10 @@ export function computePositionMarkToMarket(
   }
 
   const markValueUsd = scaleQuote(Number(redeemQuote.expectedPayout));
-  const unrealizedPnlUsd = markValueUsd - entryCostUsd;
-  const unrealizedPnlPct =
-    entryCostUsd > 0 ? (unrealizedPnlUsd / entryCostUsd) * 100 : null;
-
   const netEquityUsd = markValueUsd - borrowedUsd;
+  const unrealizedPnlUsd = netEquityUsd - marginUsd;
+  const unrealizedPnlPct =
+    marginUsd > 0 ? (unrealizedPnlUsd / marginUsd) * 100 : null;
   const healthDebtUsd = effectiveHealthDebtUsd(
     borrowedUsd,
     marginUsd,

@@ -17,20 +17,25 @@ import {
   closedClosingPremiumCents,
   closedEntryPremiumCents,
   closedPositionPnlBreakdown,
+  entryPremiumPerUnitRaw,
   formatHealthBps,
   formatPnlPct,
+  positionBorrowUsd,
+  positionLeverageMultiplier,
+  positionMarginUsd,
+  positionMintCostUsd,
   positionRowId,
   realizedPnlPct,
   realizedPnlUsd,
   type PositionMarkToMarket,
 } from "@/lib/leverx/position-metrics";
+import { premiumRawToCents } from "@/lib/leverx/trade-math";
 import {
   AnimatedPnl,
   AnimatedPremiumCents,
   AnimatedQuantity,
 } from "@/components/ui/animated-numbers";
 import { predictSideFromBinary, type PredictSide } from "@/lib/predict/instruments";
-import { scaleQuote } from "@/lib/predict/scaling";
 import { ui } from "@/lib/copy";
 import { resolveLiquidationBps } from "@/lib/leverx/protocol";
 import { formatStrikeUsdFromRaw } from "@/lib/leverx/strike-selection";
@@ -290,6 +295,35 @@ function LiveDot({ active }: { active?: boolean; }) {
   );
 }
 
+function openEntryPremiumCents(position: LeveragedPosition): number | null {
+  const premium = entryPremiumPerUnitRaw(position);
+  return premium != null ? premiumRawToCents(premium) : null;
+}
+
+function MarginBorrowCell({ position }: { position: LeveragedPosition }) {
+  const marginUsd = positionMarginUsd(position);
+  const borrowUsd = positionBorrowUsd(position);
+  const leverage = positionLeverageMultiplier(position);
+
+  return (
+    <>
+      <div className="font-medium">
+        <QuoteAmount amount={marginUsd} />
+        <span className="font-normal text-muted-foreground"> margin</span>
+      </div>
+      <div className="text-[11px] tabular-nums text-muted-foreground">
+        {leverage.toFixed(1)}×
+        {borrowUsd > 0 ? (
+          <>
+            {" · "}
+            <QuoteAmount amount={borrowUsd} digits={1} className="inline-flex" /> borrow
+          </>
+        ) : null}
+      </div>
+    </>
+  );
+}
+
 function StatusCell({ status }: { status: string }) {
   const isOpen = status === "open";
   return (
@@ -374,22 +408,37 @@ export function LeverxPositionsTable({
     },
     {
       key: "entry",
-      header: "Entry",
+      header: (
+        <LabelWithInfo
+          label="Avg fill"
+          labelClassName="text-inherit"
+          info={leverxInfo.positionAvgFill}
+        />
+      ),
       align: "right",
       hideOnMobile: true,
+      mobileLabel: "Avg fill",
       cell: (r) => {
         const closed = r.position.status !== "open";
         const entryCents = closed
           ? closedEntryPremiumCents(r.position)
-          : r.mtm?.entryPremiumCents;
+          : openEntryPremiumCents(r.position);
+        const mintCostUsd = positionMintCostUsd(r.position);
         return (
-          <span className="font-mono text-sm tabular-nums text-muted-foreground">
-            {entryCents != null ? (
-              <AnimatedPremiumCents value={entryCents} placeholder="—" />
-            ) : (
-              "—"
-            )}
-          </span>
+          <div className="text-right tabular-nums">
+            <span className="font-mono text-sm text-muted-foreground">
+              {entryCents != null ? (
+                <AnimatedPremiumCents value={entryCents} placeholder="—" />
+              ) : (
+                "—"
+              )}
+            </span>
+            {mintCostUsd > 0 ? (
+              <div className="text-[11px] text-muted-foreground">
+                <QuoteAmount amount={mintCostUsd} digits={2} className="inline-flex" /> total
+              </div>
+            ) : null}
+          </div>
         );
       },
     },
@@ -397,13 +446,17 @@ export function LeverxPositionsTable({
       key: "mark",
       header: (
         <span className="inline-flex items-center gap-1.5">
-          Mark
-          {isRefreshing ? (
+          <LabelWithInfo
+            label={hideLiveMetrics ? "Exit" : "Now"}
+            labelClassName="text-inherit"
+            info={leverxInfo.positionNow}
+          />
+          {!hideLiveMetrics && isRefreshing ? (
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" />
           ) : null}
         </span>
       ),
-      mobileLabel: "Mark",
+      mobileLabel: hideLiveMetrics ? "Exit" : "Now",
       align: "right",
       cell: (r) => {
         const closed = r.position.status !== "open";
@@ -437,9 +490,16 @@ export function LeverxPositionsTable({
     },
     {
       key: "pnl",
-      header: "P&L",
+      header: (
+        <LabelWithInfo
+          label="P&L"
+          labelClassName="text-inherit"
+          info={leverxInfo.positionPnlMargin}
+        />
+      ),
       align: "right",
       mobileTrailing: true,
+      mobileLabel: "P&L (margin)",
       cell: (r) => (
         <PnlCell
           position={r.position}
@@ -450,32 +510,16 @@ export function LeverxPositionsTable({
     },
     {
       key: "margin",
-      header: "Margin / Lev",
+      header: (
+        <LabelWithInfo
+          label="Margin"
+          labelClassName="text-inherit"
+          info={leverxInfo.positionMarginBorrow}
+        />
+      ),
       align: "right",
       mobileLabel: "Margin",
-      cell: (r) => (
-        <>
-          <div className="font-medium">
-            <QuoteAmount amount={scaleQuote(r.position.margin_quote)} />
-          </div>
-          <div className="text-muted-foreground">
-            {(r.position.leverage_bps / 10_000).toFixed(1)}×
-            {r.position.borrow_quote > 0 ? (
-              <>
-                {" · "}
-                <QuoteAmount
-                  amount={scaleQuote(r.position.borrow_quote)}
-                  digits={1}
-                  className="inline-flex"
-                />{" "}
-                borrowed
-              </>
-            ) : (
-              ""
-            )}
-          </div>
-        </>
-      ),
+      cell: (r) => <MarginBorrowCell position={r.position} />,
     },
     {
       key: "health",

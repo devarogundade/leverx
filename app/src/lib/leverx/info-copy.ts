@@ -40,6 +40,14 @@ export const leverxInfo = {
   openPositions: "Number of trades still open.",
   openPositionsTable:
     "Live unrealized P&L and health update from on-chain redeem quotes. Use Manage to close, repay debt, or settle after expiry.",
+  positionAvgFill:
+    "Average price you paid per contract when you opened (total mint cost ÷ contracts). Repaying borrow or lowering leverage does not change this.",
+  positionNow:
+    "Current redeem bid per contract (open positions) or average exit price when you closed.",
+  positionPnlMargin:
+    "Return on the margin you posted. Leveraged closes can be positive even when the per-contract price fell, because redeem first repays borrow and the remainder is yours.",
+  positionMarginBorrow:
+    "Your posted margin and vault borrow on this market key. Borrow drops when you repay; leverage updates with it.",
   closedPnlBreakdown:
     "Net return on your posted margin after the redeem payout repays vault debt. Borrow repaid is principal; interest is the borrow-fee portion of that repayment.",
   accountSettings:
@@ -81,7 +89,8 @@ export const leverxInfo = {
   balancePositions: "Number of open trades.",
   unrealizedPnl: "Profit or loss if you closed all open trades at the current redeem bid.",
   openOrders: "Resting limit orders waiting to be filled.",
-  closedPositions: "Trades that have been closed or settled.",
+  closedPositions:
+    "Trades that have been closed or settled. Avg fill is what you paid per contract; P&L is your net return on posted margin (can be positive even when exit price is below entry, after borrow is repaid).",
 
   closeMarket: "Close now at the best available price.",
   closeLimit: "Close only if the price meets your minimum.",
