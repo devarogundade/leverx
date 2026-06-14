@@ -1,5 +1,4 @@
 import btcIcon from "@/assets/btc.png";
-import dbusdcIcon from "@/assets/dbusdc.png";
 import suiIcon from "@/assets/sui.png";
 import usdcIcon from "@/assets/usdc.png";
 import { normalizeProtectionBase } from "@/lib/markets";
@@ -11,8 +10,8 @@ const ASSET_ICON_BY_SYMBOL: Record<string, string> = {
   SUI: suiIcon,
   USDC: usdcIcon,
   DUSDC: usdcIcon,
-  DBUSDC: dbusdcIcon,
-  DBUSDT: dbusdcIcon,
+  DBUSDC: usdcIcon,
+  DBUSDT: usdcIcon,
   USDT: usdcIcon,
 };
 
@@ -35,4 +34,11 @@ export function assetIconUrl(symbol: string): string | undefined {
 
 export function hasAssetIcon(symbol: string): boolean {
   return assetIconUrl(symbol) != null;
+}
+
+const QUOTE_ASSET_SYMBOLS = new Set(["USDC", "DUSDC", "DBUSDC", "USDT", "DBUSDT"]);
+
+/** True when the symbol should render with the quote icon instead of a text suffix. */
+export function isQuoteAssetSymbol(symbol: string): boolean {
+  return QUOTE_ASSET_SYMBOLS.has(symbol.trim().toUpperCase());
 }

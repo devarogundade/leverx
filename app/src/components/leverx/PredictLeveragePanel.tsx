@@ -5,13 +5,13 @@ import { LeverageSlider } from "@/components/leverx/LeverageSlider";
 import { InfoPopover, LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { SlippagePopover, MarketSlippagePopover } from "@/components/leverx/SlippagePopover";
 import { TradeQuoteSummary } from "@/components/leverx/TradeQuoteSummary";
+import { QuoteAmount, QuoteIcon } from "@/components/leverx/QuoteAmount";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import { useIndexerProtocol, useIndexerAccounts } from "@/hooks/useIndexer";
 import { useLeverxMarketAsk } from "@/hooks/useLeverxMarketAsk";
 import { useLeverxMintQuote } from "@/hooks/useLeverxMintQuote";
 import { useWalletCoinBalance } from "@/hooks/useWalletCoinBalance";
 import { premiumToCents } from "@/lib/leverx/indexer-markets";
-import { formatCollateralAmount } from "@/lib/predict/quote-assets";
 import { appConfig } from "@/lib/config";
 import {
   TradeAmountInput,
@@ -455,7 +455,7 @@ export function PredictLeveragePanel({
 
   const quoteBalanceLabel = useMemo(() => {
     if (walletQuoteBalance == null) return "—";
-    return formatCollateralAmount(appConfig.quoteType, walletQuoteBalance);
+    return walletQuoteBalance;
   }, [walletQuoteBalance]);
 
   const quickAmounts = useMemo(
@@ -977,7 +977,15 @@ export function PredictLeveragePanel({
               />
               <span className="text-sm text-muted-foreground">
                 {ui.balanceAvailable}{" "}
-                <span className="font-mono text-foreground">{quoteBalanceLabel}</span>
+                {typeof quoteBalanceLabel === "number" ? (
+                  <QuoteAmount
+                    amount={quoteBalanceLabel}
+                    className="text-foreground"
+                    amountClassName="text-foreground"
+                  />
+                ) : (
+                  <span className="font-mono text-foreground">{quoteBalanceLabel}</span>
+                )}
               </span>
             </div>
             <TradeAmountInput
@@ -989,11 +997,12 @@ export function PredictLeveragePanel({
               onChange={(e) => setMargin(e.target.value)}
               placeholder="0.00"
               suffix={
-                leveragedMintAllowed ? (
-                  <span className={leverageBadge}>{formatLeverageBadge(lev)} dUSDC</span>
-                ) : (
-                  <span className="text-sm text-muted-foreground">dUSDC</span>
-                )
+                <span className="inline-flex items-center gap-1.5">
+                  {leveragedMintAllowed ? (
+                    <span className={leverageBadge}>{formatLeverageBadge(lev)}</span>
+                  ) : null}
+                  <QuoteIcon className="h-5 w-5" />
+                </span>
               }
             />
             <div className="mt-2">
@@ -1003,7 +1012,7 @@ export function PredictLeveragePanel({
               <p className="mt-2 text-sm text-muted-foreground">
                 Position size:{" "}
                 <span className="font-mono text-foreground">
-                  {formatCollateralAmount(appConfig.quoteType, marginNum * lev)}
+                  <QuoteAmount amount={marginNum * lev} />
                 </span>
                 {lev > LEVERAGE_MIN + 1e-6 ? (
                   <>

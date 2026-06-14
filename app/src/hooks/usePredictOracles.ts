@@ -1,4 +1,4 @@
-import { usePredictOracleContext } from "@/context/PredictOracleContext";
+import { usePredictOracles as usePredictOracleContext } from "@/context/PredictOracleContext";
 import type { OracleNeighborOptions } from "@/lib/predict/oracle-navigation";
 
 /** Predict-server oracle catalog — loaded once via PredictOracleProvider. */

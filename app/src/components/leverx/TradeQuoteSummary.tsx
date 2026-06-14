@@ -1,4 +1,5 @@
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
+import { QuoteAmount } from "@/components/leverx/QuoteAmount";
 import type { MintQuote } from "@/lib/leverx/quotes";
 import { formatPremiumCents } from "@/lib/leverx/indexer-markets";
 import { isPremiumWithinPredictBounds } from "@/lib/leverx/trade-math";
@@ -53,12 +54,14 @@ export function TradeQuoteSummary({ quote, isLoading, isRefreshing, className }:
           {formatPremiumCents(premiumRaw)}
         </span>
         <LabelWithInfo label="Total cost" info={leverxInfo.mintCost} />
-        <span className="font-mono text-right">{scaleQuote(Number(quote.mintCost)).toFixed(2)} dUSDC</span>
+        <span className="font-mono text-right">
+          <QuoteAmount amount={scaleQuote(Number(quote.mintCost))} digits={2} align="end" />
+        </span>
         {Number(quote.borrowQuote) > 0 ? (
           <>
             <LabelWithInfo label="Borrowed" info={leverxInfo.vaultBorrow} />
             <span className="font-mono text-right">
-              {scaleQuote(Number(quote.borrowQuote)).toFixed(2)} dUSDC
+              <QuoteAmount amount={scaleQuote(Number(quote.borrowQuote))} digits={2} align="end" />
             </span>
           </>
         ) : null}

@@ -11,11 +11,9 @@ import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
 import { showTxError, showTxSuccess } from "@/lib/toast";
 import { appConfig } from "@/lib/config";
 import { lxplpCoinType } from "@/lib/leverx/protocol";
-import { formatCollateralAmount } from "@/lib/predict/quote-assets";
+import { QuoteAmount, QuoteIcon } from "@/components/leverx/QuoteAmount";
 import { QUOTE_UNIT } from "@/lib/predict/constants";
 import { buildQuickAmounts } from "@/lib/leverx/form-helpers";
-import { ui } from "@/lib/copy";
-import { formatUsdcOrPlaceholder } from "@/lib/leverx/placeholders";
 import {
   btnTradeSignin,
   labelCaps,
@@ -55,24 +53,8 @@ export function PredictVaultLiquidityPanel({ vaultNav, vaultId, className }: Pro
   }, [action]);
 
   const symbol = action === "supply" ? "DUSDC" : "lxPLP";
-  const balanceLabel = useMemo(() => {
-    if (action === "supply") {
-      if (quoteBalanceLoading) return "…";
-      if (quoteBalance == null) return "_";
-      return formatCollateralAmount(quoteType, quoteBalance);
-    }
-    if (lxplpBalanceLoading) return "…";
-    if (lxplpBalance == null) return "_";
-    return formatCollateralAmount(lxplpType ?? quoteType, lxplpBalance);
-  }, [
-    action,
-    quoteBalanceLoading,
-    quoteBalance,
-    lxplpBalanceLoading,
-    lxplpBalance,
-    quoteType,
-    lxplpType,
-  ]);
+  const balanceAmount = action === "supply" ? quoteBalance : lxplpBalance;
+  const balanceLoading = action === "supply" ? quoteBalanceLoading : lxplpBalanceLoading;
 
   const walletBalance = action === "supply" ? quoteBalance : lxplpBalance;
   const quickAmounts = useMemo(() => buildQuickAmounts(walletBalance), [walletBalance]);
@@ -137,7 +119,7 @@ export function PredictVaultLiquidityPanel({ vaultNav, vaultId, className }: Pro
         <div className="text-sm text-muted-foreground">
           Pool size{" "}
           <span className="font-mono text-foreground">
-            {formatUsdcOrPlaceholder(vaultNav ?? null)}
+            <QuoteAmount amount={vaultNav ?? null} loading={vaultNav == null} hideZero />
           </span>
           {vaultId ? (
             <>
@@ -155,7 +137,23 @@ export function PredictVaultLiquidityPanel({ vaultNav, vaultId, className }: Pro
               info={leverxInfo.vaultAmount}
             />
             <span className="text-sm text-muted-foreground">
-              Bal. <span className="font-mono text-foreground">{balanceLabel}</span>
+              Bal.{" "}
+              {action === "supply" ? (
+                <QuoteAmount
+                  amount={balanceAmount}
+                  loading={balanceLoading}
+                  hideZero={false}
+                />
+              ) : balanceLoading ? (
+                "…"
+              ) : balanceAmount == null ? (
+                "_"
+              ) : (
+                `${balanceAmount.toLocaleString(undefined, {
+                  maximumFractionDigits: 6,
+                  minimumFractionDigits: 0,
+                })} ${symbol}`
+              )}
             </span>
           </div>
           <TradeAmountInput
@@ -164,7 +162,13 @@ export function PredictVaultLiquidityPanel({ vaultNav, vaultId, className }: Pro
             min={0}
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            suffix={<span className="text-sm text-muted-foreground">{symbol}</span>}
+            suffix={
+              action === "supply" ? (
+                <QuoteIcon className="h-5 w-5" />
+              ) : (
+                <span className="text-sm text-muted-foreground">{symbol}</span>
+              )
+            }
           />
           <TradeQuickAmounts
             className="mt-2"
@@ -195,9 +199,13 @@ export function PredictVaultLiquidityPanel({ vaultNav, vaultId, className }: Pro
                 Submitting…
               </>
             ) : action === "supply" ? (
-              ui.vaultSupplyCta
+              <span className="inline-flex items-center justify-center gap-1.5">
+                Deposit <QuoteIcon />
+              </span>
             ) : (
-              ui.vaultWithdrawCta
+              <span className="inline-flex items-center justify-center gap-1.5">
+                Withdraw <QuoteIcon />
+              </span>
             )}
           </button>
         ) : (

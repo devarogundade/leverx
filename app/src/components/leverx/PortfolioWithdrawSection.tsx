@@ -6,7 +6,7 @@ import { useProxyKeyBalances } from "@/hooks/useProxyKeyBalances";
 import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
-import { formatUsdcOrPlaceholder } from "@/lib/leverx/placeholders";
+import { QuoteAmount, QuoteAmountInline } from "@/components/leverx/QuoteAmount";
 import { showTxError, showTxSuccess } from "@/lib/toast";
 import { assetLabelForOracleId } from "@/lib/predict/oracles";
 import { predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
@@ -85,7 +85,8 @@ export function PortfolioWithdrawSection({ accountId, positions, className }: Pr
                     <div className="min-w-0">
                       <p className="text-sm font-medium">{marketLabel(row, asset)}</p>
                       <p className="font-mono text-[11px] text-muted-foreground">
-                        Available {formatUsdcOrPlaceholder(balanceUsd)}
+                        Available{" "}
+                        <QuoteAmount amount={balanceUsd} hideZero className="inline-flex text-[11px]" />
                       </p>
                     </div>
                     <button
@@ -111,7 +112,7 @@ export function PortfolioWithdrawSection({ accountId, positions, className }: Pr
                         step={0.01}
                         value={amountUsd}
                         onChange={(e) => setAmountUsd(e.target.value)}
-                        placeholder="Amount (dUSDC)"
+                        placeholder="Amount"
                         className={cn(inputInField, "font-mono text-sm")}
                       />
                       <div className="flex gap-2">
@@ -159,7 +160,8 @@ export function PortfolioWithdrawSection({ accountId, positions, className }: Pr
                       </div>
                       {amountInvalid && amountUsd ? (
                         <p className="text-sm text-destructive">
-                          Enter an amount up to {balanceUsd.toFixed(2)} dUSDC.
+                          Enter an amount up to{" "}
+                          <QuoteAmountInline amount={balanceUsd} digits={2} suffix="." />
                         </p>
                       ) : null}
                     </div>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Check,
@@ -13,6 +13,7 @@ import {
 import { ConfirmDialog } from "@/components/leverx/ConfirmDialog";
 import { ResponsiveModal } from "@/components/leverx/ResponsiveModal";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
+import { QuoteAmount } from "@/components/leverx/QuoteAmount";
 import { PortfolioWithdrawSection } from "@/components/leverx/PortfolioWithdrawSection";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -31,7 +32,6 @@ import { liquidationEventKindLabel } from "@/lib/leverx/protocol";
 import type { PredictOracleSummary } from "@/lib/predict/types";
 import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
 import { formatTriggerSlippageBps, premiumRawToCents } from "@/lib/leverx/trade-math";
-import { formatUsdcOrPlaceholder } from "@/lib/leverx/placeholders";
 import { assetLabelForOracleId } from "@/lib/predict/oracles";
 import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
 import { predictSideFromBinary, predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
@@ -142,7 +142,7 @@ function AccountMetric({
   sub,
 }: {
   label: string;
-  value: string;
+  value: ReactNode;
   info?: string;
   sub?: string;
 }) {
@@ -299,16 +299,18 @@ export function PortfolioAccountPanel({
           <AccountMetric
             label="Vault borrow"
             info={leverxInfo.borrowedQuote}
-            value={formatUsdcOrPlaceholder(scaleQuote(account.borrowed_quote))}
+            value={<QuoteAmount amount={scaleQuote(account.borrowed_quote)} hideZero />}
             sub="Across all market keys"
           />
           <AccountMetric
             label="Withdrawable"
             info={leverxInfo.withdrawTradingBalance}
             value={
-              balancesLoading && withdrawRows.length === 0
-                ? "…"
-                : formatUsdcOrPlaceholder(withdrawableUsd)
+              balancesLoading && withdrawRows.length === 0 ? (
+                "…"
+              ) : (
+                <QuoteAmount amount={withdrawableUsd} hideZero />
+              )
             }
             sub={
               withdrawRows.length > 0
@@ -493,7 +495,7 @@ export function PortfolioAccountPanel({
                         </p>
                       </div>
                       <span className="font-mono text-sm tabular-nums">
-                        {formatUsdcOrPlaceholder(scaleQuote(p.margin_quote))}
+                      <QuoteAmount amount={scaleQuote(p.margin_quote)} hideZero className="text-sm" />
                       </span>
                     </div>
                   </li>
@@ -526,8 +528,8 @@ export function PortfolioAccountPanel({
                         {(l.health_bps / 100).toFixed(0)}%
                       </p>
                     </div>
-                    <span className="shrink-0 font-mono text-sm tabular-nums">
-                      {formatUsdcOrPlaceholder(scaleQuote(l.debt_repaid))}
+                    <span className="shrink-0 text-sm">
+                      <QuoteAmount amount={scaleQuote(l.debt_repaid)} hideZero className="text-sm" />
                     </span>
                   </div>
                 </li>

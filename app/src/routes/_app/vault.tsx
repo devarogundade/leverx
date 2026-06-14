@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
+import { QuoteAmount } from "@/components/leverx/QuoteAmount";
 import { PredictVaultLiquidityPanel } from "@/components/leverx/PredictVaultLiquidityPanel";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import { VaultPerformanceChart } from "@/components/leverx/VaultPerformanceChart";
@@ -8,7 +9,6 @@ import { pageTitle } from "@/lib/brand";
 import { ui } from "@/lib/copy";
 import {
   formatPercentOrPlaceholder,
-  formatUsdcOrPlaceholder,
 } from "@/lib/leverx/placeholders";
 import { scaleQuote } from "@/lib/predict/scaling";
 import {
@@ -61,7 +61,11 @@ function VaultPage() {
               <LabelWithInfo label="TVL" info={leverxInfo.vaultTvl} />
             </dt>
             <dd className="font-mono font-medium tabular-nums">
-              {statsLoading && vaultValue == null ? "…" : formatUsdcOrPlaceholder(vaultValue)}
+              {statsLoading && vaultValue == null ? (
+                "…"
+              ) : (
+                <QuoteAmount amount={vaultValue} hideZero />
+              )}
             </dd>
           </div>
           <div className="flex gap-2">

@@ -1,10 +1,10 @@
 import { AlertTriangle, TrendingDown, TrendingUp } from "lucide-react";
 import type { ReactNode } from "react";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
+import { QuoteAmount } from "@/components/leverx/QuoteAmount";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import type { PortfolioSummary } from "@/lib/leverx/portfolio-summary";
 import { formatPnlUsd } from "@/lib/leverx/position-metrics";
-import { formatUsdcOrPlaceholder } from "@/lib/leverx/placeholders";
 import { labelCaps, statValue, tradeSurface } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
 
@@ -22,7 +22,7 @@ function SummaryStat({
   sub,
 }: {
   label: string;
-  value: string;
+  value: ReactNode;
   info?: string;
   tone?: "success" | "destructive" | "muted";
   sub?: ReactNode;
@@ -87,11 +87,20 @@ export function PortfolioSummaryBar({ summary, loading, className }: Props) {
         <SummaryStat
           label="Net equity"
           info={leverxInfo.balanceTotal}
-          value={loading || !summary ? "…" : formatUsdcOrPlaceholder(summary.netEquityUsd)}
+          value={
+            loading || !summary ? (
+              "…"
+            ) : (
+              <QuoteAmount amount={summary.netEquityUsd} hideZero />
+            )
+          }
           sub={
-            summary
-              ? `${summary.positionCount} open · ${formatUsdcOrPlaceholder(summary.notionalUsd)} exposure`
-              : undefined
+            summary ? (
+              <>
+                {summary.positionCount} open ·{" "}
+                <QuoteAmount amount={summary.notionalUsd} hideZero className="inline-flex" /> exposure
+              </>
+            ) : undefined
           }
         />
         <SummaryStat
@@ -117,12 +126,24 @@ export function PortfolioSummaryBar({ summary, loading, className }: Props) {
         <SummaryStat
           label="Margin posted"
           info={leverxInfo.marginOpen}
-          value={loading || !summary ? "…" : formatUsdcOrPlaceholder(summary.marginTotalUsd)}
+          value={
+            loading || !summary ? (
+              "…"
+            ) : (
+              <QuoteAmount amount={summary.marginTotalUsd} hideZero />
+            )
+          }
         />
         <SummaryStat
           label="Borrowed"
           info={leverxInfo.borrowedQuote}
-          value={loading || !summary ? "…" : formatUsdcOrPlaceholder(summary.borrowedTotalUsd)}
+          value={
+            loading || !summary ? (
+              "…"
+            ) : (
+              <QuoteAmount amount={summary.borrowedTotalUsd} hideZero />
+            )
+          }
         />
       </div>
     </div>

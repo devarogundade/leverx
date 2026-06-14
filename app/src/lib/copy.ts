@@ -102,7 +102,7 @@ function toSubscriptDigits(count: number): string {
   return String(count).replace(/[0-9]/g, (digit) => SUBSCRIPT_DIGITS[Number(digit)]!);
 }
 
-function formatAmount(value: number): string {
+export function formatAmount(value: number): string {
   if (!Number.isFinite(value)) return "0";
 
   const sign = value < 0 ? "-" : "";

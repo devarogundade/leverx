@@ -3,6 +3,7 @@ import { DataTable, type Column } from "@/components/DataTable";
 import { CancelOrderTrigger } from "@/components/leverx/CancelOrderModal";
 import { usePredictOracleRows } from "@/hooks/usePredictOracles";
 import { formatQuantity } from "@/lib/leverx/format-quantity";
+import { QuoteAmount } from "@/components/leverx/QuoteAmount";
 import { formatPremiumCents } from "@/lib/leverx/indexer-markets";
 import type { LimitMintOrder } from "@/lib/leverx/indexer-client";
 import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
@@ -80,9 +81,12 @@ export function LeverxLimitOrdersTable({ orders, className }: Props) {
       align: "right",
       mobileLabel: "Margin",
       cell: (r) => (
-        <span className="font-mono text-sm tabular-nums">
-          {scaleQuote(r.order.margin_quote).toFixed(2)} dUSDC
-        </span>
+        <QuoteAmount
+          className="text-sm"
+          amount={scaleQuote(r.order.margin_quote)}
+          digits={2}
+          align="end"
+        />
       ),
     },
     {

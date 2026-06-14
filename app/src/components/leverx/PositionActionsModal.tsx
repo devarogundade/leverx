@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, Loader2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/leverx/ConfirmDialog";
 import { ResponsiveModal } from "@/components/leverx/ResponsiveModal";
 import { InfoPopover } from "@/components/leverx/InfoPopover";
+import { QuoteAmount, QuoteIcon } from "@/components/leverx/QuoteAmount";
 import { Input } from "@/components/ui/input";
 import { useWallet } from "@/context/WalletContext";
 import { useLeverxProtocolConfig, useLeverxTransactions } from "@/hooks/useLeverxTransactions";
@@ -133,12 +134,12 @@ function PositionDetailGrid({
         </>
       ) : null}
       <dt className="text-muted-foreground">Margin</dt>
-      <dd className="text-right font-mono tabular-nums">
-        {scaleQuote(position.margin_quote).toFixed(2)} dUSDC
+      <dd className="text-right">
+        <QuoteAmount amount={scaleQuote(position.margin_quote)} digits={2} align="end" />
       </dd>
       <dt className="text-muted-foreground">Borrowed</dt>
-      <dd className="text-right font-mono tabular-nums">
-        {scaleQuote(position.borrow_quote).toFixed(2)} dUSDC
+      <dd className="text-right">
+        <QuoteAmount amount={scaleQuote(position.borrow_quote)} digits={2} align="end" />
       </dd>
       <dt className="text-muted-foreground">Leverage</dt>
       <dd className="text-right font-mono tabular-nums">
@@ -292,7 +293,11 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
               {canRepayDebt ? (
                 <ActionButton
                   label="Repay debt"
-                  hint={`${borrowedUsd.toFixed(2)} dUSDC borrowed`}
+                  hint={
+                    <span className="inline-flex items-center gap-1">
+                      <QuoteAmount amount={borrowedUsd} digits={2} /> borrowed
+                    </span>
+                  }
                   info={leverxInfo.repayDebt}
                   disabled={!isProtocolReady || pending}
                   onClick={() => setView("repay_debt")}
@@ -368,14 +373,19 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
               Outstanding borrow:{" "}
-              <span className="font-mono text-foreground">{borrowedUsd.toFixed(2)} dUSDC</span>
+              <QuoteAmount
+                amount={borrowedUsd}
+                digits={2}
+                className="text-foreground"
+                amountClassName="text-foreground"
+              />
             </p>
             <Input
               type="number"
               inputMode="decimal"
               min={0}
               step={0.01}
-              placeholder="Repay amount (dUSDC)"
+              placeholder="Repay amount"
               value={repayUsd}
               onChange={(e) => setRepayUsd(e.target.value)}
               className="font-mono"
@@ -483,7 +493,7 @@ function ActionButton({
   pending,
 }: {
   label: string;
-  hint: string;
+  hint: ReactNode;
   info: string;
   disabled?: boolean;
   onClick: () => void;

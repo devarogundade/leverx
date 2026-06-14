@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, Inbox } from "lucide-react";
@@ -16,6 +16,7 @@ import { PriceChart } from "@/components/PriceChart";
 import { PredictOrderBook } from "@/components/leverx/PredictOrderBook";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import { AssetBadge } from "@/components/AssetBadge";
+import { QuoteAmount } from "@/components/leverx/QuoteAmount";
 import { useWallet } from "@/context/WalletContext";
 import {
   useIndexerGlobalTrades,
@@ -47,7 +48,6 @@ import { formatPrice } from "@/lib/copy";
 import {
   DATA_PLACEHOLDER,
   formatCountOrPlaceholder,
-  formatUsdcOrPlaceholder,
 } from "@/lib/leverx/placeholders";
 import { summarizeGlobalTrades } from "@/lib/leverx/trade-stats";
 import { LEVERAGED_MINT_WINDOW_MS } from "@/lib/leverx/constants";
@@ -152,7 +152,7 @@ function StatItem({
   tone,
 }: {
   label: string;
-  value: string;
+  value: ReactNode;
   info?: string;
   tone?: "success" | "destructive";
 }) {
@@ -796,14 +796,17 @@ export function PredictTradeTerminal({ oracleId }: Props) {
               <StatItem
                 label="Volume (24h)"
                 info={leverxInfo.volume24h}
-                value={formatUsdcOrPlaceholder(
-                  tradeStats.volume24h > 0 ? tradeStats.volume24h : null,
-                )}
+                value={
+                  <QuoteAmount
+                    amount={tradeStats.volume24h > 0 ? tradeStats.volume24h : null}
+                    hideZero
+                  />
+                }
               />
               <StatItem
                 label="Pool size"
                 info={leverxInfo.vaultNav}
-                value={formatUsdcOrPlaceholder(liquidity)}
+                value={<QuoteAmount amount={liquidity} hideZero />}
               />
               <StatItem
                 label="Closes"

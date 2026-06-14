@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { ChevronDown, Wallet } from "lucide-react";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
+import { QuoteAmount } from "@/components/leverx/QuoteAmount";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
@@ -10,8 +11,6 @@ import { useIndexerAccounts, useIndexerPositions } from "@/hooks/useIndexer";
 import { ui } from "@/lib/copy";
 import {
   DATA_PLACEHOLDER,
-  formatUsdcBalance,
-  formatUsdcPill,
 } from "@/lib/leverx/placeholders";
 import { scaleQuote } from "@/lib/predict/scaling";
 import { cn } from "@/lib/utils";
@@ -26,7 +25,7 @@ function BalanceRow({
   info,
 }: {
   label: string;
-  value: string;
+  value: ReactNode;
   info?: string;
 }) {
   return (
@@ -64,9 +63,13 @@ export function BalanceBreakdown({ className }: Props) {
   const borrowed = ready ? scaleQuote(accounts[0]?.borrowed_quote ?? 0) : null;
   const positionCount = ready ? activePositions.length : null;
 
-  const pillLabel = !isWalletConnected
-    ? DATA_PLACEHOLDER
-    : formatUsdcPill(margin, ready);
+  const pillLabel = !isWalletConnected ? (
+    DATA_PLACEHOLDER
+  ) : !ready || margin == null ? (
+    "…"
+  ) : (
+    <QuoteAmount amount={margin} compact />
+  );
 
   return (
     <Popover>
@@ -89,7 +92,12 @@ export function BalanceBreakdown({ className }: Props) {
             info={leverxInfo.balanceTotal}
           />
           <p className="balance-breakdown-total mt-1">
-            {formatUsdcBalance(margin, ready && isWalletConnected)}
+            <QuoteAmount
+              amount={margin}
+              loading={isWalletConnected && !ready}
+              hideZero={false}
+              placeholder={!isWalletConnected ? "…" : DATA_PLACEHOLDER}
+            />
           </p>
         </div>
 
@@ -101,12 +109,16 @@ export function BalanceBreakdown({ className }: Props) {
               <BalanceRow
                 label="Margin"
                 info={leverxInfo.balanceMargin}
-                value={formatUsdcBalance(margin, ready)}
+                value={
+                  <QuoteAmount amount={margin} loading={!ready} hideZero={false} />
+                }
               />
               <BalanceRow
                 label="Borrowed"
                 info={leverxInfo.balanceBorrowed}
-                value={formatUsdcBalance(borrowed, ready)}
+                value={
+                  <QuoteAmount amount={borrowed} loading={!ready} hideZero={false} />
+                }
               />
               <BalanceRow
                 label="Positions"

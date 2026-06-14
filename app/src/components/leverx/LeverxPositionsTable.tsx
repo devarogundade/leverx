@@ -22,7 +22,8 @@ import {
 } from "@/lib/leverx/position-metrics";
 import { predictSideFromBinary, type PredictSide } from "@/lib/predict/instruments";
 import { scaleQuote } from "@/lib/predict/scaling";
-import { formatUsdc, ui } from "@/lib/copy";
+import { ui } from "@/lib/copy";
+import { QuoteAmount } from "@/components/leverx/QuoteAmount";
 import { resolveLiquidationBps } from "@/lib/leverx/protocol";
 import { formatQuantity } from "@/lib/leverx/format-quantity";
 import { formatCountdownStopwatch } from "@/lib/leverx/trade-limits";
@@ -320,10 +321,12 @@ export function LeverxPositionsTable({
         const closed = r.position.status !== "open";
         if (closed) {
           return (
-            <span className="font-mono text-sm text-muted-foreground">
-              {r.position.realized_payout > 0
-                ? formatUsdc(scaleQuote(r.position.realized_payout))
-                : "—"}
+            <span className="text-sm text-muted-foreground">
+              {r.position.realized_payout > 0 ? (
+                <QuoteAmount amount={scaleQuote(r.position.realized_payout)} className="text-sm" />
+              ) : (
+                "—"
+              )}
             </span>
           );
         }
@@ -355,12 +358,24 @@ export function LeverxPositionsTable({
       mobileLabel: "Margin",
       cell: (r) => (
         <>
-          <div className="font-medium">{formatUsdc(scaleQuote(r.position.margin_quote))}</div>
+          <div className="font-medium">
+            <QuoteAmount amount={scaleQuote(r.position.margin_quote)} />
+          </div>
           <div className="text-muted-foreground">
             {(r.position.leverage_bps / 10_000).toFixed(1)}×
-            {r.position.borrow_quote > 0
-              ? ` · ${scaleQuote(r.position.borrow_quote).toFixed(1)} borrowed`
-              : ""}
+            {r.position.borrow_quote > 0 ? (
+              <>
+                {" · "}
+                <QuoteAmount
+                  amount={scaleQuote(r.position.borrow_quote)}
+                  digits={1}
+                  className="inline-flex"
+                />{" "}
+                borrowed
+              </>
+            ) : (
+              ""
+            )}
           </div>
         </>
       ),
