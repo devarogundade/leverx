@@ -17,8 +17,16 @@ export const PREDICT_CANDLE_VISIBLE_BARS = 64;
 export const PREDICT_CHART_SCALE_MARGINS = { top: 0.02, bottom: 0.02 };
 
 /** Tight Y padding so spot movement spreads across the chart. */
-const PREDICT_LINE_Y_PAD_RATIO = 0.06;
-const PREDICT_CANDLE_Y_PAD_RATIO = 0.05;
+const PREDICT_LINE_Y_PAD_RATIO = 0.03;
+const PREDICT_CANDLE_Y_PAD_RATIO = 0.025;
+
+/** Expand Y bounds for strike lines only when they sit near the recent price window. */
+const PREDICT_STRIKE_Y_EXPANSION_RATIO = 0.25;
+
+function recentTail<T>(items: readonly T[], maxItems: number): readonly T[] {
+  if (items.length <= maxItems) return items;
+  return items.slice(items.length - maxItems);
+}
 
 export function predictChartTimeScaleOptions(mode: "line" | "candlestick" = "line") {
   return {
@@ -37,12 +45,23 @@ function yBoundsFromValues(
   values: readonly number[],
   strikeLevels: readonly PriceLevel[],
 ): { min: number; max: number } | null {
-  const strikes = strikeLevels.map((level) => level.price);
-  const all = [...values, ...strikes].filter((value) => Number.isFinite(value) && value > 0);
-  if (all.length === 0) return null;
+  const prices = values.filter((value) => Number.isFinite(value) && value > 0);
+  if (prices.length === 0) return null;
 
-  let min = Math.min(...all);
-  let max = Math.max(...all);
+  let min = Math.min(...prices);
+  let max = Math.max(...prices);
+
+  const span = max - min || Math.max(max * 0.001, 1);
+  const strikePad = span * PREDICT_STRIKE_Y_EXPANSION_RATIO;
+  for (const level of strikeLevels) {
+    const strike = level.price;
+    if (!Number.isFinite(strike) || strike <= 0) continue;
+    if (strike >= min - strikePad && strike <= max + strikePad) {
+      min = Math.min(min, strike);
+      max = Math.max(max, strike);
+    }
+  }
+
   if (min === max) {
     const bump = Math.max(min * 0.0015, 0.5);
     min -= bump;
@@ -65,8 +84,9 @@ export function buildPredictAutoscaleInfo(
   lineData: readonly LineData<UTCTimestamp>[],
   strikeLevels: readonly PriceLevel[],
 ): AutoscaleInfo | null {
+  const recent = recentTail(lineData, PREDICT_DETAIL_VISIBLE_BARS);
   const bounds = yBoundsFromValues(
-    lineData.map((point) => point.value),
+    recent.map((point) => point.value),
     strikeLevels,
   );
   if (!bounds) return null;
@@ -77,8 +97,9 @@ export function buildCandleAutoscaleInfo(
   candles: readonly CandlestickData<UTCTimestamp>[],
   strikeLevels: readonly PriceLevel[],
 ): AutoscaleInfo | null {
-  const lows = candles.map((bar) => bar.low);
-  const highs = candles.map((bar) => bar.high);
+  const recent = recentTail(candles, PREDICT_CANDLE_VISIBLE_BARS);
+  const lows = recent.map((bar) => bar.low);
+  const highs = recent.map((bar) => bar.high);
   const bounds = yBoundsFromValues([...lows, ...highs], strikeLevels);
   if (!bounds) return null;
   return { priceRange: withYPadding(bounds.min, bounds.max, PREDICT_CANDLE_Y_PAD_RATIO) };

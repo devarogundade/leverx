@@ -50,22 +50,23 @@ export function seriesToPolylinePoints(
   viewHeight: number,
   padding = 1,
 ): string {
-  if (values.length === 0) return "";
+  const finite = values.filter((value) => Number.isFinite(value));
+  if (finite.length === 0) return "";
 
   const innerW = Math.max(1, viewWidth - padding * 2);
   const innerH = Math.max(1, viewHeight - padding * 2);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  const min = Math.min(...finite);
+  const max = Math.max(...finite);
   const range = max - min || 1;
 
-  if (values.length === 1) {
+  if (finite.length === 1) {
     const y = padding + innerH / 2;
     return `${padding},${y} ${padding + innerW},${y}`;
   }
 
-  return values
+  return finite
     .map((value, index) => {
-      const x = padding + (index / (values.length - 1)) * innerW;
+      const x = padding + (index / (finite.length - 1)) * innerW;
       const y = padding + innerH - ((value - min) / range) * innerH;
       return `${x},${y}`;
     })
