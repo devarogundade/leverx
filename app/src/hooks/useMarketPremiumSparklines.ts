@@ -1,41 +1,46 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { appConfig } from "@/lib/config";
-import { fetchGlobalMarketTrades, type GlobalMarketTrade } from "@/lib/leverx/indexer-client";
+import {
+  CHART_OHLCV_INTERVAL,
+  CHART_OHLCV_LOOKBACK_MS,
+  fetchDeepbookOhlcv,
+  ohlcvCandlesToSparklineSeries,
+} from "@/lib/deepbook/ohlcv";
 import type { LeverxMarketRow } from "@/lib/leverx/indexer-markets";
-import { buildPremiumSparklineMap } from "@/lib/leverx/premium-sparkline";
 
-const enabled = Boolean(appConfig.leverxIndexerUrl);
+const MARKETS_OHLCV_PAIR = "XBTC_USDC";
+const OHLCV_REFETCH_MS = 60_000;
 
-async function fetchTradesByOracle(
-  oracleIds: readonly string[],
-): Promise<Map<string, GlobalMarketTrade[]>> {
-  const entries = await Promise.all(
-    oracleIds.map(async (oracleId) => {
-      const { items } = await fetchGlobalMarketTrades(oracleId, { limit: 150 });
-      return [oracleId, items] as const;
-    }),
+async function fetchMarketsOhlcvSparkline() {
+  const endTime = Date.now();
+  const startTime = endTime - CHART_OHLCV_LOOKBACK_MS;
+  const candles = await fetchDeepbookOhlcv(
+    MARKETS_OHLCV_PAIR,
+    CHART_OHLCV_INTERVAL,
+    startTime,
+    endTime,
   );
-  return new Map(entries);
+  return ohlcvCandlesToSparklineSeries(candles);
 }
 
+/** Shared XBTC_USDC OHLCV close-price sparkline for market grid/list cards. */
 export function useMarketPremiumSparklines(markets: readonly LeverxMarketRow[]) {
-  const oracleIds = useMemo(
-    () => [...new Set(markets.map((market) => market.oracleId).filter(Boolean))].sort(),
-    [markets],
-  );
-
   const query = useQuery({
-    queryKey: ["market-premium-sparklines", oracleIds.join(",")],
-    queryFn: () => fetchTradesByOracle(oracleIds),
-    enabled: enabled && oracleIds.length > 0,
-    staleTime: 30_000,
+    queryKey: ["deepbook-ohlcv", MARKETS_OHLCV_PAIR, CHART_OHLCV_INTERVAL],
+    queryFn: fetchMarketsOhlcvSparkline,
+    staleTime: OHLCV_REFETCH_MS / 2,
+    refetchInterval: OHLCV_REFETCH_MS,
+    refetchIntervalInBackground: false,
     retry: 1,
   });
 
   const seriesByMarketId = useMemo(() => {
-    if (!query.data) return new Map<string, number[]>();
-    return buildPremiumSparklineMap(markets, query.data);
+    const sparkline = query.data ?? [];
+    const map = new Map<string, number[]>();
+    for (const market of markets) {
+      map.set(market.id, sparkline);
+    }
+    return map;
   }, [markets, query.data]);
 
   return {

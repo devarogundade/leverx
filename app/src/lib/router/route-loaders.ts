@@ -185,6 +185,7 @@ export async function loadMarketsRoute(queryClient: QueryClient) {
     ensurePredictOracles(queryClient),
     ensureMarketCatalog(queryClient),
     ensureIndexerProtocol(queryClient),
+    ensureChartOhlcv(queryClient, "BTC"),
   ]);
   const vaultId = protocol?.vault_id;
   if (vaultId) {

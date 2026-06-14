@@ -1,4 +1,5 @@
 import { fetchJson } from "@/lib/api/fetch-json";
+import { downsampleSeries } from "@/lib/charts/sparkline-path";
 import { appConfig } from "@/lib/config";
 import { normalizeProtectionBase } from "@/lib/markets";
 import type { PricePoint } from "@/lib/predict/price-point";
@@ -47,20 +48,50 @@ export function patchLatestPriceWithOracle(
   return next;
 }
 
-/** Unix seconds for DeepBook indexer `start_time` / `end_time` query params. */
+/** Unix milliseconds for DeepBook indexer `start_time` / `end_time` (matches candle timestamps). */
 export async function fetchDeepbookOhlcv(
   pair: string,
   interval: OhlcvInterval,
   startTimeMs: number,
   endTimeMs: number,
+  options?: { limit?: number },
 ): Promise<OhlcvCandle[]> {
   const base = appConfig.deepbookIndexerUrl.replace(/\/$/, "");
-  const url =
-    `${base}/ohclv/${encodeURIComponent(pair)}` +
-    `?interval=${interval}` +
-    `&start_time=${Math.floor(startTimeMs / 1000)}` +
-    `&end_time=${Math.floor(endTimeMs / 1000)}`;
+  const params = new URLSearchParams({
+    interval,
+    start_time: String(Math.floor(startTimeMs)),
+    end_time: String(Math.floor(endTimeMs)),
+  });
+  if (options?.limit != null) {
+    params.set("limit", String(options.limit));
+  }
 
+  const url = `${base}/ohclv/${encodeURIComponent(pair)}?${params}`;
   const data = await fetchJson<{ candles?: OhlcvCandle[] }>(url, { timeoutMs: 20_000 });
-  return Array.isArray(data.candles) ? data.candles : [];
+  let candles = Array.isArray(data.candles) ? data.candles : [];
+
+  if (candles.length === 0 && options?.limit == null) {
+    const fallbackUrl =
+      `${base}/ohclv/${encodeURIComponent(pair)}` + `?interval=${interval}&limit=100`;
+    const fallback = await fetchJson<{ candles?: OhlcvCandle[] }>(fallbackUrl, {
+      timeoutMs: 20_000,
+    });
+    candles = Array.isArray(fallback.candles) ? fallback.candles : [];
+  }
+
+  return candles;
+}
+
+const MARKETS_SPARKLINE_MAX_POINTS = 32;
+
+/** Close prices from OHLCV candles, oldest → newest, downsampled for market sparklines. */
+export function ohlcvCandlesToSparklineSeries(
+  candles: readonly OhlcvCandle[],
+  maxPoints = MARKETS_SPARKLINE_MAX_POINTS,
+): number[] {
+  const closes = [...candles]
+    .sort((a, b) => a[0] - b[0])
+    .map(([, , , , close]) => close)
+    .filter((close) => Number.isFinite(close) && close > 0);
+  return downsampleSeries(closes, maxPoints);
 }
