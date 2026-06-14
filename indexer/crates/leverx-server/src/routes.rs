@@ -10,12 +10,12 @@ use diesel_async::pooled_connection::bb8::Pool;
 use diesel_async::RunQueryDsl;
 use diesel_async::AsyncPgConnection;
 use leverx_schema::models::{
-    AccountTimelineRow, GlobalMarketTradeRow, LeveragedPositionRow, LeverxEventRow,
+    AccountTimelineRow, LeveragedPositionRow, LeverxEventRow,
     LimitMintOrderRow, LiquidationRow, MarketTradeRow, PositionTriggerRow, ProtocolSettingsRow,
     ProxyExecutorRow, UserProxyRow, VaultSnapshotRow,
 };
 use leverx_schema::schema::{
-    account_timeline, global_market_trades, leveraged_positions, leverx_events, limit_mint_orders,
+    account_timeline, leveraged_positions, leverx_events, limit_mint_orders,
     liquidations, market_trades, position_triggers, protocol_settings, proxy_executors,
     user_proxies, vault_snapshots,
 };
@@ -23,6 +23,7 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::catalog::{catalog_response, fetch_market_catalog, parse_catalog_pagination};
+use crate::global_trades::fetch_combined_global_trades;
 use crate::leaderboard::{fetch_leaderboard, fetch_owner_rank, leaderboard_response, parse_leaderboard_pagination};
 use crate::orderbook;
 use crate::pagination::{paginate, parse_limit_offset};
@@ -451,25 +452,16 @@ async fn global_market_trades(
     Query(q): Query<GlobalMarketTradeQuery>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     let (limit, offset) = parse_limit_offset(q.limit, q.offset);
-    let mut conn = state.pool.get().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let mut query = global_market_trades::table.into_boxed();
-    query = query.filter(global_market_trades::oracle_id.eq(oracle_id));
-    if let Some(trade_side) = &q.trade_side {
-        query = query.filter(global_market_trades::trade_side.eq(trade_side));
-    }
-    if let Some(is_range) = q.is_range {
-        query = query.filter(global_market_trades::is_range.eq(is_range));
-    }
-
-    let rows = query
-        .order(global_market_trades::timestamp_ms.desc())
-        .limit(limit + 1)
-        .offset(offset)
-        .select(GlobalMarketTradeRow::as_select())
-        .load::<GlobalMarketTradeRow>(&mut conn)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let rows = fetch_combined_global_trades(
+        &state.pool,
+        &oracle_id,
+        q.trade_side.as_deref(),
+        q.is_range,
+        limit,
+        offset,
+    )
+    .await?;
 
     Ok(Json(serde_json::to_value(paginate(rows, limit, offset)).unwrap()))
 }

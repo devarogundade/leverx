@@ -8,13 +8,14 @@ use diesel_async::RunQueryDsl;
 use diesel_async::pooled_connection::bb8::Pool;
 use diesel_async::AsyncPgConnection;
 use leverx_schema::models::{
-    GlobalMarketTradeRow, LeveragedPositionRow, LeverxEventRow, LimitMintOrderRow,
+    LeveragedPositionRow, LeverxEventRow, LimitMintOrderRow,
 };
-use leverx_schema::schema::{global_market_trades, leveraged_positions, leverx_events, limit_mint_orders};
+use leverx_schema::schema::{leveraged_positions, leverx_events, limit_mint_orders};
 use serde::Serialize;
 use serde_json::{json, Value};
 use tokio::sync::{broadcast, RwLock};
 
+use crate::global_trades::fetch_combined_global_trades;
 use crate::orderbook;
 use crate::pagination::paginate;
 
@@ -186,15 +187,16 @@ impl StreamHub {
                 json!(book)
             }
             ChannelKind::GlobalTrades { oracle_id } => {
-                let mut conn = pool.get().await?;
-                let rows = global_market_trades::table
-                    .filter(global_market_trades::oracle_id.eq(oracle_id))
-                    .order(global_market_trades::timestamp_ms.desc())
-                    .limit(STREAM_PAGE_LIMIT + 1)
-                    .offset(0)
-                    .select(GlobalMarketTradeRow::as_select())
-                    .load::<GlobalMarketTradeRow>(&mut conn)
-                    .await?;
+                let rows = fetch_combined_global_trades(
+                    &pool,
+                    &oracle_id,
+                    None,
+                    None,
+                    STREAM_PAGE_LIMIT,
+                    0,
+                )
+                .await
+                .map_err(|_| anyhow::anyhow!("combined global trades query failed"))?;
                 json!(paginate(rows, STREAM_PAGE_LIMIT, 0))
             }
             ChannelKind::Positions { owner, oracle_id } => {

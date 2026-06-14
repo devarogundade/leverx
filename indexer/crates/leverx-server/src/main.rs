@@ -1,4 +1,5 @@
 mod catalog;
+mod global_trades;
 mod leaderboard;
 mod orderbook;
 mod pagination;

@@ -48,6 +48,7 @@ Production checkpoint sources: [Sui custom indexer build guide](https://docs.sui
 | `leveraged_positions` | `LeveragedPositionOpened/Closed`, liquidations |
 | `market_trades` | LeverX opens and closes (`LeveragedPositionOpened/Closed`; limit fills share open events) |
 | `global_market_trades` | Predict `mint`/`redeem` (`PositionMinted/Redeemed`, `RangeMinted/Redeemed`) |
+| `GET /v1/global-markets/{oracle_id}/trades` | Merged tape: `global_market_trades` + LeverX `market_trades` (deduped per tx) |
 | `markets` | Canonical market dimension (`market_key` = `position_key`) |
 | `predict_managers` | Predict manager registry (`manager_id` → optional LeverX `account_id`) |
 | `user_proxies` | `AccountCreated`, `PredictManagerLinked`, debt sync |

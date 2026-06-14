@@ -1,4 +1,5 @@
 //! Maps `deepbook_predict` events into `global_market_trades` and `predict_managers`.
+//! LeverX leveraged fills are merged into the global tape at read time (`leverx-server::global_trades`).
 
 use leverx_schema::models::{NewGlobalMarketTrade, NewLeverxEvent};
 use serde_json::Value as JsonValue;
