@@ -368,24 +368,37 @@ async fn dispatch_event(
         | "PositionRedeemed"
         | "RangeMinted"
         | "RangeRedeemed" => {
-            if let Some(oracle_id) = parsed.get("oracle_id").and_then(|v| v.as_str()) {
-                let channel = format!("trades:global:{oracle_id}");
-                if active.contains(&channel) {
-                    push_snapshot(pool, hub, &channel).await?;
-                }
-                for ch in active.iter() {
-                    if ch.starts_with("orderbook:") && ch.contains(oracle_id) {
-                        push_snapshot(pool, hub, ch).await?;
+            push_global_and_orderbook_for_oracle(pool, hub, active, parsed).await?;
+        }
+        "LeveragedPositionOpened" | "LeveragedPositionClosed" => {
+            push_global_and_orderbook_for_oracle(pool, hub, active, parsed).await?;
+            if let Some(position_key) = position_key_from_parsed(parsed) {
+                if let Some(channel) = orderbook_channel_from_position_key(&position_key) {
+                    if active.contains(&channel) {
+                        push_snapshot(pool, hub, &channel).await?;
                     }
                 }
             }
+            if let Some(owner) = parsed.get("owner").and_then(|v| v.as_str()) {
+                push_matching_positions(pool, hub, active, owner, None).await?;
+            }
         }
-        "LeveragedPositionOpened"
-        | "LeveragedPositionClosed"
-        | "PositionLiquidated"
-        | "PositionForceDeleveraged"
-        | "BadDebtWrittenOff"
-        | "KeyBorrowUpdated" => {
+        "PositionLiquidated" | "BadDebtWrittenOff" | "PositionForceDeleveraged" => {
+            push_global_and_orderbook_for_oracle(pool, hub, active, parsed).await?;
+            if let Some(position_key) = position_key_from_parsed(parsed) {
+                if let Some(channel) = orderbook_channel_from_position_key(&position_key) {
+                    if active.contains(&channel) {
+                        push_snapshot(pool, hub, &channel).await?;
+                    }
+                }
+            }
+            if let Some(owner) = parsed.get("owner").and_then(|v| v.as_str()) {
+                let oracle_id = parsed.get("oracle_id").and_then(|v| v.as_str());
+                push_matching_positions(pool, hub, active, owner, oracle_id).await?;
+                push_matching_limits(pool, hub, active, owner, oracle_id).await?;
+            }
+        }
+        "KeyBorrowUpdated" | "DebtRepaid" | "VaultRepaid" => {
             if let Some(owner) = parsed.get("owner").and_then(|v| v.as_str()) {
                 push_matching_positions(pool, hub, active, owner, None).await?;
             }
@@ -393,6 +406,26 @@ async fn dispatch_event(
         _ => {}
     }
 
+    Ok(())
+}
+
+async fn push_global_and_orderbook_for_oracle(
+    pool: &Pool<AsyncPgConnection>,
+    hub: &StreamHub,
+    active: &HashSet<String>,
+    parsed: &Value,
+) -> Result<()> {
+    if let Some(oracle_id) = parsed.get("oracle_id").and_then(|v| v.as_str()) {
+        let channel = format!("trades:global:{oracle_id}");
+        if active.contains(&channel) {
+            push_snapshot(pool, hub, &channel).await?;
+        }
+        for ch in active.iter() {
+            if ch.starts_with("orderbook:") && ch.contains(oracle_id) {
+                push_snapshot(pool, hub, ch).await?;
+            }
+        }
+    }
     Ok(())
 }
 

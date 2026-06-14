@@ -1,9 +1,9 @@
 //! Maps deserialized `leverx::events` into Postgres row batches.
 
 use leverx_schema::models::{
-    NewAccountTimeline, NewLeverxEvent, NewLimitMintOrder, NewLeveragedPosition, NewLiquidation,
-    NewMarketTrade, NewPositionTrigger, NewProtocolSettings, NewProxyExecutor, NewUserProxy,
-    NewVaultSnapshot,
+    NewAccountTimeline, NewGlobalMarketTrade, NewLeverxEvent, NewLimitMintOrder,
+    NewLeveragedPosition, NewLiquidation, NewMarketTrade, NewPositionTrigger,
+    NewProtocolSettings, NewProxyExecutor, NewUserProxy, NewVaultSnapshot,
 };
 use serde_json::Value as JsonValue;
 use sui_types::event::Event;
@@ -13,21 +13,24 @@ use crate::handlers::{
     LimitExecutePatch, LiquidationBpsPatch, LiquidationPositionPatch, PositionClosePatch,
     PositionOpenPatch, TradingPausedPatch,
 };
-use crate::keys::{limit_order_key, position_key};
+use crate::keys::{limit_order_key, normalize_type_name, position_key};
 use crate::points::record_volume;
 use crate::relation_upserts::{ensure_market, ensure_predict_manager};
 use crate::move_events::{
     parse_event_json, try_parse, fee_source_label, FEE_SOURCE_LIQUIDATION,
+    parse_key_borrow_updated, parse_registry_initialized, parse_triggers_updated,
+    ParsedKeyBorrowUpdated, ParsedRegistryInitialized, ParsedTriggersUpdated,
+    DEFAULT_TRIGGER_SLIPPAGE_BPS,
     AccountCreated, DebtBorrowed, DebtRepaid, ExecutorRegistered,
     ExecutorRevoked, BorrowRateParamsUpdated, FeeCollectorWithdrawn, FlashLoanBorrowed,
     FlashLoanRepaid, InsuranceFundSkimmed, InterestAccrued, ProtocolFeeDistributed,
-    BadDebtWrittenOff, KeyBorrowUpdated, LeveragedPositionClosed, LeveragedPositionOpened,
+    BadDebtWrittenOff, LeveragedPositionClosed, LeveragedPositionOpened,
     LimitMintOrderCancelled, LimitMintOrderExecuted, LimitMintOrderPlaced, LiquidationBpsUpdated,
     PositionForceDeleveraged,
     PositionLiquidated,
     PredictManagerLinked,
-    ProtocolDeployed, ProxyAccountingSynced, RegistryInitialized,
-    TradingPausedChanged, TriggersCleared, TriggersUpdated, VaultBorrowed, VaultRepaid,
+    ProtocolDeployed, ProxyAccountingSynced,
+    TradingPausedChanged, TriggersCleared, VaultBorrowed, VaultRepaid,
     VaultSupplied, VaultWithdrawn,
 };
 
@@ -39,6 +42,86 @@ pub struct EventContext<'a> {
     pub timestamp_ms: i64,
     pub event: &'a Event,
     pub parsed_json: JsonValue,
+}
+
+fn default_quote_asset() -> String {
+    normalize_type_name(&std::env::var("QUOTE_TYPE").unwrap_or_default())
+}
+
+fn default_predict_id() -> String {
+    std::env::var("PREDICT_ID").unwrap_or_default()
+}
+
+fn push_leverx_global_open(
+    batch: &mut LeverxBatch,
+    ctx: &EventContext<'_>,
+    ev: &LeveragedPositionOpened,
+    market_key: &str,
+    premium: u64,
+) {
+    batch.global_trades.push(NewGlobalMarketTrade {
+        event_digest: ctx.event_digest.to_string(),
+        event_type: ctx.event_name.to_string(),
+        predict_id: default_predict_id(),
+        manager_id: ev.predict_manager_id.to_string(),
+        market_key: market_key.to_string(),
+        oracle_id: ev.oracle_id.to_string(),
+        expiry_ms: ev.expiry_ms as i64,
+        strike: ev.strike as i64,
+        higher_strike: ev.higher_strike as i64,
+        is_up: ev.is_up,
+        is_range: ev.is_range,
+        quote_asset: default_quote_asset(),
+        trade_side: "mint".into(),
+        quantity: ev.quantity as i64,
+        cost: Some(ev.mint_cost as i64),
+        payout: None,
+        ask_price: Some(premium as i64),
+        bid_price: None,
+        trader: Some(ev.owner.to_string()),
+        owner: None,
+        executor: None,
+        is_settled: None,
+        timestamp_ms: ctx.timestamp_ms,
+    });
+}
+
+fn push_leverx_global_close(
+    batch: &mut LeverxBatch,
+    ctx: &EventContext<'_>,
+    ev: &LeveragedPositionClosed,
+    market_key: &str,
+) {
+    let bid_price = if ev.quantity > 0 {
+        Some((ev.payout / ev.quantity) as i64)
+    } else {
+        None
+    };
+    batch.global_trades.push(NewGlobalMarketTrade {
+        event_digest: ctx.event_digest.to_string(),
+        event_type: ctx.event_name.to_string(),
+        predict_id: default_predict_id(),
+        manager_id: ev.predict_manager_id.to_string(),
+        market_key: market_key.to_string(),
+        oracle_id: ev.oracle_id.to_string(),
+        expiry_ms: ev.expiry_ms as i64,
+        strike: ev.strike as i64,
+        higher_strike: ev.higher_strike as i64,
+        is_up: ev.is_up,
+        is_range: ev.is_range,
+        quote_asset: default_quote_asset(),
+        trade_side: "redeem".into(),
+        quantity: ev.quantity as i64,
+        cost: None,
+        payout: Some(ev.payout as i64),
+        ask_price: None,
+        bid_price,
+        trader: None,
+        owner: Some(ev.owner.to_string()),
+        executor: None,
+        is_settled: Some(ev.is_settled),
+        timestamp_ms: ctx.timestamp_ms,
+    });
 }
 
 pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
@@ -237,7 +320,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                 });
                 batch.trades.push(NewMarketTrade {
                     event_digest: ctx.event_digest.to_string(),
-                    position_key: pk,
+                    position_key: pk.clone(),
                     oracle_id: ev.oracle_id.to_string(),
                     trade_kind: "open".into(),
                     side: "buy".into(),
@@ -249,6 +332,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     order_type: Some(ev.order_type as i16),
                     timestamp_ms: ctx.timestamp_ms,
                 });
+                push_leverx_global_open(batch, &ctx, &ev, &pk, premium);
                 record_volume(
                     batch,
                     &ev.owner.to_string(),
@@ -257,6 +341,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     ctx.timestamp_ms,
                 );
                 batch.debt_repaid.push(DebtRepaidPatch {
+                    event_digest: ctx.event_digest.to_string(),
                     account_id: ev.account_id.to_string(),
                     remaining_debt: ev.borrowed_quote_after as i64,
                     updated_at_ms: ctx.timestamp_ms,
@@ -296,7 +381,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                 });
                 batch.trades.push(NewMarketTrade {
                     event_digest: ctx.event_digest.to_string(),
-                    position_key: pk,
+                    position_key: pk.clone(),
                     oracle_id: ev.oracle_id.to_string(),
                     trade_kind: "close".into(),
                     side: "sell".into(),
@@ -308,6 +393,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     order_type: None,
                     timestamp_ms: ctx.timestamp_ms,
                 });
+                push_leverx_global_close(batch, &ctx, &ev, &pk);
                 record_volume(
                     batch,
                     &ev.owner.to_string(),
@@ -315,11 +401,6 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     ev.payout as i64,
                     ctx.timestamp_ms,
                 );
-                batch.debt_repaid.push(DebtRepaidPatch {
-                    account_id: ev.account_id.to_string(),
-                    remaining_debt: ev.remaining_debt as i64,
-                    updated_at_ms: ctx.timestamp_ms,
-                });
                 timeline(batch, ctx, ev.account_id.to_string(), Some(ev.owner.to_string()));
             }
         }
@@ -358,24 +439,41 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
             }
         }
         "RegistryInitialized" => {
-            if let Some(ev) = try_parse::<RegistryInitialized>(ctx.event.contents.as_slice()) {
+            if let Some(parsed) = parse_registry_initialized(ctx.event.contents.as_slice()) {
+                let (registry_id, vault_id, fee_collector_id, predict_id, liquidation_bps) =
+                    match parsed {
+                        ParsedRegistryInitialized::Full(ev) => (
+                            ev.registry_id.to_string(),
+                            ev.vault_id.to_string(),
+                            ev.fee_collector_id.to_string(),
+                            ev.predict_id.to_string(),
+                            Some(ev.liquidation_bps as i64),
+                        ),
+                        ParsedRegistryInitialized::Legacy(ev) => (
+                            ev.registry_id.to_string(),
+                            ev.vault_id.to_string(),
+                            ev.fee_collector_id.to_string(),
+                            ev.predict_id.to_string(),
+                            None,
+                        ),
+                    };
                 batch.protocol_settings.push(NewProtocolSettings {
-                    registry_id: ev.registry_id.to_string(),
-                    vault_id: Some(ev.vault_id.to_string()),
-                    predict_id: Some(ev.predict_id.to_string()),
-                    fee_collector_id: Some(ev.fee_collector_id.to_string()),
+                    registry_id: registry_id.clone(),
+                    vault_id: Some(vault_id.clone()),
+                    predict_id: Some(predict_id),
+                    fee_collector_id: Some(fee_collector_id),
                     trading_paused: false,
                     base_rate_bps: None,
                     kink_utilization_bps: None,
                     slope1_bps: None,
                     slope2_bps: None,
                     flash_fee_bps: None,
-                    liquidation_bps: Some(ev.liquidation_bps as i64),
+                    liquidation_bps,
                     updated_at_ms: ctx.timestamp_ms,
                 });
                 batch.vaults.push(NewVaultSnapshot {
                     event_digest: ctx.event_digest.to_string(),
-                    vault_id: ev.vault_id.to_string(),
+                    vault_id,
                     event_type: ctx.event_name.to_string(),
                     timestamp_ms: ctx.timestamp_ms,
                     nav: None,
@@ -579,6 +677,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
         "DebtBorrowed" => {
             if let Some(ev) = try_parse::<DebtBorrowed>(ctx.event.contents.as_slice()) {
                 batch.debt_repaid.push(DebtRepaidPatch {
+                    event_digest: ctx.event_digest.to_string(),
                     account_id: ev.account_id.to_string(),
                     remaining_debt: ev.borrowed_quote_after as i64,
                     updated_at_ms: ctx.timestamp_ms,
@@ -589,6 +688,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
         "DebtRepaid" => {
             if let Some(ev) = try_parse::<DebtRepaid>(ctx.event.contents.as_slice()) {
                 batch.debt_repaid.push(DebtRepaidPatch {
+                    event_digest: ctx.event_digest.to_string(),
                     account_id: ev.account_id.to_string(),
                     remaining_debt: ev.remaining_debt as i64,
                     updated_at_ms: ctx.timestamp_ms,
@@ -599,6 +699,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
         "ProxyAccountingSynced" => {
             if let Some(ev) = try_parse::<ProxyAccountingSynced>(ctx.event.contents.as_slice()) {
                 batch.debt_repaid.push(DebtRepaidPatch {
+                    event_digest: ctx.event_digest.to_string(),
                     account_id: ev.account_id.to_string(),
                     remaining_debt: ev.borrowed_quote as i64,
                     updated_at_ms: ctx.timestamp_ms,
@@ -607,23 +708,53 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
             }
         }
         "KeyBorrowUpdated" => {
-            if let Some(ev) = try_parse::<KeyBorrowUpdated>(ctx.event.contents.as_slice()) {
+            if let Some(parsed) = parse_key_borrow_updated(ctx.event.contents.as_slice()) {
+                let (account_id, owner, oracle_id, expiry_ms, strike, higher_strike, is_up, is_range, key_borrowed_quote, margin_quote, leverage_bps) =
+                    match parsed {
+                        ParsedKeyBorrowUpdated::Full(ev) => (
+                            ev.account_id.to_string(),
+                            ev.owner,
+                            ev.oracle_id.to_string(),
+                            ev.expiry_ms as i64,
+                            ev.strike as i64,
+                            ev.higher_strike as i64,
+                            ev.is_up,
+                            ev.is_range,
+                            ev.key_borrowed_quote as i64,
+                            Some(ev.key_margin_debt as i64),
+                            Some(ev.leverage_bps as i64),
+                        ),
+                        ParsedKeyBorrowUpdated::Legacy(ev) => (
+                            ev.account_id.to_string(),
+                            ev.owner,
+                            ev.oracle_id.to_string(),
+                            ev.expiry_ms as i64,
+                            ev.strike as i64,
+                            ev.higher_strike as i64,
+                            ev.is_up,
+                            ev.is_range,
+                            ev.key_borrowed_quote as i64,
+                            None,
+                            None,
+                        ),
+                    };
                 let pk = position_key(
-                    &ev.oracle_id.to_string(),
-                    ev.expiry_ms as i64,
-                    ev.strike as i64,
-                    ev.higher_strike as i64,
-                    ev.is_up,
-                    ev.is_range,
+                    &oracle_id,
+                    expiry_ms,
+                    strike,
+                    higher_strike,
+                    is_up,
+                    is_range,
                 );
                 batch.key_borrow_patches.push(KeyBorrowPatch {
+                    event_digest: ctx.event_digest.to_string(),
                     position_key: pk,
-                    account_id: ev.account_id.to_string(),
-                    key_borrowed_quote: ev.key_borrowed_quote as i64,
-                    margin_quote: ev.key_margin_debt as i64,
-                    leverage_bps: ev.leverage_bps as i64,
+                    account_id: account_id.clone(),
+                    key_borrowed_quote,
+                    margin_quote,
+                    leverage_bps,
                 });
-                timeline(batch, ctx, ev.account_id.to_string(), Some(ev.owner.to_string()));
+                timeline(batch, ctx, account_id, Some(owner.to_string()));
             }
         }
         "BadDebtWrittenOff" => {
@@ -647,13 +778,15 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     ev.is_range,
                 );
                 batch.key_borrow_patches.push(KeyBorrowPatch {
+                    event_digest: ctx.event_digest.to_string(),
                     position_key: pk.clone(),
                     account_id: ev.account_id.to_string(),
                     key_borrowed_quote: 0,
-                    margin_quote: 0,
-                    leverage_bps: 10_000,
+                    margin_quote: Some(0),
+                    leverage_bps: Some(10_000),
                 });
                 batch.debt_repaid.push(DebtRepaidPatch {
+                    event_digest: ctx.event_digest.to_string(),
                     account_id: ev.account_id.to_string(),
                     remaining_debt: 0,
                     updated_at_ms: ctx.timestamp_ms,
@@ -773,19 +906,40 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
             }
         }
         "TriggersUpdated" => {
-            if let Some(ev) = try_parse::<TriggersUpdated>(ctx.event.contents.as_slice()) {
+            if let Some(parsed) = parse_triggers_updated(ctx.event.contents.as_slice()) {
+                let (account_id, oracle_id, is_range, take_profit, stop_loss, tp_slip, sl_slip) =
+                    match parsed {
+                        ParsedTriggersUpdated::Full(ev) => (
+                            ev.account_id.to_string(),
+                            ev.oracle_id.to_string(),
+                            ev.is_range,
+                            ev.take_profit_premium as i64,
+                            ev.stop_loss_premium as i64,
+                            ev.take_profit_slippage_bps as i64,
+                            ev.stop_loss_slippage_bps as i64,
+                        ),
+                        ParsedTriggersUpdated::Legacy(ev) => (
+                            ev.account_id.to_string(),
+                            ev.oracle_id.to_string(),
+                            ev.is_range,
+                            ev.take_profit_premium as i64,
+                            ev.stop_loss_premium as i64,
+                            DEFAULT_TRIGGER_SLIPPAGE_BPS as i64,
+                            DEFAULT_TRIGGER_SLIPPAGE_BPS as i64,
+                        ),
+                    };
                 batch.triggers.push(NewPositionTrigger {
-                    account_id: ev.account_id.to_string(),
-                    oracle_id: ev.oracle_id.to_string(),
-                    is_range: ev.is_range,
-                    take_profit_premium: ev.take_profit_premium as i64,
-                    stop_loss_premium: ev.stop_loss_premium as i64,
-                    take_profit_slippage_bps: ev.take_profit_slippage_bps as i64,
-                    stop_loss_slippage_bps: ev.stop_loss_slippage_bps as i64,
+                    account_id: account_id.clone(),
+                    oracle_id,
+                    is_range,
+                    take_profit_premium: take_profit,
+                    stop_loss_premium: stop_loss,
+                    take_profit_slippage_bps: tp_slip,
+                    stop_loss_slippage_bps: sl_slip,
                     active: true,
                     updated_at_ms: ctx.timestamp_ms,
                 });
-                timeline(batch, ctx, ev.account_id.to_string(), None);
+                timeline(batch, ctx, account_id, None);
             }
         }
         "TriggersCleared" => {

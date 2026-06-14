@@ -463,7 +463,11 @@ export function PredictLeveragePanel({
     [walletQuoteBalance],
   );
 
-  const { data: liveAskPremium, isLoading: liveAskLoading } = useLeverxMarketAsk(tradeKey);
+  const {
+    data: liveAskPremium,
+    isLoading: liveAskLoading,
+    isFetching: liveAskRefreshing,
+  } = useLeverxMarketAsk(tradeKey);
 
   const quoteReferencePremium = useMemo(() => {
     if (orderType !== "limit" || !limitPrice) return undefined;
@@ -487,6 +491,9 @@ export function PredictLeveragePanel({
       (lev <= LEVERAGE_MIN + 1e-6 || leveragedMintAllowed),
     referencePremiumOverride: quoteReferencePremium,
   });
+
+  const isCalculatingQuote = quoteLoading || quoteRefreshing;
+  const isCalculatingLiveAsk = liveAskLoading || liveAskRefreshing;
 
   const tradeQuantity = mintQuote?.tradeQuantity ?? 1n;
 
@@ -627,7 +634,7 @@ export function PredictLeveragePanel({
           `Limit price must be between ${PREDICT_MIN_PREMIUM_CENTS}¢ and ${PREDICT_MAX_PREMIUM_CENTS}¢.`,
         );
       } else if (
-        !liveAskLoading &&
+        !isCalculatingLiveAsk &&
         (liveAskPremium == null || liveAskPremium <= 0n)
       ) {
         errors.push(
@@ -682,7 +689,7 @@ export function PredictLeveragePanel({
     if (orderType === "market" && marginNum > 0 && tradeKey) {
       if (expiryMs && expiryMs > 0 && expiryMs <= now) {
         errors.push("This market has expired. Pick a live expiry or another strike.");
-      } else if (!quoteLoading) {
+      } else if (!isCalculatingQuote) {
         if (mintQuote == null) {
           errors.push(
             "Live contract price is unavailable or outside 1¢–99¢ (common near oracle expiry). Try another strike or wait for oracle updates.",
@@ -762,7 +769,7 @@ export function PredictLeveragePanel({
     limitPrice,
     placementSlippagePct,
     marketSlippagePct,
-    liveAskLoading,
+    isCalculatingLiveAsk,
     liveAskPremium,
     isRange,
     rangePreset,
@@ -777,7 +784,7 @@ export function PredictLeveragePanel({
     resolvedBinaryStrikeRaw,
     tradeKey,
     address,
-    quoteLoading,
+    isCalculatingQuote,
     mintQuote,
     orderExpiresOffsetMs,
     expiryMs,
@@ -804,6 +811,7 @@ export function PredictLeveragePanel({
     expiryMs > 0 &&
     expiryMs > now &&
     validationErrors.length === 0 &&
+    !(orderType === "market" && marginNum > 0 && tradeKey && isCalculatingQuote) &&
     (isRange
       ? resolvedRangeLowerRaw > 0 && resolvedRangeUpperRaw > resolvedRangeLowerRaw
       : resolvedBinaryStrikeRaw > 0);
@@ -1090,8 +1098,8 @@ export function PredictLeveragePanel({
 
           <TradeQuoteSummary
             quote={mintQuote}
-            isLoading={quoteLoading}
-            isRefreshing={quoteRefreshing && !quoteLoading}
+            isLoading={isCalculatingQuote && !mintQuote}
+            isRefreshing={quoteRefreshing && Boolean(mintQuote)}
           />
 
           <div className={tpSlBlock}>
@@ -1113,7 +1121,7 @@ export function PredictLeveragePanel({
                   />
                   {": "}
                   <span className="font-mono text-foreground">
-                    {entryCents > 0 ? `${entryCents.toFixed(1)}¢` : quoteLoading ? "…" : "—"}
+                    {entryCents > 0 ? `${entryCents.toFixed(1)}¢` : isCalculatingQuote ? "…" : "—"}
                   </span>
                 </p>
                 <p className="text-sm text-muted-foreground">

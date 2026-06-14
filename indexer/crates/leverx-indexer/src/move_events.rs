@@ -15,6 +15,15 @@ pub struct ProtocolDeployed {
     pub deployer: SuiAddress,
 }
 
+/// Pre–`liquidation_bps` layout (older deployed packages).
+#[derive(Debug, Deserialize, Serialize)]
+pub struct RegistryInitializedLegacy {
+    pub registry_id: ObjectID,
+    pub vault_id: ObjectID,
+    pub fee_collector_id: ObjectID,
+    pub predict_id: ObjectID,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct RegistryInitialized {
     pub registry_id: ObjectID,
@@ -22,6 +31,18 @@ pub struct RegistryInitialized {
     pub fee_collector_id: ObjectID,
     pub predict_id: ObjectID,
     pub liquidation_bps: u64,
+}
+
+pub enum ParsedRegistryInitialized {
+    Full(RegistryInitialized),
+    Legacy(RegistryInitializedLegacy),
+}
+
+pub fn parse_registry_initialized(bytes: &[u8]) -> Option<ParsedRegistryInitialized> {
+    if let Some(v) = try_parse::<RegistryInitialized>(bytes) {
+        return Some(ParsedRegistryInitialized::Full(v));
+    }
+    try_parse::<RegistryInitializedLegacy>(bytes).map(ParsedRegistryInitialized::Legacy)
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -190,6 +211,20 @@ pub struct ProxyAccountingSynced {
     pub borrowed_quote: u64,
 }
 
+/// Pre–`key_margin_debt` / `leverage_bps` event layout (older deployed packages).
+#[derive(Debug, Deserialize, Serialize)]
+pub struct KeyBorrowUpdatedLegacy {
+    pub account_id: ObjectID,
+    pub owner: SuiAddress,
+    pub oracle_id: ObjectID,
+    pub expiry_ms: u64,
+    pub strike: u64,
+    pub higher_strike: u64,
+    pub is_up: bool,
+    pub is_range: bool,
+    pub key_borrowed_quote: u64,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct KeyBorrowUpdated {
     pub account_id: ObjectID,
@@ -203,6 +238,18 @@ pub struct KeyBorrowUpdated {
     pub key_borrowed_quote: u64,
     pub key_margin_debt: u64,
     pub leverage_bps: u64,
+}
+
+pub enum ParsedKeyBorrowUpdated {
+    Full(KeyBorrowUpdated),
+    Legacy(KeyBorrowUpdatedLegacy),
+}
+
+pub fn parse_key_borrow_updated(bytes: &[u8]) -> Option<ParsedKeyBorrowUpdated> {
+    if let Some(v) = try_parse::<KeyBorrowUpdated>(bytes) {
+        return Some(ParsedKeyBorrowUpdated::Full(v));
+    }
+    try_parse::<KeyBorrowUpdatedLegacy>(bytes).map(ParsedKeyBorrowUpdated::Legacy)
 }
 
 // === Positions ===
@@ -300,6 +347,16 @@ pub struct PositionLiquidated {
 
 // === Triggers / executors ===
 
+/// Pre–slippage-bps layout (older deployed packages).
+#[derive(Debug, Deserialize, Serialize)]
+pub struct TriggersUpdatedLegacy {
+    pub account_id: ObjectID,
+    pub oracle_id: ObjectID,
+    pub is_range: bool,
+    pub take_profit_premium: u64,
+    pub stop_loss_premium: u64,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct TriggersUpdated {
     pub account_id: ObjectID,
@@ -309,6 +366,21 @@ pub struct TriggersUpdated {
     pub stop_loss_premium: u64,
     pub take_profit_slippage_bps: u64,
     pub stop_loss_slippage_bps: u64,
+}
+
+pub enum ParsedTriggersUpdated {
+    Full(TriggersUpdated),
+    Legacy(TriggersUpdatedLegacy),
+}
+
+/// Protocol default when legacy `TriggersUpdated` events omit slippage fields.
+pub const DEFAULT_TRIGGER_SLIPPAGE_BPS: u64 = 500;
+
+pub fn parse_triggers_updated(bytes: &[u8]) -> Option<ParsedTriggersUpdated> {
+    if let Some(v) = try_parse::<TriggersUpdated>(bytes) {
+        return Some(ParsedTriggersUpdated::Full(v));
+    }
+    try_parse::<TriggersUpdatedLegacy>(bytes).map(ParsedTriggersUpdated::Legacy)
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -418,7 +490,14 @@ pub fn parse_event_json(event_name: &str, bytes: &[u8]) -> serde_json::Value {
 
     match event_name {
         "ProtocolDeployed" => parse_as!(ProtocolDeployed),
-        "RegistryInitialized" => parse_as!(RegistryInitialized),
+        "RegistryInitialized" => {
+            if let Some(parsed) = parse_registry_initialized(bytes) {
+                return match parsed {
+                    ParsedRegistryInitialized::Full(v) => serde_json::to_value(v).unwrap_or(json!({})),
+                    ParsedRegistryInitialized::Legacy(v) => serde_json::to_value(v).unwrap_or(json!({})),
+                };
+            }
+        }
         "LiquidationBpsUpdated" => parse_as!(LiquidationBpsUpdated),
         "TradingPausedChanged" => parse_as!(TradingPausedChanged),
         "BorrowRateParamsUpdated" => parse_as!(BorrowRateParamsUpdated),
@@ -437,13 +516,27 @@ pub fn parse_event_json(event_name: &str, bytes: &[u8]) -> serde_json::Value {
         "DebtBorrowed" => parse_as!(DebtBorrowed),
         "DebtRepaid" => parse_as!(DebtRepaid),
         "ProxyAccountingSynced" => parse_as!(ProxyAccountingSynced),
-        "KeyBorrowUpdated" => parse_as!(KeyBorrowUpdated),
+        "KeyBorrowUpdated" => {
+            if let Some(parsed) = parse_key_borrow_updated(bytes) {
+                return match parsed {
+                    ParsedKeyBorrowUpdated::Full(v) => serde_json::to_value(v).unwrap_or(json!({})),
+                    ParsedKeyBorrowUpdated::Legacy(v) => serde_json::to_value(v).unwrap_or(json!({})),
+                };
+            }
+        }
         "LeveragedPositionOpened" => parse_as!(LeveragedPositionOpened),
         "LeveragedPositionClosed" => parse_as!(LeveragedPositionClosed),
         "BadDebtWrittenOff" => parse_as!(BadDebtWrittenOff),
         "PositionForceDeleveraged" => parse_as!(PositionForceDeleveraged),
         "PositionLiquidated" => parse_as!(PositionLiquidated),
-        "TriggersUpdated" => parse_as!(TriggersUpdated),
+        "TriggersUpdated" => {
+            if let Some(parsed) = parse_triggers_updated(bytes) {
+                return match parsed {
+                    ParsedTriggersUpdated::Full(v) => serde_json::to_value(v).unwrap_or(json!({})),
+                    ParsedTriggersUpdated::Legacy(v) => serde_json::to_value(v).unwrap_or(json!({})),
+                };
+            }
+        }
         "TriggersCleared" => parse_as!(TriggersCleared),
         "ExecutorRegistered" => parse_as!(ExecutorRegistered),
         "ExecutorRevoked" => parse_as!(ExecutorRevoked),

@@ -106,6 +106,7 @@ pub struct PositionClosePatch {
 
 #[derive(Clone)]
 pub struct DebtRepaidPatch {
+    pub event_digest: String,
     pub account_id: String,
     pub remaining_debt: i64,
     pub updated_at_ms: i64,
@@ -121,11 +122,14 @@ pub struct LiquidationPositionPatch {
 }
 
 pub struct KeyBorrowPatch {
+    pub event_digest: String,
     pub position_key: String,
     pub account_id: String,
     pub key_borrowed_quote: i64,
-    pub margin_quote: i64,
-    pub leverage_bps: i64,
+    /// When `None`, leave `margin_quote` unchanged (legacy events).
+    pub margin_quote: Option<i64>,
+    /// When `None`, leave `leverage_bps` unchanged (legacy events).
+    pub leverage_bps: Option<i64>,
 }
 
 pub struct BorrowRatePatch {
@@ -577,6 +581,9 @@ impl Handler for LeverxEventsHandler {
 
         let debt_rows = dedupe_debt_patches(&batch.debt_repaid);
         for debt in &debt_rows {
+            if !fresh_event_digests.contains(&debt.event_digest) {
+                continue;
+            }
             rows += diesel::update(
                 user_proxies::table.filter(user_proxies::account_id.eq(&debt.account_id)),
             )
@@ -726,21 +733,55 @@ impl Handler for LeverxEventsHandler {
         }
 
         for patch in &batch.key_borrow_patches {
-            rows += diesel::update(
-                leveraged_positions::table
-                    .filter(leveraged_positions::position_key.eq(&patch.position_key))
-                    .filter(leveraged_positions::account_id.eq(&patch.account_id)),
-            )
-            .set((
-                leveraged_positions::borrow_quote.eq(patch.key_borrowed_quote),
-                leveraged_positions::margin_quote.eq(patch.margin_quote),
-                leveraged_positions::leverage_bps.eq(patch.leverage_bps),
-            ))
-            .execute(conn)
-            .await?;
+            if !fresh_event_digests.contains(&patch.event_digest) {
+                continue;
+            }
+            let filter = leveraged_positions::table
+                .filter(leveraged_positions::position_key.eq(&patch.position_key))
+                .filter(leveraged_positions::account_id.eq(&patch.account_id))
+                .filter(leveraged_positions::status.eq("open"));
+            rows += match (patch.margin_quote, patch.leverage_bps) {
+                (Some(margin), Some(leverage)) => {
+                    diesel::update(filter)
+                        .set((
+                            leveraged_positions::borrow_quote.eq(patch.key_borrowed_quote),
+                            leveraged_positions::margin_quote.eq(margin),
+                            leveraged_positions::leverage_bps.eq(leverage),
+                        ))
+                        .execute(conn)
+                        .await?
+                }
+                (None, Some(leverage)) => {
+                    diesel::update(filter)
+                        .set((
+                            leveraged_positions::borrow_quote.eq(patch.key_borrowed_quote),
+                            leveraged_positions::leverage_bps.eq(leverage),
+                        ))
+                        .execute(conn)
+                        .await?
+                }
+                (Some(margin), None) => {
+                    diesel::update(filter)
+                        .set((
+                            leveraged_positions::borrow_quote.eq(patch.key_borrowed_quote),
+                            leveraged_positions::margin_quote.eq(margin),
+                        ))
+                        .execute(conn)
+                        .await?
+                }
+                (None, None) => {
+                    diesel::update(filter)
+                        .set(leveraged_positions::borrow_quote.eq(patch.key_borrowed_quote))
+                        .execute(conn)
+                        .await?
+                }
+            };
         }
 
         for liq in &batch.liquidation_positions {
+            if !fresh_event_digests.contains(&liq.event_digest) {
+                continue;
+            }
             rows += diesel::sql_query(
                 "UPDATE leveraged_positions SET \
                  status = 'liquidated', \

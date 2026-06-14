@@ -17,7 +17,7 @@ interface Props {
 
 export function TradeQuoteSummary({ quote, isLoading, isRefreshing, className }: Props) {
   if (!quote) {
-    if (isLoading) {
+    if (isLoading || isRefreshing) {
       return (
         <div
           className={cn(
