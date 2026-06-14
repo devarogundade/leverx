@@ -25,6 +25,9 @@ const FORCE_DELEVERAGE_OUTSIDE_WINDOW_MESSAGE =
 const INSUFFICIENT_POSITION_MESSAGE =
   "Your Predict manager does not hold enough contracts for this market. Refresh your portfolio — the position may already be settled or the index may be stale.";
 
+const TRADING_PAUSED_MESSAGE =
+  "Trading is paused for new opens and limit fills. You can still close, repay debt, and settle expired positions.";
+
 export function formatTxError(error: unknown): string {
   const raw =
     error instanceof Error
@@ -32,6 +35,12 @@ export function formatTxError(error: unknown): string {
       : typeof error === "string"
         ? error
         : "Transaction failed.";
+  if (
+    raw.includes("trading_paused") ||
+    (raw.includes("trade") && raw.includes(", 2)"))
+  ) {
+    return TRADING_PAUSED_MESSAGE;
+  }
   if (
     raw.includes("assert_premium_within_bounds") ||
     (raw.includes("predict_client") && raw.includes(", 27)"))

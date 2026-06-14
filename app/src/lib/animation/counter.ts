@@ -1,9 +1,9 @@
 export type CounterEasing = (progress: number) => number;
 
-export const COUNTER_STEP_MIN = 0.1;
-export const COUNTER_STEP_MAX = 10;
+export const COUNTER_STEP_MIN = 0.01;
+export const COUNTER_STEP_MAX = 1;
 
-/** Increment size for counter ticks, scaled by |to − from| and clamped to [0.1, 10]. */
+/** Increment size for counter ticks, scaled by |to − from| and clamped to [0.01, 1]. */
 export function getCounterStep(from: number, to: number): number {
   const gap = Math.abs(to - from);
   return Math.min(COUNTER_STEP_MAX, Math.max(COUNTER_STEP_MIN, gap));
@@ -37,7 +37,7 @@ export type AnimateCounterOptions = {
 
 /**
  * Increment/decrement a number from `from` to `to` over `duration` ms.
- * Step size is derived from the change gap (min 0.1, max 10) unless `easing` is set.
+ * Step size is derived from the change gap (min 0.01, max 1) unless `easing` is set.
  * Returns a cancel function for cleanup and rapid target changes.
  */
 export function animateCounter({

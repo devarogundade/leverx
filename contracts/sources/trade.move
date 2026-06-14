@@ -2170,7 +2170,7 @@ fun execute_leveraged_redeem_binary<Quote>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
-    assert!(!registry.trading_paused(), errors::trading_paused());
+    // Maintenance: redeems (close / settle) stay available while `trading_paused` blocks new mints.
     assert_registry_predict(registry, predict_global);
     assert_registry_vault_collector(registry, vault, collector);
     let via_trigger = !proxy.can_act(ctx);
@@ -2217,7 +2217,7 @@ fun execute_leveraged_redeem_range<Quote>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
-    assert!(!registry.trading_paused(), errors::trading_paused());
+    // Maintenance: redeems (close / settle) stay available while `trading_paused` blocks new mints.
     assert_registry_predict(registry, predict_global);
     assert_registry_vault_collector(registry, vault, collector);
     let via_trigger = !proxy.can_act(ctx);
