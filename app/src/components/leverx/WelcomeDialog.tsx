@@ -182,7 +182,7 @@ export function WelcomeDialog() {
             </ul>
           ) : null}
 
-          <div className="flex flex-col gap-2">
+          <div className="mt-4 flex flex-col gap-2">
             {isLast ? (
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Button asChild className="btn-connect flex-1 gap-1.5">
@@ -191,7 +191,7 @@ export function WelcomeDialog() {
                     <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 </Button>
-                <Button asChild variant="outline" className="flex-1 gap-1.5">
+                <Button asChild variant="outline" className="h-10 flex-1 gap-1.5">
                   <Link to="/guide" onClick={dismiss}>
                     <BookOpen className="h-3.5 w-3.5" />
                     Learn more
@@ -204,7 +204,7 @@ export function WelcomeDialog() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="gap-1.5"
+                    className="h-10 flex-1 gap-1.5"
                     onClick={() => setStep((s) => s - 1)}
                   >
                     <ArrowLeft className="h-3.5 w-3.5" />
@@ -213,7 +213,7 @@ export function WelcomeDialog() {
                 ) : null}
                 <Button
                   type="button"
-                  className={cn("btn-connect gap-1.5", !isFirst && "flex-1")}
+                  className={cn("btn-connect gap-1.5", !isFirst ? "flex-1" : "w-full")}
                   onClick={() => setStep((s) => s + 1)}
                 >
                   Next
