@@ -75,7 +75,7 @@ function PortfolioPage() {
   }, [activeOpenPositions, byPositionId]);
 
   return (
-    <section className={cn(pageSimple, "mx-auto max-w-[var(--page-max)] animate-page-in")}>
+    <section className={cn(pageSimple, "mx-auto max-w-[var(--page-max)]")}>
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className={pageSimpleTitle}>Portfolio</h1>

@@ -1,10 +1,11 @@
 import { Landmark } from "lucide-react";
+import type { ReactNode } from "react";
 import { SurfaceSkeleton } from "@/components/ui/market-skeleton";
 import { ui } from "@/lib/copy";
-import { formatPercent, scaleQuote } from "@/lib/predict/scaling";
-import type { ReactNode } from "react";
+import { AnimatedNumber, AnimatedPercent } from "@/components/ui/animated-numbers";
 import { QuoteAmount } from "@/components/leverx/QuoteAmount";
 import type { PredictVaultSummary } from "@/lib/predict/types";
+import { scaleQuote } from "@/lib/predict/scaling";
 import { labelCaps, pageBlock, pageBlockRuled, statValue } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
 
@@ -43,16 +44,28 @@ export function PredictVaultSummaryCard({ vault, isLoading, className }: Props) 
         </div>
       </div>
       <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <VaultStat label={ui.predictVaultUtilization} value={formatPercent(vault.utilization)} />
+        <VaultStat
+          label={ui.predictVaultUtilization}
+          value={<AnimatedPercent value={vault.utilization} />}
+        />
         <VaultStat
           label={ui.predictVaultMaxPayoutUtil}
-          value={formatPercent(vault.max_payout_utilization)}
+          value={<AnimatedPercent value={vault.max_payout_utilization} />}
         />
         <VaultStat
           label={ui.predictVaultAvailable}
           value={<QuoteAmount amount={available} hideZero={false} />}
         />
-        <VaultStat label={ui.predictPlpSharePrice} value={sharePrice > 0 ? sharePrice.toFixed(4) : "—"} />
+        <VaultStat
+          label={ui.predictPlpSharePrice}
+          value={
+            sharePrice > 0 ? (
+              <AnimatedNumber value={sharePrice} decimals={4} format={(v) => v.toFixed(4)} />
+            ) : (
+              "—"
+            )
+          }
+        />
       </dl>
     </div>
   );

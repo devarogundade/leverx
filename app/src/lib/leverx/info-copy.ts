@@ -88,6 +88,8 @@ export const leverxInfo = {
   settleExpired: "Finalize redemption after the oracle has settled. Uses on-chain contract quantity, not the portfolio index.",
   tradingPaused:
     "New opens, limit fills, and triggers are paused. You can still close, repay debt, and settle expired positions.",
+  quotePaused:
+    "Live contract pricing is unavailable right now. New orders are paused until the quote recovers.",
   protocolNotConfigured:
     "Trading is not fully set up yet. Check back once the app is connected to live markets.",
 

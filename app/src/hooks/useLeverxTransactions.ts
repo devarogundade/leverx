@@ -69,7 +69,10 @@ export function useLeverxProtocolConfig() {
   });
 
   const cfg = useMemo(() => {
-    if (registryId && packagesLoading) {
+    const hasResolvedPackages = Boolean(
+      packageIds?.leverxPackageId || settings?.package_id?.trim(),
+    );
+    if (registryId && packagesLoading && !hasResolvedPackages) {
       return null;
     }
 

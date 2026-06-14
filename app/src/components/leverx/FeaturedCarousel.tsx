@@ -4,7 +4,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/ui/loading-state";
 import { AssetBadge } from "@/components/AssetBadge";
-import { formatPremiumOrPlaceholder, type LeverxMarketRow } from "@/lib/leverx/indexer-markets";
+import { AnimatedMarketPremium } from "@/components/ui/animated-numbers";
+import type { LeverxMarketRow } from "@/lib/leverx/indexer-markets";
 import { ui } from "@/lib/copy";
 import { MarketLeverageBadge } from "@/components/leverx/MarketLeverageBadge";
 import { useNow } from "@/hooks/useNow";
@@ -58,9 +59,11 @@ export function FeaturedCarousel({ markets, loading }: Props) {
                 </div>
                 <div className="shrink-0 text-right">
                   <MarketLeverageBadge expiryMs={m.expiry} now={now} className="mt-0" />
-                  <div className="mt-0.5 text-sm font-semibold tabular-nums">
-                    {formatPremiumOrPlaceholder(m.lastAskPremium)}
-                  </div>
+                  <AnimatedMarketPremium
+                    premium={m.lastAskPremium}
+                    quotePaused={m.quotePaused}
+                    className="mt-0.5 text-sm font-semibold"
+                  />
                 </div>
               </Link>
             ) : (

@@ -19,17 +19,20 @@ import {
   closedPositionPnlBreakdown,
   formatHealthBps,
   formatPnlPct,
-  formatPnlUsd,
   positionRowId,
   realizedPnlPct,
   realizedPnlUsd,
   type PositionMarkToMarket,
 } from "@/lib/leverx/position-metrics";
+import {
+  AnimatedPnl,
+  AnimatedPremiumCents,
+  AnimatedQuantity,
+} from "@/components/ui/animated-numbers";
 import { predictSideFromBinary, type PredictSide } from "@/lib/predict/instruments";
 import { scaleQuote } from "@/lib/predict/scaling";
 import { ui } from "@/lib/copy";
 import { resolveLiquidationBps } from "@/lib/leverx/protocol";
-import { formatQuantity } from "@/lib/leverx/format-quantity";
 import { formatStrikeUsdFromRaw } from "@/lib/leverx/strike-selection";
 import { formatCountdownStopwatch } from "@/lib/leverx/trade-limits";
 import { cn } from "@/lib/utils";
@@ -124,7 +127,9 @@ function PnlCell({
     const breakdown = closedPositionPnlBreakdown(position);
     const pnlContent = (
       <>
-        <div className="text-sm font-medium">{formatPnlUsd(pnlUsd)}</div>
+        <div className="text-sm font-medium">
+          <AnimatedPnl value={pnlUsd} />
+        </div>
         <div className="text-[11px] opacity-80">{formatPnlPct(realizedPnlPct(position))}</div>
       </>
     );
@@ -196,7 +201,9 @@ function PnlCell({
 
   return (
     <div className={cn("text-right tabular-nums", tone)}>
-      <div className="text-sm font-medium">{formatPnlUsd(mtm.unrealizedPnlUsd)}</div>
+      <div className="text-sm font-medium">
+        <AnimatedPnl value={mtm.unrealizedPnlUsd} />
+      </div>
       <div className="text-[11px] opacity-80">{formatPnlPct(mtm.unrealizedPnlPct)}</div>
     </div>
   );
@@ -357,7 +364,11 @@ export function LeverxPositionsTable({
       mobileLabel: "Qty",
       cell: (r) => (
         <span className="font-mono text-sm tabular-nums">
-          {r.position.open_quantity > 0 ? formatQuantity(r.position.open_quantity) : "—"}
+          {r.position.open_quantity > 0 ? (
+            <AnimatedQuantity value={r.position.open_quantity} />
+          ) : (
+            "—"
+          )}
         </span>
       ),
     },
@@ -373,7 +384,11 @@ export function LeverxPositionsTable({
           : r.mtm?.entryPremiumCents;
         return (
           <span className="font-mono text-sm tabular-nums text-muted-foreground">
-            {entryCents != null ? `${entryCents.toFixed(1)}¢` : "—"}
+            {entryCents != null ? (
+              <AnimatedPremiumCents value={entryCents} placeholder="—" />
+            ) : (
+              "—"
+            )}
           </span>
         );
       },
@@ -396,14 +411,26 @@ export function LeverxPositionsTable({
           const closingCents = closedClosingPremiumCents(r.position);
           return (
             <span className="font-mono text-sm tabular-nums text-muted-foreground">
-              {closingCents != null ? `${closingCents.toFixed(1)}¢` : "—"}
+              {closingCents != null ? (
+                <AnimatedPremiumCents value={closingCents} placeholder="—" />
+              ) : (
+                "—"
+              )}
             </span>
           );
         }
         return (
           <span className="inline-flex items-center gap-1.5 font-mono text-sm tabular-nums">
             <LiveDot active={r.mtm?.isLive} />
-            {r.mtm?.markBidCents != null ? `${r.mtm.markBidCents.toFixed(1)}¢` : "…"}
+            {r.mtm?.markBidCents != null ? (
+              <AnimatedPremiumCents
+                value={r.mtm.markBidCents}
+                loading={false}
+                loadingPlaceholder="…"
+              />
+            ) : (
+              "…"
+            )}
           </span>
         );
       },

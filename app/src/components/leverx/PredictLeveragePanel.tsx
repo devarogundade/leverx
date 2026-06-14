@@ -6,6 +6,7 @@ import { InfoPopover, LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { SlippagePopover, MarketSlippagePopover } from "@/components/leverx/SlippagePopover";
 import { TradeQuoteSummary } from "@/components/leverx/TradeQuoteSummary";
 import { QuoteAmount, QuoteIcon } from "@/components/leverx/QuoteAmount";
+import { AnimatedPremiumCents } from "@/components/ui/animated-numbers";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import { useIndexerProtocol, useIndexerAccounts } from "@/hooks/useIndexer";
 import { useLeverxMarketAsk } from "@/hooks/useLeverxMarketAsk";
@@ -45,6 +46,7 @@ import {
   TP_SL_OFFSET_PRESETS,
   tpPremiumCentsFromEntry,
 } from "@/lib/leverx/trade-math";
+import { isContractQuotePaused } from "@/lib/leverx/contract-quote";
 import { marketKeyMatchesPosition, type MarketKeyArgs } from "@/lib/leverx/market-keys";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
@@ -473,9 +475,32 @@ export function PredictLeveragePanel({
 
   const {
     data: liveAskPremium,
+    isPending: liveAskPending,
     isLoading: liveAskLoading,
     isFetching: liveAskRefreshing,
+    isError: liveAskError,
+    isFetched: liveAskFetched,
   } = useLeverxMarketAsk(tradeKey);
+
+  const quotePaused = useMemo(
+    () =>
+      isContractQuotePaused({
+        enabled: Boolean(tradeKey),
+        isPending: liveAskPending,
+        isFetching: liveAskRefreshing,
+        isError: liveAskError,
+        isFetched: liveAskFetched,
+        liveAskRaw: liveAskPremium,
+      }),
+    [
+      tradeKey,
+      liveAskPending,
+      liveAskRefreshing,
+      liveAskError,
+      liveAskFetched,
+      liveAskPremium,
+    ],
+  );
 
   const quoteReferencePremium = useMemo(() => {
     if (orderType !== "limit" || !limitPrice) return undefined;
@@ -814,6 +839,7 @@ export function PredictLeveragePanel({
     isWalletConnected &&
     isProtocolReady &&
     !protocol?.trading_paused &&
+    !quotePaused &&
     marginNum > 0 &&
     expiryMs &&
     expiryMs > 0 &&
@@ -879,7 +905,13 @@ export function PredictLeveragePanel({
   };
 
   return (
-    <div className={cn(tradeLeveragePanel, "trade-leverage-panel", disabled && "relative")}>
+    <div
+      className={cn(
+        tradeLeveragePanel,
+        "trade-leverage-panel",
+        (disabled || quotePaused) && "relative",
+      )}
+    >
       {disabled ? (
         <div
           className="border-b border-border bg-muted/40 px-4 py-2.5 text-center text-sm text-muted-foreground"
@@ -889,8 +921,19 @@ export function PredictLeveragePanel({
             ? "This market has expired. New orders are not accepted."
             : "This market has settled. New orders are not accepted."}
         </div>
+      ) : quotePaused ? (
+        <div
+          className="border-b border-border bg-muted/40 px-4 py-2.5 text-center text-sm text-muted-foreground"
+          role="status"
+        >
+          Contract pricing is unavailable. New orders are not accepted.
+        </div>
       ) : null}
-      <div className={cn(disabled && "pointer-events-none select-none opacity-50")}>
+      <div
+        className={cn(
+          (disabled || quotePaused) && "pointer-events-none select-none opacity-50",
+        )}
+      >
         <div className="border-b border-border p-3">
           <div className={segTabsClass("stretch", "outcomes")} role="group" aria-label="Outcome">
             {canSwitchOutcome ? (
@@ -984,11 +1027,13 @@ export function PredictLeveragePanel({
               <p className="mt-2 text-sm text-muted-foreground">
                 Live contract price:{" "}
                 <span className="font-mono text-foreground">
-                  {liveAskLoading
-                    ? "…"
-                    : liveAskCents != null && liveAskCents > 0
-                      ? `${liveAskCents.toFixed(1)}¢`
-                      : "—"}
+                  {liveAskLoading ? (
+                    "…"
+                  ) : liveAskCents != null && liveAskCents > 0 ? (
+                    <AnimatedPremiumCents value={liveAskCents} placeholder="—" />
+                  ) : (
+                    "—"
+                  )}
                 </span>
               </p>
             </div>
@@ -1139,7 +1184,13 @@ export function PredictLeveragePanel({
                   />
                   {": "}
                   <span className="font-mono text-foreground">
-                    {entryCents > 0 ? `${entryCents.toFixed(1)}¢` : isCalculatingQuote ? "…" : "—"}
+                    {entryCents > 0 ? (
+                      <AnimatedPremiumCents value={entryCents} />
+                    ) : isCalculatingQuote ? (
+                      "…"
+                    ) : (
+                      "—"
+                    )}
                   </span>
                 </p>
                 <p className="text-sm text-muted-foreground">
@@ -1230,7 +1281,11 @@ export function PredictLeveragePanel({
               <div className="flex gap-2">
                 <button
                   type="button"
-                  className={cn(btnTradeSignin, "min-w-0 flex-1")}
+                  className={cn(
+                    btnTradeSignin,
+                    "!bg-accent !text-white hover:!bg-accent/90 hover:brightness-100",
+                    "w-[60%] min-w-0 shrink-0",
+                  )}
                   disabled={!isProtocolReady || createMarginAccount.isPending}
                   onClick={handleCreateMarginAccount}
                 >
@@ -1240,7 +1295,7 @@ export function PredictLeveragePanel({
                       Creating…
                     </>
                   ) : (
-                    "Create margin account"
+                    "Create account"
                   )}
                 </button>
                 <button

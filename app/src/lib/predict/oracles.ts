@@ -109,6 +109,32 @@ export function isOracleSettledForTrade(
   return isOracleSettledStatus(detail?.status ?? row?.status);
 }
 
+/** Sync DeepBook OHLCV terminal bar to live oracle spot only while the oracle is active. */
+export function shouldPatchOhlcvWithOracleSpot(
+  row?: Pick<PredictOracleSummary, "oracle_id" | "status" | "expiry" | "settled_at"> | null,
+  detail?: Pick<PredictOracleDetail, "status" | "expiry" | "settled_at"> | null,
+  now = Date.now(),
+): boolean {
+  if (isOracleSettledForTrade(row, detail)) return false;
+
+  const expiries = [row?.expiry, detail?.expiry].filter(
+    (expiry): expiry is number => expiry != null && expiry > 0,
+  );
+  if (expiries.some((expiry) => expiry <= now)) return false;
+
+  if (row?.oracle_id && isActiveOracleRow(row as PredictOracleSummary, now)) return true;
+
+  if (
+    detail &&
+    isOracleActiveStatus(detail.status) &&
+    (detail.expiry == null || detail.expiry <= 0 || detail.expiry > now)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 /** Predict list row is active, non-expired, and has an oracle id. */
 export function isActiveOracleRow(row: PredictOracleSummary, now = Date.now()): boolean {
   if (!row.oracle_id) return false;

@@ -1,7 +1,7 @@
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { QuoteAmount } from "@/components/leverx/QuoteAmount";
 import type { MintQuote } from "@/lib/leverx/quotes";
-import { formatPremiumCents } from "@/lib/leverx/indexer-markets";
+import { AnimatedPremium } from "@/components/ui/animated-numbers";
 import { isPremiumWithinPredictBounds } from "@/lib/leverx/trade-math";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import { scaleQuote } from "@/lib/predict/scaling";
@@ -50,9 +50,10 @@ export function TradeQuoteSummary({ quote, isLoading, isRefreshing, className }:
       />
       <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
         <LabelWithInfo label="Per contract" info={leverxInfo.askPerUnit} />
-        <span className={cn("font-mono text-right", outOfBounds && "text-amber-400")}>
-          {formatPremiumCents(premiumRaw)}
-        </span>
+        <AnimatedPremium
+          value={premiumRaw}
+          className={cn("text-right", outOfBounds && "text-amber-400")}
+        />
         <LabelWithInfo label="Total cost" info={leverxInfo.mintCost} />
         <span className="font-mono text-right">
           <QuoteAmount amount={scaleQuote(Number(quote.mintCost))} digits={2} align="end" />

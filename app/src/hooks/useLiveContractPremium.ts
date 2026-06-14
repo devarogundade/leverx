@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useLeverxMarketAsk } from "@/hooks/useLeverxMarketAsk";
+import { isContractQuotePaused } from "@/lib/leverx/contract-quote";
 import { formatContractPremiumLabel } from "@/lib/leverx/indexer-markets";
 import { tradeSideToMarketKey } from "@/lib/leverx/market-keys";
 import type { PredictSide } from "@/lib/predict/instruments";
@@ -27,24 +28,49 @@ export function useLiveContractPremium(args: {
     [args.oracleId, args.expiryMs, args.strikeRaw, args.higherStrikeRaw, args.side],
   );
 
-  const { data: liveAskRaw, isLoading, isFetching } = useLeverxMarketAsk(marketKey);
+  const {
+    data: liveAskRaw,
+    isPending,
+    isFetching,
+    isError,
+    isFetched,
+  } = useLeverxMarketAsk(marketKey);
 
-  const label = useMemo(
+  const quotePaused = useMemo(
     () =>
-      formatContractPremiumLabel({
+      isContractQuotePaused({
+        enabled: Boolean(marketKey),
+        isPending,
+        isFetching,
+        isError,
+        isFetched,
         liveAskRaw,
-        catalogPremium: args.catalogPremium,
-        loading: (isLoading || isFetching) && liveAskRaw == null && !args.catalogPremium,
       }),
-    [liveAskRaw, args.catalogPremium, isLoading, isFetching],
+    [marketKey, isPending, isFetching, isError, isFetched, liveAskRaw],
   );
 
-  const premiumRaw =
-    liveAskRaw != null && liveAskRaw > 0n
+  const label = useMemo(() => {
+    if (quotePaused) return "Paused";
+    return formatContractPremiumLabel({
+      liveAskRaw,
+      catalogPremium: args.catalogPremium,
+      loading: (isPending || isFetching) && liveAskRaw == null && !args.catalogPremium,
+    });
+  }, [quotePaused, liveAskRaw, args.catalogPremium, isPending, isFetching]);
+
+  const premiumRaw = quotePaused
+    ? null
+    : liveAskRaw != null && liveAskRaw > 0n
       ? Number(liveAskRaw)
       : args.catalogPremium != null && args.catalogPremium > 0
         ? args.catalogPremium
         : null;
 
-  return { label, premiumRaw, liveAskRaw, isLoading: isLoading && liveAskRaw == null };
+  return {
+    label,
+    premiumRaw,
+    liveAskRaw,
+    quotePaused,
+    isLoading: isPending && liveAskRaw == null,
+  };
 }

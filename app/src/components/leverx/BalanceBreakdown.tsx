@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { ChevronDown, Wallet } from "lucide-react";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { QuoteAmount } from "@/components/leverx/QuoteAmount";
+import { AnimatedCount } from "@/components/ui/animated-numbers";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
@@ -124,11 +125,13 @@ export function BalanceBreakdown({ className }: Props) {
                 label="Positions"
                 info={leverxInfo.balancePositions}
                 value={
-                  !ready
-                    ? "…"
-                    : positionCount == null
-                      ? DATA_PLACEHOLDER
-                      : String(positionCount)
+                  !ready ? (
+                    "…"
+                  ) : positionCount == null ? (
+                    DATA_PLACEHOLDER
+                  ) : (
+                    <AnimatedCount value={positionCount} />
+                  )
                 }
               />
             </>

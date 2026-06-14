@@ -6,7 +6,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { usePointsLeaderboard } from "@/hooks/useIndexer";
 import { pageTitle } from "@/lib/brand";
 import type { LeaderboardEntry } from "@/lib/leverx/indexer-client";
-import { formatCompactUsdOrPlaceholder } from "@/lib/leverx/placeholders";
+import { AnimatedCompactUsd, AnimatedCount } from "@/components/ui/animated-numbers";
 import { pageSimple, pageSimpleTitle } from "@/lib/leverx/tw";
 import { scaleQuote } from "@/lib/predict/scaling";
 import { cn } from "@/lib/utils";
@@ -41,11 +41,9 @@ const columns: Column<LeaderboardEntry>[] = [
     align: "right",
     mobileLabel: "Volume",
     cell: (entry) => (
-      <span className="font-mono">
-        {formatCompactUsdOrPlaceholder(
-          entry.volume_quote > 0 ? scaleQuote(entry.volume_quote) : null,
-        )}
-      </span>
+      <AnimatedCompactUsd
+        value={entry.volume_quote > 0 ? scaleQuote(entry.volume_quote) : null}
+      />
     ),
   },
   {
@@ -53,7 +51,7 @@ const columns: Column<LeaderboardEntry>[] = [
     header: "Trades",
     align: "right",
     mobileLabel: "Trades",
-    cell: (entry) => <span className="font-mono">{entry.trade_count}</span>,
+    cell: (entry) => <AnimatedCount value={entry.trade_count} />,
   },
   {
     key: "points",
@@ -61,9 +59,7 @@ const columns: Column<LeaderboardEntry>[] = [
     align: "right",
     mobileTrailing: true,
     cell: (entry) => (
-      <span className="font-mono font-medium">
-        {Math.round(scaleQuote(entry.points)).toLocaleString()}
-      </span>
+      <AnimatedCount value={Math.round(scaleQuote(entry.points))} className="font-medium" />
     ),
   },
 ];
@@ -81,7 +77,7 @@ function PointsPage() {
   const { data: entries = [], isLoading, isError } = usePointsLeaderboard(100);
 
   return (
-    <section className={cn(pageSimple, "mx-auto max-w-[var(--page-max)] animate-page-in")}>
+    <section className={cn(pageSimple, "mx-auto max-w-[var(--page-max)]")}>
       <div>
         <h1 className={pageSimpleTitle}>Points</h1>
         <p className="mt-1 text-sm text-muted-foreground">

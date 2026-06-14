@@ -16,6 +16,8 @@ export interface LeverxMarketRow {
   isRange: boolean;
   question: string;
   lastAskPremium: number | null;
+  /** Live on-chain contract quote unavailable after fetch attempt. */
+  quotePaused?: boolean;
   volume: number;
   status: string;
   /** Live spot from Predict server (USD). */
@@ -39,6 +41,17 @@ export function formatPremiumCents(premium: number): string {
 export function formatPremiumOrPlaceholder(premium: number | null | undefined): string {
   if (premium == null || premium <= 0) return "_";
   return formatPremiumCents(premium);
+}
+
+/** Contract price on markets list — paused markets show 0¢ instead of a badge. */
+export function formatMarketContractPrice(args: {
+  premium?: number | null;
+  quotePaused?: boolean;
+  loading?: boolean;
+}): string {
+  if (args.loading) return "…";
+  if (args.quotePaused) return "0¢";
+  return formatPremiumOrPlaceholder(args.premium);
 }
 
 /** Prefer live on-chain ask; fall back to indexer catalog premium. */
@@ -68,6 +81,8 @@ export function buildQuestion(
   isRange: boolean,
   higherStrike: number,
   isUp: boolean,
+  /** When set, UP/DOWN market cards use live spot instead of strike in the question. */
+  spotPriceUsd?: number | null,
 ): string {
   const date = new Date(expiry).toLocaleDateString("en-US", {
     month: "short",
@@ -78,7 +93,11 @@ export function buildQuestion(
     return `Will ${asset} settle between ${formatStrikeUsdFromRaw(strike)} and ${formatStrikeUsdFromRaw(higherStrike)} on ${date}?`;
   }
   const direction = isUp ? "above" : "below";
-  return `Will ${asset} be ${direction} ${formatStrikeUsdFromRaw(strike)} on ${date}?`;
+  const priceRaw =
+    spotPriceUsd != null && spotPriceUsd > 0
+      ? Math.round(spotPriceUsd * SCALE)
+      : strike;
+  return `Will ${asset} be ${direction} ${formatStrikeUsdFromRaw(priceRaw)} on ${date}?`;
 }
 
 export function catalogEntryToMarketRow(entry: MarketCatalogEntry): LeverxMarketRow {

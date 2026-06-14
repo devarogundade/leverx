@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowDown, ArrowUp, BarChart3, ChevronsUpDown } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -22,7 +22,8 @@ import {
   type MarketSortId,
   type MarketSortKey,
 } from "@/lib/leverx/market-sort";
-import { formatAutoClose, formatCompactUsdOrPlaceholder } from "@/lib/leverx/placeholders";
+import { AnimatedCompactUsd } from "@/components/ui/animated-numbers";
+import { formatAutoClose } from "@/lib/leverx/placeholders";
 import { ui } from "@/lib/copy";
 import {
   marketsMarketCell,
@@ -58,7 +59,7 @@ import {
   marketsTradeActions,
   pageState,
 } from "@/lib/leverx/tw";
-import { MarketLeverageBadge } from "@/components/leverx/MarketLeverageBadge";
+import { MarketLeverageBadges } from "@/components/leverx/MarketLeverageBadges";
 import { useNow } from "@/hooks/useNow";
 import { cn } from "@/lib/utils";
 
@@ -108,7 +109,7 @@ function MarketMobileCard({
   now,
 }: {
   market: LeverxMarketRow;
-  liquidityLabel: string;
+  liquidityLabel: ReactNode;
   premiumSeries: readonly number[];
   premiumLoading?: boolean;
   now: number;
@@ -126,12 +127,13 @@ function MarketMobileCard({
           >
             {m.question}
           </Link>
-          <MarketLeverageBadge expiryMs={m.expiry} now={now} />
+          <MarketLeverageBadges expiryMs={m.expiry} now={now} quotePaused={m.quotePaused} />
         </div>
         <MarketPremiumQuote
           series={premiumSeries}
           lastAskPremium={m.lastAskPremium}
           premiumLoading={premiumLoading}
+          quotePaused={m.quotePaused}
         />
       </div>
 
@@ -140,6 +142,7 @@ function MarketMobileCard({
         series={premiumSeries}
         lastAskPremium={m.lastAskPremium}
         premiumLoading={premiumLoading}
+        quotePaused={m.quotePaused}
         className="mt-2"
       />
 
@@ -147,7 +150,7 @@ function MarketMobileCard({
         <div>
           <dt className={marketsTableMobileStatLabel}>Volume</dt>
           <dd className={cn(marketsTableMobileStatValue, "font-mono tabular-nums")}>
-            {formatCompactUsdOrPlaceholder(m.volume > 0 ? m.volume : null)}
+            <AnimatedCompactUsd value={m.volume > 0 ? m.volume : null} />
           </dd>
         </div>
         <div>
@@ -173,9 +176,11 @@ interface Props {
   markets: LeverxMarketRow[];
   sort: MarketSortId;
   onSortChange: (sort: MarketSortId) => void;
-  liquidityLabel?: string;
+  liquidityLabel?: ReactNode;
   loading?: boolean;
   offline?: boolean;
+  quotesEnriched?: boolean;
+  premiumLoading?: boolean;
   emptyTitle?: string;
   emptyDescription?: string;
 }
@@ -187,6 +192,8 @@ export function PredictMarketsTable({
   liquidityLabel = "_",
   loading,
   offline,
+  quotesEnriched = false,
+  premiumLoading: premiumLoadingProp,
   emptyTitle = ui.emptyMarkets,
   emptyDescription = ui.emptyMarketsHint,
 }: Props) {
@@ -205,8 +212,12 @@ export function PredictMarketsTable({
     () => paginateSlice(markets, page, MARKETS_TABLE_PAGE_SIZE),
     [markets, page],
   );
-  const { markets: marketsWithAsks, isLoading: premiumLoading } =
-    useVisibleMarketAsks(pageMarkets);
+  const { markets: pageMarketsWithAsks, isLoading: pagePremiumLoading } =
+    useVisibleMarketAsks(quotesEnriched ? [] : pageMarkets);
+  const marketsWithAsks = quotesEnriched ? pageMarkets : pageMarketsWithAsks;
+  const premiumLoading = quotesEnriched
+    ? Boolean(premiumLoadingProp)
+    : pagePremiumLoading;
   const { markets: visibleMarkets } = useVisibleOracleSpots(marketsWithAsks);
   const { seriesByMarketId } = useMarketPremiumSparklines(visibleMarkets);
   const now = useNow(1000);
@@ -302,7 +313,7 @@ export function PredictMarketsTable({
                         >
                           {m.question}
                         </Link>
-                        <MarketLeverageBadge expiryMs={m.expiry} now={now} />
+                        <MarketLeverageBadges expiryMs={m.expiry} now={now} quotePaused={m.quotePaused} />
                       </div>
                     </div>
                   </td>
@@ -311,10 +322,11 @@ export function PredictMarketsTable({
                       series={seriesByMarketId.get(m.id) ?? []}
                       lastAskPremium={m.lastAskPremium}
                       premiumLoading={premiumLoading}
+                      quotePaused={m.quotePaused}
                     />
                   </td>
                   <td className={cn(marketsTd, marketsTdMono, marketsTdHideMd)}>
-                    {formatCompactUsdOrPlaceholder(m.volume > 0 ? m.volume : null)}
+                    <AnimatedCompactUsd value={m.volume > 0 ? m.volume : null} />
                   </td>
                   <td className={cn(marketsTd, marketsTdMono, marketsTdHideLg)}>
                     {liquidityLabel}

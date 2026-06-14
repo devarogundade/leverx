@@ -554,8 +554,12 @@ export const marketsThBtnRight = "ml-auto";
 
 export const marketsThSortActive = "text-accent";
 
+export const ghostAccentHover =
+  "hover:bg-[color-mix(in_oklab,var(--color-accent)_12%,var(--color-hover))] hover:text-accent";
+
 export const marketsBookmark = cn(
-  "h-8 w-8 min-w-8 shrink-0 text-muted-foreground hover:text-accent",
+  "h-8 w-8 min-w-8 shrink-0 text-muted-foreground transition-colors duration-150",
+  ghostAccentHover,
 );
 
 export const marketsPriceCell = "flex items-center gap-1.5 font-mono tabular-nums";

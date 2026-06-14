@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { ApiError } from "@/lib/api/fetch-json";
 import { fetchOraclePriceLatest } from "@/lib/predict/client";
 import type { PricePoint } from "@/lib/predict/price-point";
 
@@ -48,7 +49,10 @@ export function useOraclePriceLatest(
     staleTime: ORACLE_SPOT_POLL_INTERVAL_MS / 2,
     refetchInterval: enabled ? ORACLE_SPOT_POLL_INTERVAL_MS : false,
     refetchIntervalInBackground: false,
-    retry: 1,
+    retry: (failureCount, error) => {
+      if (error instanceof ApiError && error.status === 429) return false;
+      return failureCount < 1;
+    },
   });
 }
 

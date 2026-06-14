@@ -170,6 +170,7 @@ export function enrichMarketRow(
       row.isRange,
       row.higherStrikeRaw,
       row.isUp,
+      spot ?? row.spotPrice,
     ),
     status: row.status === "indexed" && oracle.status ? oracle.status : row.status,
   };
@@ -194,7 +195,7 @@ function defaultUpRow(
     expiry,
     isUp: true,
     isRange: false,
-    question: buildQuestion(asset, strikeRaw, expiry, false, 0, true),
+    question: buildQuestion(asset, strikeRaw, expiry, false, 0, true, spot),
     lastAskPremium: null,
     volume: 0,
     status: oracle.status ?? "active",

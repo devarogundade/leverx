@@ -1,20 +1,22 @@
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { InfoPopover, LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { LoadingState } from "@/components/ui/loading-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useIndexerOrderBook } from "@/hooks/useIndexer";
 import { useLeverxMarketAsk } from "@/hooks/useLeverxMarketAsk";
 import { leverxInfo } from "@/lib/leverx/info-copy";
-import { formatPremiumOrPlaceholder } from "@/lib/leverx/indexer-markets";
-import { tradeSideToMarketKey } from "@/lib/leverx/market-keys";
-import { formatQuantity } from "@/lib/leverx/format-quantity";
+import {
+  AnimatedLevelNotional,
+  AnimatedPremium,
+  AnimatedPremiumCents,
+  AnimatedQuantity,
+} from "@/components/ui/animated-numbers";
 import { DATA_PLACEHOLDER } from "@/lib/leverx/placeholders";
 import type { OrderBookLevel } from "@/lib/leverx/indexer-client";
 import { PREDICT_QUOTE_REFERENCE_QUANTITY } from "@/lib/leverx/constants";
-import { costFromPremiumPerUnit, premiumRawToCents } from "@/lib/leverx/trade-math";
+import { premiumRawToCents } from "@/lib/leverx/trade-math";
 import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
-import { predictSideLabel, TRADE_PREDICT_SIDES, type PredictSide } from "@/lib/predict/instruments";
-import { scaleQuote } from "@/lib/predict/scaling";
+import { TRADE_PREDICT_SIDES, type PredictSide } from "@/lib/predict/instruments";
 import {
   labelCaps,
   orderbookMid,
@@ -48,15 +50,6 @@ interface Props {
 
 const MAX_LEVELS = 8;
 
-function formatLevelNotionalUsd(price: number, size: number): string {
-  if (price <= 0 || size <= 0) return DATA_PLACEHOLDER;
-  const quoteAtoms = Number(costFromPremiumPerUnit(BigInt(price), BigInt(size)));
-  const usd = scaleQuote(quoteAtoms);
-  if (usd <= 0) return DATA_PLACEHOLDER;
-  if (usd >= 1000) return `$${(usd / 1000).toFixed(1)}K`;
-  return `$${usd.toFixed(usd >= 10 ? 0 : 2)}`;
-}
-
 function maxTotal(levels: OrderBookLevel[]): number {
   if (levels.length === 0) return 1;
   return Math.max(...levels.map((l) => l.total), 1);
@@ -81,8 +74,8 @@ function OrderBookShell({
   asks: OrderBookLevel[];
   askShare: number;
   bidShare: number;
-  lastTradedLabel: string;
-  spreadLabel: string;
+  lastTradedLabel: ReactNode;
+  spreadLabel: ReactNode;
   bidsEmpty: boolean;
   asksEmpty: boolean;
   compact?: boolean;
@@ -151,13 +144,13 @@ function OrderBookShell({
                     style={{ width: `${(row.total / askMax) * 100}%`, right: 0, left: "auto" }}
                   />
                   <span className="relative font-mono tabular-nums text-destructive">
-                    {formatPremiumOrPlaceholder(row.price)}
+                    <AnimatedPremium value={row.price > 0 ? row.price : null} />
                   </span>
                   <span className="relative text-center text-sm text-muted-foreground" title="Vault mint">
                     LP
                   </span>
                   <span className="relative text-right font-mono text-sm tabular-nums text-muted-foreground">
-                    {formatLevelNotionalUsd(row.price, row.size)}
+                    <AnimatedLevelNotional price={row.price} size={row.size} />
                   </span>
                 </div>
               ))
@@ -194,13 +187,13 @@ function OrderBookShell({
                     style={{ width: `${(row.total / bidMax) * 100}%` }}
                   />
                   <span className="relative font-mono tabular-nums text-success">
-                    {formatPremiumOrPlaceholder(row.price)}
+                    <AnimatedPremium value={row.price > 0 ? row.price : null} />
                   </span>
                   <span className="relative text-center font-mono text-sm tabular-nums text-muted-foreground">
-                    {formatQuantity(row.size)}
+                    <AnimatedQuantity value={row.size} />
                   </span>
                   <span className="relative text-right font-mono text-sm tabular-nums text-muted-foreground">
-                    {formatLevelNotionalUsd(row.price, row.size)}
+                    <AnimatedLevelNotional price={row.price} size={row.size} />
                   </span>
                 </div>
               ))
@@ -286,14 +279,14 @@ export function PredictOrderBook({
   const askShare = 100 - bidShare;
 
   const bestBid = displayBids[0]?.price ?? null;
-  const spreadLabel = useMemo(() => {
+  const spreadCents = useMemo(() => {
     if (bestBid != null && liveAsk != null && liveAsk > bestBid) {
-      return `${(premiumRawToCents(BigInt(liveAsk)) - premiumRawToCents(BigInt(bestBid))).toFixed(1)}¢`;
+      return premiumRawToCents(BigInt(liveAsk)) - premiumRawToCents(BigInt(bestBid));
     }
     if (book?.spread_bps != null && displayAsks.length > 0 && displayBids.length > 0) {
-      return `${(book.spread_bps / 100).toFixed(1)}¢`;
+      return book.spread_bps / 100;
     }
-    return DATA_PLACEHOLDER;
+    return null;
   }, [bestBid, liveAsk, book?.spread_bps, displayAsks.length, displayBids.length]);
 
   const lastTraded =
@@ -345,8 +338,12 @@ export function PredictOrderBook({
       asks={displayAsks}
       askShare={askShare}
       bidShare={bidShare}
-      lastTradedLabel={lastTraded > 0 ? formatPremiumOrPlaceholder(lastTraded) : DATA_PLACEHOLDER}
-      spreadLabel={spreadLabel}
+      lastTradedLabel={
+        <AnimatedPremium value={lastTraded > 0 ? lastTraded : null} placeholder={DATA_PLACEHOLDER} />
+      }
+      spreadLabel={
+        <AnimatedPremiumCents value={spreadCents} placeholder={DATA_PLACEHOLDER} />
+      }
       bidsEmpty={bidsEmpty}
       asksEmpty={asksEmpty}
       compact={compact}

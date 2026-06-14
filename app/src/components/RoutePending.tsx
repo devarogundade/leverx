@@ -45,7 +45,7 @@ export function RoutePendingContent() {
 
   if (pathname === "/markets") {
     return (
-      <section className={cn(pageSimple, "animate-page-in")}>
+      <section className={pageSimple}>
         <div className={pageSimpleToolbar}>
           <h1 className={pageSimpleTitle}>Markets</h1>
           <div className={pageSimpleActions}>
@@ -95,7 +95,7 @@ export function RoutePendingContent() {
   const pageHeader = SIMPLE_PAGE_HEADERS[pathname];
   if (pageHeader) {
     return (
-      <section className={cn(pageSimple, "animate-page-in")}>
+      <section className={pageSimple}>
         <div>
           <h1 className={pageSimpleTitle}>{pageHeader.title}</h1>
           {pageHeader.hint ? (

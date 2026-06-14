@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { AssetBadge, type AssetBadgeSize } from "@/components/AssetBadge";
+import { useAnimatedCounter } from "@/hooks/useAnimatedCounter";
 import { formatAmount } from "@/lib/copy";
 import { isQuoteAssetSymbol } from "@/lib/asset-icons";
 import { formatQuantity } from "@/lib/leverx/format-quantity";
@@ -16,6 +17,8 @@ type QuoteAmountProps = {
   /** Compact K/M/B/T for balances and quantities — not for asset spot/strike prices. */
   compact?: boolean;
   digits?: number;
+  /** Animate value changes (default true). */
+  animate?: boolean;
   className?: string;
   amountClassName?: string;
   iconSize?: AssetBadgeSize;
@@ -55,12 +58,25 @@ export function QuoteAmount({
   hideZero,
   compact,
   digits,
+  animate = true,
   className,
   amountClassName,
   iconSize = "sm",
   iconClassName,
   align = "start",
 }: QuoteAmountProps) {
+  const canAnimate =
+    animate &&
+    !loading &&
+    amount != null &&
+    Number.isFinite(amount) &&
+    !(hideZero && amount <= 0);
+
+  const { value: animatedAmount } = useAnimatedCounter(canAnimate ? amount : null, {
+    decimals: digits,
+    enabled: canAnimate,
+  });
+
   if (loading) {
     return <span className={className}>…</span>;
   }
@@ -73,8 +89,9 @@ export function QuoteAmount({
     return <span className={className}>{placeholder}</span>;
   }
 
+  const displayAmount = canAnimate ? animatedAmount : amount;
   const sym = symbol.trim().toUpperCase();
-  const text = formatQuoteValue(amount, compact, digits);
+  const text = formatQuoteValue(displayAmount, compact, digits);
 
   if (!isQuoteAssetSymbol(sym)) {
     return (

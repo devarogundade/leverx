@@ -24,21 +24,9 @@ export function useMergedMarkets(args: {
 
   const categoryCounts = useMemo(
     () => ({
-      All: mergeOracleMarkets({
-        oracles,
-        catalog,
-        category: "All",
-      }).length,
-      Live: mergeOracleMarkets({
-        oracles,
-        catalog,
-        category: "Live",
-      }).length,
-      Closed: mergeOracleMarkets({
-        oracles,
-        catalog,
-        category: "Closed",
-      }).length,
+      All: mergeOracleMarkets({ oracles, catalog, category: "All" }).length,
+      Live: mergeOracleMarkets({ oracles, catalog, category: "Live" }).length,
+      Closed: mergeOracleMarkets({ oracles, catalog, category: "Closed" }).length,
     }),
     [oracles, catalog],
   );

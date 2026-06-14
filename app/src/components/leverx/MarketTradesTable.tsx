@@ -1,8 +1,7 @@
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { DataTable, type Column } from "@/components/DataTable";
 import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
-import { formatQuantity } from "@/lib/leverx/format-quantity";
-import { formatPremiumCents } from "@/lib/leverx/indexer-markets";
+import { AnimatedPremium, AnimatedQuantity } from "@/components/ui/animated-numbers";
 import type { GlobalMarketTrade } from "@/lib/leverx/indexer-client";
 import type { PredictSide } from "@/lib/predict/instruments";
 import { cn } from "@/lib/utils";
@@ -27,10 +26,10 @@ function formatTradeTime(ms: number): string {
   });
 }
 
-function tradePrice(trade: GlobalMarketTrade): string {
-  if (trade.ask_price) return formatPremiumCents(trade.ask_price);
-  if (trade.bid_price) return formatPremiumCents(trade.bid_price);
-  return "—";
+function tradePriceRaw(trade: GlobalMarketTrade): number | null {
+  if (trade.ask_price) return trade.ask_price;
+  if (trade.bid_price) return trade.bid_price;
+  return null;
 }
 
 function tradeOutcomeSide(trade: GlobalMarketTrade): PredictSide {
@@ -77,7 +76,11 @@ export function MarketTradesTable({ trades, limit = 12, className }: Props) {
       align: "right",
       mobileTrailing: true,
       cell: (r) => (
-        <span className="font-mono text-sm tabular-nums">{tradePrice(r.trade)}</span>
+        <AnimatedPremium
+          value={tradePriceRaw(r.trade)}
+          className="text-sm"
+          placeholder="—"
+        />
       ),
     },
     {
@@ -95,9 +98,7 @@ export function MarketTradesTable({ trades, limit = 12, className }: Props) {
       header: "Qty",
       align: "right",
       cell: (r) => (
-        <span className="font-mono text-sm tabular-nums">
-          {formatQuantity(r.trade.quantity)}
-        </span>
+        <AnimatedQuantity value={r.trade.quantity} className="text-sm" />
       ),
     },
   ];

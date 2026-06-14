@@ -1,4 +1,7 @@
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { useRouterState } from "@tanstack/react-router";
+import { GsapPageEnter } from "@/components/motion/GsapPageEnter";
+import { useGsapHeaderScroll } from "@/hooks/useGsapHeaderScroll";
 import { Link } from "@tanstack/react-router";
 import { APP_NAME } from "@/lib/brand";
 import { SiteHeaderNav } from "@/components/SiteHeaderNav";
@@ -20,13 +23,23 @@ interface Props {
 
 export function SiteShell({ children, fullWidth }: Props) {
   const [open, setOpen] = useState(false);
+  const headerRef = useRef<HTMLElement>(null);
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const closeMenu = () => setOpen(false);
 
+  useGsapHeaderScroll(headerRef);
+
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      document.body.dataset.scrollLock = "false";
+      return;
+    }
+
+    document.body.dataset.scrollLock = "true";
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
+      document.body.dataset.scrollLock = "false";
       document.body.style.overflow = prev;
     };
   }, [open]);
@@ -34,7 +47,7 @@ export function SiteShell({ children, fullWidth }: Props) {
   return (
     <div className="site-shell relative flex min-h-dvh flex-col bg-background">
       <div className="pixel-border" aria-hidden />
-      <header className="site-header w-full bg-background">
+      <header ref={headerRef} className="site-header w-full bg-background">
         <div className="site-header-inner">
           <Link
             to="/markets"
@@ -109,7 +122,9 @@ export function SiteShell({ children, fullWidth }: Props) {
           fullWidth ? "max-w-none" : "max-w-[var(--page-max)]",
         )}
       >
-        <div className={pageShellContent}>{children}</div>
+        <GsapPageEnter key={pathname} className={pageShellContent}>
+          {children}
+        </GsapPageEnter>
       </main>
       <SiteFooter />
       <WelcomeDialog />

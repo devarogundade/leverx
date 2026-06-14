@@ -1,25 +1,20 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
   Link,
   createRootRouteWithContext,
   useRouter,
   HeadContent,
-  Scripts,
 } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import type { QueryClient } from "@tanstack/react-query";
 
-import appCss from "../styles.css?url";
-import "@/lib/chunk-reload";
 import { Button } from "@/components/ui/button";
 import { APP_NAME } from "../lib/brand";
 import { IndexerStreamProvider } from "../context/IndexerStreamContext";
 import { MarketFavoritesProvider } from "../context/MarketFavoritesContext";
 import { PredictOracleProvider } from "../context/PredictOracleContext";
 import { Toaster } from "@/components/ui/sonner";
+import { GsapMotionProvider } from "@/components/motion/GsapMotionProvider";
 import { WalletProvider } from "../context/WalletContext";
-import { ensurePredictOracles } from "@/lib/router/route-loaders";
-import { routePendingOptions } from "@/lib/router/route-options";
 
 function NotFoundComponent() {
   return (
@@ -40,7 +35,7 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void; }) {
+function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   if (import.meta.env.DEV) {
     console.error("[LeverX]", error);
   }
@@ -81,27 +76,20 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void; }) 
   );
 }
 
-const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem('lx-theme');if(t!=='light'&&t!=='dark'){t='dark';}var d=document.documentElement;d.classList.remove('light','dark');d.classList.add(t);}catch(e){document.documentElement.classList.add('dark');}})();`;
-
-const CHUNK_RELOAD_SCRIPT = `(function(){var k='lx-chunk-reload';function r(){if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1');var u=new URL(location.href);u.searchParams.set('_lx',Date.now());location.replace(u.toString());}function ok(m){m=(m||'').toLowerCase();return m.indexOf('mime type')>-1||m.indexOf('failed to load module script')>-1||m.indexOf('dynamically imported module')>-1||m.indexOf('chunkloaderror')>-1;}window.addEventListener('vite:preloadError',r);window.addEventListener('error',function(e){var t=e.target;if(t&&t.tagName==='SCRIPT'&&t.src&&(t.src.indexOf('/assets/')>-1||/\\.m?js(?:[?#]|$)/.test(t.src)))r();else if(ok(e.message)||ok(e.filename))r();},true);window.addEventListener('unhandledrejection',function(e){var m=e.reason&&e.reason.message?e.reason.message:typeof e.reason==='string'?e.reason:'';if(ok(m))r();});window.addEventListener('load',function(){sessionStorage.removeItem(k);});})();`;
-
-export const Route = createRootRouteWithContext<{ queryClient: QueryClient; }>()({
-  ssr: false,
-  ...routePendingOptions,
-  loader: ({ context }) => ensurePredictOracles(context.queryClient),
+export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
     meta: [
-      { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: APP_NAME },
       {
         name: "description",
-        content: "Trade price predictions with dUSDC margin at up to 10× leverage on the LeverX demo.",
+        content:
+          "Trade price predictions with dUSDC margin at up to 10× leverage on the LeverX demo.",
       },
       { property: "og:title", content: APP_NAME },
       {
         property: "og:description",
-        content: "Trade price predictions with dUSDC margin at up to 10× leverage on the LeverX demo.",
+        content:
+          "Trade price predictions with dUSDC margin at up to 10× leverage on the LeverX demo.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -109,48 +97,31 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient; }>()
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: appCss },
     ],
-    scripts: [{ children: THEME_INIT_SCRIPT }, { children: CHUNK_RELOAD_SCRIPT }],
   }),
-  shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
   errorComponent: ErrorComponent,
 });
 
-function RootShell({ children }: { children: ReactNode; }) {
-  return (
-    <html lang="en" className="dark">
-      <head>
-        <HeadContent />
-      </head>
-      <body className="min-h-dvh bg-background font-sans text-foreground antialiased">
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  );
-}
-
 function RootComponent() {
-  const { queryClient } = Route.useRouteContext();
-
   return (
-    <QueryClientProvider client={queryClient}>
+    <>
+      <HeadContent />
       <PredictOracleProvider>
         <IndexerStreamProvider>
           <MarketFavoritesProvider>
             <WalletProvider>
-              <div className="app-outlet flex min-h-dvh flex-col">
-                {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-                <Outlet />
-              </div>
+              <GsapMotionProvider>
+                <div className="app-outlet flex min-h-dvh flex-col">
+                  <Outlet />
+                </div>
+              </GsapMotionProvider>
               <Toaster position="bottom-right" richColors closeButton />
             </WalletProvider>
           </MarketFavoritesProvider>
         </IndexerStreamProvider>
       </PredictOracleProvider>
-    </QueryClientProvider>
+    </>
   );
 }

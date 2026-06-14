@@ -60,22 +60,36 @@ export function usePositionsMarkToMarket(positions: readonly LeveragedPosition[]
     })),
   });
 
+  const quoteSignature = quoteQueries
+    .map((q) => `${q.dataUpdatedAt}:${q.isLoading}:${q.fetchStatus}`)
+    .join("|");
+
+  const quoteSnapshot = useMemo(
+    () =>
+      openPositions.map((position, index) => ({
+        positionKey: position.position_key,
+        data: quoteQueries[index]?.data ?? null,
+        isLoading: quoteQueries[index]?.isLoading ?? false,
+      })),
+    [openPositions, quoteSignature],
+  );
+
   const byPositionId = useMemo(() => {
     const map = new Map<string, PositionMarkToMarket>();
     openPositions.forEach((position, index) => {
-      const query = quoteQueries[index];
+      const snapshot = quoteSnapshot[index];
       map.set(
         positionRowId(position),
         computePositionMarkToMarket(
           position,
-          query?.data ?? null,
-          Boolean(query?.isLoading),
+          snapshot?.data ?? null,
+          Boolean(snapshot?.isLoading),
           liquidationBps,
         ),
       );
     });
     return map;
-  }, [openPositions, quoteQueries, liquidationBps]);
+  }, [openPositions, quoteSnapshot, liquidationBps]);
 
   const isRefreshing = quoteQueries.some((q) => q.isFetching);
 

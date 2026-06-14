@@ -79,7 +79,7 @@ export function GuideStorybook() {
   }, []);
 
   return (
-    <div className={cn(pageSimple, "guide-storybook animate-page-in")}>
+    <div className={cn(pageSimple, "guide-storybook")}>
       <header className="guide-hero">
         <div className="guide-hero-top">
           <div>

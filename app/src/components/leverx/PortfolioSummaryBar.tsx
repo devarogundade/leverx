@@ -1,10 +1,10 @@
 import { AlertTriangle, TrendingDown, TrendingUp } from "lucide-react";
 import type { ReactNode } from "react";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
+import { AnimatedCount, AnimatedPnl } from "@/components/ui/animated-numbers";
 import { QuoteAmount } from "@/components/leverx/QuoteAmount";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import type { PortfolioSummary } from "@/lib/leverx/portfolio-summary";
-import { formatPnlUsd } from "@/lib/leverx/position-metrics";
 import { labelCaps, statValue, tradeSurface } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
 
@@ -61,11 +61,13 @@ export function PortfolioSummaryBar({ summary, loading, className }: Props) {
           : "muted";
 
   const pnlValue =
-    loading || !summary
-      ? "…"
-      : summary.liveMarkCount > 0
-        ? formatPnlUsd(summary.unrealizedPnlUsd)
-        : "—";
+    loading || !summary ? (
+      "…"
+    ) : summary.liveMarkCount > 0 ? (
+      <AnimatedPnl value={summary.unrealizedPnlUsd} />
+    ) : (
+      "—"
+    );
 
   return (
     <div className={cn(tradeSurface, className)}>
@@ -97,7 +99,7 @@ export function PortfolioSummaryBar({ summary, loading, className }: Props) {
           sub={
             summary ? (
               <>
-                {summary.positionCount} open ·{" "}
+                <AnimatedCount value={summary.positionCount} className="inline" /> open ·{" "}
                 <QuoteAmount amount={summary.notionalUsd} hideZero className="inline-flex" /> exposure
               </>
             ) : undefined

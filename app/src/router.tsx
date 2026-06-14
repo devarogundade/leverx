@@ -1,18 +1,22 @@
-import { QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
+
 import { RoutePending } from "@/components/RoutePending";
+import { queryClient } from "@/lib/query-client";
 import { routeTree } from "./routeTree.gen";
 
-export const getRouter = () => {
-  const queryClient = new QueryClient();
+export { queryClient };
 
-  const router = createRouter({
-    routeTree,
-    context: { queryClient },
-    scrollRestoration: true,
-    defaultPreloadStaleTime: 0,
-    defaultPendingComponent: RoutePending,
-  });
+export const router = createRouter({
+  routeTree,
+  context: { queryClient },
+  scrollRestoration: true,
+  defaultStaleTime: 60_000,
+  defaultPreloadStaleTime: 30_000,
+  defaultPendingComponent: RoutePending,
+});
 
-  return router;
-};
+declare module "@tanstack/react-router" {
+  interface Register {
+    router: typeof router;
+  }
+}

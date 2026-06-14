@@ -15,10 +15,9 @@ import {
   MarketCatalogPagination,
   paginateSlice,
 } from "@/components/leverx/MarketCatalogPagination";
-import {
-  formatPremiumOrPlaceholder,
-  type LeverxMarketRow,
-} from "@/lib/leverx/indexer-markets";
+import type { ReactNode } from "react";
+import { AnimatedCompactUsd, AnimatedMarketPremium } from "@/components/ui/animated-numbers";
+import type { LeverxMarketRow } from "@/lib/leverx/indexer-markets";
 import { ui } from "@/lib/copy";
 import {
   landingCtaSecondary,
@@ -35,15 +34,17 @@ import {
   pageState,
 } from "@/lib/leverx/tw";
 import { formatAutoClose } from "@/lib/leverx/placeholders";
-import { MarketLeverageBadge } from "@/components/leverx/MarketLeverageBadge";
+import { MarketLeverageBadges } from "@/components/leverx/MarketLeverageBadges";
 import { useNow } from "@/hooks/useNow";
 import { cn } from "@/lib/utils";
 
 interface Props {
   markets: LeverxMarketRow[];
-  liquidityLabel?: string;
+  liquidityLabel?: ReactNode;
   loading?: boolean;
   offline?: boolean;
+  quotesEnriched?: boolean;
+  premiumLoading?: boolean;
   emptyTitle?: string;
   emptyDescription?: string;
 }
@@ -53,21 +54,32 @@ export function PredictMarketsGrid({
   liquidityLabel = "_",
   loading,
   offline,
+  quotesEnriched = false,
+  premiumLoading: premiumLoadingProp,
   emptyTitle = ui.emptyMarkets,
   emptyDescription = ui.emptyMarketsHint,
 }: Props) {
   const [page, setPage] = useState(1);
 
+  const marketIdsKey = useMemo(
+    () => markets.map((market) => market.id).join(","),
+    [markets],
+  );
+
   useEffect(() => {
     setPage(1);
-  }, [markets]);
+  }, [marketIdsKey]);
 
   const { items: pageMarkets, page: currentPage, totalPages, totalItems } = useMemo(
     () => paginateSlice(markets, page, MARKETS_GRID_PAGE_SIZE),
     [markets, page],
   );
-  const { markets: marketsWithAsks, isLoading: premiumLoading } =
-    useVisibleMarketAsks(pageMarkets);
+  const { markets: pageMarketsWithAsks, isLoading: pagePremiumLoading } =
+    useVisibleMarketAsks(quotesEnriched ? [] : pageMarkets);
+  const marketsWithAsks = quotesEnriched ? pageMarkets : pageMarketsWithAsks;
+  const premiumLoading = quotesEnriched
+    ? Boolean(premiumLoadingProp)
+    : pagePremiumLoading;
   const { markets: visibleMarkets } = useVisibleOracleSpots(marketsWithAsks);
   const { seriesByMarketId } = useMarketPremiumSparklines(visibleMarkets);
   const now = useNow(1000);
@@ -124,14 +136,18 @@ export function PredictMarketsGrid({
                     <p className="line-clamp-2 text-sm font-medium leading-snug text-foreground transition-colors hover:text-accent">
                       {m.question}
                     </p>
-                    <MarketLeverageBadge expiryMs={m.expiry} now={now} />
+                    <MarketLeverageBadges expiryMs={m.expiry} now={now} quotePaused={m.quotePaused} />
                   </Link>
                   <Link
                     {...marketHref}
                     className={cn(marketCardInteractive, marketCardPrice, "no-underline")}
                   >
                     <div className={marketCardPriceValue}>
-                      {premiumLoading ? "…" : formatPremiumOrPlaceholder(m.lastAskPremium)}
+                      <AnimatedMarketPremium
+                        premium={m.lastAskPremium}
+                        quotePaused={m.quotePaused}
+                        loading={premiumLoading}
+                      />
                     </div>
                   </Link>
                 </div>
@@ -142,7 +158,7 @@ export function PredictMarketsGrid({
 
                 <div className={marketCardMeta}>
                   <span>
-                    {m.volume > 0 ? `$${Math.round(m.volume)}` : "_"} · {liquidityLabel}
+                    <AnimatedCompactUsd value={m.volume > 0 ? m.volume : null} /> · {liquidityLabel}
                   </span>
                   <div className={cn(marketCardInteractive, "flex items-center gap-2")}>
                     <span>{m.expiry ? formatAutoClose(m.expiry) : "—"}</span>
@@ -162,6 +178,7 @@ export function PredictMarketsGrid({
                 series={seriesByMarketId.get(m.id) ?? []}
                 lastAskPremium={m.lastAskPremium}
                 premiumLoading={premiumLoading}
+                quotePaused={m.quotePaused}
               />
             </article>
           );

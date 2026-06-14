@@ -1,6 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
+import { AnimatedCompactUsd } from "@/components/ui/animated-numbers";
 import { createFileRoute } from "@tanstack/react-router";
 import { LayoutGrid, List, Search } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { UnderlineTabs } from "@/components/leverx/UnderlineTabs";
 import { MarketsSortPopover } from "@/components/leverx/MarketsSortPopover";
@@ -8,10 +10,10 @@ import { PredictMarketsGrid } from "@/components/leverx/PredictMarketsGrid";
 import { PredictMarketsTable } from "@/components/leverx/PredictMarketsTable";
 import { useMarketFavorites } from "@/context/MarketFavoritesContext";
 import { useMergedMarkets } from "@/hooks/useMergedMarkets";
+import { useVisibleMarketAsks } from "@/hooks/useVisibleMarketAsks";
 import { useIndexerProtocol, useIndexerVaultSummary } from "@/hooks/useIndexer";
 import { pageTitle } from "@/lib/brand";
 import { ui } from "@/lib/copy";
-import { formatCompactUsdOrPlaceholder } from "@/lib/leverx/placeholders";
 import type { MarketCategory } from "@/lib/leverx/predict-oracle-markets";
 import { scaleQuote } from "@/lib/predict/scaling";
 import {
@@ -57,6 +59,7 @@ function MarketsPage() {
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"grid" | "list">("grid");
   const [sort, setSort] = useState<MarketSortId>(DEFAULT_MARKET_SORT);
+  const [notPausedOnly, setNotPausedOnly] = useState(false);
   const { favorites, favoriteCount } = useMarketFavorites();
 
   const catalogCategory: MarketCategory = category === "Favorites" ? "All" : category;
@@ -67,13 +70,21 @@ function MarketsPage() {
       search,
     });
 
-  const markets = useMemo(() => {
+  const sortedMarkets = useMemo(() => {
     const filtered =
       category === "Favorites"
         ? catalogMarkets.filter((market) => favorites.has(market.id))
         : catalogMarkets;
     return sortMarketRows(filtered, sort);
   }, [catalogMarkets, category, favorites, sort]);
+
+  const { markets: quotedMarkets, isLoading: quotedMarketsLoading } =
+    useVisibleMarketAsks(notPausedOnly ? sortedMarkets : []);
+
+  const markets = useMemo(() => {
+    if (!notPausedOnly) return sortedMarkets;
+    return quotedMarkets.filter((market) => !market.quotePaused);
+  }, [notPausedOnly, sortedMarkets, quotedMarkets]);
 
   const emptyTitle = category === "Favorites" ? ui.emptyFavoriteMarkets : ui.emptyMarkets;
   const emptyDescription =
@@ -82,15 +93,17 @@ function MarketsPage() {
   const { data: protocol } = useIndexerProtocol();
   const { data: vaultSummary } = useIndexerVaultSummary(protocol?.vault_id ?? undefined);
 
-  const liquidityLabel = (() => {
+  const liquidityLabel: ReactNode = (() => {
     const nav = vaultSummary?.snapshot?.nav;
-    if (nav && nav > 0) return formatCompactUsdOrPlaceholder(scaleQuote(nav));
+    if (nav && nav > 0) {
+      return <AnimatedCompactUsd value={scaleQuote(nav)} />;
+    }
     if (!catalogReady) return "…";
-    return formatCompactUsdOrPlaceholder(null);
+    return <AnimatedCompactUsd value={null} />;
   })();
 
   return (
-    <section className={cn(pageSimple, "animate-page-in")}>
+    <section className={pageSimple}>
       <div className={pageSimpleToolbar}>
         <h1 className={pageSimpleTitle}>Markets</h1>
         <div className={pageSimpleActions}>
@@ -152,7 +165,17 @@ function MarketsPage() {
             ),
           }))}
         />
-        <MarketsSortPopover value={sort} onChange={setSort} className="self-end sm:self-auto" />
+        <div className="flex shrink-0 items-center gap-3 self-end sm:self-auto">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+            <Checkbox
+              checked={notPausedOnly}
+              onCheckedChange={(checked) => setNotPausedOnly(checked === true)}
+              aria-label="Show only markets that are not paused"
+            />
+            <span>Not paused</span>
+          </label>
+          <MarketsSortPopover value={sort} onChange={setSort} />
+        </div>
       </div>
 
       <div className={cn(view === "list" && marketsCatalogRegion)}>
@@ -162,6 +185,8 @@ function MarketsPage() {
             liquidityLabel={liquidityLabel}
             loading={loading}
             offline={offline}
+            quotesEnriched={notPausedOnly}
+            premiumLoading={notPausedOnly ? quotedMarketsLoading : undefined}
             emptyTitle={emptyTitle}
             emptyDescription={emptyDescription}
           />
@@ -175,6 +200,8 @@ function MarketsPage() {
                 liquidityLabel={liquidityLabel}
                 loading={loading}
                 offline={offline}
+                quotesEnriched={notPausedOnly}
+                premiumLoading={notPausedOnly ? quotedMarketsLoading : undefined}
                 emptyTitle={emptyTitle}
                 emptyDescription={emptyDescription}
               />
@@ -185,6 +212,8 @@ function MarketsPage() {
                 liquidityLabel={liquidityLabel}
                 loading={loading}
                 offline={offline}
+                quotesEnriched={notPausedOnly}
+                premiumLoading={notPausedOnly ? quotedMarketsLoading : undefined}
                 emptyTitle={emptyTitle}
                 emptyDescription={emptyDescription}
               />

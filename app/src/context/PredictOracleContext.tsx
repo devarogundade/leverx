@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useMemo,
   type ReactNode,
@@ -49,6 +50,16 @@ export function PredictOracleProvider({ children }: { children: ReactNode }) {
 
   const oracles = useMemo(() => sortOracleRows(query.data ?? []), [query.data]);
 
+  const refetch = useCallback(() => {
+    void query.refetch();
+  }, [query.refetch]);
+
+  const getNeighbors = useCallback(
+    (oracleId: string, options?: OracleNeighborOptions) =>
+      resolveOracleNeighbors(oracles, oracleId, options),
+    [oracles],
+  );
+
   const value = useMemo(
     (): PredictOracleContextValue => ({
       oracles,
@@ -59,13 +70,20 @@ export function PredictOracleProvider({ children }: { children: ReactNode }) {
       isSuccess: query.isSuccess,
       isFetched: query.isFetched,
       error: query.error,
-      refetch: () => {
-        void query.refetch();
-      },
-      getNeighbors: (oracleId, options) =>
-        resolveOracleNeighbors(oracles, oracleId, options),
+      refetch,
+      getNeighbors,
     }),
-    [oracles, query],
+    [
+      oracles,
+      query.isLoading,
+      query.isPending,
+      query.isError,
+      query.isSuccess,
+      query.isFetched,
+      query.error,
+      refetch,
+      getNeighbors,
+    ],
   );
 
   return (

@@ -82,19 +82,32 @@ export async function fetchOraclePriceLatest(
   }
 }
 
-/** Latest spot per oracle id (parallel, failures omitted). */
+const ORACLE_SPOT_FETCH_CONCURRENCY = 3;
+const ORACLE_SPOT_CHUNK_DELAY_MS = 200;
+
+/** Latest spot per oracle id (throttled batches, failures omitted). */
 export async function fetchOracleSpotMap(
   oracleIds: readonly string[],
 ): Promise<Map<string, number>> {
   const unique = [...new Set(oracleIds.filter(Boolean))];
   if (unique.length === 0) return new Map();
 
-  const entries = await Promise.all(
-    unique.map(async (id) => {
-      const latest = await fetchOraclePriceLatest(id);
-      return latest ? ([id, latest.spot] as const) : null;
-    }),
-  );
+  const entries: Array<readonly [string, number] | null> = [];
+
+  for (let start = 0; start < unique.length; start += ORACLE_SPOT_FETCH_CONCURRENCY) {
+    const chunk = unique.slice(start, start + ORACLE_SPOT_FETCH_CONCURRENCY);
+    const chunkEntries = await Promise.all(
+      chunk.map(async (id) => {
+        const latest = await fetchOraclePriceLatest(id);
+        return latest ? ([id, latest.spot] as const) : null;
+      }),
+    );
+    entries.push(...chunkEntries);
+
+    if (start + ORACLE_SPOT_FETCH_CONCURRENCY < unique.length) {
+      await new Promise((resolve) => setTimeout(resolve, ORACLE_SPOT_CHUNK_DELAY_MS));
+    }
+  }
 
   return new Map(entries.filter((e): e is readonly [string, number] => e !== null));
 }

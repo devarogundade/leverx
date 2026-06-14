@@ -21,17 +21,29 @@ function quoteCfg(
   };
 }
 
+export type VisibleMarketQuoteState = {
+  asks: ReadonlyMap<string, number>;
+  paused: ReadonlySet<string>;
+};
+
 export function withLiveMarketAsks(
   markets: readonly LeverxMarketRow[],
-  askByMarketId?: ReadonlyMap<string, number>,
+  quoteState?: VisibleMarketQuoteState,
 ): LeverxMarketRow[] {
+  if (!quoteState) return [...markets];
+
   return markets.map((m) => {
-    const live = askByMarketId?.get(m.id);
-    return { ...m, lastAskPremium: live ?? null };
+    const live = quoteState.asks.get(m.id);
+    const quotePaused = quoteState.paused.has(m.id);
+    return {
+      ...m,
+      lastAskPremium: live ?? (quotePaused ? null : m.lastAskPremium),
+      quotePaused,
+    };
   });
 }
 
-/** Live per-contract ask (devInspect) for markets on the current page — no catalog fallback. */
+/** Live per-contract ask (devInspect) for markets on the current page — no catalog fallback when paused. */
 export function useVisibleMarketAsks(markets: readonly LeverxMarketRow[]) {
   const { client } = useWallet();
   const queryClient = useQueryClient();
@@ -61,24 +73,32 @@ export function useVisibleMarketAsks(markets: readonly LeverxMarketRow[]) {
 
   const query = useQuery({
     queryKey: ["leverx-visible-market-asks", batchKey],
-    queryFn: async () => {
-      if (!cfg) return new Map<string, number>();
+    queryFn: async (): Promise<VisibleMarketQuoteState> => {
+      if (!cfg) return { asks: new Map(), paused: new Set() };
 
-      const entries = await Promise.all(
+      const asks = new Map<string, number>();
+      const paused = new Set<string>();
+
+      await Promise.all(
         marketKeys.map(async ({ marketId, key }) => {
-          const ask = await queryClient.fetchQuery({
-            queryKey: leverxMarketAskQueryKey(key),
-            queryFn: () => fetchPredictMarketAsk({ client, cfg, key }),
-            staleTime: 10_000,
-          });
-          if (ask == null || ask <= 0n) return null;
-          return [marketId, Number(ask)] as const;
+          try {
+            const ask = await queryClient.fetchQuery({
+              queryKey: leverxMarketAskQueryKey(key),
+              queryFn: () => fetchPredictMarketAsk({ client, cfg, key }),
+              staleTime: 10_000,
+            });
+            if (ask == null || ask <= 0n) {
+              paused.add(marketId);
+              return;
+            }
+            asks.set(marketId, Number(ask));
+          } catch {
+            paused.add(marketId);
+          }
         }),
       );
 
-      return new Map(
-        entries.filter((entry): entry is readonly [string, number] => entry !== null),
-      );
+      return { asks, paused };
     },
     enabled: Boolean(cfg && marketKeys.length > 0),
     staleTime: 10_000,
@@ -95,7 +115,7 @@ export function useVisibleMarketAsks(markets: readonly LeverxMarketRow[]) {
 
   return {
     markets: enrichedMarkets,
-    isLoading: marketKeys.length > 0 && query.isLoading && !query.data,
+    isLoading: marketKeys.length > 0 && query.isPending && !query.data,
     isFetching: query.isFetching,
   };
 }

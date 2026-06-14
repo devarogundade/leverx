@@ -6,6 +6,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
 import { UnderlineTabs } from "@/components/leverx/UnderlineTabs";
 import { LeverageWindowCountdown } from "@/components/leverx/LeverageWindowCountdown";
+import { MarketFavoriteButton } from "@/components/leverx/MarketFavoriteButton";
+import { MarketQuotePausedBadge } from "@/components/leverx/MarketQuotePausedBadge";
 import { PredictLeveragePanel } from "@/components/leverx/PredictLeveragePanel";
 import { LeverxLimitOrdersTable } from "@/components/leverx/LeverxLimitOrdersTable";
 import { LeverxPositionsTable } from "@/components/leverx/LeverxPositionsTable";
@@ -17,6 +19,12 @@ import { PredictOrderBook } from "@/components/leverx/PredictOrderBook";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import { AssetBadge } from "@/components/AssetBadge";
 import { QuoteAmount } from "@/components/leverx/QuoteAmount";
+import {
+  AnimatedAssetPrice,
+  AnimatedCount,
+  AnimatedPercent,
+  AnimatedPremium,
+} from "@/components/ui/animated-numbers";
 import { useWallet } from "@/context/WalletContext";
 import {
   useIndexerGlobalTrades,
@@ -44,11 +52,6 @@ import {
 } from "@/lib/leverx/predict-oracle-markets";
 import { oracleStrikeBounds } from "@/lib/leverx/strike-selection";
 import { baseFromUnderlying } from "@/lib/markets";
-import { formatPrice } from "@/lib/copy";
-import {
-  DATA_PLACEHOLDER,
-  formatCountOrPlaceholder,
-} from "@/lib/leverx/placeholders";
 import { summarizeGlobalTrades } from "@/lib/leverx/trade-stats";
 import { LEVERAGED_MINT_WINDOW_MS } from "@/lib/leverx/constants";
 import {
@@ -61,8 +64,9 @@ import {
 } from "@/lib/charts/predict-chart-levels";
 import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
 import { formatCount, ui } from "@/lib/copy";
+import { DATA_PLACEHOLDER } from "@/lib/leverx/placeholders";
 import { formatRangeStrikes, coercePredictSide, type PredictSide } from "@/lib/predict/instruments";
-import { isOracleSettledForTrade } from "@/lib/predict/oracles";
+import { isOracleSettledForTrade, shouldPatchOhlcvWithOracleSpot } from "@/lib/predict/oracles";
 import { scaleQuote, scaleSpot } from "@/lib/predict/scaling";
 import {
   textFilterActive,
@@ -318,16 +322,21 @@ function TradePositionsPanel({
       <div className={tradeTerminalPositionsBody}>
         {activeTab === "Summary" ? (
           <div className={tradeSummaryGrid}>
-            <StatItem label="Total trades" value={formatCount(tradeStats.total)} />
-            <StatItem label="24h trades" value={formatCount(tradeStats.last24h)} />
-            <StatItem label="Opens" value={formatCount(tradeStats.mints)} />
-            <StatItem label="Closes" value={formatCount(tradeStats.redeems)} />
+            <StatItem label="Total trades" value={<AnimatedCount value={tradeStats.total} />} />
+            <StatItem label="24h trades" value={<AnimatedCount value={tradeStats.last24h} />} />
+            <StatItem label="Opens" value={<AnimatedCount value={tradeStats.mints} />} />
+            <StatItem label="Closes" value={<AnimatedCount value={tradeStats.redeems} />} />
             <StatItem
               label="Pool in use"
               value={
-                vaultSummary?.snapshot?.utilization_bps != null
-                  ? `${(vaultSummary.snapshot.utilization_bps / 100).toFixed(1)}%`
-                  : "—"
+                vaultSummary?.snapshot?.utilization_bps != null ? (
+                  <AnimatedPercent
+                    value={vaultSummary.snapshot.utilization_bps / 10_000}
+                    fractionDigits={1}
+                  />
+                ) : (
+                  "—"
+                )
               }
             />
           </div>
@@ -467,8 +476,6 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   const chartAsset =
     baseFromUnderlying(oracleSummary?.underlying_asset ?? oracleState?.underlying_asset ?? "") ||
     oracleId.slice(2, 6).toUpperCase();
-
-  const chartSeries = useChartPriceSeries(oracleId, chartAsset);
 
   const isOracleSettled = useMemo(
     () => isOracleSettledForTrade(oracleSummary, oracleState),
@@ -663,6 +670,19 @@ export function PredictTradeTerminal({ oracleId }: Props) {
     catalogPremium: market?.lastAskPremium,
   });
 
+  const patchChartWithOracleSpot = useMemo(
+    () =>
+      shouldPatchOhlcvWithOracleSpot(oracleSummary, oracleState) &&
+      !contractPremium.quotePaused,
+    [oracleSummary, oracleState, contractPremium.quotePaused],
+  );
+
+  const chartSeries = useChartPriceSeries(oracleId, chartAsset, {
+    oracleRow: oracleSummary,
+    oracleDetail: oracleState,
+    patchWithOracleSpot: patchChartWithOracleSpot,
+  });
+
   const chartStrikePrice = useMemo(() => {
     if (activeSide === "range") return undefined;
     if (activeBinaryStrikeRaw > 0) return scaleSpot(activeBinaryStrikeRaw);
@@ -738,7 +758,15 @@ export function PredictTradeTerminal({ oracleId }: Props) {
               </Link>
             </div>
           </div>
-          <div className={tradeOracleNav} aria-label="Market navigation">
+          <div className="flex shrink-0 items-center gap-2">
+            {market?.id ? (
+              <MarketFavoriteButton
+                marketId={market.id}
+                labeled
+                className="shrink-0"
+              />
+            ) : null}
+            <div className={tradeOracleNav} aria-label="Market navigation">
             {prevOracle ? (
               <Link
                 to="/predictions/$oracleId"
@@ -774,6 +802,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
               </span>
             )}
           </div>
+          </div>
         </div>
 
         <div className={tradeTerminalHeaderMetrics}>
@@ -783,15 +812,26 @@ export function PredictTradeTerminal({ oracleId }: Props) {
                 label={ui.markPrice}
                 info={leverxInfo.markPrice}
                 value={
-                  oracleSpot != null && oracleSpot > 0
-                    ? formatPrice(asset, oracleSpot)
-                    : DATA_PLACEHOLDER
+                  oracleSpot != null && oracleSpot > 0 ? (
+                    <AnimatedAssetPrice value={oracleSpot} />
+                  ) : (
+                    DATA_PLACEHOLDER
+                  )
                 }
               />
               <StatItem
                 label="Contract price"
                 info={leverxInfo.premium}
-                value={contractPremium.label}
+                value={
+                  contractPremium.quotePaused ? (
+                    <MarketQuotePausedBadge className="mt-0" />
+                  ) : contractPremium.isLoading ? (
+                    "…"
+                  ) : (
+                    <AnimatedPremium value={contractPremium.premiumRaw} />
+                  )
+                }
+                tone={contractPremium.quotePaused ? "destructive" : undefined}
               />
               <StatItem
                 label="Volume (24h)"

@@ -51,7 +51,7 @@ function VaultPage() {
   const statsLoading = protocolLoading || vaultLoading;
 
   return (
-    <section className={cn(pageSimple, "mx-auto max-w-[var(--page-max)] animate-page-in")}>
+    <section className={cn(pageSimple, "mx-auto max-w-[var(--page-max)]")}>
       <div>
         <h1 className={pageSimpleTitle}>{ui.vaultPageTitle}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{ui.vaultPageHint}</p>

@@ -2,9 +2,8 @@ import { useMemo } from "react";
 import { DataTable, type Column } from "@/components/DataTable";
 import { CancelOrderTrigger } from "@/components/leverx/CancelOrderModal";
 import { usePredictOracleRows } from "@/hooks/usePredictOracles";
-import { formatQuantity } from "@/lib/leverx/format-quantity";
+import { AnimatedPremium, AnimatedQuantity } from "@/components/ui/animated-numbers";
 import { QuoteAmount } from "@/components/leverx/QuoteAmount";
-import { formatPremiumCents } from "@/lib/leverx/indexer-markets";
 import type { LimitMintOrder } from "@/lib/leverx/indexer-client";
 import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
 import { predictSideFromBinary, type PredictSide } from "@/lib/predict/instruments";
@@ -59,9 +58,7 @@ export function LeverxLimitOrdersTable({ orders, className }: Props) {
       align: "right",
       mobileTrailing: true,
       cell: (r) => (
-        <span className="font-mono text-sm tabular-nums">
-          {formatPremiumCents(r.order.limit_premium_per_unit)}
-        </span>
+        <AnimatedPremium value={r.order.limit_premium_per_unit} className="text-sm" />
       ),
     },
     {
@@ -70,9 +67,7 @@ export function LeverxLimitOrdersTable({ orders, className }: Props) {
       align: "right",
       mobileLabel: "Qty",
       cell: (r) => (
-        <span className="font-mono text-sm tabular-nums">
-          {formatQuantity(r.order.quantity)}
-        </span>
+        <AnimatedQuantity value={r.order.quantity} className="text-sm" />
       ),
     },
     {

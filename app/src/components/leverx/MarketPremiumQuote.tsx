@@ -1,6 +1,6 @@
 import { MarketSparkline } from "@/components/leverx/MarketSparkline";
+import { AnimatedMarketPremium } from "@/components/ui/animated-numbers";
 import { changePercentEndpoints } from "@/lib/charts/sparkline-path";
-import { formatPremiumOrPlaceholder } from "@/lib/leverx/indexer-markets";
 import {
   marketCardSparkline,
   marketCardSparklineFooter,
@@ -13,6 +13,7 @@ interface Props {
   series: readonly number[];
   lastAskPremium: number | null;
   premiumLoading?: boolean;
+  quotePaused?: boolean;
   variant?: "inline" | "band";
   /** Band at card footer — full width, no background tint */
   footer?: boolean;
@@ -23,6 +24,7 @@ export function MarketPremiumQuote({
   series,
   lastAskPremium,
   premiumLoading,
+  quotePaused,
   variant = "inline",
   footer = false,
   className,
@@ -47,9 +49,12 @@ export function MarketPremiumQuote({
   return (
     <div className={cn(marketsPriceCell, className)}>
       <MarketSparkline series={series} width={52} height={20} positive={positive} />
-      <span className={marketsPriceValue}>
-        {premiumLoading ? "…" : formatPremiumOrPlaceholder(lastAskPremium)}
-      </span>
+      <AnimatedMarketPremium
+        className={marketsPriceValue}
+        premium={lastAskPremium}
+        quotePaused={quotePaused}
+        loading={premiumLoading}
+      />
       {showChange ? (
         <span
           className={cn(

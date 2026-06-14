@@ -1,7 +1,7 @@
 import { TradeAmountInput } from "@/components/leverx/TradeFormControls";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { leverxInfo } from "@/lib/leverx/info-copy";
-import { formatAssetPriceUsdWithSymbol } from "@/lib/leverx/format-asset-price";
+import { AnimatedAssetPrice } from "@/components/ui/animated-numbers";
 import {
   formatStrikeUsdFromRaw,
   STRIKE_PRESET_OPTIONS,
@@ -54,7 +54,7 @@ export function StrikePriceSelector({
           <span className="shrink-0 text-sm text-muted-foreground">
             Spot{" "}
             <span className="font-mono text-foreground">
-              {formatAssetPriceUsdWithSymbol(oracleSpotUsd)}
+            <AnimatedAssetPrice value={oracleSpotUsd} className="text-foreground" />
             </span>
           </span>
         ) : null}
