@@ -32,6 +32,7 @@ import {
 import {
   centsToPremiumRaw,
   defaultTpSlPremiumsFromEntry,
+  formatTriggerSlippageBps,
   isLimitCentsWithinPredictBounds,
   isPlacementPriceAligned,
   isPremiumWithinPredictBounds,
@@ -559,6 +560,9 @@ export function PredictLeveragePanel({
     [entryCents],
   );
 
+  const triggerExitSlippagePct =
+    orderType === "market" ? marketSlippagePct : placementSlippagePct;
+
   useEffect(() => {
     if (!tpSl || entryCents <= 0 || tp || sl) return;
     const defaults = defaultTpSlPremiumsFromEntry(entryCents);
@@ -629,7 +633,7 @@ export function PredictLeveragePanel({
         errors.push(
           "Live contract price is unavailable. Wait for oracle updates or try another strike.",
         );
-      } else {
+      } else if (liveAskPremium != null && liveAskPremium > 0n) {
         const limitPremium = centsToPremiumRaw(cents);
         const slippageBps = percentToBps(placementSlippagePct);
         const liveLabel = `${premiumRawToCents(liveAskPremium).toFixed(1)}¢`;
@@ -1101,6 +1105,20 @@ export function PredictLeveragePanel({
                   {": "}
                   <span className="font-mono text-foreground">
                     {entryCents > 0 ? `${entryCents.toFixed(1)}¢` : quoteLoading ? "…" : "—"}
+                  </span>
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  <LabelWithInfo
+                    label="Exit slippage"
+                    labelClassName="inline text-sm text-muted-foreground"
+                    info={leverxInfo.tpSlExitSlippage}
+                  />
+                  {": "}
+                  <span className="font-mono text-foreground">
+                    {formatTriggerSlippageBps(percentToBps(triggerExitSlippagePct))}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {orderType === "market" ? " · market" : " · placement"}
                   </span>
                 </p>
                 <div>

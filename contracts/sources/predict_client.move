@@ -170,6 +170,13 @@ public fun assert_redeem_slippage(min_payout: u64, payout: u64) {
     };
 }
 
+/// Minimum acceptable redeem payout after slippage (`expected * (10_000 - bps) / 10_000`).
+public fun min_redeem_payout_after_slippage(expected_payout: u64, slippage_bps: u64): u64 {
+    if (expected_payout == 0 || slippage_bps == 0) return 0;
+    let factor = protocol_constants::bps() - slippage_bps;
+    protocol_constants::mul_bps(expected_payout, factor)
+}
+
 /// Premium must sit inside Predict's per-oracle ask bounds.
 public fun assert_premium_within_bounds(
     predict_obj: &Predict,

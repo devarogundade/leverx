@@ -124,6 +124,8 @@ pub struct KeyBorrowPatch {
     pub position_key: String,
     pub account_id: String,
     pub key_borrowed_quote: i64,
+    pub margin_quote: i64,
+    pub leverage_bps: i64,
 }
 
 pub struct BorrowRatePatch {
@@ -466,7 +468,10 @@ impl Handler for LeverxEventsHandler {
             }
             rows += diesel::sql_query(
                 "UPDATE leveraged_positions SET \
-                 open_quantity = GREATEST(open_quantity - $1, 0), \
+                 open_quantity = CASE \
+                   WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN 0 \
+                   ELSE GREATEST(open_quantity - $1, 0) \
+                 END, \
                  realized_payout = realized_payout + $2, \
                  borrow_quote = $3, \
                  margin_quote = CASE \
@@ -476,10 +481,6 @@ impl Handler for LeverxEventsHandler {
                  mint_cost = CASE \
                    WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN 0 \
                    ELSE (mint_cost * GREATEST(open_quantity - $1, 0) / GREATEST(open_quantity, 1)) \
-                 END, \
-                 leverage_bps = CASE \
-                   WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN 10000 \
-                   ELSE leverage_bps \
                  END, \
                  status = CASE \
                    WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN CASE WHEN $7 THEN 'settled' ELSE 'closed' END \
@@ -513,22 +514,30 @@ impl Handler for LeverxEventsHandler {
                     leveraged_positions::predict_manager_id
                         .eq(excluded(leveraged_positions::predict_manager_id)),
                     leveraged_positions::open_quantity.eq(sql::<BigInt>(
-                        "CASE WHEN leveraged_positions.open_quantity <= 0 \
+                        "CASE WHEN leveraged_positions.status != 'open' \
                          THEN excluded.open_quantity \
                          ELSE leveraged_positions.open_quantity + excluded.open_quantity END",
                     )),
-                    leveraged_positions::margin_quote.eq(
-                        leveraged_positions::margin_quote + excluded(leveraged_positions::margin_quote),
-                    ),
-                    leveraged_positions::borrow_quote.eq(
-                        leveraged_positions::borrow_quote + excluded(leveraged_positions::borrow_quote),
-                    ),
+                    leveraged_positions::margin_quote.eq(sql::<BigInt>(
+                        "CASE WHEN leveraged_positions.status != 'open' \
+                         THEN excluded.margin_quote \
+                         ELSE leveraged_positions.margin_quote + excluded.margin_quote END",
+                    )),
+                    leveraged_positions::borrow_quote.eq(sql::<BigInt>(
+                        "CASE WHEN leveraged_positions.status != 'open' \
+                         THEN excluded.borrow_quote \
+                         ELSE leveraged_positions.borrow_quote + excluded.borrow_quote END",
+                    )),
                     leveraged_positions::leverage_bps.eq(excluded(leveraged_positions::leverage_bps)),
-                    // After a full close (qty=0) mint_cost must not carry into the next open.
                     leveraged_positions::mint_cost.eq(sql::<BigInt>(
-                        "CASE WHEN leveraged_positions.open_quantity <= 0 \
+                        "CASE WHEN leveraged_positions.status != 'open' \
                          THEN excluded.mint_cost \
                          ELSE leveraged_positions.mint_cost + excluded.mint_cost END",
+                    )),
+                    leveraged_positions::realized_payout.eq(sql::<BigInt>(
+                        "CASE WHEN leveraged_positions.status != 'open' \
+                         THEN 0 \
+                         ELSE leveraged_positions.realized_payout END",
                     )),
                     leveraged_positions::last_order_type.eq(excluded(leveraged_positions::last_order_type)),
                     leveraged_positions::status.eq("open"),
@@ -664,6 +673,10 @@ impl Handler for LeverxEventsHandler {
                         .eq(excluded(position_triggers::take_profit_premium)),
                     position_triggers::stop_loss_premium
                         .eq(excluded(position_triggers::stop_loss_premium)),
+                    position_triggers::take_profit_slippage_bps
+                        .eq(excluded(position_triggers::take_profit_slippage_bps)),
+                    position_triggers::stop_loss_slippage_bps
+                        .eq(excluded(position_triggers::stop_loss_slippage_bps)),
                     position_triggers::active.eq(excluded(position_triggers::active)),
                     position_triggers::updated_at_ms.eq(excluded(position_triggers::updated_at_ms)),
                 ))
@@ -718,7 +731,11 @@ impl Handler for LeverxEventsHandler {
                     .filter(leveraged_positions::position_key.eq(&patch.position_key))
                     .filter(leveraged_positions::account_id.eq(&patch.account_id)),
             )
-            .set(leveraged_positions::borrow_quote.eq(patch.key_borrowed_quote))
+            .set((
+                leveraged_positions::borrow_quote.eq(patch.key_borrowed_quote),
+                leveraged_positions::margin_quote.eq(patch.margin_quote),
+                leveraged_positions::leverage_bps.eq(patch.leverage_bps),
+            ))
             .execute(conn)
             .await?;
         }
@@ -728,15 +745,10 @@ impl Handler for LeverxEventsHandler {
                 "UPDATE leveraged_positions SET \
                  status = 'liquidated', \
                  borrow_quote = 0, \
-                 margin_quote = 0, \
-                 mint_cost = 0, \
-                 leverage_bps = 10000, \
-                 closed_at_ms = $1, \
-                 open_quantity = CASE WHEN $2 THEN 0 ELSE open_quantity END \
-                 WHERE position_key = $3 AND account_id = $4",
+                 closed_at_ms = $1 \
+                 WHERE position_key = $2 AND account_id = $3",
             )
             .bind::<diesel::sql_types::BigInt, _>(liq.closed_at_ms)
-            .bind::<diesel::sql_types::Bool, _>(liq.had_position_redeem)
             .bind::<diesel::sql_types::Text, _>(&liq.position_key)
             .bind::<diesel::sql_types::Text, _>(&liq.account_id)
             .execute(conn)

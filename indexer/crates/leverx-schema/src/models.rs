@@ -240,6 +240,8 @@ pub struct PositionTriggerRow {
     pub is_range: bool,
     pub take_profit_premium: i64,
     pub stop_loss_premium: i64,
+    pub take_profit_slippage_bps: i64,
+    pub stop_loss_slippage_bps: i64,
     pub active: bool,
     pub updated_at_ms: i64,
 }
@@ -440,6 +442,8 @@ pub struct NewPositionTrigger {
     pub is_range: bool,
     pub take_profit_premium: i64,
     pub stop_loss_premium: i64,
+    pub take_profit_slippage_bps: i64,
+    pub stop_loss_slippage_bps: i64,
     pub active: bool,
     pub updated_at_ms: i64,
 }

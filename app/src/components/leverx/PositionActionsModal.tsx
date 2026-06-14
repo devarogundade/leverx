@@ -41,6 +41,62 @@ function positionToKey(position: LeveragedPosition): MarketKeyArgs {
   };
 }
 
+type PositionActionAvailability = {
+  canCloseRedeem: boolean;
+  canSettle: boolean;
+  canRepayDebt: boolean;
+  hasAnyAction: boolean;
+  emptyMessage: string | null;
+};
+
+/** Which manage actions are valid for this position (on-chain qty + oracle state). */
+function getPositionActionAvailability(params: {
+  position: LeveragedPosition;
+  onChainQuantity: bigint | null | undefined;
+  quantityLoading: boolean;
+  oracleSettled: boolean;
+  now?: number;
+}): PositionActionAvailability {
+  const { position, onChainQuantity, quantityLoading, oracleSettled } = params;
+  const now = params.now ?? Date.now();
+  const expired = position.expiry_ms > 0 && position.expiry_ms < now;
+  const hasDebt = position.borrow_quote > 0;
+
+  const quantityKnown = onChainQuantity != null;
+  const hasOnChainQuantity = quantityKnown && onChainQuantity > 0n;
+  const hasRedeemableQuantity = quantityKnown
+    ? onChainQuantity > 0n
+    : position.open_quantity > 0;
+
+  // Live market/limit redeem — only while oracle is unsettled and contracts remain.
+  const canCloseRedeem = hasRedeemableQuantity && !oracleSettled;
+
+  // Post-expiry settlement — oracle settled, contracts still on-chain (not yet redeemed).
+  const canSettle =
+    expired && oracleSettled && hasOnChainQuantity && !quantityLoading;
+
+  const canRepayDebt = hasDebt;
+
+  let emptyMessage: string | null = null;
+  if (!quantityLoading && !canCloseRedeem && !canSettle && !canRepayDebt) {
+    if (quantityKnown && onChainQuantity === 0n) {
+      emptyMessage = "Contracts fully redeemed.";
+    } else if (expired && !oracleSettled) {
+      emptyMessage = "Waiting for oracle settlement before you can settle.";
+    } else {
+      emptyMessage = "No actions available for this position.";
+    }
+  }
+
+  return {
+    canCloseRedeem,
+    canSettle,
+    canRepayDebt,
+    hasAnyAction: canCloseRedeem || canSettle || canRepayDebt,
+    emptyMessage,
+  };
+}
+
 function PositionDetailGrid({
   position,
   contractQuantity,
@@ -135,12 +191,13 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
 
   const pending =
     closePosition.isPending || settleExpired.isPending || repayDebt.isPending;
-  const expired = position.expiry_ms > 0 && position.expiry_ms < Date.now();
-  const hasDebt = position.borrow_quote > 0;
-  const hasOnChainQuantity = onChainQuantity != null && onChainQuantity > 0n;
-  const hasOpenQuantity =
-    hasOnChainQuantity || (onChainQuantity == null && position.open_quantity > 0);
-  const canSettle = expired && oracleSettled && hasOnChainQuantity;
+  const { canCloseRedeem, canSettle, canRepayDebt, emptyMessage } =
+    getPositionActionAvailability({
+      position,
+      onChainQuantity,
+      quantityLoading,
+      oracleSettled,
+    });
   const borrowedUsd = scaleQuote(position.borrow_quote);
   const repayNum = parseFloat(repayUsd) || 0;
   const repayExceedsDebt = repayNum > borrowedUsd + 1e-6;
@@ -214,21 +271,25 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
               quantityLoading={quantityLoading}
             />
             <div className="space-y-2">
-              <ActionButton
-                label="Close at market"
-                hint="Redeem now at the best available bid"
-                info={leverxInfo.closeMarket}
-                disabled={!isProtocolReady || pending || !hasOpenQuantity}
-                onClick={() => setConfirmAction("market_close")}
-              />
-              <ActionButton
-                label="Close at limit"
-                hint="Set a minimum bid per contract"
-                info={leverxInfo.closeLimit}
-                disabled={!isProtocolReady || pending || !hasOpenQuantity}
-                onClick={() => setView("close_limit")}
-              />
-              {hasDebt ? (
+              {canCloseRedeem ? (
+                <>
+                  <ActionButton
+                    label="Close at market"
+                    hint="Redeem now at the best available bid"
+                    info={leverxInfo.closeMarket}
+                    disabled={!isProtocolReady || pending}
+                    onClick={() => setConfirmAction("market_close")}
+                  />
+                  <ActionButton
+                    label="Close at limit"
+                    hint="Set a minimum bid per contract"
+                    info={leverxInfo.closeLimit}
+                    disabled={!isProtocolReady || pending}
+                    onClick={() => setView("close_limit")}
+                  />
+                </>
+              ) : null}
+              {canRepayDebt ? (
                 <ActionButton
                   label="Repay debt"
                   hint={`${borrowedUsd.toFixed(2)} dUSDC borrowed`}
@@ -237,20 +298,19 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
                   onClick={() => setView("repay_debt")}
                 />
               ) : null}
-              {expired ? (
+              {canSettle ? (
                 <ActionButton
                   label="Settle expired"
-                  hint={
-                    oracleSettled
-                      ? hasOnChainQuantity
-                        ? "Redeem after oracle settlement"
-                        : "No contracts left on-chain — refresh portfolio"
-                      : "Waiting for oracle settlement"
-                  }
+                  hint="Redeem after oracle settlement"
                   info={leverxInfo.settleExpired}
-                  disabled={!isProtocolReady || pending || !canSettle || quantityLoading}
+                  disabled={!isProtocolReady || pending}
                   onClick={() => setConfirmAction("settle")}
                 />
+              ) : null}
+              {emptyMessage ? (
+                <p className="rounded-lg border border-border bg-muted/30 px-3 py-3 text-sm text-muted-foreground">
+                  {emptyMessage}
+                </p>
               ) : null}
             </div>
           </div>

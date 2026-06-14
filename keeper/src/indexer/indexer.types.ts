@@ -98,6 +98,8 @@ export type PositionTrigger = {
   is_range: boolean;
   take_profit_premium: number;
   stop_loss_premium: number;
+  take_profit_slippage_bps: number;
+  stop_loss_slippage_bps: number;
   active: boolean;
   updated_at_ms: number;
 };
@@ -109,6 +111,8 @@ export type ProtocolSettings = {
   registry_id: string;
   vault_id: string | null;
   predict_id: string | null;
+  package_id?: string | null;
+  predict_package_id?: string | null;
   fee_collector_id: string | null;
   trading_paused: boolean;
   base_rate_bps: number | null;

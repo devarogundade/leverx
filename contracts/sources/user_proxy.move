@@ -51,6 +51,10 @@ public struct TriggerConfig has copy, drop, store {
     take_profit_premium: u64,
     /// Premium at or below which a stop-loss close is eligible.
     stop_loss_premium: u64,
+    /// Redeem slippage tolerance (bps) when take-profit fires (`0` → protocol default).
+    take_profit_slippage_bps: u64,
+    /// Redeem slippage tolerance (bps) when stop-loss fires (`0` → protocol default).
+    stop_loss_slippage_bps: u64,
 }
 
 /// Per-market-key quote margin and vault debt — not shared across keys.
@@ -304,23 +308,33 @@ public fun range_remint_after_deleverage(proxy: &UserProxy, key: RangeKey): bool
     }
 }
 
-/// Return `(take_profit_premium, stop_loss_premium)` for a binary key, or `(0, 0)`.
-public fun get_binary_triggers(proxy: &UserProxy, key: MarketKey): (u64, u64) {
+/// Return TP/SL premiums and slippage bps for a binary key (zeros when unset).
+public fun get_binary_triggers(proxy: &UserProxy, key: MarketKey): (u64, u64, u64, u64) {
     if (proxy.binary_triggers.contains(key)) {
         let t = proxy.binary_triggers.borrow(key);
-        (t.take_profit_premium, t.stop_loss_premium)
+        (
+            t.take_profit_premium,
+            t.stop_loss_premium,
+            t.take_profit_slippage_bps,
+            t.stop_loss_slippage_bps,
+        )
     } else {
-        (0, 0)
+        (0, 0, 0, 0)
     }
 }
 
-/// Return `(take_profit_premium, stop_loss_premium)` for a range key, or `(0, 0)`.
-public fun get_range_triggers(proxy: &UserProxy, key: RangeKey): (u64, u64) {
+/// Return TP/SL premiums and slippage bps for a range key (zeros when unset).
+public fun get_range_triggers(proxy: &UserProxy, key: RangeKey): (u64, u64, u64, u64) {
     if (proxy.range_triggers.contains(key)) {
         let t = proxy.range_triggers.borrow(key);
-        (t.take_profit_premium, t.stop_loss_premium)
+        (
+            t.take_profit_premium,
+            t.stop_loss_premium,
+            t.take_profit_slippage_bps,
+            t.stop_loss_slippage_bps,
+        )
     } else {
-        (0, 0)
+        (0, 0, 0, 0)
     }
 }
 
@@ -794,15 +808,23 @@ public(package) fun set_binary_triggers(
     key: MarketKey,
     take_profit_premium: u64,
     stop_loss_premium: u64,
+    take_profit_slippage_bps: u64,
+    stop_loss_slippage_bps: u64,
 ) {
+    let tp_slippage = normalize_trigger_slippage_bps(take_profit_premium, take_profit_slippage_bps);
+    let sl_slippage = normalize_trigger_slippage_bps(stop_loss_premium, stop_loss_slippage_bps);
     if (proxy.binary_triggers.contains(key)) {
         let t = proxy.binary_triggers.borrow_mut(key);
         t.take_profit_premium = take_profit_premium;
         t.stop_loss_premium = stop_loss_premium;
+        t.take_profit_slippage_bps = tp_slippage;
+        t.stop_loss_slippage_bps = sl_slippage;
     } else {
         proxy.binary_triggers.add(key, TriggerConfig {
             take_profit_premium,
             stop_loss_premium,
+            take_profit_slippage_bps: tp_slippage,
+            stop_loss_slippage_bps: sl_slippage,
         });
     };
 }
@@ -826,15 +848,23 @@ public(package) fun set_range_triggers(
     key: RangeKey,
     take_profit_premium: u64,
     stop_loss_premium: u64,
+    take_profit_slippage_bps: u64,
+    stop_loss_slippage_bps: u64,
 ) {
+    let tp_slippage = normalize_trigger_slippage_bps(take_profit_premium, take_profit_slippage_bps);
+    let sl_slippage = normalize_trigger_slippage_bps(stop_loss_premium, stop_loss_slippage_bps);
     if (proxy.range_triggers.contains(key)) {
         let t = proxy.range_triggers.borrow_mut(key);
         t.take_profit_premium = take_profit_premium;
         t.stop_loss_premium = stop_loss_premium;
+        t.take_profit_slippage_bps = tp_slippage;
+        t.stop_loss_slippage_bps = sl_slippage;
     } else {
         proxy.range_triggers.add(key, TriggerConfig {
             take_profit_premium,
             stop_loss_premium,
+            take_profit_slippage_bps: tp_slippage,
+            stop_loss_slippage_bps: sl_slippage,
         });
     };
 }
@@ -1082,12 +1112,154 @@ public(package) fun assert_owner(proxy: &UserProxy, ctx: &TxContext) {
     assert!(ctx.sender() == proxy.owner, errors::not_owner());
 }
 
+/// True when sender is the owner or a registered executor.
+public(package) fun can_act(proxy: &UserProxy, ctx: &TxContext): bool {
+    ctx.sender() == proxy.owner || proxy.executors.contains(&ctx.sender())
+}
+
 /// Abort unless sender is the owner or a registered executor.
 public(package) fun assert_can_act(proxy: &UserProxy, ctx: &TxContext) {
+    assert!(can_act(proxy, ctx), errors::not_authorized());
+}
+
+/// Abort unless sender can act, or automated triggers are configured for the binary key.
+public(package) fun assert_can_act_or_has_binary_trigger(
+    proxy: &UserProxy,
+    key: MarketKey,
+    ctx: &TxContext,
+) {
+    if (can_act(proxy, ctx)) return;
+    assert!(proxy.binary_triggers.contains(key), errors::not_authorized());
+    let t = proxy.binary_triggers.borrow(key);
     assert!(
-        ctx.sender() == proxy.owner || proxy.executors.contains(&ctx.sender()),
-        errors::not_authorized(),
+        t.take_profit_premium > 0 || t.stop_loss_premium > 0,
+        errors::trigger_not_found(),
     );
+}
+
+/// Abort unless sender can act, or automated triggers are configured for the range key.
+public(package) fun assert_can_act_or_has_range_trigger(
+    proxy: &UserProxy,
+    key: RangeKey,
+    ctx: &TxContext,
+) {
+    if (can_act(proxy, ctx)) return;
+    assert!(proxy.range_triggers.contains(key), errors::not_authorized());
+    let t = proxy.range_triggers.borrow(key);
+    assert!(
+        t.take_profit_premium > 0 || t.stop_loss_premium > 0,
+        errors::trigger_not_found(),
+    );
+}
+
+/// Keeper redeem: market bid must cross configured take-profit or stop-loss.
+public(package) fun assert_binary_trigger_threshold_met(
+    proxy: &UserProxy,
+    key: MarketKey,
+    market_bid: u64,
+) {
+    let t = proxy.binary_triggers.borrow(key);
+    let tp_met = t.take_profit_premium > 0 && market_bid >= t.take_profit_premium;
+    let sl_met = t.stop_loss_premium > 0 && market_bid <= t.stop_loss_premium;
+    assert!(tp_met || sl_met, errors::trigger_threshold_not_met());
+}
+
+/// Keeper redeem: market bid must cross configured take-profit or stop-loss.
+public(package) fun assert_range_trigger_threshold_met(
+    proxy: &UserProxy,
+    key: RangeKey,
+    market_bid: u64,
+) {
+    let t = proxy.range_triggers.borrow(key);
+    let tp_met = t.take_profit_premium > 0 && market_bid >= t.take_profit_premium;
+    let sl_met = t.stop_loss_premium > 0 && market_bid <= t.stop_loss_premium;
+    assert!(tp_met || sl_met, errors::trigger_threshold_not_met());
+}
+
+/// Slippage bps for the trigger side crossed by `market_bid` (TP preferred when both match).
+public(package) fun binary_trigger_slippage_bps_for_bid(
+    proxy: &UserProxy,
+    key: MarketKey,
+    market_bid: u64,
+): u64 {
+    let t = proxy.binary_triggers.borrow(key);
+    let tp_met = t.take_profit_premium > 0 && market_bid >= t.take_profit_premium;
+    let sl_met = t.stop_loss_premium > 0 && market_bid <= t.stop_loss_premium;
+    assert!(tp_met || sl_met, errors::trigger_threshold_not_met());
+    if (tp_met) {
+        effective_trigger_slippage_bps(t.take_profit_premium, t.take_profit_slippage_bps)
+    } else {
+        effective_trigger_slippage_bps(t.stop_loss_premium, t.stop_loss_slippage_bps)
+    }
+}
+
+/// Slippage bps for the trigger side crossed by `market_bid` (TP preferred when both match).
+public(package) fun range_trigger_slippage_bps_for_bid(
+    proxy: &UserProxy,
+    key: RangeKey,
+    market_bid: u64,
+): u64 {
+    let t = proxy.range_triggers.borrow(key);
+    let tp_met = t.take_profit_premium > 0 && market_bid >= t.take_profit_premium;
+    let sl_met = t.stop_loss_premium > 0 && market_bid <= t.stop_loss_premium;
+    assert!(tp_met || sl_met, errors::trigger_threshold_not_met());
+    if (tp_met) {
+        effective_trigger_slippage_bps(t.take_profit_premium, t.take_profit_slippage_bps)
+    } else {
+        effective_trigger_slippage_bps(t.stop_loss_premium, t.stop_loss_slippage_bps)
+    }
+}
+
+/// Keeper redeem: `min_payout` must respect configured trigger slippage.
+public(package) fun assert_binary_trigger_redeem_slippage(
+    proxy: &UserProxy,
+    key: MarketKey,
+    market_bid: u64,
+    min_payout: u64,
+    expected_payout: u64,
+) {
+    let slippage_bps = binary_trigger_slippage_bps_for_bid(proxy, key, market_bid);
+    assert_trigger_redeem_min_payout(min_payout, expected_payout, slippage_bps);
+}
+
+/// Keeper redeem: `min_payout` must respect configured trigger slippage.
+public(package) fun assert_range_trigger_redeem_slippage(
+    proxy: &UserProxy,
+    key: RangeKey,
+    market_bid: u64,
+    min_payout: u64,
+    expected_payout: u64,
+) {
+    let slippage_bps = range_trigger_slippage_bps_for_bid(proxy, key, market_bid);
+    assert_trigger_redeem_min_payout(min_payout, expected_payout, slippage_bps);
+}
+
+fun normalize_trigger_slippage_bps(premium: u64, slippage_bps: u64): u64 {
+    if (premium == 0) return 0;
+    if (slippage_bps == 0) return protocol_constants::default_trigger_slippage_bps();
+    assert!(
+        slippage_bps <= protocol_constants::max_limit_order_slippage_bps(),
+        errors::slippage_too_high(),
+    );
+    slippage_bps
+}
+
+fun effective_trigger_slippage_bps(premium: u64, slippage_bps: u64): u64 {
+    if (premium == 0) return 0;
+    if (slippage_bps == 0) protocol_constants::default_trigger_slippage_bps() else slippage_bps
+}
+
+fun assert_trigger_redeem_min_payout(min_payout: u64, expected_payout: u64, slippage_bps: u64) {
+    let floor = if (expected_payout == 0 || slippage_bps == 0) {
+        0
+    } else {
+        let factor = protocol_constants::bps() - slippage_bps;
+        protocol_constants::mul_bps(expected_payout, factor)
+    };
+    assert!(min_payout >= floor, errors::slippage_exceeded());
+    if (min_payout > 0) {
+        assert!(expected_payout >= min_payout, errors::slippage_exceeded());
+    };
 }
 
 // === Test helpers ===

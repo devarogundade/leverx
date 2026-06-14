@@ -4,6 +4,7 @@ import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
 import { formatQuantity } from "@/lib/leverx/format-quantity";
 import { formatPremiumCents } from "@/lib/leverx/indexer-markets";
 import type { GlobalMarketTrade } from "@/lib/leverx/indexer-client";
+import type { PredictSide } from "@/lib/predict/instruments";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -32,6 +33,11 @@ function tradePrice(trade: GlobalMarketTrade): string {
   return "—";
 }
 
+function tradeOutcomeSide(trade: GlobalMarketTrade): PredictSide {
+  if (trade.is_range) return "range";
+  return trade.is_up ? "up" : "down";
+}
+
 export function MarketTradesTable({ trades, limit = 12, className }: Props) {
   const rows: TradeRow[] = trades.slice(0, limit).map((trade) => ({
     id: trade.event_digest,
@@ -52,9 +58,14 @@ export function MarketTradesTable({ trades, limit = 12, className }: Props) {
             ) : (
               <ArrowDownRight className="h-3.5 w-3.5 shrink-0 text-destructive" />
             )}
-            <span className={cn("inline-flex items-center gap-1.5", t.is_up ? "text-success" : "text-destructive")}>
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5",
+                t.is_range ? "text-foreground" : t.is_up ? "text-success" : "text-destructive",
+              )}
+            >
               <span>{t.trade_side === "mint" ? "OPEN" : "CLOSE"}</span>
-              <PredictSideLabel side={t.is_up ? "up" : "down"} />
+              <PredictSideLabel side={tradeOutcomeSide(t)} />
             </span>
           </span>
         );

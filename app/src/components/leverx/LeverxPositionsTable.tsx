@@ -11,10 +11,13 @@ import { leverxInfo } from "@/lib/leverx/info-copy";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { assetLabelForOracleId } from "@/lib/predict/oracles";
 import {
+  closedEntryPremiumCents,
   formatHealthBps,
   formatPnlPct,
   formatPnlUsd,
   positionRowId,
+  realizedPnlPct,
+  realizedPnlUsd,
   type PositionMarkToMarket,
 } from "@/lib/leverx/position-metrics";
 import { predictSideFromBinary, type PredictSide } from "@/lib/predict/instruments";
@@ -85,8 +88,29 @@ function buildRows(
   }));
 }
 
-function PnlCell({ mtm, closed }: { mtm?: PositionMarkToMarket; closed: boolean; }) {
-  if (closed) return <span className="text-sm text-muted-foreground">Closed</span>;
+function PnlCell({
+  position,
+  mtm,
+  closed,
+}: {
+  position: LeveragedPosition;
+  mtm?: PositionMarkToMarket;
+  closed: boolean;
+}) {
+  if (closed) {
+    const pnlUsd = realizedPnlUsd(position);
+    if (pnlUsd == null) {
+      return <span className="text-sm text-muted-foreground">—</span>;
+    }
+    const tone =
+      pnlUsd > 0 ? "text-success" : pnlUsd < 0 ? "text-destructive" : "text-muted-foreground";
+    return (
+      <div className={cn("text-right tabular-nums", tone)}>
+        <div className="text-sm font-medium">{formatPnlUsd(pnlUsd)}</div>
+        <div className="text-[11px] opacity-80">{formatPnlPct(realizedPnlPct(position))}</div>
+      </div>
+    );
+  }
   if (!mtm?.isLive) {
     return <span className="text-sm text-muted-foreground">…</span>;
   }
@@ -186,6 +210,20 @@ function LiveDot({ active }: { active?: boolean; }) {
   );
 }
 
+function StatusCell({ status }: { status: string }) {
+  const isOpen = status === "open";
+  return (
+    <span
+      className={cn(
+        "text-sm capitalize",
+        isOpen ? "font-medium text-success" : "text-muted-foreground",
+      )}
+    >
+      {status}
+    </span>
+  );
+}
+
 export function LeverxPositionsTable({
   positions,
   markToMarket,
@@ -227,6 +265,12 @@ export function LeverxPositionsTable({
       ),
     },
     {
+      key: "status",
+      header: "Status",
+      mobileLabel: "Status",
+      cell: (r) => <StatusCell status={r.position.status} />,
+    },
+    {
       key: "strike",
       header: "Strike",
       mobileLabel: "Strike",
@@ -248,11 +292,17 @@ export function LeverxPositionsTable({
       header: "Entry",
       align: "right",
       hideOnMobile: true,
-      cell: (r) => (
-        <span className="font-mono text-sm tabular-nums text-muted-foreground">
-          {r.mtm?.entryPremiumCents != null ? `${r.mtm.entryPremiumCents.toFixed(1)}¢` : "—"}
-        </span>
-      ),
+      cell: (r) => {
+        const closed = r.position.status !== "open";
+        const entryCents = closed
+          ? closedEntryPremiumCents(r.position)
+          : r.mtm?.entryPremiumCents;
+        return (
+          <span className="font-mono text-sm tabular-nums text-muted-foreground">
+            {entryCents != null ? `${entryCents.toFixed(1)}¢` : "—"}
+          </span>
+        );
+      },
     },
     {
       key: "mark",
@@ -287,11 +337,15 @@ export function LeverxPositionsTable({
     },
     {
       key: "pnl",
-      header: "Unrealized P&L",
+      header: "P&L",
       align: "right",
       mobileTrailing: true,
       cell: (r) => (
-        <PnlCell mtm={r.mtm} closed={r.position.status !== "open"} />
+        <PnlCell
+          position={r.position}
+          mtm={r.mtm}
+          closed={r.position.status !== "open"}
+        />
       ),
     },
     {
@@ -317,7 +371,7 @@ export function LeverxPositionsTable({
         <LabelWithInfo label="Health (est.)" labelClassName="text-inherit" info={leverxInfo.estimatedHealth} />
       ),
       align: "right",
-      hideOnMobile: true,
+      mobileLabel: "Health",
       cell: (r) => <HealthCell mtm={r.mtm} closed={r.position.status !== "open"} />,
     },
     {
@@ -337,9 +391,7 @@ export function LeverxPositionsTable({
       cell: (r) =>
         r.position.status === "open" ? (
           <PositionActionsTrigger position={r.position} />
-        ) : (
-          <span className="text-sm capitalize text-muted-foreground">{r.position.status}</span>
-        ),
+        ) : null,
     },
   ];
 

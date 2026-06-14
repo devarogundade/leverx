@@ -14,7 +14,7 @@ function Read-DeployVar([string]$Key, [string]$Fallback = "") {
     return $Fallback
 }
 
-$Checkpoint = if ($env:FIRST_CHECKPOINT) { $env:FIRST_CHECKPOINT } else { Read-DeployVar "FIRST_CHECKPOINT" "347930845" }
+$Checkpoint = if ($env:FIRST_CHECKPOINT) { $env:FIRST_CHECKPOINT } else { Read-DeployVar "FIRST_CHECKPOINT" "348266507" }
 $ExpectedRegistry = if ($env:LEVERX_REGISTRY_ID) { $env:LEVERX_REGISTRY_ID } else { Read-DeployVar "LEVERX_REGISTRY_ID" }
 
 Push-Location $Root

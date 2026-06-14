@@ -76,6 +76,7 @@ const E_NO_LEVERAGED_EXPOSURE: u64 = 46;
 const E_FORCE_DELEVERAGE_OUTSIDE_WINDOW: u64 = 47;
 const E_MARKET_STILL_OPEN: u64 = 48;
 const E_INVALID_LIQUIDATION_BPS: u64 = 49;
+const E_TRIGGER_THRESHOLD_NOT_MET: u64 = 50;
 
 // --- Auth & access control ---
 
@@ -186,6 +187,9 @@ public fun limit_order_still_active(): u64 { E_LIMIT_ORDER_STILL_ACTIVE }
 
 /// No take-profit / stop-loss triggers are set for the requested market key.
 public fun trigger_not_found(): u64 { E_TRIGGER_NOT_FOUND }
+
+/// Keeper redeem: live market bid did not cross configured take-profit or stop-loss.
+public fun trigger_threshold_not_met(): u64 { E_TRIGGER_THRESHOLD_NOT_MET }
 
 /// Vault object ID does not match the registry's linked vault.
 public fun invalid_protocol_vault(): u64 { E_INVALID_PROTOCOL_VAULT }

@@ -34,8 +34,13 @@ export function summarizeGlobalTrades(
     if (trade.trade_side === "mint") mints++;
     else redeems++;
 
-    if (trade.is_up) up++;
-    else down++;
+    if (trade.is_range) {
+      // Range trades are neither up nor down.
+    } else if (trade.is_up) {
+      up++;
+    } else {
+      down++;
+    }
 
     if (trade.timestamp_ms >= cutoff) {
       last24h++;

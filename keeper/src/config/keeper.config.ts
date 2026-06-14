@@ -44,22 +44,33 @@ export type KeeperConfig = {
 
 export { DEFAULT_PORT };
 
+function envOrDefault(name: string, fallback: string): string {
+  const value = (process.env[name] ?? '').trim();
+  return value || fallback;
+}
+
 export default registerAs(
   'keeper',
   (): KeeperConfig => ({
     enabled: KEEPER_ENABLED,
     privateKey: (process.env.KEEPER_PRIVATE_KEY ?? '').trim(),
     suiNetwork: DEFAULT_SUI_NETWORK,
-    suiRpcUrl: SUI_RPC_URLS[DEFAULT_SUI_NETWORK],
-    packageId: TESTNET_LEVERX.packageId,
-    registryId: TESTNET_LEVERX.registryId,
-    vaultId: TESTNET_LEVERX.vaultId,
-    feeCollectorId: TESTNET_LEVERX.feeCollectorId,
-    predictPackageId: TESTNET_PREDICT.packageId,
-    predictId: TESTNET_PREDICT.sharedObjectId,
-    predictServerUrl: TESTNET_PREDICT.serverUrl,
-    quoteType: TESTNET_ASSETS.quoteType,
-    indexerUrl: INDEXER_URL,
+    suiRpcUrl: envOrDefault('SUI_RPC_URL', SUI_RPC_URLS[DEFAULT_SUI_NETWORK]),
+    packageId: envOrDefault('LEVERX_PACKAGE_ID', TESTNET_LEVERX.packageId),
+    registryId: envOrDefault('LEVERX_REGISTRY_ID', TESTNET_LEVERX.registryId),
+    vaultId: envOrDefault('LEVERX_VAULT_ID', TESTNET_LEVERX.vaultId),
+    feeCollectorId: envOrDefault(
+      'LEVERX_FEE_COLLECTOR_ID',
+      TESTNET_LEVERX.feeCollectorId,
+    ),
+    predictPackageId: envOrDefault(
+      'PREDICT_PACKAGE_ID',
+      TESTNET_PREDICT.packageId,
+    ),
+    predictId: envOrDefault('PREDICT_ID', TESTNET_PREDICT.sharedObjectId),
+    predictServerUrl: envOrDefault('PREDICT_SERVER_URL', TESTNET_PREDICT.serverUrl),
+    quoteType: envOrDefault('QUOTE_TYPE', TESTNET_ASSETS.quoteType),
+    indexerUrl: envOrDefault('INDEXER_URL', INDEXER_URL),
     cron: { ...KEEPER_CRON_DEFAULTS },
     limits: { ...KEEPER_LIMIT_DEFAULTS },
   }),

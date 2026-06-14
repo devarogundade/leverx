@@ -198,7 +198,7 @@ fun non_owner_cannot_set_triggers_via_module() {
 
     test_scenario::next_tx(&mut scenario, stranger);
     let ctx2 = scenario.ctx();
-    triggers::set_automated_triggers(&mut proxy, key, 100, 50, ctx2);
+    triggers::set_automated_triggers(&mut proxy, key, 100, 50, 500, 500, ctx2);
 
     scenario.end();
 }

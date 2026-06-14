@@ -23,6 +23,16 @@ public fun borrow_for_leverage(position_quote: u64, margin_quote: u64): u64 {
     position_quote - margin_quote
 }
 
+/// Leverage bps from posted margin and outstanding vault borrow (`10_000` = 1× when borrow is zero).
+public fun leverage_bps_from_margin_and_borrow(margin_quote: u64, borrowed_quote: u64): u64 {
+    if (borrowed_quote == 0) return protocol_constants::bps();
+    assert!(margin_quote > 0, errors::invalid_leverage());
+    let position = (margin_quote as u128) + (borrowed_quote as u128);
+    let bps = (position * (protocol_constants::bps() as u128) / (margin_quote as u128)) as u64;
+    assert_leverage_bps(bps);
+    bps
+}
+
 /// True when leverage is above 1x (vault borrow permitted).
 public fun is_leveraged(leverage_bps: u64): bool {
     leverage_bps > protocol_constants::bps()

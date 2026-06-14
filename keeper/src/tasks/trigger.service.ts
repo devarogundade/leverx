@@ -1,5 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { TRIGGER_REDEEM_SLIPPAGE_BPS } from '../config/constants';
+import {
+  DEFAULT_TRIGGER_SLIPPAGE_BPS,
+  TRIGGER_REDEEM_SLIPPAGE_BPS,
+} from '../config/constants';
 import {
   minPayoutAfterSlippage,
   redeemPayoutFromBid,
@@ -10,6 +13,13 @@ import type { TaskResult } from '../keeper/keeper.types';
 import { logKeeperError } from '../lib/keeper-log';
 import { PtbBuilderService } from '../sui/ptb-builder.service';
 import { SuiService } from '../sui/sui.service';
+
+type OnChainTriggers = {
+  takeProfitPremium: bigint;
+  stopLossPremium: bigint;
+  takeProfitSlippageBps: number;
+  stopLossSlippageBps: number;
+};
 
 @Injectable()
 export class TriggerService {
@@ -55,16 +65,22 @@ export class TriggerService {
         const triggers = await this.readOnChainTriggers(position);
         if (!triggers) continue;
 
-        const [takeProfitPremium, stopLossPremium] = triggers;
-        if (takeProfitPremium <= 0n && stopLossPremium <= 0n) continue;
+        if (
+          triggers.takeProfitPremium <= 0n &&
+          triggers.stopLossPremium <= 0n
+        ) {
+          continue;
+        }
 
-        const action = await this.resolveTriggerAction(position, {
-          take_profit_premium: Number(takeProfitPremium),
-          stop_loss_premium: Number(stopLossPremium),
-        });
+        const action = await this.resolveTriggerAction(position, triggers);
         if (!action) continue;
 
-        const minPayout = this.computeTriggerMinPayout(position, action.bid);
+        const slippageBps = this.slippageBpsForAction(triggers, action.kind);
+        const minPayout = this.computeTriggerMinPayout(
+          position,
+          action.bid,
+          slippageBps,
+        );
         const tx = this.ptb.buildTriggerRedeem(cfg, position, minPayout);
         if (!(await this.sui.devInspect(tx))) {
           results.push({
@@ -89,29 +105,54 @@ export class TriggerService {
 
   private async readOnChainTriggers(
     position: LeveragedPosition,
-  ): Promise<[bigint, bigint] | null> {
+  ): Promise<OnChainTriggers | null> {
     const cfg = this.sui.getConfig();
     const tx = this.ptb.buildGetTriggers(cfg, position);
-    return this.sui.devInspectU64Pair(tx);
+    const values = await this.sui.devInspectU64Quad(tx);
+    if (!values) return null;
+
+    const [
+      takeProfitPremium,
+      stopLossPremium,
+      takeProfitSlippageBps,
+      stopLossSlippageBps,
+    ] = values;
+
+    return {
+      takeProfitPremium,
+      stopLossPremium,
+      takeProfitSlippageBps: Number(takeProfitSlippageBps),
+      stopLossSlippageBps: Number(stopLossSlippageBps),
+    };
+  }
+
+  private slippageBpsForAction(
+    triggers: OnChainTriggers,
+    kind: 'take_profit' | 'stop_loss',
+  ): number {
+    const configured =
+      kind === 'take_profit'
+        ? triggers.takeProfitSlippageBps
+        : triggers.stopLossSlippageBps;
+    if (configured > 0) return configured;
+    return TRIGGER_REDEEM_SLIPPAGE_BPS || DEFAULT_TRIGGER_SLIPPAGE_BPS;
   }
 
   private computeTriggerMinPayout(
     position: LeveragedPosition,
     bidPerUnit: number,
+    slippageBps: number,
   ): bigint {
     const expected = redeemPayoutFromBid(
       BigInt(bidPerUnit),
       BigInt(position.open_quantity),
     );
-    return minPayoutAfterSlippage(expected, TRIGGER_REDEEM_SLIPPAGE_BPS);
+    return minPayoutAfterSlippage(expected, slippageBps);
   }
 
   private async resolveTriggerAction(
     position: LeveragedPosition,
-    trigger: {
-      take_profit_premium: number;
-      stop_loss_premium: number;
-    },
+    trigger: OnChainTriggers,
   ): Promise<{ kind: 'take_profit' | 'stop_loss'; bid: number } | null> {
     const book = await this.indexer.fetchOrderBook({
       oracleId: position.oracle_id,
@@ -125,13 +166,13 @@ export class TriggerService {
     const bid = book.bids[0]?.price;
     if (bid === undefined) return null;
 
-    if (
-      trigger.take_profit_premium > 0 &&
-      bid >= trigger.take_profit_premium
-    ) {
+    const takeProfitPremium = Number(trigger.takeProfitPremium);
+    const stopLossPremium = Number(trigger.stopLossPremium);
+
+    if (takeProfitPremium > 0 && bid >= takeProfitPremium) {
       return { kind: 'take_profit', bid };
     }
-    if (trigger.stop_loss_premium > 0 && bid <= trigger.stop_loss_premium) {
+    if (stopLossPremium > 0 && bid <= stopLossPremium) {
       return { kind: 'stop_loss', bid };
     }
     return null;

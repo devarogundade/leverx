@@ -68,6 +68,8 @@ const ORDER_TYPE_MARKET: u8 = 0;
 const ORDER_TYPE_LIMIT: u8 = 1;
 /// Max slippage bps allowed when placing or filling a resting limit mint order.
 const MAX_LIMIT_ORDER_SLIPPAGE_BPS: u64 = 5_000;
+/// Default redeem slippage for automated TP/SL when caller passes zero.
+const DEFAULT_TRIGGER_SLIPPAGE_BPS: u64 = 500;
 
 // --- Public getters: basis & decimals ---
 
@@ -177,3 +179,6 @@ public fun order_type_limit(): u8 { ORDER_TYPE_LIMIT }
 
 /// Upper bound on slippage bps for limit mint placement and keeper fills.
 public fun max_limit_order_slippage_bps(): u64 { MAX_LIMIT_ORDER_SLIPPAGE_BPS }
+
+/// Default slippage bps for TP/SL keeper redeems when unset at placement.
+public fun default_trigger_slippage_bps(): u64 { DEFAULT_TRIGGER_SLIPPAGE_BPS }

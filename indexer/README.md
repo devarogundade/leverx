@@ -70,7 +70,7 @@ Resync from the publish checkpoint after upgrading contracts (`bash indexer/scri
 | `InsuranceFundSkimmed` + liquidation `ProtocolFeeDistributed` | `vault_snapshots.insurance_fund_delta`; merged into vault summary |
 | Surplus routed to owner (not keeper) on settle/close | `LeveragedPositionClosed.surplus_quote` reflects owner economics |
 | Force-deleverage remint | Same-tx `LeveragedPositionClosed` → `LeveragedPositionOpened`; `PositionForceDeleveraged.reminted_quantity` |
-| Liquidation resets leverage to 1× | `leveraged_positions.leverage_bps = 10000` on liquidate |
+| Closed/liquidated position snapshots | `leveraged_positions` keeps quantity, margin, leverage, mint cost, and realized payout for history |
 | `vault_flash::repay_flash_liquidity` + `liquidated_account_id` | Keeper PTB only (not indexed as event) |
 
 All events are always stored in `leverx_events` with full `parsed_json` even when projections are partial.
@@ -90,7 +90,7 @@ After a fresh contract publish, wipe Postgres and re-index from the publish chec
 
 ```bash
 bash indexer/scripts/reset-from-publish.sh
-# or: docker compose -f indexer/docker-compose.ec2.yml down -v && FIRST_CHECKPOINT=347930845 docker compose -f indexer/docker-compose.ec2.yml up -d --build
+# or: docker compose -f indexer/docker-compose.ec2.yml down -v && FIRST_CHECKPOINT=348266507 docker compose -f indexer/docker-compose.ec2.yml up -d --build
 ```
 
 Verify: `curl -s http://127.0.0.1:3100/v1/protocol` should return the new `registry_id` / `vault_id` from `contracts/deploy-testnet.env`.

@@ -30,11 +30,56 @@ export function isActiveOpenPosition(position: LeveragedPosition): boolean {
   return position.status === "open" && position.open_quantity > 0;
 }
 
+export function isEndedPosition(position: LeveragedPosition): boolean {
+  return position.status !== "open";
+}
+
+/** Realized P&L for closed/settled/liquidated rows (payout minus cost basis). */
+export function realizedPnlUsd(position: LeveragedPosition): number | null {
+  if (!isEndedPosition(position)) return null;
+  const payoutUsd = scaleQuote(position.realized_payout);
+  const costUsd = scaleQuote(effectiveMintCostAtoms(position));
+  return payoutUsd - costUsd;
+}
+
+export function realizedPnlPct(position: LeveragedPosition): number | null {
+  const pnlUsd = realizedPnlUsd(position);
+  const costUsd = scaleQuote(effectiveMintCostAtoms(position));
+  if (pnlUsd == null || costUsd <= 0) return null;
+  return (pnlUsd / costUsd) * 100;
+}
+
+export function closedEntryPremiumCents(position: LeveragedPosition): number | null {
+  const premium = entryPremiumPerUnitRaw(position);
+  return premium != null ? premiumRawToCents(premium) : null;
+}
+
 /** Cap ghost mint_cost until indexer migration repairs historical rows. */
 export function effectiveMintCostAtoms(position: LeveragedPosition): number {
   if (position.mint_cost <= 0) return 0;
   const cap = position.margin_quote + position.borrow_quote;
   return cap > 0 ? Math.min(position.mint_cost, cap) : position.mint_cost;
+}
+
+/** Matches on-chain `ltv::effective_health_debt` (quote atoms). */
+export function effectiveHealthDebtAtoms(
+  vaultDebtAtoms: number,
+  marginDebtAtoms: number,
+  leverageBps: number,
+): number {
+  if (leverageBps <= 10_000) return 0;
+  if (vaultDebtAtoms > 0) return vaultDebtAtoms;
+  return marginDebtAtoms;
+}
+
+function effectiveHealthDebtUsd(
+  vaultDebtUsd: number,
+  marginDebtUsd: number,
+  leverageBps: number,
+): number {
+  if (leverageBps <= 10_000) return 0;
+  if (vaultDebtUsd > 0) return vaultDebtUsd;
+  return marginDebtUsd;
 }
 
 /** Matches on-chain `predict_client::premium_per_unit` (divide-and-round-up). */
@@ -84,10 +129,14 @@ export function computePositionMarkToMarket(
     entryCostUsd > 0 ? (unrealizedPnlUsd / entryCostUsd) * 100 : null;
 
   const netEquityUsd = markValueUsd - borrowedUsd;
-  // Match on-chain ltv::evaluate_account_health: collateral vs debt (mark value / borrow).
+  const healthDebtUsd = effectiveHealthDebtUsd(
+    borrowedUsd,
+    marginUsd,
+    position.leverage_bps,
+  );
   const healthBps =
-    borrowedUsd > 0
-      ? Math.round((markValueUsd / borrowedUsd) * 10_000)
+    healthDebtUsd > 0
+      ? Math.round((markValueUsd / healthDebtUsd) * 10_000)
       : positionSizeUsd > 0
         ? 100_000
         : null;

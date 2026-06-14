@@ -30,7 +30,7 @@ import type { LeveragedPosition, Liquidation, UserProxy } from "@/lib/leverx/ind
 import { liquidationEventKindLabel } from "@/lib/leverx/protocol";
 import type { PredictOracleSummary } from "@/lib/predict/types";
 import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
-import { premiumRawToCents } from "@/lib/leverx/trade-math";
+import { formatTriggerSlippageBps, premiumRawToCents } from "@/lib/leverx/trade-math";
 import { formatUsdcOrPlaceholder } from "@/lib/leverx/placeholders";
 import { assetLabelForOracleId } from "@/lib/predict/oracles";
 import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
@@ -441,6 +441,10 @@ export function PortfolioAccountPanel({
                         <p className="font-mono text-[11px] text-muted-foreground">
                           TP {premiumRawToCents(BigInt(t.take_profit_premium)).toFixed(1)}¢ · SL{" "}
                           {premiumRawToCents(BigInt(t.stop_loss_premium)).toFixed(1)}¢
+                        </p>
+                        <p className="font-mono text-[11px] text-muted-foreground">
+                          Exit slippage TP {formatTriggerSlippageBps(t.take_profit_slippage_bps)} · SL{" "}
+                          {formatTriggerSlippageBps(t.stop_loss_slippage_bps)}
                         </p>
                         {!match ? (
                           <p className="mt-0.5 text-[11px] text-amber-600 dark:text-amber-400">

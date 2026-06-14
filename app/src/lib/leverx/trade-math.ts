@@ -55,6 +55,15 @@ export function percentToBps(percent: number): number {
   return Math.round(percent * 100);
 }
 
+/** Display label for on-chain trigger slippage (`0` stored → protocol default). */
+export function formatTriggerSlippageBps(
+  bps: number,
+  defaultBps = 500,
+): string {
+  const effective = bps > 0 ? bps : defaultBps;
+  return `${(effective / 100).toFixed(1)}%`;
+}
+
 /** Display cents → Predict premium per unit (1e9 scale). */
 export function centsToPremiumRaw(cents: number): bigint {
   if (!Number.isFinite(cents) || cents <= 0) return 0n;

@@ -233,8 +233,10 @@ fun deleverage_binary_partial_repay_reduces_key_debt() {
     let key = test_fixtures::sample_binary_key();
     let clock = test_fixtures::test_clock(ctx);
 
-    user_proxy::record_borrow_for_binary(&mut proxy, key, 1_000, ctx);
-    leverage_vault::set_debt_for_testing(test_fixtures::vault_mut(&mut setup), 1_000, 1_000);
+    user_proxy::set_binary_leverage(&mut proxy, key, 50_000, ctx);
+    user_proxy::add_binary_margin_debt(&mut proxy, key, 100, ctx);
+    user_proxy::record_borrow_for_binary(&mut proxy, key, 400, ctx);
+    leverage_vault::set_debt_for_testing(test_fixtures::vault_mut(&mut setup), 400, 400);
 
     trade::deleverage_binary_account_balance(
         test_fixtures::registry(&setup),
@@ -242,13 +244,15 @@ fun deleverage_binary_partial_repay_reduces_key_debt() {
         test_fixtures::collector_mut(&mut setup),
         &mut proxy,
         key,
-        test_fixtures::mint_quote(400, test_fixtures::quote_treasury_mut(&mut setup), ctx),
+        test_fixtures::mint_quote(200, test_fixtures::quote_treasury_mut(&mut setup), ctx),
         0,
         &clock,
         ctx,
     );
 
-    assert!(user_proxy::binary_borrowed_quote(&proxy, key) == 600, 0);
+    assert!(user_proxy::binary_borrowed_quote(&proxy, key) == 200, 0);
+    assert!(user_proxy::binary_margin_debt(&proxy, key) == 100, 0);
+    assert!(user_proxy::binary_leverage_bps(&proxy, key) == 30_000, 0);
     assert!(user_proxy::binary_quote_balance(&proxy, key) == 0, 0);
 
     clock::destroy_for_testing(clock);
@@ -266,8 +270,10 @@ fun deleverage_binary_overpay_credits_surplus_to_key() {
     let key = test_fixtures::sample_binary_key();
     let clock = test_fixtures::test_clock(ctx);
 
-    user_proxy::record_borrow_for_binary(&mut proxy, key, 1_000, ctx);
-    leverage_vault::set_debt_for_testing(test_fixtures::vault_mut(&mut setup), 1_000, 1_000);
+    user_proxy::set_binary_leverage(&mut proxy, key, 50_000, ctx);
+    user_proxy::add_binary_margin_debt(&mut proxy, key, 100, ctx);
+    user_proxy::record_borrow_for_binary(&mut proxy, key, 400, ctx);
+    leverage_vault::set_debt_for_testing(test_fixtures::vault_mut(&mut setup), 400, 400);
 
     trade::deleverage_binary_account_balance(
         test_fixtures::registry(&setup),
@@ -282,7 +288,7 @@ fun deleverage_binary_overpay_credits_surplus_to_key() {
     );
 
     assert!(user_proxy::binary_borrowed_quote(&proxy, key) == 0, 0);
-    assert!(user_proxy::binary_quote_balance(&proxy, key) == 500, 0);
+    assert!(user_proxy::binary_quote_balance(&proxy, key) == 1_100, 0);
     assert!(user_proxy::binary_leverage_bps(&proxy, key) == protocol_constants::bps(), 0);
 
     clock::destroy_for_testing(clock);
@@ -300,8 +306,10 @@ fun deleverage_range_partial_repay_reduces_key_debt() {
     let key = test_fixtures::sample_range_key();
     let clock = test_fixtures::test_clock(ctx);
 
-    user_proxy::record_borrow_for_range(&mut proxy, key, 2_000, ctx);
-    leverage_vault::set_debt_for_testing(test_fixtures::vault_mut(&mut setup), 2_000, 2_000);
+    user_proxy::set_range_leverage(&mut proxy, key, 40_000, ctx);
+    user_proxy::add_range_margin_debt(&mut proxy, key, 200, ctx);
+    user_proxy::record_borrow_for_range(&mut proxy, key, 600, ctx);
+    leverage_vault::set_debt_for_testing(test_fixtures::vault_mut(&mut setup), 600, 600);
 
     trade::deleverage_range_account_balance(
         test_fixtures::registry(&setup),
@@ -309,13 +317,15 @@ fun deleverage_range_partial_repay_reduces_key_debt() {
         test_fixtures::collector_mut(&mut setup),
         &mut proxy,
         key,
-        test_fixtures::mint_quote(500, test_fixtures::quote_treasury_mut(&mut setup), ctx),
+        test_fixtures::mint_quote(300, test_fixtures::quote_treasury_mut(&mut setup), ctx),
         0,
         &clock,
         ctx,
     );
 
-    assert!(user_proxy::range_borrowed_quote(&proxy, key) == 1_500, 0);
+    assert!(user_proxy::range_borrowed_quote(&proxy, key) == 300, 0);
+    assert!(user_proxy::range_margin_debt(&proxy, key) == 200, 0);
+    assert!(user_proxy::range_leverage_bps(&proxy, key) == 25_000, 0);
 
     clock::destroy_for_testing(clock);
     scenario.end();
@@ -332,6 +342,8 @@ fun repay_debt_for_binary_uses_key_quote_balance() {
     let key = test_fixtures::sample_binary_key();
     let clock = test_fixtures::test_clock(ctx);
 
+    user_proxy::set_binary_leverage(&mut proxy, key, 50_000, ctx);
+    user_proxy::add_binary_margin_debt(&mut proxy, key, 200, ctx);
     user_proxy::deposit_quote_for_binary(
         &mut proxy,
         key,
@@ -355,6 +367,7 @@ fun repay_debt_for_binary_uses_key_quote_balance() {
 
     assert!(user_proxy::binary_borrowed_quote(&proxy, key) == 500, 0);
     assert!(user_proxy::binary_quote_balance(&proxy, key) == 700, 0);
+    assert!(user_proxy::binary_leverage_bps(&proxy, key) == 35_000, 0);
 
     clock::destroy_for_testing(clock);
     scenario.end();
@@ -371,6 +384,8 @@ fun repay_debt_for_range_uses_key_quote_balance() {
     let key = test_fixtures::sample_range_key();
     let clock = test_fixtures::test_clock(ctx);
 
+    user_proxy::set_range_leverage(&mut proxy, key, 40_000, ctx);
+    user_proxy::add_range_margin_debt(&mut proxy, key, 100, ctx);
     user_proxy::deposit_quote_for_range(
         &mut proxy,
         key,
@@ -394,6 +409,7 @@ fun repay_debt_for_range_uses_key_quote_balance() {
 
     assert!(user_proxy::range_borrowed_quote(&proxy, key) == 200, 0);
     assert!(user_proxy::range_quote_balance(&proxy, key) == 400, 0);
+    assert!(user_proxy::range_leverage_bps(&proxy, key) == 30_000, 0);
 
     clock::destroy_for_testing(clock);
     scenario.end();

@@ -33,6 +33,8 @@ export type TriggerParams = {
   accountId: string;
   takeProfitPremium: bigint;
   stopLossPremium: bigint;
+  takeProfitSlippageBps: number;
+  stopLossSlippageBps: number;
 };
 
 export type VaultSupplyParams = {
@@ -366,6 +368,8 @@ export function buildSetTriggersTx(cfg: LeverxProtocolConfig, params: TriggerPar
       marketKey,
       tx.pure.u64(params.takeProfitPremium),
       tx.pure.u64(params.stopLossPremium),
+      tx.pure.u64(params.takeProfitSlippageBps),
+      tx.pure.u64(params.stopLossSlippageBps),
     ],
   });
 

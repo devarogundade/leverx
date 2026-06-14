@@ -19,7 +19,7 @@ import {
 } from "@/lib/leverx/indexer-client";
 import { baseFromUnderlying } from "@/lib/markets";
 import { fetchOraclePriceLatest, fetchOracleState } from "@/lib/predict/client";
-import { getPredictOracleRows, PREDICT_ORACLES_QUERY_KEY } from "@/lib/predict/oracle-cache";
+import { getPredictOracleRows, predictOraclesQueryKey } from "@/lib/predict/oracle-cache";
 import type { PredictOracleSummary } from "@/lib/predict/types";
 import type { ProtocolSettings } from "@/lib/leverx/indexer-client";
 
@@ -37,10 +37,12 @@ async function safeEnsure<T>(label: string, fallback: T, run: () => Promise<T>):
 }
 
 export async function ensurePredictOracles(queryClient: QueryClient) {
+  const protocol = await ensureIndexerProtocol(queryClient);
+  const predictId = protocol?.predict_id?.trim() || appConfig.predictId;
   return safeEnsure("predict-oracles", [] as PredictOracleSummary[], () =>
     queryClient.ensureQueryData({
-      queryKey: PREDICT_ORACLES_QUERY_KEY,
-      queryFn: getPredictOracleRows,
+      queryKey: predictOraclesQueryKey(predictId),
+      queryFn: () => getPredictOracleRows(predictId),
       staleTime: 300_000,
     }),
   );

@@ -312,6 +312,10 @@ public struct KeyBorrowUpdated has copy, drop {
     is_range: bool,
     /// Remaining key borrowed quote in quote atoms.
     key_borrowed_quote: u64,
+    /// Posted margin for health checks on this key (quote atoms).
+    key_margin_debt: u64,
+    /// Current leverage in basis points (`10_000` = 1×).
+    leverage_bps: u64,
 }
 
 // === Leveraged positions ===
@@ -476,6 +480,10 @@ public struct TriggersUpdated has copy, drop {
     take_profit_premium: u64,
     /// Stop-loss premium in 1e9 scale (`0` to disable).
     stop_loss_premium: u64,
+    /// Redeem slippage bps when take-profit fires.
+    take_profit_slippage_bps: u64,
+    /// Redeem slippage bps when stop-loss fires.
+    stop_loss_slippage_bps: u64,
 }
 
 /// Emitted when take-profit / stop-loss triggers are cleared.
@@ -816,6 +824,8 @@ public(package) fun emit_key_borrow_updated(
     is_up: bool,
     is_range: bool,
     key_borrowed_quote: u64,
+    key_margin_debt: u64,
+    leverage_bps: u64,
 ) {
     event::emit(KeyBorrowUpdated {
         account_id,
@@ -827,6 +837,8 @@ public(package) fun emit_key_borrow_updated(
         is_up,
         is_range,
         key_borrowed_quote,
+        key_margin_debt,
+        leverage_bps,
     });
 }
 
@@ -1093,6 +1105,8 @@ public(package) fun emit_triggers_updated(
     is_range: bool,
     take_profit_premium: u64,
     stop_loss_premium: u64,
+    take_profit_slippage_bps: u64,
+    stop_loss_slippage_bps: u64,
 ) {
     event::emit(TriggersUpdated {
         account_id,
@@ -1100,6 +1114,8 @@ public(package) fun emit_triggers_updated(
         is_range,
         take_profit_premium,
         stop_loss_premium,
+        take_profit_slippage_bps,
+        stop_loss_slippage_bps,
     });
 }
 

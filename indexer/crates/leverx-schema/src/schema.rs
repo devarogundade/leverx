@@ -166,6 +166,8 @@ diesel::table! {
         is_range -> Bool,
         take_profit_premium -> Int8,
         stop_loss_premium -> Int8,
+        take_profit_slippage_bps -> Int8,
+        stop_loss_slippage_bps -> Int8,
         active -> Bool,
         updated_at_ms -> Int8,
     }

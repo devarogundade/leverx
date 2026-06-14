@@ -1437,7 +1437,6 @@ public fun deleverage_binary_account_balance<Quote>(
         coin::destroy_zero(repay_coin);
     };
     if (principal_repaid > 0) {
-        reduce_binary_margin_debt_pro_rata(proxy, key, ledger_principal, principal_repaid, ctx);
         proxy.record_repay_for_binary(key, principal_repaid);
     };
     events::emit_vault_repaid(
@@ -1456,20 +1455,8 @@ public fun deleverage_binary_account_balance<Quote>(
         coin::destroy_zero(funds);
     };
     events::emit_debt_repaid(object::id(proxy), proxy.owner(), repay_amt, proxy.borrowed_quote());
-    events::emit_key_borrow_updated(
-        object::id(proxy),
-        proxy.owner(),
-        key.oracle_id(),
-        key.expiry(),
-        key.strike(),
-        0,
-        key.is_up(),
-        false,
-        proxy.binary_borrowed_quote(key),
-    );
-    if (proxy.binary_borrowed_quote(key) == 0) {
-        proxy.reset_binary_to_unleveraged(key, ctx);
-    };
+    sync_binary_leverage_after_vault_repay(proxy, key, ctx);
+    emit_binary_key_borrow_state(proxy, key);
 }
 
 /// Repay range key vault debt from external quote coins; surplus credited back to the key.
@@ -1511,7 +1498,6 @@ public fun deleverage_range_account_balance<Quote>(
         coin::destroy_zero(repay_coin);
     };
     if (principal_repaid > 0) {
-        reduce_range_margin_debt_pro_rata(proxy, key, ledger_principal, principal_repaid, ctx);
         proxy.record_repay_for_range(key, principal_repaid);
     };
     events::emit_vault_repaid(
@@ -1530,20 +1516,8 @@ public fun deleverage_range_account_balance<Quote>(
         coin::destroy_zero(funds);
     };
     events::emit_debt_repaid(object::id(proxy), proxy.owner(), repay_amt, proxy.borrowed_quote());
-    events::emit_key_borrow_updated(
-        object::id(proxy),
-        proxy.owner(),
-        key.oracle_id(),
-        key.expiry(),
-        key.lower_strike(),
-        key.higher_strike(),
-        false,
-        true,
-        proxy.range_borrowed_quote(key),
-    );
-    if (proxy.range_borrowed_quote(key) == 0) {
-        proxy.reset_range_to_unleveraged(key, ctx);
-    };
+    sync_range_leverage_after_vault_repay(proxy, key, ctx);
+    emit_range_key_borrow_state(proxy, key);
 }
 
 /// Repay binary key debt using quote already held on the market key.
@@ -2199,11 +2173,16 @@ fun execute_leveraged_redeem_binary<Quote>(
     assert!(!registry.trading_paused(), errors::trading_paused());
     assert_registry_predict(registry, predict_global);
     assert_registry_vault_collector(registry, vault, collector);
-    proxy.assert_can_act(ctx);
+    let via_trigger = !proxy.can_act(ctx);
+    proxy.assert_can_act_or_has_binary_trigger(key, ctx);
     assert!(object::id(manager) == proxy.predict_manager_id(), errors::invalid_manager());
 
     let (market_bid, expected_payout) =
         predict_client::market_bid_binary(predict_global, oracle, key, quantity, clock);
+    if (via_trigger) {
+        proxy.assert_binary_trigger_threshold_met(key, market_bid);
+        proxy.assert_binary_trigger_redeem_slippage(key, market_bid, min_payout, expected_payout);
+    };
     validate_redeem_order(
         order_type,
         limit_premium_per_unit,
@@ -2241,11 +2220,16 @@ fun execute_leveraged_redeem_range<Quote>(
     assert!(!registry.trading_paused(), errors::trading_paused());
     assert_registry_predict(registry, predict_global);
     assert_registry_vault_collector(registry, vault, collector);
-    proxy.assert_can_act(ctx);
+    let via_trigger = !proxy.can_act(ctx);
+    proxy.assert_can_act_or_has_range_trigger(key, ctx);
     assert!(object::id(manager) == proxy.predict_manager_id(), errors::invalid_manager());
 
     let (market_bid, expected_payout) =
         predict_client::market_bid_range(predict_global, oracle, key, quantity, clock);
+    if (via_trigger) {
+        proxy.assert_range_trigger_threshold_met(key, market_bid);
+        proxy.assert_range_trigger_redeem_slippage(key, market_bid, min_payout, expected_payout);
+    };
     validate_redeem_order(
         order_type,
         limit_premium_per_unit,
@@ -2776,38 +2760,68 @@ fun write_off_residual_range_debt<Quote>(
     proxy.clear_range_margin_debt(key);
 }
 
-/// Scale posted margin debt down when vault principal is partially repaid.
-fun reduce_binary_margin_debt_pro_rata(
+/// Recompute binary key leverage after vault borrow changes; reset to 1× when debt is zero.
+fun sync_binary_leverage_after_vault_repay(
     proxy: &mut UserProxy,
     key: MarketKey,
-    ledger_principal_before: u64,
-    principal_repaid: u64,
     ctx: &mut TxContext,
 ) {
-    if (principal_repaid == 0 || ledger_principal_before == 0) return;
+    let borrowed = proxy.binary_borrowed_quote(key);
+    if (borrowed == 0) {
+        proxy.reset_binary_to_unleveraged(key, ctx);
+        return
+    };
     let margin = proxy.binary_margin_debt(key);
-    if (margin == 0) return;
-    let remaining_principal = ledger_principal_before - principal_repaid;
-    let new_margin = ((margin as u128) * (remaining_principal as u128)
-        / (ledger_principal_before as u128)) as u64;
-    proxy.set_binary_margin_debt(key, new_margin, ctx);
+    let leverage = ltv::leverage_bps_from_margin_and_borrow(margin, borrowed);
+    proxy.set_binary_leverage(key, leverage, ctx);
 }
 
-/// Scale posted margin debt down when vault principal is partially repaid.
-fun reduce_range_margin_debt_pro_rata(
+/// Recompute range key leverage after vault borrow changes; reset to 1× when debt is zero.
+fun sync_range_leverage_after_vault_repay(
     proxy: &mut UserProxy,
     key: RangeKey,
-    ledger_principal_before: u64,
-    principal_repaid: u64,
     ctx: &mut TxContext,
 ) {
-    if (principal_repaid == 0 || ledger_principal_before == 0) return;
+    let borrowed = proxy.range_borrowed_quote(key);
+    if (borrowed == 0) {
+        proxy.reset_range_to_unleveraged(key, ctx);
+        return
+    };
     let margin = proxy.range_margin_debt(key);
-    if (margin == 0) return;
-    let remaining_principal = ledger_principal_before - principal_repaid;
-    let new_margin = ((margin as u128) * (remaining_principal as u128)
-        / (ledger_principal_before as u128)) as u64;
-    proxy.set_range_margin_debt(key, new_margin, ctx);
+    let leverage = ltv::leverage_bps_from_margin_and_borrow(margin, borrowed);
+    proxy.set_range_leverage(key, leverage, ctx);
+}
+
+fun emit_binary_key_borrow_state(proxy: &UserProxy, key: MarketKey) {
+    events::emit_key_borrow_updated(
+        object::id(proxy),
+        proxy.owner(),
+        key.oracle_id(),
+        key.expiry(),
+        key.strike(),
+        0,
+        key.is_up(),
+        false,
+        proxy.binary_borrowed_quote(key),
+        proxy.binary_margin_debt(key),
+        proxy.binary_leverage_bps(key),
+    );
+}
+
+fun emit_range_key_borrow_state(proxy: &UserProxy, key: RangeKey) {
+    events::emit_key_borrow_updated(
+        object::id(proxy),
+        proxy.owner(),
+        key.oracle_id(),
+        key.expiry(),
+        key.lower_strike(),
+        key.higher_strike(),
+        false,
+        true,
+        proxy.range_borrowed_quote(key),
+        proxy.range_margin_debt(key),
+        proxy.range_leverage_bps(key),
+    );
 }
 
 fun repay_from_payout_binary<Quote>(
@@ -2872,8 +2886,8 @@ fun repay_from_payout_binary<Quote>(
             ctx,
         );
         if (principal_repaid > 0) {
-            reduce_binary_margin_debt_pro_rata(proxy, key, ledger_principal, principal_repaid, ctx);
             proxy.record_repay_for_binary(key, principal_repaid);
+            sync_binary_leverage_after_vault_repay(proxy, key, ctx);
         };
         events::emit_vault_repaid(
             object::id(vault),
@@ -3043,8 +3057,8 @@ fun repay_from_payout_range<Quote>(
             ctx,
         );
         if (principal_repaid > 0) {
-            reduce_range_margin_debt_pro_rata(proxy, key, ledger_principal, principal_repaid, ctx);
             proxy.record_repay_for_range(key, principal_repaid);
+            sync_range_leverage_after_vault_repay(proxy, key, ctx);
         };
         events::emit_vault_repaid(
             object::id(vault),

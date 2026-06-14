@@ -5,9 +5,11 @@ import {
   type ReactNode,
 } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useIndexerProtocol } from "@/hooks/useIndexer";
+import { appConfig } from "@/lib/config";
 import {
   getPredictOracleRows,
-  PREDICT_ORACLES_QUERY_KEY,
+  predictOraclesQueryKey,
 } from "@/lib/predict/oracle-cache";
 import {
   resolveOracleNeighbors,
@@ -35,9 +37,12 @@ type PredictOracleContextValue = {
 const PredictOracleContext = createContext<PredictOracleContextValue | null>(null);
 
 export function PredictOracleProvider({ children }: { children: ReactNode }) {
+  const { data: protocol } = useIndexerProtocol();
+  const predictId = protocol?.predict_id?.trim() || appConfig.predictId;
+
   const query = useQuery({
-    queryKey: PREDICT_ORACLES_QUERY_KEY,
-    queryFn: getPredictOracleRows,
+    queryKey: predictOraclesQueryKey(predictId),
+    queryFn: () => getPredictOracleRows(predictId),
     staleTime: 300_000,
     retry: 2,
   });
@@ -57,20 +62,23 @@ export function PredictOracleProvider({ children }: { children: ReactNode }) {
       refetch: () => {
         void query.refetch();
       },
-      getNeighbors: (oracleId, options) => resolveOracleNeighbors(oracles, oracleId, options),
+      getNeighbors: (oracleId, options) =>
+        resolveOracleNeighbors(oracles, oracleId, options),
     }),
-    [query, oracles],
+    [oracles, query],
   );
 
   return (
-    <PredictOracleContext.Provider value={value}>{children}</PredictOracleContext.Provider>
+    <PredictOracleContext.Provider value={value}>
+      {children}
+    </PredictOracleContext.Provider>
   );
 }
 
-export function usePredictOracleContext(): PredictOracleContextValue {
+export function usePredictOracles() {
   const ctx = useContext(PredictOracleContext);
   if (!ctx) {
-    throw new Error("usePredictOracleContext must be used within PredictOracleProvider");
+    throw new Error("usePredictOracles must be used within PredictOracleProvider");
   }
   return ctx;
 }

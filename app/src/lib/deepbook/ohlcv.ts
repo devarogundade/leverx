@@ -3,7 +3,7 @@ import { appConfig } from "@/lib/config";
 import { normalizeProtectionBase } from "@/lib/markets";
 import type { PricePoint } from "@/lib/predict/price-point";
 
-/** `[timestamp_ms, open, high, low, close, volume]` — DeepBook indexer uses Unix milliseconds. */
+/** `[timestamp_ms, open, high, low, close, volume]` — candle times are Unix ms. */
 export type OhlcvCandle = [number, number, number, number, number, number];
 
 export type OhlcvInterval = "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
@@ -47,6 +47,7 @@ export function patchLatestPriceWithOracle(
   return next;
 }
 
+/** Unix seconds for DeepBook indexer `start_time` / `end_time` query params. */
 export async function fetchDeepbookOhlcv(
   pair: string,
   interval: OhlcvInterval,
@@ -57,8 +58,8 @@ export async function fetchDeepbookOhlcv(
   const url =
     `${base}/ohclv/${encodeURIComponent(pair)}` +
     `?interval=${interval}` +
-    `&start_time=${Math.floor(startTimeMs)}` +
-    `&end_time=${Math.floor(endTimeMs)}`;
+    `&start_time=${Math.floor(startTimeMs / 1000)}` +
+    `&end_time=${Math.floor(endTimeMs / 1000)}`;
 
   const data = await fetchJson<{ candles?: OhlcvCandle[] }>(url, { timeoutMs: 20_000 });
   return Array.isArray(data.candles) ? data.candles : [];

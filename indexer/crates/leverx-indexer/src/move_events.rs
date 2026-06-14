@@ -201,6 +201,8 @@ pub struct KeyBorrowUpdated {
     pub is_up: bool,
     pub is_range: bool,
     pub key_borrowed_quote: u64,
+    pub key_margin_debt: u64,
+    pub leverage_bps: u64,
 }
 
 // === Positions ===
@@ -305,6 +307,8 @@ pub struct TriggersUpdated {
     pub is_range: bool,
     pub take_profit_premium: u64,
     pub stop_loss_premium: u64,
+    pub take_profit_slippage_bps: u64,
+    pub stop_loss_slippage_bps: u64,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

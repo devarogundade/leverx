@@ -14,15 +14,15 @@ export const TESTNET_PREDICT = {
   serverUrl: 'https://predict-server.testnet.mystenlabs.com',
 } as const;
 
-/** Published LeverX package + shared objects (testnet). */
+/** Published LeverX package + shared objects (testnet). Mirrors `contracts/deploy-testnet.env`. */
 export const TESTNET_LEVERX = {
   packageId:
-    '0xe6345a6251057614904a4de8971cfd5d9d7dd5ce6bb7b4c036ca13e8f0dcbd78',
+    '0x624db6bf4dd968e345a961964d25e24a965e1d5d7c60967678ef8b392744cc4f',
   registryId:
-    '0x63a9128e375110edd51b7abc57de2b37eacdd1cf06ae72339e5bc41da791d3d5',
-  vaultId: '0xa541e32a9338fca1953a5626a238f1723b969839a3896ff61a174b34e4c30b0a',
+    '0xfdd22d75272dc9b69d0f43137ed198bf500d7f52e504dcb5a687ae8f0b2df740',
+  vaultId: '0xffe2cb656b71c98f2deaafb62b22f926d04d9409d48486e9a64c7a059f969e7e',
   feeCollectorId:
-    '0xe506020d1f29c88c00f91460af0197760b1fce5893a680c386595f1b508d2cd2',
+    '0xfbaebb19aed9f501a2304e14d43cbe882ebd5697820cb258bb8f7222a51f14c5',
 } as const;
 
 /** dUSDC quote type on testnet. */
@@ -47,8 +47,11 @@ export const DEFAULT_LIQUIDATION_BPS = 9_500;
 /** Extra quote borrowed on flash loans to cover accrued vault interest. */
 export const FLASH_BORROW_BUFFER_BPS = 500;
 
-/** Slippage floor on keeper trigger redeems (matches app `DEFAULT_SLIPPAGE_BPS`). */
-export const TRIGGER_REDEEM_SLIPPAGE_BPS = 500;
+/** Default on-chain trigger redeem slippage when unset at placement. */
+export const DEFAULT_TRIGGER_SLIPPAGE_BPS = 500;
+
+/** Slippage floor on keeper trigger redeems when on-chain config is zero. */
+export const TRIGGER_REDEEM_SLIPPAGE_BPS = DEFAULT_TRIGGER_SLIPPAGE_BPS;
 
 /** Predict per-contract premium scale (1e9). */
 export const PREDICT_PRICE_SCALE = 1_000_000_000n;

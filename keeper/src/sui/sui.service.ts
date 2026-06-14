@@ -78,6 +78,12 @@ export class SuiService implements OnModuleInit {
       if (settings.predict_id?.trim()) {
         this.runtimeOverrides.predictId = settings.predict_id;
       }
+      if (settings.package_id?.trim()) {
+        this.runtimeOverrides.packageId = settings.package_id;
+      }
+      if (settings.predict_package_id?.trim()) {
+        this.runtimeOverrides.predictPackageId = settings.predict_package_id;
+      }
       this.tradingPaused = settings.trading_paused === true;
       this.liquidationBps =
         typeof settings.liquidation_bps === 'number'
@@ -86,7 +92,7 @@ export class SuiService implements OnModuleInit {
 
       const merged = this.getConfig();
       this.logger.log(
-        `indexer protocol: registry=${merged.registryId || 'unset'} vault=${merged.vaultId || 'unset'} paused=${this.tradingPaused} liquidation_bps=${this.liquidationBps ?? 'unset'}`,
+        `indexer protocol: package=${merged.packageId || 'unset'} registry=${merged.registryId || 'unset'} vault=${merged.vaultId || 'unset'} paused=${this.tradingPaused} liquidation_bps=${this.liquidationBps ?? 'unset'}`,
       );
     } catch (err) {
       logKeeperError(this.logger, 'indexer protocol load failed', err, { url });
@@ -241,6 +247,41 @@ export class SuiService implements OnModuleInit {
     const second = readU64(1);
     if (first === null || second === null) return null;
     return [first, second];
+  }
+
+  /** Read a Move `(u64, u64, u64, u64)` return tuple from the last PTB command. */
+  async devInspectU64Quad(
+    tx: Transaction,
+    sender?: string,
+  ): Promise<[bigint, bigint, bigint, bigint] | null> {
+    const address = sender ?? this.keypair?.getPublicKey().toSuiAddress();
+    if (!address) return null;
+
+    const result = await this.client.devInspectTransactionBlock({
+      transactionBlock: tx,
+      sender: address,
+    });
+    if (result.effects?.status?.status !== 'success') {
+      return null;
+    }
+
+    const returnValues = result.results?.at(-1)?.returnValues;
+    if (!returnValues || returnValues.length < 4) return null;
+
+    const readU64 = (index: number): bigint | null => {
+      const entry = returnValues[index];
+      if (!entry) return null;
+      const [bytes] = entry;
+      if (bytes.length < 8) return null;
+      return Buffer.from(bytes).readBigUInt64LE(0);
+    };
+
+    const a = readU64(0);
+    const b = readU64(1);
+    const c = readU64(2);
+    const d = readU64(3);
+    if (a === null || b === null || c === null || d === null) return null;
+    return [a, b, c, d];
   }
 
   async devInspect(tx: Transaction, sender?: string): Promise<boolean> {

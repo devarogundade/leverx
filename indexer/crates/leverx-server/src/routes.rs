@@ -500,7 +500,7 @@ async fn events(
 
 async fn protocol_settings_handler(
     State(state): State<AppState>,
-) -> Result<Json<Option<ProtocolSettingsRow>>, StatusCode> {
+) -> Result<Json<serde_json::Value>, StatusCode> {
     let mut conn = state.pool.get().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let row = protocol_settings::table
         .order(protocol_settings::updated_at_ms.desc())
@@ -509,7 +509,27 @@ async fn protocol_settings_handler(
         .await
         .optional()
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    Ok(Json(row))
+
+    let Some(row) = row else {
+        return Ok(Json(serde_json::Value::Null));
+    };
+
+    let mut value = serde_json::to_value(row).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    if let Some(obj) = value.as_object_mut() {
+        if let Ok(package_id) = std::env::var("LEVERX_PACKAGE_ID") {
+            let package_id = package_id.trim();
+            if !package_id.is_empty() {
+                obj.insert("package_id".into(), json!(package_id));
+            }
+        }
+        if let Ok(predict_package_id) = std::env::var("PREDICT_PACKAGE_ID") {
+            let predict_package_id = predict_package_id.trim();
+            if !predict_package_id.is_empty() {
+                obj.insert("predict_package_id".into(), json!(predict_package_id));
+            }
+        }
+    }
+    Ok(Json(value))
 }
 
 async fn triggers_list(

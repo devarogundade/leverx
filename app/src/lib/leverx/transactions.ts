@@ -216,6 +216,10 @@ export async function executeOpenTrade(params: {
       );
 
       if (input.tpPremium || input.slPremium) {
+        const triggerSlippageBps =
+          input.marketSlippageBps ??
+          input.placementSlippageBps ??
+          DEFAULT_SLIPPAGE_BPS;
         const marketKey = addMarketKey(tx, input.key, cfg.predictPackageId);
         tx.moveCall({
           target: `${cfg.packageId}::triggers::${
@@ -226,6 +230,8 @@ export async function executeOpenTrade(params: {
             marketKey,
             tx.pure.u64(input.tpPremium ?? 0n),
             tx.pure.u64(input.slPremium ?? 0n),
+            tx.pure.u64(input.tpPremium && input.tpPremium > 0n ? triggerSlippageBps : 0),
+            tx.pure.u64(input.slPremium && input.slPremium > 0n ? triggerSlippageBps : 0),
           ],
         });
       }

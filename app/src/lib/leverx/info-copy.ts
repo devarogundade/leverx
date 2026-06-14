@@ -22,6 +22,8 @@ export const leverxInfo = {
   tpSlEntry: "Estimated entry premium for this trade — used to suggest TP/SL levels.",
   tpSlTakeProfit: "Close when the contract premium rises to this price (above entry).",
   tpSlStopLoss: "Close when the contract premium falls to this price (below entry).",
+  tpSlExitSlippage:
+    "Maximum payout slippage when the keeper auto-closes at your take-profit or stop-loss (same as market slippage on market orders, placement slippage on limit orders).",
   remintAfterDeleverage:
     "If the pool force-deleverages your position, automatically reopen at 1× with any leftover margin. Turn off to stay in cash after deleverage.",
   strikePrice:
@@ -80,7 +82,7 @@ export const leverxInfo = {
 
   closeMarket: "Close now at the best available price.",
   closeLimit: "Close only if the price meets your minimum.",
-  repayDebt: "Pay back borrowed dUSDC without fully closing the trade.",
+  repayDebt: "Pay back borrowed dUSDC without closing contracts. Leverage and borrow update on-chain after repay.",
   settleExpired: "Finalize redemption after the oracle has settled. Uses on-chain contract quantity, not the portfolio index.",
   tradingPaused:
     "New opens, limit fills, and triggers are paused. You can still close, repay debt, and settle expired positions.",

@@ -620,6 +620,8 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     position_key: pk,
                     account_id: ev.account_id.to_string(),
                     key_borrowed_quote: ev.key_borrowed_quote as i64,
+                    margin_quote: ev.key_margin_debt as i64,
+                    leverage_bps: ev.leverage_bps as i64,
                 });
                 timeline(batch, ctx, ev.account_id.to_string(), Some(ev.owner.to_string()));
             }
@@ -648,45 +650,45 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     position_key: pk.clone(),
                     account_id: ev.account_id.to_string(),
                     key_borrowed_quote: 0,
+                    margin_quote: 0,
+                    leverage_bps: 10_000,
                 });
                 batch.debt_repaid.push(DebtRepaidPatch {
                     account_id: ev.account_id.to_string(),
                     remaining_debt: 0,
                     updated_at_ms: ctx.timestamp_ms,
                 });
-                if ev.socialized > 0 {
-                    batch.position_closes.push(PositionClosePatch {
-                        event_digest: ctx.event_digest.to_string(),
-                        position_key: pk.clone(),
-                        account_id: ev.account_id.to_string(),
-                        quantity: 0,
-                        payout: 0,
-                        settled: true,
-                        closed_at_ms: ctx.timestamp_ms,
-                        remaining_borrow_quote: 0,
-                    });
-                    batch.liquidation_positions.push(LiquidationPositionPatch {
-                        position_key: pk.clone(),
-                        account_id: ev.account_id.to_string(),
-                        closed_at_ms: ctx.timestamp_ms,
-                        had_position_redeem: true,
-                        event_digest: ctx.event_digest.to_string(),
-                        keeper: ev.keeper.to_string(),
-                    });
-                    batch.liquidations.push(NewLiquidation {
-                        event_digest: ctx.event_digest.to_string(),
-                        position_key: pk,
-                        account_id: ev.account_id.to_string(),
-                        owner: ev.owner.to_string(),
-                        keeper: ev.keeper.to_string(),
-                        debt_repaid: ev.insurance_covered as i64 + ev.socialized as i64,
-                        surplus_quote: 0,
-                        health_bps: 0,
-                        had_position_redeem: true,
-                        timestamp_ms: ctx.timestamp_ms,
-                        event_kind: "bad_debt".into(),
-                    });
-                }
+                batch.position_closes.push(PositionClosePatch {
+                    event_digest: ctx.event_digest.to_string(),
+                    position_key: pk.clone(),
+                    account_id: ev.account_id.to_string(),
+                    quantity: 0,
+                    payout: 0,
+                    settled: true,
+                    closed_at_ms: ctx.timestamp_ms,
+                    remaining_borrow_quote: 0,
+                });
+                batch.liquidation_positions.push(LiquidationPositionPatch {
+                    position_key: pk.clone(),
+                    account_id: ev.account_id.to_string(),
+                    closed_at_ms: ctx.timestamp_ms,
+                    had_position_redeem: ev.socialized > 0,
+                    event_digest: ctx.event_digest.to_string(),
+                    keeper: ev.keeper.to_string(),
+                });
+                batch.liquidations.push(NewLiquidation {
+                    event_digest: ctx.event_digest.to_string(),
+                    position_key: pk,
+                    account_id: ev.account_id.to_string(),
+                    owner: ev.owner.to_string(),
+                    keeper: ev.keeper.to_string(),
+                    debt_repaid: ev.insurance_covered as i64 + ev.socialized as i64,
+                    surplus_quote: 0,
+                    health_bps: 0,
+                    had_position_redeem: ev.socialized > 0,
+                    timestamp_ms: ctx.timestamp_ms,
+                    event_kind: "bad_debt".into(),
+                });
                 timeline(batch, ctx, ev.account_id.to_string(), Some(ev.owner.to_string()));
             }
         }
@@ -778,6 +780,8 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     is_range: ev.is_range,
                     take_profit_premium: ev.take_profit_premium as i64,
                     stop_loss_premium: ev.stop_loss_premium as i64,
+                    take_profit_slippage_bps: ev.take_profit_slippage_bps as i64,
+                    stop_loss_slippage_bps: ev.stop_loss_slippage_bps as i64,
                     active: true,
                     updated_at_ms: ctx.timestamp_ms,
                 });
@@ -792,6 +796,8 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     is_range: ev.is_range,
                     take_profit_premium: 0,
                     stop_loss_premium: 0,
+                    take_profit_slippage_bps: 0,
+                    stop_loss_slippage_bps: 0,
                     active: false,
                     updated_at_ms: ctx.timestamp_ms,
                 });

@@ -164,15 +164,21 @@ export function DataTable<T>({ columns, rows, rowKey, empty, onRowClick, rowClas
                 </dl>
               ) : null}
 
-              {footer.length > 0 ? (
-                <div className={dataTableMobileCardFooter}>
-                  {footer.map((c) => (
-                    <div key={c.key} className="flex justify-end">
-                      {c.cell(row)}
-                    </div>
-                  ))}
-                </div>
-              ) : null}
+              {(() => {
+                const footerItems = footer
+                  .map((c) => ({ key: c.key, content: c.cell(row) }))
+                  .filter(({ content }) => content != null && content !== false);
+                if (footerItems.length === 0) return null;
+                return (
+                  <div className={dataTableMobileCardFooter}>
+                    {footerItems.map(({ key, content }) => (
+                      <div key={key} className="flex justify-end">
+                        {content}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
             </article>
           );
         })}

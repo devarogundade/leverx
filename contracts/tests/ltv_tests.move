@@ -63,6 +63,30 @@ fun min_leverage_bps_is_one_x() {
 }
 
 #[test]
+fun leverage_bps_from_margin_and_borrow_at_5x() {
+    assert!(
+        ltv::leverage_bps_from_margin_and_borrow(100, 400) == 50_000,
+        0,
+    );
+}
+
+#[test]
+fun leverage_bps_from_margin_and_borrow_after_partial_repay() {
+    assert!(
+        ltv::leverage_bps_from_margin_and_borrow(100, 200) == 30_000,
+        0,
+    );
+}
+
+#[test]
+fun leverage_bps_from_margin_and_borrow_zero_debt_is_one_x() {
+    assert!(
+        ltv::leverage_bps_from_margin_and_borrow(100, 0) == protocol_constants::bps(),
+        0,
+    );
+}
+
+#[test]
 fun open_position_collateral_health_uses_redeem_payout() {
     let debt = 1_000;
     // Free quote alone is underwater; adding redeem payout restores health.

@@ -14,9 +14,19 @@ public fun set_automated_triggers_entry(
     market_key: MarketKey,
     take_profit_premium: u64,
     stop_loss_premium: u64,
+    take_profit_slippage_bps: u64,
+    stop_loss_slippage_bps: u64,
     ctx: &mut TxContext,
 ) {
-    set_automated_triggers(proxy, market_key, take_profit_premium, stop_loss_premium, ctx);
+    set_automated_triggers(
+        proxy,
+        market_key,
+        take_profit_premium,
+        stop_loss_premium,
+        take_profit_slippage_bps,
+        stop_loss_slippage_bps,
+        ctx,
+    );
 }
 
 /// Set take-profit and stop-loss premiums for a binary Predict market key.
@@ -26,16 +36,27 @@ public fun set_automated_triggers(
     market_key: MarketKey,
     take_profit_premium: u64,
     stop_loss_premium: u64,
+    take_profit_slippage_bps: u64,
+    stop_loss_slippage_bps: u64,
     ctx: &mut TxContext,
 ) {
     proxy.assert_owner(ctx);
-    proxy.set_binary_triggers(market_key, take_profit_premium, stop_loss_premium);
+    proxy.set_binary_triggers(
+        market_key,
+        take_profit_premium,
+        stop_loss_premium,
+        take_profit_slippage_bps,
+        stop_loss_slippage_bps,
+    );
+    let (tp, sl, tp_slippage, sl_slippage) = proxy.get_binary_triggers(market_key);
     events::emit_triggers_updated(
         object::id(proxy),
         market_key.oracle_id(),
         false,
-        take_profit_premium,
-        stop_loss_premium,
+        tp,
+        sl,
+        tp_slippage,
+        sl_slippage,
     );
 }
 
@@ -56,16 +77,27 @@ public fun set_range_triggers(
     range_key: RangeKey,
     take_profit_premium: u64,
     stop_loss_premium: u64,
+    take_profit_slippage_bps: u64,
+    stop_loss_slippage_bps: u64,
     ctx: &mut TxContext,
 ) {
     proxy.assert_owner(ctx);
-    proxy.set_range_triggers(range_key, take_profit_premium, stop_loss_premium);
+    proxy.set_range_triggers(
+        range_key,
+        take_profit_premium,
+        stop_loss_premium,
+        take_profit_slippage_bps,
+        stop_loss_slippage_bps,
+    );
+    let (tp, sl, tp_slippage, sl_slippage) = proxy.get_range_triggers(range_key);
     events::emit_triggers_updated(
         object::id(proxy),
         range_key.oracle_id(),
         true,
-        take_profit_premium,
-        stop_loss_premium,
+        tp,
+        sl,
+        tp_slippage,
+        sl_slippage,
     );
 }
 
@@ -80,13 +112,13 @@ public fun clear_range_triggers(
     events::emit_triggers_cleared(object::id(proxy), range_key.oracle_id(), true);
 }
 
-/// Read binary-market `(take_profit_premium, stop_loss_premium)` — zeros if unset.
-public fun get_triggers(proxy: &UserProxy, market_key: MarketKey): (u64, u64) {
+/// Read binary-market trigger config — zeros if unset.
+public fun get_triggers(proxy: &UserProxy, market_key: MarketKey): (u64, u64, u64, u64) {
     proxy.get_binary_triggers(market_key)
 }
 
-/// Read range-market `(take_profit_premium, stop_loss_premium)` — zeros if unset.
-public fun get_range_triggers(proxy: &UserProxy, range_key: RangeKey): (u64, u64) {
+/// Read range-market trigger config — zeros if unset.
+public fun get_range_triggers(proxy: &UserProxy, range_key: RangeKey): (u64, u64, u64, u64) {
     proxy.get_range_triggers(range_key)
 }
 
