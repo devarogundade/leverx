@@ -4,7 +4,7 @@
 //! `global_market_trades`. The UI expects a single oracle-wide tape, so we merge both and drop
 //! LeverX rows when the same tx already emitted a matching Predict trade event.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use axum::http::StatusCode;
 use diesel::prelude::*;
@@ -144,7 +144,6 @@ pub async fn fetch_combined_global_trades(
 
     let mut market_query = market_trades::table
         .inner_join(markets::table.on(market_trades::position_key.eq(markets::market_key)))
-        .left_join(user_proxies::table.on(market_trades::account_id.eq(user_proxies::account_id)))
         .into_boxed();
     market_query = market_query.filter(market_trades::oracle_id.eq(oracle_id));
     market_query =
@@ -153,20 +152,37 @@ pub async fn fetch_combined_global_trades(
         market_query = market_query.filter(markets::is_range.eq(is_range));
     }
 
-    let market_rows: Vec<(MarketTradeRow, MarketRow, Option<String>)> = market_query
+    let market_rows: Vec<(MarketTradeRow, MarketRow)> = market_query
         .order(market_trades::timestamp_ms.desc())
         .limit(fetch_cap)
-        .select((
-            MarketTradeRow::as_select(),
-            MarketRow::as_select(),
-            user_proxies::predict_manager_id,
-        ))
+        .select((MarketTradeRow::as_select(), MarketRow::as_select()))
         .load(&mut conn)
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "market_trades query failed");
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
+
+    let account_ids: Vec<String> = market_rows
+        .iter()
+        .filter_map(|(trade, _)| trade.account_id.clone())
+        .collect();
+    let manager_by_account: HashMap<String, String> = if account_ids.is_empty() {
+        HashMap::new()
+    } else {
+        user_proxies::table
+            .filter(user_proxies::account_id.eq_any(account_ids))
+            .select((user_proxies::account_id, user_proxies::predict_manager_id))
+            .load::<(String, Option<String>)>(&mut conn)
+            .await
+            .map_err(|e| {
+                tracing::error!(error = %e, "user_proxies query failed");
+                StatusCode::INTERNAL_SERVER_ERROR
+            })?
+            .into_iter()
+            .filter_map(|(account_id, manager_id)| manager_id.map(|id| (account_id, id)))
+            .collect()
+    };
 
     let predict_id = latest_predict_id(&mut conn).await;
     let quote_asset = reference_quote_asset(&mut conn, oracle_id).await;
@@ -176,7 +192,7 @@ pub async fn fetch_combined_global_trades(
         .map(|row| fingerprint(tx_digest(&row.event_digest), row.quantity, &row.trade_side))
         .collect();
 
-    for (trade, market, predict_manager_id) in market_rows {
+    for (trade, market) in market_rows {
         let Some(side) = trade_side_for_kind(&trade.trade_kind) else {
             continue;
         };
@@ -188,7 +204,12 @@ pub async fn fetch_combined_global_trades(
             continue;
         }
 
-        let manager_id = predict_manager_id.unwrap_or_default();
+        let manager_id = trade
+            .account_id
+            .as_ref()
+            .and_then(|account_id| manager_by_account.get(account_id))
+            .cloned()
+            .unwrap_or_default();
         if let Some(row) = market_trade_to_global(
             &trade,
             &market,
