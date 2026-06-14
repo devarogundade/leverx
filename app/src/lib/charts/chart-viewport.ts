@@ -1,4 +1,7 @@
 import type { IChartApi, LogicalRange } from "lightweight-charts";
+import { applyPredictChartViewport } from "@/lib/charts/predict-chart-view";
+
+const TIME_SCALE_ZOOM_FACTOR = 0.75;
 
 export type SavedChartViewport = {
   logicalRange: LogicalRange | null;
@@ -67,5 +70,36 @@ export function followChartRightEdge(chart: IChartApi, addedBars: number): void 
   chart.timeScale().setVisibleLogicalRange({
     from: range.from + addedBars,
     to: range.to + addedBars,
+  });
+}
+
+/** Zoom the visible time range in or out around its center. */
+export function zoomChartTimeScale(chart: IChartApi, direction: "in" | "out"): void {
+  const timeScale = chart.timeScale();
+  const range = timeScale.getVisibleLogicalRange();
+  if (!range) return;
+
+  const center = (range.from + range.to) / 2;
+  const halfSpan = (range.to - range.from) / 2;
+  const factor = direction === "in" ? TIME_SCALE_ZOOM_FACTOR : 1 / TIME_SCALE_ZOOM_FACTOR;
+  const nextHalfSpan = Math.max(halfSpan * factor, 0.5);
+
+  timeScale.setVisibleLogicalRange({
+    from: center - nextHalfSpan,
+    to: center + nextHalfSpan,
+  });
+}
+
+/** Fit the full series and re-enable vertical autoscale. */
+export function resetChartViewport(
+  chart: IChartApi,
+  dataLength: number,
+  mode: "line" | "candlestick",
+  viewportGuard?: Pick<ReturnType<typeof createChartViewportGuard>, "reset" | "applyProgrammatic"> | null,
+): void {
+  viewportGuard?.reset();
+  viewportGuard?.applyProgrammatic(() => {
+    applyPredictChartViewport(chart, dataLength, mode);
+    chart.priceScale("right").applyOptions({ autoScale: true });
   });
 }

@@ -34,7 +34,8 @@ import {
   useIndexerVaultSummary,
   useMarketCatalog,
 } from "@/hooks/useIndexer";
-import { useChartPriceSeries } from "@/hooks/useChartPriceSeries";
+import { useChartPriceSeries, type ChartDisplayMode } from "@/hooks/useChartPriceSeries";
+import { CHART_OHLCV_INTERVAL, type OhlcvInterval } from "@/lib/deepbook/ohlcv";
 import { useLiveContractPremium } from "@/hooks/useLiveContractPremium";
 import { useNow } from "@/hooks/useNow";
 import { useOraclePriceLatest } from "@/hooks/useOracleSpotPriceSeries";
@@ -194,6 +195,10 @@ function TerminalPriceChart({
   chartRangeUpper,
   layoutActive = true,
   chartSeries,
+  interval,
+  onIntervalChange,
+  displayMode,
+  onDisplayModeChange,
 }: {
   asset: string;
   oracleId: string;
@@ -204,6 +209,10 @@ function TerminalPriceChart({
   chartRangeUpper?: number;
   layoutActive?: boolean;
   chartSeries: ReturnType<typeof useChartPriceSeries>;
+  interval: OhlcvInterval;
+  onIntervalChange: (interval: OhlcvInterval) => void;
+  displayMode: ChartDisplayMode;
+  onDisplayModeChange: (mode: ChartDisplayMode) => void;
 }) {
   return (
     <div className={tradeTerminalChart}>
@@ -217,6 +226,10 @@ function TerminalPriceChart({
         rangeLower={chartRangeLower}
         rangeUpper={chartRangeUpper}
         layoutActive={layoutActive}
+        interval={interval}
+        onIntervalChange={onIntervalChange}
+        displayMode={displayMode}
+        onDisplayModeChange={onDisplayModeChange}
       />
     </div>
   );
@@ -431,6 +444,8 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   const [selectedStrikeRaw, setSelectedStrikeRaw] = useState<number | undefined>();
   const [selectedRangeLower, setSelectedRangeLower] = useState<number | undefined>();
   const [selectedRangeUpper, setSelectedRangeUpper] = useState<number | undefined>();
+  const [chartInterval, setChartInterval] = useState<OhlcvInterval>(CHART_OHLCV_INTERVAL);
+  const [chartDisplayMode, setChartDisplayMode] = useState<ChartDisplayMode>("candlestick");
   const { address } = useWallet();
 
   useEffect(() => {
@@ -681,6 +696,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
     oracleRow: oracleSummary,
     oracleDetail: oracleState,
     patchWithOracleSpot: patchChartWithOracleSpot,
+    interval: chartInterval,
   });
 
   const chartStrikePrice = useMemo(() => {
@@ -871,6 +887,10 @@ export function PredictTradeTerminal({ oracleId }: Props) {
             chartRangeLower={chartRangeLower}
             chartRangeUpper={chartRangeUpper}
             chartSeries={chartSeries}
+            interval={chartInterval}
+            onIntervalChange={setChartInterval}
+            displayMode={chartDisplayMode}
+            onDisplayModeChange={setChartDisplayMode}
           />
           <TerminalOrderBook
             oracleId={oracleId}
@@ -916,6 +936,10 @@ export function PredictTradeTerminal({ oracleId }: Props) {
             chartRangeUpper={chartRangeUpper}
             layoutActive={showMobileChart}
             chartSeries={chartSeries}
+            interval={chartInterval}
+            onIntervalChange={setChartInterval}
+            displayMode={chartDisplayMode}
+            onDisplayModeChange={setChartDisplayMode}
           />
           <TerminalOrderBook
             oracleId={oracleId}

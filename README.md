@@ -55,7 +55,7 @@ bun run build   # or npm run build
 
 ### Breaking changes (contract ↔ indexer ↔ app)
 
-Resync the indexer after republishing contracts (`bash indexer/scripts/reset-from-publish.sh`). The app reads protocol state from `/v1/protocol` — no env changes required beyond `VITE_LEVERX_INDEXER_URL` if you self-host.
+Resync the indexer after republishing contracts (`bash indexer/scripts/reset-from-publish.sh`). The app reads protocol state from `/v1/protocol` — set `VITE_LEVERX_KEEPER_URL` (REST) and `VITE_LEVERX_INDEXER_WS_URL` (live streams) when self-hosting; keeper does not proxy WebSockets.
 
 | Change | App impact |
 |--------|------------|

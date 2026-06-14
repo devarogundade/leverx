@@ -1,9 +1,11 @@
 /**
  * LeverX indexer HTTP client — structured on-chain projections.
+ * REST may be served by keeper (`/v1/*` proxy) or leverx-server directly.
  */
 
-const INDEXER_URL =
-  import.meta.env.VITE_LEVERX_INDEXER_URL ?? "http://localhost:3100";
+import { appConfig, isKeeperApiUrl } from "@/lib/config";
+
+const API_URL = appConfig.leverxIndexerUrl;
 
 export type OrderBookLevel = {
   price: number;
@@ -274,7 +276,7 @@ function buildQuery(
 }
 
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${INDEXER_URL}${path}`);
+  const res = await fetch(`${API_URL}${path}`);
   if (!res.ok) {
     throw new Error(`indexer ${path}: ${res.status} ${await res.text()}`);
   }
@@ -451,7 +453,26 @@ export function fetchEvents(args?: {
   );
 }
 
-export function fetchHealth() {
+export async function fetchHealth(): Promise<{ ok: boolean; service: string }> {
+  if (isKeeperApiUrl(API_URL)) {
+    try {
+      const status = await get<{
+        ok: boolean;
+        indexer: { ok: boolean; service?: string };
+      }>("/health/status");
+      return {
+        ok: status.indexer?.ok === true,
+        service: status.indexer?.service ?? "leverx-server",
+      };
+    } catch {
+      try {
+        await get("/v1/protocol");
+        return { ok: true, service: "leverx-server" };
+      } catch {
+        return { ok: false, service: "leverx-server" };
+      }
+    }
+  }
   return get<{ ok: boolean; service: string }>("/health");
 }
 

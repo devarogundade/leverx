@@ -19,8 +19,11 @@ docker compose up --build
 App:
 
 ```env
-VITE_LEVERX_INDEXER_URL=http://localhost:3001
+VITE_LEVERX_KEEPER_URL=http://localhost:3001
+VITE_LEVERX_INDEXER_WS_URL=ws://localhost:3100/v1/ws
 ```
+
+Keeper proxies REST `/v1/*` only — WebSocket live streams must point at leverx-server (`:3100`).
 
 ## Ports
 

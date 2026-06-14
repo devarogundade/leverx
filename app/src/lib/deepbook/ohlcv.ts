@@ -10,8 +10,34 @@ export type OhlcvCandle = [number, number, number, number, number, number];
 export type OhlcvInterval = "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
 
 export const CHART_OHLCV_INTERVAL: OhlcvInterval = "15m";
-export const CHART_OHLCV_INTERVAL_MS = 15 * 60 * 1000;
+export const CHART_OHLCV_INTERVAL_MS = ohlcvIntervalMs(CHART_OHLCV_INTERVAL);
 export const CHART_OHLCV_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
+
+export const CHART_OHLCV_INTERVALS: readonly OhlcvInterval[] = [
+  "1m",
+  "5m",
+  "15m",
+  "1h",
+  "4h",
+  "1d",
+];
+
+export function ohlcvIntervalMs(interval: OhlcvInterval): number {
+  switch (interval) {
+    case "1m":
+      return 60_000;
+    case "5m":
+      return 5 * 60_000;
+    case "15m":
+      return 15 * 60_000;
+    case "1h":
+      return 60 * 60_000;
+    case "4h":
+      return 4 * 60 * 60_000;
+    case "1d":
+      return 24 * 60 * 60_000;
+  }
+}
 
 const DEEPBOOK_PAIRS: Record<string, string> = {
   BTC: "XBTC_USDC",

@@ -36,6 +36,53 @@ function viteEnv(name: string): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+const DEFAULT_INDEXER_DIRECT = "http://localhost:3100";
+const DEFAULT_KEEPER_API = "https://keeper.suileverx.xyz";
+const DEFAULT_INDEXER_PUBLIC = "https://indexer.suileverx.xyz";
+
+/** True when REST `/v1/*` is served by the keeper proxy (not leverx-server directly). */
+export function isKeeperApiUrl(url: string): boolean {
+  try {
+    const { hostname, port } = new URL(url);
+    if (port === "3001") return true;
+    return hostname === "keeper.suileverx.xyz" || hostname.startsWith("keeper.");
+  } catch {
+    return false;
+  }
+}
+
+function defaultIndexerDirectUrl(): string {
+  return import.meta.env.PROD ? DEFAULT_INDEXER_PUBLIC : DEFAULT_INDEXER_DIRECT;
+}
+
+function resolveLeverxApiUrl(): string {
+  const keeper = viteEnv("VITE_LEVERX_KEEPER_URL");
+  if (keeper) return keeper;
+  const indexer = viteEnv("VITE_LEVERX_INDEXER_URL");
+  if (indexer) return indexer;
+  return import.meta.env.PROD ? DEFAULT_KEEPER_API : DEFAULT_INDEXER_DIRECT;
+}
+
+function resolveLeverxWsUrl(apiUrl: string): string | null {
+  const explicit = viteEnv("VITE_LEVERX_INDEXER_WS_URL");
+  if (explicit) {
+    const trimmed = explicit.replace(/\/$/, "");
+    return trimmed.endsWith("/v1/ws") ? trimmed : `${trimmed}/v1/ws`;
+  }
+  if (!apiUrl) return null;
+
+  const explicitIndexer = viteEnv("VITE_LEVERX_INDEXER_URL");
+  const wsBase = isKeeperApiUrl(apiUrl)
+    ? explicitIndexer && !isKeeperApiUrl(explicitIndexer)
+      ? explicitIndexer
+      : defaultIndexerDirectUrl()
+    : apiUrl;
+
+  return `${wsBase.replace(/^http/i, "ws").replace(/\/$/, "")}/v1/ws`;
+}
+
+const leverxApiUrl = resolveLeverxApiUrl();
+
 export const appConfig = {
   suiNetwork: "testnet" as const,
 
@@ -54,9 +101,14 @@ export const appConfig = {
   /** Vault/manager legacy paths; oracle catalog always uses predictServerUrl. */
   usePredictServer: false,
 
-  /** LeverX on-chain indexer (order book, positions, limits). */
-  leverxIndexerUrl:
-    import.meta.env.VITE_LEVERX_INDEXER_URL ?? "http://localhost:3100",
+  /**
+   * LeverX REST API base — keeper proxies `/v1/*` to leverx-server in production/docker.
+   * WebSocket live streams still use `leverxIndexerWsUrl` (keeper does not proxy WS).
+   */
+  leverxIndexerUrl: leverxApiUrl,
+
+  /** Direct leverx-server WebSocket endpoint (`/v1/ws`). */
+  leverxIndexerWsUrl: resolveLeverxWsUrl(leverxApiUrl),
 
   /** DeepBook spot OHLCV (chart visualization only). */
   deepbookIndexerUrl:

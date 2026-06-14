@@ -15,15 +15,7 @@ type StatusListener = (status: IndexerWsConnectionStatus) => void;
 export type IndexerWsConnectionStatus = "idle" | "connecting" | "open" | "closed";
 
 function wsConnectUrl(): string | null {
-  const explicit = import.meta.env.VITE_LEVERX_INDEXER_WS_URL as string | undefined;
-  if (explicit) {
-    const trimmed = explicit.replace(/\/$/, "");
-    // Env may be a full path (`…/v1/ws`) or a host base (`ws://host:3100`).
-    return trimmed.endsWith("/v1/ws") ? trimmed : `${trimmed}/v1/ws`;
-  }
-  if (!appConfig.leverxIndexerUrl) return null;
-  const base = appConfig.leverxIndexerUrl.replace(/^http/i, "ws").replace(/\/$/, "");
-  return `${base}/v1/ws`;
+  return appConfig.leverxIndexerWsUrl;
 }
 
 export class IndexerWebSocket {

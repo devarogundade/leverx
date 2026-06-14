@@ -7,10 +7,10 @@ import {
 } from "@/lib/charts/candle-data";
 import {
   CHART_OHLCV_INTERVAL,
-  CHART_OHLCV_INTERVAL_MS,
   CHART_OHLCV_LOOKBACK_MS,
   deepbookPairForAsset,
   fetchDeepbookOhlcv,
+  type OhlcvInterval,
 } from "@/lib/deepbook/ohlcv";
 import { usePredictOracleState } from "@/hooks/usePredictOracleState";
 import { useOraclePriceLatest, useOracleSpotPriceSeries } from "@/hooks/useOracleSpotPriceSeries";
@@ -20,7 +20,9 @@ import type { PredictOracleDetail, PredictOracleSummary } from "@/lib/predict/ty
 
 const OHLCV_REFETCH_MS = 60_000;
 
-export { CHART_OHLCV_INTERVAL_MS };
+export { CHART_OHLCV_INTERVAL_MS } from "@/lib/deepbook/ohlcv";
+export type { OhlcvInterval } from "@/lib/deepbook/ohlcv";
+export type ChartDisplayMode = ChartPriceSeriesMode;
 
 export type ChartPriceSeriesMode = "candlestick" | "line";
 
@@ -43,6 +45,7 @@ function useDeepbookChartSeries(
   pair: string,
   oracleId: string,
   enabled: boolean,
+  interval: OhlcvInterval,
   options?: {
     oracleRow?: OracleChartRow | null;
     oracleDetail?: OracleChartDetail | null;
@@ -68,11 +71,11 @@ function useDeepbookChartSeries(
     isFetched,
     refetch,
   } = useQuery({
-    queryKey: ["deepbook-ohlcv", pair, CHART_OHLCV_INTERVAL],
+    queryKey: ["deepbook-ohlcv", pair, interval],
     queryFn: async () => {
       const endTime = Date.now();
       const startTime = endTime - CHART_OHLCV_LOOKBACK_MS;
-      return fetchDeepbookOhlcv(pair, CHART_OHLCV_INTERVAL, startTime, endTime);
+      return fetchDeepbookOhlcv(pair, interval, startTime, endTime);
     },
     enabled,
     staleTime: OHLCV_REFETCH_MS / 2,
@@ -111,6 +114,7 @@ export function useChartPriceSeries(
   asset: string,
   options?: {
     enabled?: boolean;
+    interval?: OhlcvInterval;
     oracleRow?: OracleChartRow | null;
     oracleDetail?: OracleChartDetail | null;
     /** When set, overrides oracle lifecycle checks for terminal-bar patching. */
@@ -118,10 +122,11 @@ export function useChartPriceSeries(
   },
 ): ChartPriceSeriesResult {
   const enabled = Boolean(oracleId) && (options?.enabled ?? true);
+  const interval = options?.interval ?? CHART_OHLCV_INTERVAL;
   const pair = deepbookPairForAsset(asset);
   const useOhlcv = Boolean(pair);
 
-  const ohlcv = useDeepbookChartSeries(pair ?? "", oracleId, enabled && useOhlcv, options);
+  const ohlcv = useDeepbookChartSeries(pair ?? "", oracleId, enabled && useOhlcv, interval, options);
   const oracle = useOracleSpotPriceSeries(oracleId, { enabled: enabled && !useOhlcv });
 
   if (useOhlcv) return ohlcv;
