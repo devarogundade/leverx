@@ -1,4 +1,4 @@
-const STORAGE_KEY = "lx-market-favorites";
+const STORAGE_KEY = "lx-market-favorite-markets";
 
 function parseFavorites(raw: string | null): string[] {
   if (!raw) return [];
@@ -16,9 +16,9 @@ export function readMarketFavorites(): readonly string[] {
   return parseFavorites(localStorage.getItem(STORAGE_KEY));
 }
 
-export function writeMarketFavorites(oracleIds: readonly string[]): void {
+export function writeMarketFavorites(marketIds: readonly string[]): void {
   if (typeof window === "undefined") return;
-  const unique = [...new Set(oracleIds)];
+  const unique = [...new Set(marketIds)];
   if (unique.length === 0) {
     localStorage.removeItem(STORAGE_KEY);
     return;

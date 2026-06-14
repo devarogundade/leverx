@@ -16,8 +16,8 @@ import {
 interface MarketFavoritesContextValue {
   favorites: ReadonlySet<string>;
   favoriteCount: number;
-  isFavorite: (oracleId: string) => boolean;
-  toggleFavorite: (oracleId: string) => void;
+  isFavorite: (marketId: string) => boolean;
+  toggleFavorite: (marketId: string) => void;
 }
 
 const MarketFavoritesContext = createContext<MarketFavoritesContextValue | null>(null);
@@ -38,17 +38,17 @@ export function MarketFavoritesProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  const toggleFavorite = useCallback((oracleId: string) => {
+  const toggleFavorite = useCallback((marketId: string) => {
     setFavorites((prev) => {
       const next = new Set(prev);
-      if (next.has(oracleId)) next.delete(oracleId);
-      else next.add(oracleId);
+      if (next.has(marketId)) next.delete(marketId);
+      else next.add(marketId);
       writeMarketFavorites([...next]);
       return next;
     });
   }, []);
 
-  const isFavorite = useCallback((oracleId: string) => favorites.has(oracleId), [favorites]);
+  const isFavorite = useCallback((marketId: string) => favorites.has(marketId), [favorites]);
 
   const value = useMemo(
     () => ({

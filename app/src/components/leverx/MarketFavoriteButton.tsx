@@ -6,25 +6,25 @@ import { marketsBookmark } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
 
 interface Props {
-  oracleId: string;
+  marketId: string;
   className?: string;
   size?: "icon" | "sm";
   iconClassName?: string;
 }
 
 export function MarketFavoriteButton({
-  oracleId,
+  marketId,
   className,
   size = "icon",
   iconClassName,
 }: Props) {
   const { isFavorite, toggleFavorite } = useMarketFavorites();
-  const active = isFavorite(oracleId);
+  const active = isFavorite(marketId);
 
   const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    toggleFavorite(oracleId);
+    toggleFavorite(marketId);
   };
 
   return (

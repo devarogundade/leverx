@@ -59,7 +59,7 @@ export function PredictMarketsGrid({
 
   useEffect(() => {
     setPage(1);
-  }, [markets.length]);
+  }, [markets]);
 
   const { items: pageMarkets, page: currentPage, totalPages, totalItems } = useMemo(
     () => paginateSlice(markets, page, MARKETS_GRID_PAGE_SIZE),
@@ -144,7 +144,7 @@ export function PredictMarketsGrid({
                   <div className={cn(marketCardInteractive, "flex items-center gap-2")}>
                     <span>{m.expiry ? formatAutoClose(m.expiry) : "—"}</span>
                     <MarketFavoriteButton
-                      oracleId={m.oracleId}
+                      marketId={m.id}
                       size="sm"
                       className="h-7 w-7 min-w-7 p-0"
                       iconClassName="h-3 w-3"

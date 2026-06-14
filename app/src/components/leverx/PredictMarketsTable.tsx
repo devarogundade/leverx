@@ -15,6 +15,12 @@ import {
   paginateSlice,
 } from "@/components/leverx/MarketCatalogPagination";
 import type { LeverxMarketRow } from "@/lib/leverx/indexer-markets";
+import {
+  marketSortToKeyDir,
+  toggleMarketTableSort,
+  type MarketSortId,
+  type MarketSortKey,
+} from "@/lib/leverx/market-sort";
 import { formatAutoClose, formatCompactUsdOrPlaceholder } from "@/lib/leverx/placeholders";
 import { ui } from "@/lib/copy";
 import {
@@ -55,7 +61,7 @@ import { MarketLeverageBadge } from "@/components/leverx/MarketLeverageBadge";
 import { useNow } from "@/hooks/useNow";
 import { cn } from "@/lib/utils";
 
-type SortKey = "price" | "volume" | "liquidity" | "expiry";
+type SortKey = MarketSortKey;
 type SortDir = "asc" | "desc";
 
 function SortHeader({
@@ -107,7 +113,7 @@ function MarketMobileCard({
   return (
     <article className={marketsTableMobileCard}>
       <div className={marketsTableMobileCardHeader}>
-        <MarketFavoriteButton oracleId={m.oracleId} />
+        <MarketFavoriteButton marketId={m.id} />
         <AssetBadge asset={m.asset} size="sm" />
         <div className="min-w-0 flex-1">
           <Link
@@ -160,6 +166,8 @@ function MarketMobileCard({
 
 interface Props {
   markets: LeverxMarketRow[];
+  sort: MarketSortId;
+  onSortChange: (sort: MarketSortId) => void;
   liquidityLabel?: string;
   loading?: boolean;
   offline?: boolean;
@@ -169,52 +177,28 @@ interface Props {
 
 export function PredictMarketsTable({
   markets,
+  sort,
+  onSortChange,
   liquidityLabel = "_",
   loading,
   offline,
   emptyTitle = ui.emptyMarkets,
   emptyDescription = ui.emptyMarketsHint,
 }: Props) {
-  const [sortKey, setSortKey] = useState<SortKey>("volume");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const { key: sortKey, dir: sortDir } = marketSortToKeyDir(sort);
   const [page, setPage] = useState(1);
 
   useEffect(() => {
     setPage(1);
-  }, [markets.length, sortKey, sortDir]);
+  }, [markets.length, sort]);
 
   const toggleSort = (key: SortKey) => {
-    if (sortKey === key) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-      return;
-    }
-    setSortKey(key);
-    setSortDir(key === "expiry" ? "asc" : "desc");
+    onSortChange(toggleMarketTableSort(sort, key));
   };
 
-  const sortedMarkets = useMemo(() => {
-    const rows = [...markets];
-    const factor = sortDir === "asc" ? 1 : -1;
-    rows.sort((a, b) => {
-      switch (sortKey) {
-        case "price":
-          return ((a.lastAskPremium ?? 0) - (b.lastAskPremium ?? 0)) * factor;
-        case "volume":
-          return (a.volume - b.volume) * factor;
-        case "liquidity":
-          return (a.volume - b.volume) * factor;
-        case "expiry":
-          return (a.expiry - b.expiry) * factor;
-        default:
-          return 0;
-      }
-    });
-    return rows;
-  }, [markets, sortKey, sortDir]);
-
   const { items: pageMarkets, page: currentPage, totalPages, totalItems } = useMemo(
-    () => paginateSlice(sortedMarkets, page, MARKETS_TABLE_PAGE_SIZE),
-    [sortedMarkets, page],
+    () => paginateSlice(markets, page, MARKETS_TABLE_PAGE_SIZE),
+    [markets, page],
   );
   const { markets: visibleMarkets } = useVisibleOracleSpots(pageMarkets);
   const { seriesByMarketId } = useMarketPremiumSparklines(visibleMarkets);
@@ -300,7 +284,7 @@ export function PredictMarketsTable({
                 <tr key={m.id} className={marketsRow}>
                   <td className={cn(marketsTd, marketsTdMarket)}>
                     <div className={marketsMarketCell}>
-                      <MarketFavoriteButton oracleId={m.oracleId} />
+                      <MarketFavoriteButton marketId={m.id} />
                       <AssetBadge asset={m.asset} size="sm" />
                       <div className="min-w-0 flex-1">
                         <Link

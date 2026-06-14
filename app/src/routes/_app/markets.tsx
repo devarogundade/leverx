@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { LayoutGrid, List, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { UnderlineTabs } from "@/components/leverx/UnderlineTabs";
+import { MarketsSortPopover } from "@/components/leverx/MarketsSortPopover";
 import { PredictMarketsGrid } from "@/components/leverx/PredictMarketsGrid";
 import { PredictMarketsTable } from "@/components/leverx/PredictMarketsTable";
 import { useMarketFavorites } from "@/context/MarketFavoritesContext";
@@ -25,6 +26,11 @@ import {
   segTabsClass,
 } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
+import {
+  DEFAULT_MARKET_SORT,
+  sortMarketRows,
+  type MarketSortId,
+} from "@/lib/leverx/market-sort";
 import { loadMarketsRoute } from "@/lib/router/route-loaders";
 import { routePendingOptions } from "@/lib/router/route-options";
 
@@ -50,6 +56,7 @@ function MarketsPage() {
   const [category, setCategory] = useState<MarketsTab>("Live");
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"grid" | "list">("grid");
+  const [sort, setSort] = useState<MarketSortId>(DEFAULT_MARKET_SORT);
   const { favorites, favoriteCount } = useMarketFavorites();
 
   const catalogCategory: MarketCategory = category === "Favorites" ? "All" : category;
@@ -61,9 +68,12 @@ function MarketsPage() {
     });
 
   const markets = useMemo(() => {
-    if (category !== "Favorites") return catalogMarkets;
-    return catalogMarkets.filter((market) => favorites.has(market.oracleId));
-  }, [catalogMarkets, category, favorites]);
+    const filtered =
+      category === "Favorites"
+        ? catalogMarkets.filter((market) => favorites.has(market.id))
+        : catalogMarkets;
+    return sortMarketRows(filtered, sort);
+  }, [catalogMarkets, category, favorites, sort]);
 
   const emptyTitle = category === "Favorites" ? ui.emptyFavoriteMarkets : ui.emptyMarkets;
   const emptyDescription =
@@ -121,25 +131,29 @@ function MarketsPage() {
         </div>
       </div>
 
-      <UnderlineTabs
-        variant="plain"
-        value={category}
-        onValueChange={(v) => setCategory(v as MarketsTab)}
-        options={CATEGORIES.map((cat) => ({
-          value: cat,
-          label: (
-            <>
-              {cat}
-              {cat === "Live" && categoryCounts.Live > 0 ? (
-                <span className={cn(pillCount, "ml-1")}>{categoryCounts.Live}</span>
-              ) : null}
-              {cat === "Favorites" && favoriteCount > 0 ? (
-                <span className={cn(pillCount, "ml-1")}>{favoriteCount}</span>
-              ) : null}
-            </>
-          ),
-        }))}
-      />
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <UnderlineTabs
+          variant="plain"
+          className="min-w-0 flex-1"
+          value={category}
+          onValueChange={(v) => setCategory(v as MarketsTab)}
+          options={CATEGORIES.map((cat) => ({
+            value: cat,
+            label: (
+              <>
+                {cat}
+                {cat === "Live" && categoryCounts.Live > 0 ? (
+                  <span className={cn(pillCount, "ml-1")}>{categoryCounts.Live}</span>
+                ) : null}
+                {cat === "Favorites" && favoriteCount > 0 ? (
+                  <span className={cn(pillCount, "ml-1")}>{favoriteCount}</span>
+                ) : null}
+              </>
+            ),
+          }))}
+        />
+        <MarketsSortPopover value={sort} onChange={setSort} className="self-end sm:self-auto" />
+      </div>
 
       <div className={cn(view === "list" && marketsCatalogRegion)}>
         {view === "grid" ? (
@@ -156,6 +170,8 @@ function MarketsPage() {
             <div className="hidden lg:block">
               <PredictMarketsTable
                 markets={markets}
+                sort={sort}
+                onSortChange={setSort}
                 liquidityLabel={liquidityLabel}
                 loading={loading}
                 offline={offline}
