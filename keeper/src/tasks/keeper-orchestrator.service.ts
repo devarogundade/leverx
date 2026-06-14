@@ -8,11 +8,9 @@ import { SuiService } from '../sui/sui.service';
 import { LimitOrderService } from './limit-order.service';
 import { LiquidationService } from './liquidation.service';
 import { ForceCloseService } from './force-close.service';
-import { SettlementService } from './settlement.service';
 import { TriggerService } from './trigger.service';
 
 export type KeeperTaskKind =
-  | 'settlement'
   | 'limit_order'
   | 'liquidation'
   | 'trigger'
@@ -29,7 +27,6 @@ export class KeeperOrchestratorService {
   constructor(
     config: ConfigService,
     private readonly sui: SuiService,
-    private readonly settlement: SettlementService,
     private readonly limitOrders: LimitOrderService,
     private readonly liquidation: LiquidationService,
     private readonly triggers: TriggerService,
@@ -83,9 +80,6 @@ export class KeeperOrchestratorService {
       }
       if (kind === 'all' || kind === 'force_close') {
         results.push(...(await this.forceClose.run(this.cfg.limits.forceCloses)));
-      }
-      if (kind === 'all' || kind === 'settlement') {
-        results.push(...(await this.settlement.run(this.cfg.limits.settlements)));
       }
       if (!tradingPaused) {
         if (kind === 'all' || kind === 'trigger') {

@@ -60,7 +60,12 @@ export const leverxInfo = {
   liquidations:
     "Liquidations, force-deleverages, and bad-debt write-offs when health falls below the protocol threshold.",
   withdrawTradingBalance:
-    "dUSDC credited to your trading account after closing a trade. Withdraw here to your wallet once key borrow is fully repaid.",
+    "dUSDC credited to your trading account after closing a trade. Withdraw here to your wallet once key borrow is fully repaid. If a third party redeemed your contracts, the payout may sit in your Predict manager balance instead of the market key.",
+  depositTradingBalance:
+    "Move dUSDC from your wallet into your trading account. Market-key deposits credit a specific market ledger; Predict manager deposits fund the shared manager pool used for minting.",
+  depositSourceWallet: "Fund the trade from dUSDC in your connected wallet.",
+  depositSourceManager:
+    "Fund the trade from dUSDC already in your Predict manager balance (moved to this market key when you open).",
   estimatedHealth:
     "Estimated collateral ratio (mark value ÷ borrow). On-chain health also considers accrued interest and per-key ledger state.",
 
@@ -82,8 +87,11 @@ export const leverxInfo = {
   orderBookSide: "Switch outcome to view limits and LP pricing for UP, DOWN, or RANGE.",
   spread: "Gap between the best limit bid and the live LP mint price.",
 
-  balanceTotal: "Estimated net equity across open trades (mark value minus borrow).",
+  balanceTotal:
+    "Wallet dUSDC plus margin and Predict manager balance, minus vault borrow across your account.",
   balanceWallet: "dUSDC available in your connected wallet (not yet in open trades).",
+  balanceManager:
+    "dUSDC in your Predict manager balance — shared pool for minting and redeems, separate from per-market key ledgers.",
   balanceMargin: "Your own funds posted in open trades.",
   balanceBorrowed: "Amount borrowed from the pool.",
   balancePositions: "Number of open trades.",

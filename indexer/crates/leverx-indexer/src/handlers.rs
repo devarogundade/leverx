@@ -43,6 +43,7 @@ pub struct LeverxBatch {
     pub limit_cancelled: Vec<LimitCancelPatch>,
     pub positions_open: Vec<PositionOpenPatch>,
     pub position_closes: Vec<PositionClosePatch>,
+    pub predict_redeem_closes: Vec<PredictExternalRedeemPatch>,
     pub trades: Vec<NewMarketTrade>,
     pub global_trades: Vec<NewGlobalMarketTrade>,
     pub vaults: Vec<NewVaultSnapshot>,
@@ -105,6 +106,18 @@ pub struct PositionClosePatch {
     pub settled: bool,
     pub closed_at_ms: i64,
     pub remaining_borrow_quote: i64,
+}
+
+/// `deepbook_predict` redeem that bypasses LeverX `trade::settle_*` (e.g. permissionless bot).
+pub struct PredictExternalRedeemPatch {
+    pub event_digest: String,
+    pub position_key: String,
+    pub predict_manager_id: String,
+    pub quantity: i64,
+    pub payout: i64,
+    pub closing_mark: Option<i64>,
+    pub settled: bool,
+    pub closed_at_ms: i64,
 }
 
 #[derive(Clone)]
@@ -316,6 +329,7 @@ impl Handler for LeverxEventsHandler {
             batch.limit_cancelled.extend(v.limit_cancelled);
             batch.positions_open.extend(v.positions_open);
             batch.position_closes.extend(v.position_closes);
+            batch.predict_redeem_closes.extend(v.predict_redeem_closes);
             batch.trades.extend(v.trades);
             batch.global_trades.extend(v.global_trades);
             batch.vaults.extend(v.vaults);
@@ -463,6 +477,49 @@ impl Handler for LeverxEventsHandler {
                 limit_mint_orders::cancelled_at_ms.eq(patch.cancelled_at_ms),
                 limit_mint_orders::cancelled_by.eq(&patch.cancelled_by),
             ))
+            .execute(conn)
+            .await?;
+        }
+
+        for close in &batch.predict_redeem_closes {
+            if !fresh_event_digests.contains(&close.event_digest) {
+                continue;
+            }
+            rows += diesel::sql_query(
+                "UPDATE leveraged_positions SET \
+                 open_quantity = CASE \
+                   WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN open_quantity \
+                   ELSE GREATEST(open_quantity - $1, 0) \
+                 END, \
+                 realized_payout = realized_payout + $2, \
+                 margin_quote = CASE \
+                   WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN margin_quote \
+                   ELSE (margin_quote * GREATEST(open_quantity - $1, 0) / GREATEST(open_quantity, 1)) \
+                 END, \
+                 mint_cost = CASE \
+                   WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN mint_cost \
+                   ELSE (mint_cost * GREATEST(open_quantity - $1, 0) / GREATEST(open_quantity, 1)) \
+                 END, \
+                 closing_mark = CASE \
+                   WHEN GREATEST(open_quantity - $1, 0) <= 0 AND open_quantity > 0 AND (realized_payout + $2) > 0 THEN \
+                     ((realized_payout + $2) * 1000000000 + open_quantity - 1) / open_quantity \
+                   WHEN $7 IS NOT NULL AND $7 > 0 THEN $7 \
+                   ELSE closing_mark \
+                 END, \
+                 status = CASE \
+                   WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN CASE WHEN $6 THEN 'settled' ELSE 'closed' END \
+                   ELSE 'open' \
+                 END, \
+                 closed_at_ms = CASE WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN $3 ELSE NULL END \
+                 WHERE position_key = $4 AND predict_manager_id = $5 AND status = 'open'",
+            )
+            .bind::<diesel::sql_types::BigInt, _>(close.quantity)
+            .bind::<diesel::sql_types::BigInt, _>(close.payout)
+            .bind::<diesel::sql_types::BigInt, _>(close.closed_at_ms)
+            .bind::<diesel::sql_types::Text, _>(&close.position_key)
+            .bind::<diesel::sql_types::Text, _>(&close.predict_manager_id)
+            .bind::<diesel::sql_types::Bool, _>(close.settled)
+            .bind::<diesel::sql_types::Nullable<diesel::sql_types::BigInt>, _>(close.closing_mark)
             .execute(conn)
             .await?;
         }

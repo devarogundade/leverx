@@ -1,0 +1,1 @@
+-- Data repair only; no safe automatic rollback.

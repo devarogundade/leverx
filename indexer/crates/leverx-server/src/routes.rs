@@ -114,9 +114,9 @@ struct ListQuery {
     event_type: Option<String>,
     /// When set, only rows with `borrow_quote >= min_borrow_quote` (keeper liquidation scans).
     min_borrow_quote: Option<i64>,
-    /// When set, only rows with `open_quantity >= min_open_quantity` (keeper settlement/triggers).
+    /// When set, only rows with `open_quantity >= min_open_quantity` (keeper triggers).
     min_open_quantity: Option<i64>,
-    /// When set, only rows with `expiry_ms <= max_expiry_ms` (keeper settlement scans).
+    /// When set, only rows with `expiry_ms <= max_expiry_ms` (keeper force-close scans).
     max_expiry_ms: Option<i64>,
     /// When true, only rows with a linked predict manager.
     has_predict_manager: Option<bool>,

@@ -140,7 +140,6 @@ export class SuiService implements OnModuleInit {
   getTaskReadiness(): {
     txReady: boolean;
     tasks: {
-      settlement: boolean;
       limit_order: boolean;
       liquidation: boolean;
       trigger: boolean;
@@ -170,20 +169,17 @@ export class SuiService implements OnModuleInit {
       require('predictPackageId', 'predictPackageId') &&
       require('quoteType', 'quoteType');
 
-    const settlement = core;
-    const trigger = core;
-
     const limit_order =
       require('packageId', 'packageId') && Boolean(this.keypair);
+    const trigger = core;
     const liquidation = core;
     const force_close = core;
 
-    const txReady = settlement && Boolean(this.keypair);
+    const txReady = core && Boolean(this.keypair);
 
     return {
       txReady,
       tasks: {
-        settlement,
         limit_order,
         liquidation,
         trigger,

@@ -7,17 +7,12 @@ import { KeeperOrchestratorService } from '../tasks/keeper-orchestrator.service'
 import { SuiService } from '../sui/sui.service';
 
 export type KeeperTaskKind =
-  | 'settlement'
   | 'limit_order'
   | 'liquidation'
   | 'trigger'
   | 'force_close';
 
 export const KEEPER_CONTRACT_CALLS: Record<KeeperTaskKind, string[]> = {
-  settlement: [
-    'trade::settle_expired_proxy_position_permissionless',
-    'trade::settle_expired_proxy_range_permissionless',
-  ],
   limit_order: [
     'trade::execute_binary_limit_mint_order',
     'trade::execute_range_limit_mint_order',

@@ -35,7 +35,7 @@ services:
       PGUSER: leverx
       REMOTE_STORE_URL: "https://checkpoints.testnet.sui.io"
       STREAMING_URL: "https://fullnode.testnet.sui.io:443"
-      CORS_ORIGIN: "https://*.suileverx.xyz"
+      CORS_ORIGIN: "https://*.suileverx.xyz,http://localhost:8080"
       LEVERX_API_PORT: "3100"
       METRICS_PORT: "9184"
     depends_on:

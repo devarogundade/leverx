@@ -1,4 +1,5 @@
 import { useMemo, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ChevronDown, Wallet } from "lucide-react";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
@@ -7,15 +8,17 @@ import { AnimatedCount } from "@/components/ui/animated-numbers";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
+import { fetchManagerQuoteBalance } from "@/lib/leverx/quotes";
 import { useWallet } from "@/context/WalletContext";
 import { useIndexerAccounts, useIndexerPositions } from "@/hooks/useIndexer";
+import { useLeverxProtocolConfig } from "@/hooks/useLeverxTransactions";
 import { useWalletCoinBalance } from "@/hooks/useWalletCoinBalance";
 import { ui } from "@/lib/copy";
 import { appConfig } from "@/lib/config";
 import {
   DATA_PLACEHOLDER,
 } from "@/lib/leverx/placeholders";
-import { scaleQuote } from "@/lib/predict/scaling";
+import { scaleQuote, scaleQuoteAtoms } from "@/lib/predict/scaling";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -40,7 +43,8 @@ function BalanceRow({
 }
 
 export function BalanceBreakdown({ className }: Props) {
-  const { address, isWalletConnected } = useWallet();
+  const { address, client, isWalletConnected } = useWallet();
+  const { cfg } = useLeverxProtocolConfig();
   const {
     data: accounts = [],
     isLoading: accountsLoading,
@@ -57,9 +61,39 @@ export function BalanceBreakdown({ className }: Props) {
     isFetched: walletBalanceFetched,
   } = useWalletCoinBalance(isWalletConnected ? appConfig.quoteType : null, 6);
 
+  const predictManagerId = accounts[0]?.predict_manager_id;
+  const {
+    data: managerBalanceAtoms,
+    isLoading: managerBalanceLoading,
+    isFetched: managerBalanceFetched,
+  } = useQuery({
+    queryKey: [
+      "manager-quote-balance",
+      address,
+      predictManagerId,
+      cfg?.packageId,
+      cfg?.quoteType,
+    ],
+    queryFn: () =>
+      fetchManagerQuoteBalance({
+        client,
+        packageId: cfg!.packageId,
+        predictManagerId: predictManagerId!,
+        quoteType: cfg!.quoteType,
+      }),
+    enabled: Boolean(
+      isWalletConnected && predictManagerId && cfg?.packageId && cfg?.quoteType,
+    ),
+    staleTime: 10_000,
+    refetchInterval: 15_000,
+    retry: 1,
+  });
+
   const ready =
     isWalletConnected && accountsFetched && positionsFetched && !accountsLoading && !positionsLoading;
   const walletReady = isWalletConnected && walletBalanceFetched && !walletBalanceLoading;
+  const managerReady =
+    !predictManagerId || (managerBalanceFetched && !managerBalanceLoading);
 
   const activePositions = useMemo(
     () => positions.filter(isActiveOpenPosition),
@@ -70,14 +104,22 @@ export function BalanceBreakdown({ className }: Props) {
     ? activePositions.reduce((sum, p) => sum + scaleQuote(p.margin_quote), 0)
     : null;
   const borrowed = ready ? scaleQuote(accounts[0]?.borrowed_quote ?? 0) : null;
+  const managerBalance = managerReady
+    ? scaleQuoteAtoms(managerBalanceAtoms ?? 0n)
+    : null;
   const positionCount = ready ? activePositions.length : null;
+
+  const total =
+    ready && walletReady && managerReady && margin != null
+      ? (walletBalance ?? 0) + margin + (managerBalance ?? 0) - (borrowed ?? 0)
+      : null;
 
   const pillLabel = !isWalletConnected ? (
     DATA_PLACEHOLDER
-  ) : !ready || margin == null ? (
+  ) : total == null ? (
     "…"
   ) : (
-    <QuoteAmount amount={margin} compact />
+    <QuoteAmount amount={total} compact />
   );
 
   return (
@@ -102,8 +144,8 @@ export function BalanceBreakdown({ className }: Props) {
           />
           <p className="balance-breakdown-total mt-1">
             <QuoteAmount
-              amount={margin}
-              loading={isWalletConnected && !ready}
+              amount={total}
+              loading={isWalletConnected && (total == null)}
               hideZero={false}
               placeholder={!isWalletConnected ? "…" : DATA_PLACEHOLDER}
             />
@@ -122,6 +164,17 @@ export function BalanceBreakdown({ className }: Props) {
                   <QuoteAmount
                     amount={walletReady ? walletBalance ?? 0 : null}
                     loading={isWalletConnected && !walletReady}
+                    hideZero={false}
+                  />
+                }
+              />
+              <BalanceRow
+                label={ui.balanceManager}
+                info={leverxInfo.balanceManager}
+                value={
+                  <QuoteAmount
+                    amount={managerBalance}
+                    loading={isWalletConnected && !managerReady}
                     hideZero={false}
                   />
                 }

@@ -71,7 +71,6 @@ export const DEFAULT_PORT = 3001;
 
 /** Every 20s, staggered by 2s so concurrent crons do not pile up on the same tick. */
 export const KEEPER_CRON_DEFAULTS = {
-  settlement: '0,20,40 * * * * *',
   limitOrder: '2,22,42 * * * * *',
   liquidation: '4,24,44 * * * * *',
   trigger: '6,26,46 * * * * *',
@@ -79,7 +78,6 @@ export const KEEPER_CRON_DEFAULTS = {
 } as const;
 
 export const KEEPER_LIMIT_DEFAULTS = {
-  settlements: 10,
   limitFills: 10,
   liquidations: 5,
   triggers: 10,

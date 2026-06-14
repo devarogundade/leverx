@@ -9,7 +9,7 @@ leverx/
 ├── app/           # TanStack Start UI — markets, trading, portfolio, pool, points
 ├── contracts/     # Move smart contracts (leverage vault, proxy PredictManager)
 ├── indexer/       # On-chain indexer (order book, positions, limits, leaderboard)
-└── keeper/        # Optional helper bot (liquidations, limit fills, settlements)
+└── keeper/        # Optional helper bot (liquidations, limit fills, force-close)
 ```
 
 ## App

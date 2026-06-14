@@ -26,10 +26,4 @@ export class KeeperController {
     const kind = (task ?? 'all') as KeeperTaskKind;
     return this.orchestrator.run(kind);
   }
-
-  /** Legacy alias used by docker health docs. */
-  @Post('settle')
-  settle() {
-    return this.orchestrator.run('settlement');
-  }
 }

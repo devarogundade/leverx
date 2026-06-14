@@ -1,17 +1,19 @@
-//! Maps `deepbook_predict` events into `global_market_trades` and `predict_managers`.
+//! Maps `deepbook_predict` events into `global_market_trades`, `predict_managers`,
+//! and leveraged position closes when an external redeem zeros manager contracts.
 //! LeverX leveraged fills are merged into the global tape at read time (`leverx-server::global_trades`).
 
 use leverx_schema::models::{NewGlobalMarketTrade, NewLeverxEvent};
 use serde_json::Value as JsonValue;
 use sui_types::event::Event;
 
-use crate::handlers::LeverxBatch;
+use crate::handlers::{LeverxBatch, PredictExternalRedeemPatch};
 use crate::keys::normalize_type_name;
 use crate::move_events::try_parse;
 use crate::predict_events::{
     parse_predict_event_json, PositionMinted, PositionRedeemed, PredictManagerCreated,
     RangeMinted, RangeRedeemed,
 };
+use crate::predict_math::premium_per_unit_from_quote;
 use crate::relation_upserts::{ensure_market, ensure_predict_manager};
 
 pub struct PredictEventContext<'a> {
@@ -42,6 +44,35 @@ pub fn build_predict_event_context<'a>(
         event,
         parsed_json,
     }
+}
+
+fn closing_mark_from_redeem(bid_price: u64, payout: u64, quantity: u64) -> Option<i64> {
+    if bid_price > 0 {
+        return Some(bid_price as i64);
+    }
+    premium_per_unit_from_quote(payout, quantity)
+}
+
+fn push_external_predict_redeem_close(
+    batch: &mut LeverxBatch,
+    ctx: &PredictEventContext<'_>,
+    market_key: &str,
+    manager_id: &str,
+    quantity: u64,
+    payout: u64,
+    bid_price: u64,
+    settled: bool,
+) {
+    batch.predict_redeem_closes.push(PredictExternalRedeemPatch {
+        event_digest: ctx.event_digest.to_string(),
+        position_key: market_key.to_string(),
+        predict_manager_id: manager_id.to_string(),
+        quantity: quantity as i64,
+        payout: payout as i64,
+        closing_mark: closing_mark_from_redeem(bid_price, payout, quantity),
+        settled,
+        closed_at_ms: ctx.timestamp_ms,
+    });
 }
 
 pub fn apply_predict_event(batch: &mut LeverxBatch, ctx: PredictEventContext<'_>) {
@@ -158,6 +189,16 @@ pub fn apply_predict_event(batch: &mut LeverxBatch, ctx: PredictEventContext<'_>
                     is_settled: Some(ev.is_settled),
                     timestamp_ms: ctx.timestamp_ms,
                 });
+                push_external_predict_redeem_close(
+                    batch,
+                    &ctx,
+                    &market_key,
+                    &ev.manager_id.to_string(),
+                    ev.quantity,
+                    ev.payout,
+                    ev.bid_price,
+                    ev.is_settled,
+                );
             }
         }
         "RangeMinted" => {
@@ -250,6 +291,16 @@ pub fn apply_predict_event(batch: &mut LeverxBatch, ctx: PredictEventContext<'_>
                     is_settled: Some(ev.is_settled),
                     timestamp_ms: ctx.timestamp_ms,
                 });
+                push_external_predict_redeem_close(
+                    batch,
+                    &ctx,
+                    &market_key,
+                    &ev.manager_id.to_string(),
+                    ev.quantity,
+                    ev.payout,
+                    ev.bid_price,
+                    ev.is_settled,
+                );
             }
         }
         _ => {}

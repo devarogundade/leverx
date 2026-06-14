@@ -70,6 +70,7 @@ Resync from the publish checkpoint after upgrading contracts (`bash indexer/scri
 | `LiquidationBpsUpdated` event | Patches `protocol_settings.liquidation_bps` |
 | `InsuranceFundSkimmed` + liquidation `ProtocolFeeDistributed` | `vault_snapshots.insurance_fund_delta`; merged into vault summary |
 | Surplus routed to owner (not keeper) on settle/close | `LeveragedPositionClosed.surplus_quote` reflects owner economics |
+| External `predict::PositionRedeemed` (permissionless bot) | Indexer closes matching open `leveraged_positions` rows; debt unchanged until user runs LeverX settle/repay |
 | Force-deleverage remint | Same-tx `LeveragedPositionClosed` → `LeveragedPositionOpened`; `PositionForceDeleveraged.reminted_quantity` |
 | Closed/liquidated position snapshots | `leveraged_positions` keeps quantity, margin, leverage, mint cost, and realized payout for history |
 | `vault_flash::repay_flash_liquidity` + `liquidated_account_id` | Keeper PTB only (not indexed as event) |

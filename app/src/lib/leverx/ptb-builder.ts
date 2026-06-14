@@ -122,6 +122,58 @@ export function appendWithdrawQuote(
   });
 }
 
+/** Withdraw quote sitting in the Predict manager balance (e.g. after external permissionless redeem). */
+export function appendWithdrawManagerQuote(
+  tx: Transaction,
+  cfg: LeverxProtocolConfig,
+  predictManagerId: string,
+  amountAtoms: bigint,
+  recipient: string,
+): void {
+  const [coin] = tx.moveCall({
+    target: `${cfg.packageId}::predict_client::withdraw_quote`,
+    typeArguments: [cfg.quoteType],
+    arguments: [tx.object(predictManagerId), tx.pure.u64(amountAtoms)],
+  });
+  tx.transferObjects([coin], recipient);
+}
+
+/** Deposit wallet quote into the linked Predict manager balance. */
+export function appendDepositManagerQuote(
+  tx: Transaction,
+  cfg: LeverxProtocolConfig,
+  predictManagerId: string,
+  quoteCoin: TransactionObjectArgument,
+): void {
+  tx.moveCall({
+    target: `${cfg.packageId}::predict_client::deposit_quote`,
+    typeArguments: [cfg.quoteType],
+    arguments: [tx.object(predictManagerId), quoteCoin],
+  });
+}
+
+/** Move quote from Predict manager balance onto a market key ledger (for trading). */
+export function appendFundKeyFromManager(
+  tx: Transaction,
+  cfg: LeverxProtocolConfig,
+  predictManagerId: string,
+  accountId: string,
+  key: MarketKeyArgs,
+  amountAtoms: bigint,
+): void {
+  const marketKey = addMarketKey(tx, key, cfg.predictPackageId);
+  const [coin] = tx.moveCall({
+    target: `${cfg.packageId}::predict_client::withdraw_quote`,
+    typeArguments: [cfg.quoteType],
+    arguments: [tx.object(predictManagerId), tx.pure.u64(amountAtoms)],
+  });
+  tx.moveCall({
+    target: `${cfg.packageId}::trade::${depositQuoteFn(key.isRange)}`,
+    typeArguments: [cfg.quoteType],
+    arguments: [tx.object(accountId), marketKey, coin],
+  });
+}
+
 export function appendLeveragedMint(
   tx: Transaction,
   cfg: LeverxProtocolConfig,

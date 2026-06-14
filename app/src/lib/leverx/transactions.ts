@@ -14,6 +14,7 @@ import {
   appendCancelLimit,
   appendClearTriggers,
   appendDepositQuote,
+  appendFundKeyFromManager,
   appendLeveragedMint,
   appendLinkManager,
   appendRedeem,
@@ -22,6 +23,8 @@ import {
   appendRevokeExecutor,
   appendSettleExpired,
   appendWithdrawQuote,
+  appendWithdrawManagerQuote,
+  appendDepositManagerQuote,
   type MintOrderParams,
 } from "@/lib/leverx/ptb-builder";
 import { lxplpCoinType, type LeverxProtocolConfig } from "@/lib/leverx/protocol";
@@ -56,6 +59,8 @@ export type OpenTradeInput = {
   remintAfterDeleverage?: boolean;
   tpPremium?: bigint;
   slPremium?: bigint;
+  /** Where margin is funded from before mint (default wallet). */
+  depositSource?: "wallet" | "manager";
 };
 
 export type ClosePositionInput = {
@@ -69,6 +74,22 @@ export type ClosePositionInput = {
 export type WithdrawQuoteInput = {
   accountId: string;
   key: MarketKeyArgs;
+  amountAtoms: bigint;
+};
+
+export type WithdrawManagerQuoteInput = {
+  predictManagerId: string;
+  amountAtoms: bigint;
+};
+
+export type DepositQuoteInput = {
+  accountId: string;
+  key: MarketKeyArgs;
+  amountAtoms: bigint;
+};
+
+export type DepositManagerQuoteInput = {
+  predictManagerId: string;
   amountAtoms: bigint;
 };
 
@@ -250,14 +271,26 @@ export async function executeOpenTrade(params: {
     wallet,
     account,
     async (tx) => {
-      const quoteCoin = await splitCoinAmount(
-        client,
-        account.address,
-        cfg.quoteType,
-        marginAtoms,
-        tx,
-      );
-      appendDepositQuote(tx, cfg, leverxAccount.accountId, input.key, quoteCoin);
+      const depositSource = input.depositSource ?? "wallet";
+      if (depositSource === "manager") {
+        appendFundKeyFromManager(
+          tx,
+          cfg,
+          leverxAccount.predictManagerId!,
+          leverxAccount.accountId,
+          input.key,
+          marginAtoms,
+        );
+      } else {
+        const quoteCoin = await splitCoinAmount(
+          client,
+          account.address,
+          cfg.quoteType,
+          marginAtoms,
+          tx,
+        );
+        appendDepositQuote(tx, cfg, leverxAccount.accountId, input.key, quoteCoin);
+      }
 
       appendLeveragedMint(
         tx,
@@ -367,6 +400,103 @@ export async function executeWithdrawQuote(params: {
         params.input.accountId,
         params.input.key,
         params.input.amountAtoms,
+      );
+    },
+    { gasBudget: TRADE_GAS_BUDGET },
+  );
+}
+
+export async function executeWithdrawManagerQuote(params: {
+  client: SuiJsonRpcClient;
+  wallet: WalletWithRequiredFeatures;
+  account: WalletAccount;
+  cfg: LeverxProtocolConfig;
+  input: WithdrawManagerQuoteInput;
+}): Promise<{ digest: string }> {
+  if (params.input.amountAtoms <= 0n) {
+    throw new Error("Withdraw amount must be greater than zero.");
+  }
+
+  return executeWalletTransaction(
+    params.client,
+    params.wallet,
+    params.account,
+    (tx) => {
+      appendWithdrawManagerQuote(
+        tx,
+        params.cfg,
+        params.input.predictManagerId,
+        params.input.amountAtoms,
+        params.account.address,
+      );
+    },
+    { gasBudget: TRADE_GAS_BUDGET },
+  );
+}
+
+export async function executeDepositQuote(params: {
+  client: SuiJsonRpcClient;
+  wallet: WalletWithRequiredFeatures;
+  account: WalletAccount;
+  cfg: LeverxProtocolConfig;
+  input: DepositQuoteInput;
+}): Promise<{ digest: string }> {
+  if (params.input.amountAtoms <= 0n) {
+    throw new Error("Deposit amount must be greater than zero.");
+  }
+
+  return executeWalletTransaction(
+    params.client,
+    params.wallet,
+    params.account,
+    async (tx) => {
+      const quoteCoin = await splitCoinAmount(
+        params.client,
+        params.account.address,
+        params.cfg.quoteType,
+        params.input.amountAtoms,
+        tx,
+      );
+      appendDepositQuote(
+        tx,
+        params.cfg,
+        params.input.accountId,
+        params.input.key,
+        quoteCoin,
+      );
+    },
+    { gasBudget: TRADE_GAS_BUDGET },
+  );
+}
+
+export async function executeDepositManagerQuote(params: {
+  client: SuiJsonRpcClient;
+  wallet: WalletWithRequiredFeatures;
+  account: WalletAccount;
+  cfg: LeverxProtocolConfig;
+  input: DepositManagerQuoteInput;
+}): Promise<{ digest: string }> {
+  if (params.input.amountAtoms <= 0n) {
+    throw new Error("Deposit amount must be greater than zero.");
+  }
+
+  return executeWalletTransaction(
+    params.client,
+    params.wallet,
+    params.account,
+    async (tx) => {
+      const quoteCoin = await splitCoinAmount(
+        params.client,
+        params.account.address,
+        params.cfg.quoteType,
+        params.input.amountAtoms,
+        tx,
+      );
+      appendDepositManagerQuote(
+        tx,
+        params.cfg,
+        params.input.predictManagerId,
+        quoteCoin,
       );
     },
     { gasBudget: TRADE_GAS_BUDGET },

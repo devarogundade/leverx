@@ -25,12 +25,15 @@ export function tradeCtaLabel(args: {
   return args.needsDeposit ? `Deposit and ${action}` : action;
 }
 
-/** True when the wallet must fund the margin from the connected wallet balance. */
+/** True when the chosen source must fund the margin before the trade can open. */
 export function tradeNeedsDeposit(args: {
   marginUsd: number;
+  availableQuoteBalance?: number | null;
   walletQuoteBalance?: number | null;
 }): boolean {
+  const available =
+    args.availableQuoteBalance ?? args.walletQuoteBalance ?? null;
   if (args.marginUsd <= 0) return false;
-  if (args.walletQuoteBalance == null) return false;
-  return args.walletQuoteBalance + 1e-6 < args.marginUsd;
+  if (available == null) return false;
+  return available + 1e-6 < args.marginUsd;
 }

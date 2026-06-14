@@ -2,10 +2,12 @@
 
 NestJS bot that maintains the LeverX protocol off-chain:
 
-- **Settlement** — redeem expired positions after oracle settlement (`settle_expired_proxy_position` / `range`)
 - **Limit orders** — fill resting mint limits when market ask crosses limit + slippage; expire unfilled orders past `order_expires_ms` via `trade::expire_*_limit_mint_order`
 - **Liquidation** — vault flash + permissionless redeem liquidations for underwater dUSDC keys
 - **Triggers** — execute TP/SL redeems when indexed trigger premiums are hit
+- **Force close** — final-hour deleverage / post-expiry debt repayment for protocol safety
+
+Expired position settlement is **user-initiated** in the app (`settle_expired_proxy_position`). The keeper does not claim redemption payouts on behalf of users.
 
 Also proxies `/v1/*` to `leverx-server` so the frontend can use a single URL (port `3001` in docker stack).
 
@@ -47,7 +49,7 @@ Republish LeverX and resync the indexer before running an updated keeper against
 | Change | Keeper impact |
 |--------|----------------|
 | `vault_flash::repay_flash_liquidity` adds `liquidated_account_id: ID` | `buildLiquidation` passes `position.account_id` (6th arg after `receipt`) |
-| Maintenance exempt from `trading_paused` on-chain | Keeper runs **settlement**, **force_close**, and **liquidation** even when indexer reports `trading_paused`; only **limit fills** and **triggers** are skipped |
+| Maintenance exempt from `trading_paused` on-chain | Keeper runs **force_close** and **liquidation** even when indexer reports `trading_paused`; only **limit fills** and **triggers** are skipped |
 | Surplus routed to position owner (not keeper) on settle/close | No PTB change; keeper profit on liquidations is now **10% of post-flash surplus** via protocol fee split |
 | `RegistryInitialized.liquidation_bps` + `LiquidationBpsUpdated` | Exposed on `/v1/protocol` and `/health/ready` → `protocol.liquidationBps` |
 | Range permissionless settle still blocked in Predict | `settle_expired_proxy_range_permissionless` may fail until Predict adds permissionless range redeem; binary settle unaffected |
@@ -60,8 +62,7 @@ Republish LeverX and resync the indexer before running an updated keeper against
 | `GET /health/ready`         | Readiness — 503 if signer/RPC/indexer/config not ready                          |
 | `GET /health/status`        | Full readiness report (always 200, `ok` in body)                                |
 | `GET /keeper/status`        | Same readiness report + orchestrator state                                      |
-| `POST /keeper/run?task=all` | Run one task kind: `settlement`, `limit_order`, `liquidation`, `trigger`, `all` |
-| `POST /keeper/settle`       | Settlement only (legacy alias)                                                  |
+| `POST /keeper/run?task=all` | Run one task kind: `limit_order`, `liquidation`, `trigger`, `force_close`, `all` |
 | `GET /v1/*`                 | Proxied to leverx-server (`INDEXER_URL` in constants or `.env`)                 |
 
 ## Docker

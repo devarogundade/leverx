@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { LeverageSlider } from "@/components/leverx/LeverageSlider";
@@ -22,6 +23,8 @@ import {
 import { WalletConnectButton } from "@/components/WalletConnectButton";
 import { useWallet } from "@/context/WalletContext";
 import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
+import { fetchManagerQuoteBalance } from "@/lib/leverx/quotes";
+import { scaleQuoteAtoms } from "@/lib/predict/scaling";
 import { useNow } from "@/hooks/useNow";
 import { showTxError, showTxSuccess } from "@/lib/toast";
 import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
@@ -71,7 +74,7 @@ import {
 import { ui } from "@/lib/copy";
 import { StrikePriceSelector } from "@/components/leverx/StrikePriceSelector";
 import { RangeStrikeSelector } from "@/components/leverx/RangeStrikeSelector";
-import { ChevronDown, Loader2 } from "lucide-react";
+import { ChevronDown, ArrowLeftRight, Loader2, UserCog, Wallet } from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,
@@ -108,6 +111,7 @@ import {
 } from "@/lib/leverx/tw";
 
 type OrderType = "market" | "limit";
+type DepositSource = "wallet" | "manager";
 
 const DEFAULT_MARKET_SLIPPAGE_PCT = DEFAULT_SLIPPAGE_BPS / 100;
 
@@ -157,9 +161,10 @@ export function PredictLeveragePanel({
   binaryStrikeRaw: parentBinaryStrikeRaw,
   onRangeBoundsChange,
 }: Props) {
-  const { isWalletConnected, address } = useWallet();
-  const { openTrade, createMarginAccount, isProtocolReady } = useLeverxTransactions();
+  const { isWalletConnected, address, client } = useWallet();
+  const { openTrade, createMarginAccount, isProtocolReady, cfg } = useLeverxTransactions();
   const [marginAccountReady, setMarginAccountReady] = useState(false);
+  const [depositSource, setDepositSource] = useState<DepositSource>("wallet");
   const [orderType, setOrderType] = useState<OrderType>("market");
   const [limitPrice, setLimitPrice] = useState("");
   const [margin, setMargin] = useState("");
@@ -184,6 +189,7 @@ export function PredictLeveragePanel({
   const hasMarginAccount = leverxAccounts.length > 0 || marginAccountReady;
   const needsMarginAccountSetup = isWalletConnected && !hasMarginAccount;
   const hasLinkedManager = Boolean(leverxAccounts[0]?.predict_manager_id);
+  const predictManagerId = leverxAccounts[0]?.predict_manager_id;
   const tradeContextKey = `${oracleId}:${side}`;
 
   useEffect(() => {
@@ -217,6 +223,7 @@ export function PredictLeveragePanel({
     setMarketSlippagePct(DEFAULT_MARKET_SLIPPAGE_PCT);
     setOrderExpiresOffsetMs(DEFAULT_LIMIT_ORDER_EXPIRY_MS);
     setRemintAfterDeleverage(true);
+    setDepositSource("wallet");
     // eslint-disable-next-line react-hooks/exhaustive-deps -- strike props intentionally omitted
   }, [tradeContextKey]);
 
@@ -233,6 +240,41 @@ export function PredictLeveragePanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- lastAskPremium omitted to avoid refetch clobbering input
   }, [orderType, tradeContextKey]);
   const { data: walletQuoteBalance } = useWalletCoinBalance(appConfig.quoteType, 6);
+  const { data: managerBalanceAtoms, isLoading: managerBalanceLoading } = useQuery({
+    queryKey: [
+      "manager-quote-balance",
+      address,
+      predictManagerId,
+      cfg?.packageId,
+      cfg?.quoteType,
+    ],
+    queryFn: () =>
+      fetchManagerQuoteBalance({
+        client,
+        packageId: cfg!.packageId,
+        predictManagerId: predictManagerId!,
+        quoteType: cfg!.quoteType,
+      }),
+    enabled: Boolean(
+      isWalletConnected && hasLinkedManager && predictManagerId && cfg?.packageId && cfg?.quoteType,
+    ),
+    staleTime: 10_000,
+    refetchInterval: 15_000,
+    retry: 1,
+  });
+  const managerQuoteBalance =
+    managerBalanceAtoms != null ? scaleQuoteAtoms(managerBalanceAtoms) : null;
+
+  useEffect(() => {
+    if (!hasLinkedManager && depositSource === "manager") {
+      setDepositSource("wallet");
+    }
+  }, [hasLinkedManager, depositSource]);
+
+  const availableQuoteBalance =
+    depositSource === "manager" ? managerQuoteBalance : walletQuoteBalance;
+  const availableBalanceLoading =
+    depositSource === "manager" ? managerBalanceLoading : false;
 
   const now = useNow(1000);
 
@@ -454,9 +496,9 @@ export function PredictLeveragePanel({
     () =>
       tradeNeedsDeposit({
         marginUsd: marginNum,
-        walletQuoteBalance,
+        availableQuoteBalance,
       }),
-    [marginNum, walletQuoteBalance],
+    [marginNum, availableQuoteBalance],
   );
 
   const submitLabel = useMemo(
@@ -465,13 +507,14 @@ export function PredictLeveragePanel({
   );
 
   const quoteBalanceLabel = useMemo(() => {
-    if (walletQuoteBalance == null) return "—";
-    return walletQuoteBalance;
-  }, [walletQuoteBalance]);
+    if (availableBalanceLoading) return "…";
+    if (availableQuoteBalance == null) return "—";
+    return availableQuoteBalance;
+  }, [availableBalanceLoading, availableQuoteBalance]);
 
   const quickAmounts = useMemo(
-    () => buildQuickAmounts(walletQuoteBalance),
-    [walletQuoteBalance],
+    () => buildQuickAmounts(availableQuoteBalance),
+    [availableQuoteBalance],
   );
 
   const {
@@ -646,8 +689,16 @@ export function PredictLeveragePanel({
     if (marginNum > MAX_MARGIN_USD) {
       errors.push(`Maximum deposit is ${MAX_MARGIN_USD} dUSDC.`);
     }
-    if (marginNum > 0 && walletQuoteBalance != null && marginNum > walletQuoteBalance + 1e-6) {
-      errors.push("Deposit exceeds available USDC balance.");
+    if (
+      marginNum > 0 &&
+      availableQuoteBalance != null &&
+      marginNum > availableQuoteBalance + 1e-6
+    ) {
+      errors.push(
+        depositSource === "manager"
+          ? "Deposit exceeds available Predict manager balance."
+          : "Deposit exceeds available USDC balance.",
+      );
     }
     if (isWalletConnected && leverxAccounts.length > 0 && !hasLinkedManager) {
       errors.push(
@@ -798,7 +849,8 @@ export function PredictLeveragePanel({
     return errors;
   }, [
     marginNum,
-    walletQuoteBalance,
+    availableQuoteBalance,
+    depositSource,
     orderType,
     limitPrice,
     placementSlippagePct,
@@ -891,6 +943,7 @@ export function PredictLeveragePanel({
             ? Math.min(Date.now() + orderExpiresOffsetMs, expiryMs)
             : undefined,
         remintAfterDeleverage: lev > 1 ? remintAfterDeleverage : false,
+        depositSource: hasLinkedManager ? depositSource : "wallet",
         tpPremium: tpPremium > 0n ? tpPremium : undefined,
         slPremium: slPremium > 0n ? slPremium : undefined,
       },
@@ -1047,7 +1100,12 @@ export function PredictLeveragePanel({
                 labelClassName={labelCaps}
                 info={leverxInfo.margin}
               />
-              <span className="text-sm text-muted-foreground">
+              <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
+                {depositSource === "manager" ? (
+                  <UserCog className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                ) : (
+                  <Wallet className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                )}
                 {ui.balanceAvailable}{" "}
                 {typeof quoteBalanceLabel === "number" ? (
                   <QuoteAmount
@@ -1058,6 +1116,30 @@ export function PredictLeveragePanel({
                 ) : (
                   <span className="font-mono text-foreground">{quoteBalanceLabel}</span>
                 )}
+                <QuoteIcon className="h-3.5 w-3.5 shrink-0" />
+                {hasLinkedManager ? (
+                  <button
+                    type="button"
+                    className="inline-flex shrink-0 rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    title={
+                      depositSource === "manager"
+                        ? leverxInfo.depositSourceManager
+                        : leverxInfo.depositSourceWallet
+                    }
+                    aria-label={
+                      depositSource === "manager"
+                        ? "Deposit source: trading account. Switch to wallet."
+                        : "Deposit source: wallet. Switch to trading account."
+                    }
+                    onClick={() =>
+                      setDepositSource((source) =>
+                        source === "wallet" ? "manager" : "wallet",
+                      )
+                    }
+                  >
+                    <ArrowLeftRight className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
               </span>
             </div>
             <TradeAmountInput

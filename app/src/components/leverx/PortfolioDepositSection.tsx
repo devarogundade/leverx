@@ -2,9 +2,9 @@ import { useMemo, useState } from "react";
 import { Loader2, Wallet } from "lucide-react";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { Input } from "@/components/ui/input";
-import { useProxyKeyBalances } from "@/hooks/useProxyKeyBalances";
-import { useManagerQuoteBalances } from "@/hooks/useManagerQuoteBalances";
-import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
+import { useDepositKeyTargets } from "@/hooks/useDepositKeyTargets";
+import { useLeverxProtocolConfig, useLeverxTransactions } from "@/hooks/useLeverxTransactions";
+import { useWalletCoinBalance } from "@/hooks/useWalletCoinBalance";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { QuoteAmount, QuoteAmountInline } from "@/components/leverx/QuoteAmount";
@@ -15,6 +15,7 @@ import { usePredictOracleRows } from "@/hooks/usePredictOracles";
 import {
   clampUsdToQuoteAtoms,
   formatMaxWithdrawUsd,
+  marginUsdToQuoteAtoms,
   usdExceedsQuoteAtoms,
   withdrawUsdDecimals,
   withdrawUsdDisplayAmount,
@@ -30,64 +31,58 @@ import {
   tradeSurface,
 } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
-import type { ProxyKeyBalanceRow } from "@/hooks/useProxyKeyBalances";
-import type { ManagerQuoteBalanceRow } from "@/hooks/useManagerQuoteBalances";
-
-type WithdrawRow =
-  | { kind: "key"; row: ProxyKeyBalanceRow }
-  | { kind: "manager"; row: ManagerQuoteBalanceRow };
-
-type ActiveWithdraw =
-  | { kind: "key"; positionKey: string }
-  | { kind: "manager"; predictManagerId: string }
-  | null;
+import type { DepositKeyTarget } from "@/hooks/useDepositKeyTargets";
 
 interface Props {
   accountId: string;
+  predictManagerId?: string | null;
   positions: readonly LeveragedPosition[];
   className?: string;
 }
 
-function marketLabel(row: ProxyKeyBalanceRow, asset: string): string {
+type DepositRow =
+  | { kind: "key"; row: DepositKeyTarget }
+  | { kind: "manager"; predictManagerId: string };
+
+type ActiveDeposit =
+  | { kind: "key"; positionKey: string }
+  | { kind: "manager"; predictManagerId: string }
+  | null;
+
+function marketLabel(row: DepositKeyTarget, asset: string): string {
   const side = predictSideLabel[sideFromIsUp(row.position.is_up)];
   return row.position.is_range ? `${asset} range` : `${asset} ${side}`;
 }
 
-export function PortfolioWithdrawSection({ accountId, positions, className }: Props) {
+export function PortfolioDepositSection({
+  accountId,
+  predictManagerId,
+  positions,
+  className,
+}: Props) {
   const { data: oracles = [] } = usePredictOracleRows();
-  const { rows: keyRows, isLoading: keyBalancesLoading } = useProxyKeyBalances(accountId, positions);
-  const { rows: managerRows, isLoading: managerBalancesLoading } = useManagerQuoteBalances(
-    accountId,
-    positions,
-  );
-  const { withdrawQuote, withdrawManagerQuote, isProtocolReady } = useLeverxTransactions();
+  const { cfg } = useLeverxProtocolConfig();
+  const keyTargets = useDepositKeyTargets(positions);
+  const { depositQuote, depositManagerQuote, isProtocolReady } = useLeverxTransactions();
+  const { data: walletUsd, isLoading: walletLoading } = useWalletCoinBalance(cfg?.quoteType ?? null);
 
-  const withdrawRows: WithdrawRow[] = useMemo(
-    () => [
-      ...keyRows.map((row) => ({ kind: "key" as const, row })),
-      ...managerRows.map((row) => ({ kind: "manager" as const, row })),
-    ],
-    [keyRows, managerRows],
+  const walletAtoms = useMemo(
+    () => (walletUsd != null && walletUsd > 0 ? marginUsdToQuoteAtoms(walletUsd) : 0n),
+    [walletUsd],
   );
 
-  const [activeWithdraw, setActiveWithdraw] = useState<ActiveWithdraw>(null);
+  const depositRows: DepositRow[] = useMemo(() => {
+    const rows: DepositRow[] = keyTargets.map((row) => ({ kind: "key", row }));
+    if (predictManagerId) {
+      rows.unshift({ kind: "manager", predictManagerId });
+    }
+    return rows;
+  }, [keyTargets, predictManagerId]);
+
+  const [activeDeposit, setActiveDeposit] = useState<ActiveDeposit>(null);
   const [amountUsd, setAmountUsd] = useState("");
 
-  const activeEntry = withdrawRows.find((entry) =>
-    entry.kind === "key"
-      ? activeWithdraw?.kind === "key" &&
-        activeWithdraw.positionKey === entry.row.position.position_key
-      : activeWithdraw?.kind === "manager" &&
-        activeWithdraw.predictManagerId === entry.row.predictManagerId,
-  );
-  const maxAtoms =
-    activeEntry?.kind === "key"
-      ? activeEntry.row.balanceAtoms
-      : activeEntry?.kind === "manager"
-        ? activeEntry.row.balanceAtoms
-        : 0n;
-  const isLoading = keyBalancesLoading || managerBalancesLoading;
-  const pending = withdrawQuote.isPending || withdrawManagerQuote.isPending;
+  const maxAtoms = walletAtoms;
   const maxUsd = withdrawUsdDisplayAmount(maxAtoms);
   const maxDigits = withdrawUsdDecimals(maxAtoms);
   const amountNum = parseFloat(amountUsd) || 0;
@@ -96,53 +91,50 @@ export function PortfolioWithdrawSection({ accountId, positions, className }: Pr
     !Number.isFinite(amountNum) ||
     amountNum <= 0 ||
     usdExceedsQuoteAtoms(amountNum, maxAtoms);
+  const pending = depositQuote.isPending || depositManagerQuote.isPending;
 
   return (
     <section className={cn(tradeSurface, "overflow-hidden", className)}>
       <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
         <LabelWithInfo
-          label="Withdraw to wallet"
+          label="Deposit from wallet"
           labelClassName={labelCaps}
-          info={leverxInfo.withdrawTradingBalance}
+          info={leverxInfo.depositTradingBalance}
         />
-        {withdrawRows.length > 0 ? (
+        {walletUsd != null ? (
           <span className="font-mono text-sm tabular-nums text-muted-foreground">
-            {withdrawRows.length} source{withdrawRows.length === 1 ? "" : "s"}
+            Wallet{" "}
+            <QuoteAmount amount={walletUsd} digits={2} hideZero className="inline-flex text-sm" />
           </span>
         ) : null}
       </div>
       <div className="px-4 py-3">
-        {isLoading && withdrawRows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Loading balances…</p>
-        ) : withdrawRows.length === 0 ? (
+        {walletLoading && walletUsd == null ? (
+          <p className="text-sm text-muted-foreground">Loading wallet balance…</p>
+        ) : depositRows.length === 0 ? (
           <p className="text-sm leading-relaxed text-muted-foreground">
-            No withdrawable dUSDC on your account right now. After closing a trade, free quote stays
-            on the market key until you withdraw here — or in your Predict manager after an external
-            redeem. Repay any vault borrow first.
+            Open a trade or link a Predict manager to deposit dUSDC into your trading account.
+          </p>
+        ) : walletAtoms <= 0n ? (
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            No dUSDC in your wallet. Fund your wallet first, then deposit here to your market key or
+            Predict manager.
           </p>
         ) : (
           <ul className={settingsList}>
-            {withdrawRows.map((entry) => {
+            {depositRows.map((entry) => {
               if (entry.kind === "manager") {
-                const balanceUsd = withdrawUsdDisplayAmount(entry.row.balanceAtoms);
-                const balanceDigits = withdrawUsdDecimals(entry.row.balanceAtoms);
                 const isOpen =
-                  activeWithdraw?.kind === "manager" &&
-                  activeWithdraw.predictManagerId === entry.row.predictManagerId;
+                  activeDeposit?.kind === "manager" &&
+                  activeDeposit.predictManagerId === entry.predictManagerId;
 
                 return (
-                  <li key={`manager-${entry.row.predictManagerId}`} className={settingsListItem}>
+                  <li key={`manager-${entry.predictManagerId}`} className={settingsListItem}>
                     <div className={settingsListItemHeader}>
                       <div className="min-w-0">
-                        <p className="text-sm font-medium">Predict manager balance</p>
-                        <p className="font-mono text-[11px] text-muted-foreground">
-                          Available{" "}
-                          <QuoteAmount
-                            amount={balanceUsd}
-                            digits={balanceDigits}
-                            hideZero
-                            className="inline-flex text-[11px]"
-                          />
+                        <p className="text-sm font-medium">Predict manager</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          Shared pool for minting and redeems
                         </p>
                       </div>
                       <button
@@ -150,15 +142,15 @@ export function PortfolioWithdrawSection({ accountId, positions, className }: Pr
                         className={cn(pillToggleBtn, pillToggleIdle, "gap-1 text-sm")}
                         disabled={!isProtocolReady || pending}
                         onClick={() => {
-                          setActiveWithdraw({
+                          setActiveDeposit({
                             kind: "manager",
-                            predictManagerId: entry.row.predictManagerId,
+                            predictManagerId: entry.predictManagerId,
                           });
-                          setAmountUsd(formatMaxWithdrawUsd(entry.row.balanceAtoms));
+                          setAmountUsd(formatMaxWithdrawUsd(walletAtoms));
                         }}
                       >
                         <Wallet className="h-3.5 w-3.5" />
-                        Withdraw
+                        Deposit
                       </button>
                     </div>
 
@@ -168,7 +160,7 @@ export function PortfolioWithdrawSection({ accountId, positions, className }: Pr
                           type="number"
                           inputMode="decimal"
                           min={0}
-                          step={balanceDigits >= 6 ? 0.000001 : balanceDigits >= 4 ? 0.0001 : 0.01}
+                          step={maxDigits >= 6 ? 0.000001 : maxDigits >= 4 ? 0.0001 : 0.01}
                           value={amountUsd}
                           onChange={(e) => setAmountUsd(e.target.value)}
                           placeholder="Amount"
@@ -178,9 +170,7 @@ export function PortfolioWithdrawSection({ accountId, positions, className }: Pr
                           <button
                             type="button"
                             className={cn(pillToggleBtn, pillToggleIdle, "flex-1 text-sm")}
-                            onClick={() =>
-                              setAmountUsd(formatMaxWithdrawUsd(entry.row.balanceAtoms))
-                            }
+                            onClick={() => setAmountUsd(formatMaxWithdrawUsd(walletAtoms))}
                           >
                             Max
                           </button>
@@ -190,17 +180,17 @@ export function PortfolioWithdrawSection({ accountId, positions, className }: Pr
                             disabled={!isProtocolReady || amountInvalid || pending}
                             onClick={() => {
                               const usd = parseFloat(amountUsd);
-                              const amountAtoms = clampUsdToQuoteAtoms(usd, entry.row.balanceAtoms);
+                              const amountAtoms = clampUsdToQuoteAtoms(usd, walletAtoms);
                               if (amountAtoms <= 0n) return;
-                              withdrawManagerQuote.mutate(
+                              depositManagerQuote.mutate(
                                 {
-                                  predictManagerId: entry.row.predictManagerId,
+                                  predictManagerId: entry.predictManagerId,
                                   amountAtoms,
                                 },
                                 {
                                   onSuccess: () => {
-                                    showTxSuccess("dUSDC withdrawn to wallet");
-                                    setActiveWithdraw(null);
+                                    showTxSuccess("dUSDC deposited to Predict manager");
+                                    setActiveDeposit(null);
                                     setAmountUsd("");
                                   },
                                   onError: showTxError,
@@ -229,41 +219,31 @@ export function PortfolioWithdrawSection({ accountId, positions, className }: Pr
 
               const row = entry.row;
               const asset = assetLabelForOracleId(row.position.oracle_id, oracles);
-              const balanceUsd = withdrawUsdDisplayAmount(row.balanceAtoms);
-              const balanceDigits = withdrawUsdDecimals(row.balanceAtoms);
               const isOpen =
-                activeWithdraw?.kind === "key" &&
-                activeWithdraw.positionKey === row.position.position_key;
+                activeDeposit?.kind === "key" &&
+                activeDeposit.positionKey === row.position.position_key;
 
               return (
                 <li key={row.position.position_key} className={settingsListItem}>
                   <div className={settingsListItemHeader}>
                     <div className="min-w-0">
                       <p className="text-sm font-medium">{marketLabel(row, asset)}</p>
-                      <p className="font-mono text-[11px] text-muted-foreground">
-                        Available{" "}
-                        <QuoteAmount
-                          amount={balanceUsd}
-                          digits={balanceDigits}
-                          hideZero
-                          className="inline-flex text-[11px]"
-                        />
-                      </p>
+                      <p className="text-[11px] text-muted-foreground">Market key margin ledger</p>
                     </div>
                     <button
                       type="button"
                       className={cn(pillToggleBtn, pillToggleIdle, "gap-1 text-sm")}
                       disabled={!isProtocolReady || pending}
                       onClick={() => {
-                        setActiveWithdraw({
+                        setActiveDeposit({
                           kind: "key",
                           positionKey: row.position.position_key,
                         });
-                        setAmountUsd(formatMaxWithdrawUsd(row.balanceAtoms));
+                        setAmountUsd(formatMaxWithdrawUsd(walletAtoms));
                       }}
                     >
                       <Wallet className="h-3.5 w-3.5" />
-                      Withdraw
+                      Deposit
                     </button>
                   </div>
 
@@ -273,7 +253,7 @@ export function PortfolioWithdrawSection({ accountId, positions, className }: Pr
                         type="number"
                         inputMode="decimal"
                         min={0}
-                        step={balanceDigits >= 6 ? 0.000001 : balanceDigits >= 4 ? 0.0001 : 0.01}
+                        step={maxDigits >= 6 ? 0.000001 : maxDigits >= 4 ? 0.0001 : 0.01}
                         value={amountUsd}
                         onChange={(e) => setAmountUsd(e.target.value)}
                         placeholder="Amount"
@@ -283,7 +263,7 @@ export function PortfolioWithdrawSection({ accountId, positions, className }: Pr
                         <button
                           type="button"
                           className={cn(pillToggleBtn, pillToggleIdle, "flex-1 text-sm")}
-                          onClick={() => setAmountUsd(formatMaxWithdrawUsd(row.balanceAtoms))}
+                          onClick={() => setAmountUsd(formatMaxWithdrawUsd(walletAtoms))}
                         >
                           Max
                         </button>
@@ -293,9 +273,9 @@ export function PortfolioWithdrawSection({ accountId, positions, className }: Pr
                           disabled={!isProtocolReady || amountInvalid || pending}
                           onClick={() => {
                             const usd = parseFloat(amountUsd);
-                            const amountAtoms = clampUsdToQuoteAtoms(usd, row.balanceAtoms);
+                            const amountAtoms = clampUsdToQuoteAtoms(usd, walletAtoms);
                             if (amountAtoms <= 0n) return;
-                            withdrawQuote.mutate(
+                            depositQuote.mutate(
                               {
                                 accountId,
                                 key: row.key,
@@ -303,8 +283,8 @@ export function PortfolioWithdrawSection({ accountId, positions, className }: Pr
                               },
                               {
                                 onSuccess: () => {
-                                  showTxSuccess("dUSDC withdrawn to wallet");
-                                  setActiveWithdraw(null);
+                                  showTxSuccess("dUSDC deposited to market key");
+                                  setActiveDeposit(null);
                                   setAmountUsd("");
                                 },
                                 onError: showTxError,

@@ -27,14 +27,12 @@ export type KeeperConfig = {
   quoteType: string;
   indexerUrl: string;
   cron: {
-    settlement: string;
     limitOrder: string;
     liquidation: string;
     trigger: string;
     forceClose: string;
   };
   limits: {
-    settlements: number;
     limitFills: number;
     liquidations: number;
     triggers: number;

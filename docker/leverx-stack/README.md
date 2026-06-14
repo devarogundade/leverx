@@ -3,7 +3,7 @@
 Single container runs:
 
 - **leverx-indexer** — Sui checkpoint ingestion, Postgres migrations, Prometheus on `:9186`
-- **keeper** — HTTP API (`:3001`) and optional settlement cron
+- **keeper** — HTTP API (`:3001`) and maintenance crons (liquidation, force-close, limits, triggers)
 
 Postgres runs as a separate compose service.
 

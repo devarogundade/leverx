@@ -15,6 +15,7 @@ import { ResponsiveModal } from "@/components/leverx/ResponsiveModal";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { QuoteAmount } from "@/components/leverx/QuoteAmount";
 import { PortfolioWithdrawSection } from "@/components/leverx/PortfolioWithdrawSection";
+import { PortfolioDepositSection } from "@/components/leverx/PortfolioDepositSection";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -353,6 +354,11 @@ export function PortfolioAccountPanel({
         </div>
       </section>
 
+      <PortfolioDepositSection
+        accountId={accountId}
+        predictManagerId={account.predict_manager_id}
+        positions={history}
+      />
       <PortfolioWithdrawSection accountId={accountId} positions={history} />
 
       <div className="grid gap-4 lg:grid-cols-2">

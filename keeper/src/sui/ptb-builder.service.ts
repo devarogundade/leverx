@@ -57,52 +57,6 @@ export class PtbBuilderService {
     };
   }
 
-  buildSettleBinary(cfg: KeeperConfig, position: LeveragedPosition): Transaction {
-    const tx = new Transaction();
-    const key = this.addMarketKey(tx, cfg, this.keyFromPosition(position));
-
-    tx.moveCall({
-      target: `${cfg.packageId}::trade::settle_expired_proxy_position_permissionless`,
-      typeArguments: [cfg.quoteType],
-      arguments: [
-        tx.object(cfg.registryId),
-        tx.object(cfg.vaultId),
-        tx.object(cfg.feeCollectorId),
-        tx.object(position.account_id),
-        tx.object(cfg.predictId),
-        tx.object(position.predict_manager_id!),
-        tx.object(position.oracle_id),
-        key,
-        tx.pure.u64(position.open_quantity),
-        tx.object(SUI_CLOCK_OBJECT_ID),
-      ],
-    });
-    return tx;
-  }
-
-  buildSettleRange(cfg: KeeperConfig, position: LeveragedPosition): Transaction {
-    const tx = new Transaction();
-    const key = this.addMarketKey(tx, cfg, this.keyFromPosition(position));
-
-    tx.moveCall({
-      target: `${cfg.packageId}::trade::settle_expired_proxy_range_permissionless`,
-      typeArguments: [cfg.quoteType],
-      arguments: [
-        tx.object(cfg.registryId),
-        tx.object(cfg.vaultId),
-        tx.object(cfg.feeCollectorId),
-        tx.object(position.account_id),
-        tx.object(cfg.predictId),
-        tx.object(position.predict_manager_id!),
-        tx.object(position.oracle_id),
-        key,
-        tx.pure.u64(position.open_quantity),
-        tx.object(SUI_CLOCK_OBJECT_ID),
-      ],
-    });
-    return tx;
-  }
-
   buildForceDeleverageBinary(
     cfg: KeeperConfig,
     position: LeveragedPosition,

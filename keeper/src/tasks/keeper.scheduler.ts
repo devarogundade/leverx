@@ -25,9 +25,6 @@ export class KeeperScheduler implements OnModuleInit {
       return;
     }
 
-    this.register('settlement', this.cfg.cron.settlement, () =>
-      this.orchestrator.run('settlement'),
-    );
     this.register('limit_order', this.cfg.cron.limitOrder, () =>
       this.orchestrator.run('limit_order'),
     );

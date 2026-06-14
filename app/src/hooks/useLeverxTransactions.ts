@@ -26,9 +26,15 @@ import {
   executeVaultSupply,
   executeVaultWithdraw,
   executeWithdrawQuote,
+  executeWithdrawManagerQuote,
+  executeDepositQuote,
+  executeDepositManagerQuote,
   type ClosePositionInput,
   type OpenTradeInput,
   type WithdrawQuoteInput,
+  type WithdrawManagerQuoteInput,
+  type DepositQuoteInput,
+  type DepositManagerQuoteInput,
 } from "@/lib/leverx/transactions";
 import { formatTxError } from "@/lib/leverx/tx-errors";
 import { suiClient } from "@/lib/sui/client";
@@ -321,6 +327,48 @@ export function useLeverxTransactions() {
     onSuccess: () => invalidate(),
   });
 
+  const withdrawManagerQuote = useMutation({
+    mutationFn: async (input: WithdrawManagerQuoteInput) => {
+      const ready = requireReady();
+      return executeWithdrawManagerQuote({
+        client,
+        wallet: ready.wallet,
+        account: ready.account,
+        cfg: ready.cfg,
+        input,
+      });
+    },
+    onSuccess: () => invalidate(),
+  });
+
+  const depositQuote = useMutation({
+    mutationFn: async (input: DepositQuoteInput) => {
+      const ready = requireReady();
+      return executeDepositQuote({
+        client,
+        wallet: ready.wallet,
+        account: ready.account,
+        cfg: ready.cfg,
+        input,
+      });
+    },
+    onSuccess: () => invalidate(),
+  });
+
+  const depositManagerQuote = useMutation({
+    mutationFn: async (input: DepositManagerQuoteInput) => {
+      const ready = requireReady();
+      return executeDepositManagerQuote({
+        client,
+        wallet: ready.wallet,
+        account: ready.account,
+        cfg: ready.cfg,
+        input,
+      });
+    },
+    onSuccess: () => invalidate(),
+  });
+
   return {
     cfg,
     isProtocolReady: Boolean(cfg) && !isResolving,
@@ -337,6 +385,9 @@ export function useLeverxTransactions() {
     vaultSupply,
     vaultWithdraw,
     withdrawQuote,
+    withdrawManagerQuote,
+    depositQuote,
+    depositManagerQuote,
     formatTxError,
   };
 }

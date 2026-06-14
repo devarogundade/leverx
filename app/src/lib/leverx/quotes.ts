@@ -303,6 +303,35 @@ export async function fetchManagerOpenQuantity(params: {
   }
 }
 
+/** Quote balance held in a linked DeepBook Predict manager (not on a market key ledger). */
+export async function fetchManagerQuoteBalance(params: {
+  client: SuiJsonRpcClient;
+  packageId: string;
+  predictManagerId: string;
+  quoteType: string;
+}): Promise<bigint> {
+  const tx = new Transaction();
+  tx.setSender(READONLY_SENDER);
+
+  tx.moveCall({
+    target: `${params.packageId}::predict_client::manager_balance`,
+    typeArguments: [params.quoteType],
+    arguments: [tx.object(params.predictManagerId)],
+  });
+
+  try {
+    const inspect = await params.client.devInspectTransactionBlock({
+      transactionBlock: tx,
+      sender: READONLY_SENDER,
+    });
+    if (inspect.effects?.status?.status !== "success") return 0n;
+    const tuple = findReturnTuple(inspect.results, 1);
+    return tuple?.[0] ?? 0n;
+  } catch {
+    return 0n;
+  }
+}
+
 /** On-chain quote balance held on a market key ledger (not in wallet). */
 export async function fetchKeyQuoteBalance(params: {
   client: SuiJsonRpcClient;

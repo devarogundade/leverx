@@ -6,13 +6,11 @@ import { KeeperScheduler } from './keeper.scheduler';
 import { LimitOrderService } from './limit-order.service';
 import { LiquidationService } from './liquidation.service';
 import { ForceCloseService } from './force-close.service';
-import { SettlementService } from './settlement.service';
 import { TriggerService } from './trigger.service';
 
 @Module({
   imports: [IndexerModule, SuiModule],
   providers: [
-    SettlementService,
     LimitOrderService,
     LiquidationService,
     TriggerService,
