@@ -75,6 +75,7 @@ export const leverxInfo = {
   spread: "Gap between the best limit bid and the live LP mint price.",
 
   balanceTotal: "Estimated net equity across open trades (mark value minus borrow).",
+  balanceWallet: "dUSDC available in your connected wallet (not yet in open trades).",
   balanceMargin: "Your own funds posted in open trades.",
   balanceBorrowed: "Amount borrowed from the pool.",
   balancePositions: "Number of open trades.",

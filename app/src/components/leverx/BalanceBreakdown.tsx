@@ -9,7 +9,9 @@ import { leverxInfo } from "@/lib/leverx/info-copy";
 import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
 import { useWallet } from "@/context/WalletContext";
 import { useIndexerAccounts, useIndexerPositions } from "@/hooks/useIndexer";
+import { useWalletCoinBalance } from "@/hooks/useWalletCoinBalance";
 import { ui } from "@/lib/copy";
+import { appConfig } from "@/lib/config";
 import {
   DATA_PLACEHOLDER,
 } from "@/lib/leverx/placeholders";
@@ -49,9 +51,15 @@ export function BalanceBreakdown({ className }: Props) {
     isLoading: positionsLoading,
     isFetched: positionsFetched,
   } = useIndexerPositions(address ?? undefined, { status: "open" });
+  const {
+    data: walletBalance,
+    isLoading: walletBalanceLoading,
+    isFetched: walletBalanceFetched,
+  } = useWalletCoinBalance(isWalletConnected ? appConfig.quoteType : null, 6);
 
   const ready =
     isWalletConnected && accountsFetched && positionsFetched && !accountsLoading && !positionsLoading;
+  const walletReady = isWalletConnected && walletBalanceFetched && !walletBalanceLoading;
 
   const activePositions = useMemo(
     () => positions.filter(isActiveOpenPosition),
@@ -107,6 +115,17 @@ export function BalanceBreakdown({ className }: Props) {
             <p className="py-3 text-sm text-muted-foreground">{ui.balanceConnectHint}</p>
           ) : (
             <>
+              <BalanceRow
+                label={ui.balanceWallet}
+                info={leverxInfo.balanceWallet}
+                value={
+                  <QuoteAmount
+                    amount={walletReady ? walletBalance ?? 0 : null}
+                    loading={isWalletConnected && !walletReady}
+                    hideZero={false}
+                  />
+                }
+              />
               <BalanceRow
                 label="Margin"
                 info={leverxInfo.balanceMargin}

@@ -36,7 +36,7 @@ export function MarketFavoriteButton({
       size={labeled ? "sm" : size}
       className={cn(
         marketsBookmark,
-        labeled && "h-auto min-h-8 w-auto gap-1.5 px-2.5",
+        labeled && "h-8 w-8 min-w-8 p-0 sm:h-auto sm:min-h-8 sm:w-auto sm:gap-1.5 sm:px-2.5",
         active && "text-accent",
         className,
       )}
@@ -49,7 +49,9 @@ export function MarketFavoriteButton({
         aria-hidden
       />
       {labeled ? (
-        <span className="text-xs font-medium">{active ? "Favorited" : "Favorite"}</span>
+        <span className="hidden text-xs font-medium sm:inline">
+          {active ? "Favorited" : "Favorite"}
+        </span>
       ) : null}
     </Button>
   );

@@ -263,7 +263,7 @@ export const tradeTerminalHeaderTop =
   "flex min-w-0 w-full items-start justify-between gap-2 sm:gap-3";
 
 export const tradeTerminalHeaderMetrics = cn(
-  "md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-[var(--trade-gap)]",
+  "md:grid md:grid-cols-[minmax(0,1fr)_minmax(180px,var(--trade-orderbook-w))] md:gap-[var(--trade-gap)]",
   "lg:grid-cols-[minmax(0,1fr)_var(--trade-orderbook-w)_var(--trade-sidebar-w)]",
 );
 
@@ -288,13 +288,15 @@ export const tradeOracleNavBtnDisabled = cn(
 );
 
 export const tradeStatRow = cn(
-  "grid grid-cols-3 gap-x-3 gap-y-2 max-[479px]:grid-cols-2",
-  "max-[479px]:[&>:nth-child(5)]:col-span-2 max-[479px]:[&>:nth-child(5)]:w-1/2 max-[479px]:[&>:nth-child(5)]:justify-self-center",
-  "sm:gap-x-6",
-  "lg:col-start-1 lg:grid-cols-5 lg:gap-x-4",
+  "trade-stat-row grid grid-cols-2 gap-x-3 gap-y-2",
+  "sm:grid-cols-3 sm:gap-x-6",
+  "md:grid-cols-5 md:gap-x-4",
+  "lg:col-start-1 lg:grid-cols-3 lg:gap-x-4",
+  "xl:grid-cols-5",
+  "lg:min-w-0 lg:flex-1",
 );
 
-export const tradeStatItem = "flex flex-col gap-0.5";
+export const tradeStatItem = "trade-stat-item flex min-w-0 flex-col gap-0.5";
 
 export const tradeStatItemLabel = "text-sm text-muted-foreground";
 
@@ -311,8 +313,9 @@ export const leverageCountdownTime =
   "font-mono text-base font-semibold tabular-nums tracking-tight text-foreground sm:text-lg";
 
 export const tradeTerminalHeaderMetricsRow = cn(
-  "flex flex-col gap-3",
-  "lg:flex-row lg:items-stretch lg:justify-between lg:gap-4",
+  "flex min-w-0 flex-col gap-3",
+  "md:col-span-2",
+  "lg:col-span-1 lg:flex-row lg:items-stretch lg:justify-between lg:gap-4",
 );
 
 export const tradeTerminalBody = "flex flex-col gap-[var(--trade-gap)]";

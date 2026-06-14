@@ -61,6 +61,7 @@ export const ui = {
   balanceInPositions: "In open trades",
   balanceRealizedPnl: "Realized profit & loss",
   balanceConnectHint: "Connect your wallet to see your balance.",
+  balanceWallet: "Wallet balance",
   predictManagerTitle: "Your trading account",
   predictManagerHint: "Balance and open trades for your wallet",
   predictManagerBalance: "Trading balance",
