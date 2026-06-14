@@ -530,6 +530,9 @@ export function PredictLeveragePanel({
       ? "Deposit source: trading account. Switch to wallet."
       : "Deposit source: wallet. Switch to trading account.";
 
+  const depositBalanceSourceLabel =
+    depositSource === "manager" ? ui.balanceManager : ui.balanceWallet;
+
   const quickAmounts = useMemo(
     () => buildQuickAmounts(availableQuoteBalance),
     [availableQuoteBalance],
@@ -1131,7 +1134,7 @@ export function PredictLeveragePanel({
                   ) : (
                     <Wallet className="h-3.5 w-3.5 shrink-0" aria-hidden />
                   )}
-                  {ui.balanceAvailable}{" "}
+                  {depositBalanceSourceLabel}{" "}
                   {typeof quoteBalanceLabel === "number" ? (
                     <span className="font-mono tabular-nums text-foreground">
                       {formatAmount(quoteBalanceLabel)}
@@ -1145,7 +1148,7 @@ export function PredictLeveragePanel({
               ) : (
                 <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
                   <Wallet className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                  {ui.balanceAvailable}{" "}
+                  {depositBalanceSourceLabel}{" "}
                   {typeof quoteBalanceLabel === "number" ? (
                     <span className="font-mono tabular-nums text-foreground">
                       {formatAmount(quoteBalanceLabel)}
