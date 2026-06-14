@@ -25,7 +25,7 @@ import {
   type MintOrderParams,
 } from "@/lib/leverx/ptb-builder";
 import { lxplpCoinType, type LeverxProtocolConfig } from "@/lib/leverx/protocol";
-import { settleContractQuantity } from "@/lib/leverx/position-quantity";
+import { hasIndexerOpenQuantity } from "@/lib/leverx/position-quantity";
 import { fetchManagerOpenQuantity, fetchMintQuote, fetchRedeemQuote } from "@/lib/leverx/quotes";
 import {
   applySlippageBps,
@@ -119,11 +119,17 @@ async function resolveSettleQuantity(params: {
     predictManagerId: params.position.predict_manager_id,
     key: positionToKey(params.position),
   });
-  const quantity = settleContractQuantity(onChain, params.position);
-  if (quantity > 0n) return quantity;
-  throw new Error(
-    "No contracts to settle for this market. If you already redeemed, check Withdraw to wallet for any remaining dUSDC.",
-  );
+  if (onChain == null) {
+    throw new Error(
+      "Could not read contract quantity on-chain. Refresh your portfolio and try again.",
+    );
+  }
+  if (onChain <= 0n) {
+    throw new Error(
+      "No contracts remain in your Predict manager for this market. The portfolio index may be stale — contracts may already be redeemed. Check Withdraw to wallet for any remaining dUSDC.",
+    );
+  }
+  return onChain;
 }
 
 function orderToKey(order: LimitMintOrder): MarketKeyArgs {

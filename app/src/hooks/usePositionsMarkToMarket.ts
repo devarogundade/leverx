@@ -13,6 +13,7 @@ import {
   type PositionMarkToMarket,
 } from "@/lib/leverx/position-metrics";
 import { fetchRedeemQuote } from "@/lib/leverx/quotes";
+import { coerceQuoteAtoms } from "@/lib/predict/scaling";
 
 function positionToMarketKey(position: LeveragedPosition) {
   return {
@@ -50,10 +51,10 @@ export function usePositionsMarkToMarket(positions: readonly LeveragedPosition[]
           client,
           cfg,
           key: positionToMarketKey(position),
-          quantity: BigInt(position.open_quantity),
+          quantity: BigInt(coerceQuoteAtoms(position.open_quantity)),
         });
       },
-      enabled: Boolean(cfg?.registryId && position.open_quantity > 0),
+      enabled: Boolean(cfg?.registryId && coerceQuoteAtoms(position.open_quantity) > 0),
       staleTime: 8_000,
       refetchInterval: 12_000,
       retry: 1,

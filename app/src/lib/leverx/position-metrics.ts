@@ -1,9 +1,12 @@
 import type { RedeemQuote } from "@/lib/leverx/quotes";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { DEFAULT_LIQUIDATION_BPS } from "@/lib/leverx/protocol";
-import { PREDICT_PRICE_SCALE } from "@/lib/leverx/constants";
 import { premiumRawToCents, premiumPerUnitFromMintCost } from "@/lib/leverx/trade-math";
-import { scaleQuote } from "@/lib/predict/scaling";
+import { coerceQuoteAtoms, scaleQuote } from "@/lib/predict/scaling";
+
+function positionAtoms(value: unknown): bigint {
+  return BigInt(coerceQuoteAtoms(value));
+}
 
 export type PositionMarkToMarket = {
   positionKey: string;
@@ -27,7 +30,7 @@ export function positionRowId(position: LeveragedPosition): string {
 
 /** Open indexer rows with zero quantity are stale keys — not live positions. */
 export function isActiveOpenPosition(position: LeveragedPosition): boolean {
-  return position.status === "open" && position.open_quantity > 0;
+  return position.status === "open" && coerceQuoteAtoms(position.open_quantity) > 0;
 }
 
 export function isEndedPosition(position: LeveragedPosition): boolean {
@@ -35,16 +38,26 @@ export function isEndedPosition(position: LeveragedPosition): boolean {
 }
 
 export function closePrincipalRepaidAtoms(position: LeveragedPosition): number {
-  return Math.max(0, position.close_debt_repaid - position.close_interest_paid);
+  return Math.max(
+    0,
+    coerceQuoteAtoms(position.close_debt_repaid) - coerceQuoteAtoms(position.close_interest_paid),
+  );
 }
 
 /** Peak vault borrow on this key (set at open / max over life). */
 export function effectivePeakBorrowAtoms(position: LeveragedPosition): number {
-  const peak = position.peak_borrow_quote ?? 0;
+  const peak = coerceQuoteAtoms(position.peak_borrow_quote);
   if (peak > 0) return peak;
   const closePrincipal = closePrincipalRepaidAtoms(position);
-  const mintFundedBorrow = Math.max(0, position.mint_cost - position.margin_quote);
-  return Math.max(position.borrow_quote, closePrincipal, mintFundedBorrow);
+  const mintFundedBorrow = Math.max(
+    0,
+    coerceQuoteAtoms(position.mint_cost) - coerceQuoteAtoms(position.margin_quote),
+  );
+  return Math.max(
+    coerceQuoteAtoms(position.borrow_quote),
+    closePrincipal,
+    mintFundedBorrow,
+  );
 }
 
 /** Wallet cash sent to repay vault debt before/during close (excludes borrow repaid from redeem). */
@@ -54,7 +67,7 @@ export function walletRepaidPrincipalAtoms(position: LeveragedPosition): number 
   if (isEndedPosition(position)) {
     return Math.max(0, peakBorrow - closePrincipalRepaidAtoms(position));
   }
-  return Math.max(0, peakBorrow - position.borrow_quote);
+  return Math.max(0, peakBorrow - coerceQuoteAtoms(position.borrow_quote));
 }
 
 export function walletRepaidPrincipalUsd(position: LeveragedPosition): number {
@@ -93,9 +106,9 @@ export type ClosedPositionPnlBreakdown = {
 export function hasClosePnlBreakdown(position: LeveragedPosition): boolean {
   return (
     isEndedPosition(position) &&
-    (position.close_debt_repaid > 0 ||
-      position.close_interest_paid > 0 ||
-      position.close_surplus_quote > 0)
+    (coerceQuoteAtoms(position.close_debt_repaid) > 0 ||
+      coerceQuoteAtoms(position.close_interest_paid) > 0 ||
+      coerceQuoteAtoms(position.close_surplus_quote) > 0)
   );
 }
 
@@ -126,26 +139,24 @@ export function closedPositionPnlBreakdown(
 export function entryMarkPremiumRaw(position: LeveragedPosition): bigint | null {
   const fromCost = entryPremiumPerUnitRaw(position);
   if (fromCost != null) return fromCost;
-  if (position.entry_mark != null && position.entry_mark > 0) {
-    return BigInt(position.entry_mark);
-  }
+  const entryMark = coerceQuoteAtoms(position.entry_mark);
+  if (entryMark > 0) return positionAtoms(position.entry_mark);
   return null;
 }
 
 export function closingMarkPremiumRaw(position: LeveragedPosition): bigint | null {
   if (
     isEndedPosition(position) &&
-    position.realized_payout > 0 &&
-    position.open_quantity > 0
+    coerceQuoteAtoms(position.realized_payout) > 0 &&
+    coerceQuoteAtoms(position.open_quantity) > 0
   ) {
     return premiumPerUnitFromMintCost(
-      BigInt(position.realized_payout),
-      BigInt(position.open_quantity),
+      positionAtoms(position.realized_payout),
+      positionAtoms(position.open_quantity),
     );
   }
-  if (position.closing_mark != null && position.closing_mark > 0) {
-    return BigInt(position.closing_mark);
-  }
+  const closingMark = coerceQuoteAtoms(position.closing_mark);
+  if (closingMark > 0) return positionAtoms(position.closing_mark);
   return null;
 }
 
@@ -170,11 +181,13 @@ export function closedClosingPremiumCents(position: LeveragedPosition): number |
 
 /** Cap ghost mint_cost until indexer migration repairs historical rows. */
 export function effectiveMintCostAtoms(position: LeveragedPosition): number {
-  if (position.mint_cost <= 0) return 0;
+  const mintCost = coerceQuoteAtoms(position.mint_cost);
+  if (mintCost <= 0) return 0;
   // Closed rows zero borrow_quote; use full mint_cost for entry premium and P&L basis.
-  if (isEndedPosition(position)) return position.mint_cost;
-  const cap = position.margin_quote + position.borrow_quote;
-  return cap > 0 ? Math.min(position.mint_cost, cap) : position.mint_cost;
+  if (isEndedPosition(position)) return mintCost;
+  const cap =
+    coerceQuoteAtoms(position.margin_quote) + coerceQuoteAtoms(position.borrow_quote);
+  return cap > 0 ? Math.min(mintCost, cap) : mintCost;
 }
 
 /** Matches on-chain `ltv::effective_health_debt` (quote atoms). */
@@ -200,11 +213,10 @@ function effectiveHealthDebtUsd(
 
 /** Average fill premium — always mint_cost ÷ qty (unchanged by repay / deleverage). */
 export function entryPremiumPerUnitRaw(position: LeveragedPosition): bigint | null {
-  if (position.open_quantity <= 0 || position.mint_cost <= 0) return null;
-  return premiumPerUnitFromMintCost(
-    BigInt(position.mint_cost),
-    BigInt(position.open_quantity),
-  );
+  const openQuantity = coerceQuoteAtoms(position.open_quantity);
+  const mintCost = coerceQuoteAtoms(position.mint_cost);
+  if (openQuantity <= 0 || mintCost <= 0) return null;
+  return premiumPerUnitFromMintCost(positionAtoms(mintCost), positionAtoms(openQuantity));
 }
 
 export function positionMintCostUsd(position: LeveragedPosition): number {
@@ -220,7 +232,7 @@ export function positionBorrowUsd(position: LeveragedPosition): number {
 }
 
 export function positionLeverageMultiplier(position: LeveragedPosition): number {
-  return position.leverage_bps / 10_000;
+  return coerceQuoteAtoms(position.leverage_bps) / 10_000;
 }
 
 export function computePositionMarkToMarket(
@@ -237,7 +249,7 @@ export function computePositionMarkToMarket(
   const entryPremium = entryMarkPremiumRaw(position);
   const entryPremiumCents = entryPremium != null ? premiumRawToCents(entryPremium) : null;
 
-  if (!redeemQuote || position.open_quantity <= 0) {
+  if (!redeemQuote || coerceQuoteAtoms(position.open_quantity) <= 0) {
     return {
       positionKey: positionRowId(position),
       markValueUsd: 0,
@@ -265,7 +277,7 @@ export function computePositionMarkToMarket(
   const healthDebtUsd = effectiveHealthDebtUsd(
     borrowedUsd,
     marginUsd,
-    position.leverage_bps,
+    coerceQuoteAtoms(position.leverage_bps),
   );
   const healthBps =
     healthDebtUsd > 0

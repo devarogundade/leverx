@@ -78,14 +78,19 @@ function getPositionActionAvailability(params: {
   const expired = position.expiry_ms > 0 && position.expiry_ms < now;
   const hasDebt = position.borrow_quote > 0;
 
-  const settleQty = settleContractQuantity(onChainQuantity, position);
+  const settleQty = settleContractQuantity(onChainQuantity);
   const hasRedeemableQuantity =
     onChainQuantity != null
       ? onChainQuantity > 0n
       : hasIndexerOpenQuantity(position);
 
   const canCloseRedeem = hasRedeemableQuantity && !oracleSettled;
-  const canSettle = expired && oracleSettled && settleQty > 0n && !quantityLoading;
+  const canSettle =
+    expired &&
+    oracleSettled &&
+    settleQty > 0n &&
+    !quantityLoading &&
+    onChainQuantity != null;
   const canRepayDebt = hasDebt;
   const canWithdrawSurplus =
     !keyBalanceLoading &&
@@ -104,7 +109,10 @@ function getPositionActionAvailability(params: {
   ) {
     const indexStale =
       onChainQuantity === 0n && hasIndexerOpenQuantity(position);
-    if (indexStale) {
+    if (indexStale && expired && oracleSettled) {
+      emptyMessage =
+        "Contracts are already redeemed on-chain. The portfolio index is stale — this row should clear after refresh. Check Withdraw to wallet for any remaining dUSDC.";
+    } else if (indexStale) {
       emptyMessage =
         "Contracts are already redeemed on-chain. The portfolio index is stale — this row should clear after refresh. No withdrawable dUSDC was found on this market key.";
     } else if (settleQty === 0n && !hasIndexerOpenQuantity(position)) {

@@ -1,5 +1,17 @@
 import { FLOAT_SCALING, QUOTE_UNIT } from "@/lib/predict/constants";
 
+/** Coerce indexer / API atom fields (number, bigint, or numeric string) to number. */
+export function coerceQuoteAtoms(value: unknown): number {
+  if (value == null) return 0;
+  if (typeof value === "bigint") return Number(value);
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  if (typeof value === "string") {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
+
 /** On-chain spot / strike fields from predict-server (÷ 1e9). */
 export function scaleSpot(value: number | null | undefined): number {
   if (value == null || value <= 0) return 0;
@@ -7,9 +19,10 @@ export function scaleSpot(value: number | null | undefined): number {
 }
 
 /** dUSDC and other quote amounts from predict-server (÷ 1e6). */
-export function scaleQuote(value: number | null | undefined): number {
-  if (value == null || value <= 0) return 0;
-  return value / Number(QUOTE_UNIT);
+export function scaleQuote(value: number | bigint | string | null | undefined): number {
+  const n = coerceQuoteAtoms(value);
+  if (n <= 0) return 0;
+  return n / Number(QUOTE_UNIT);
 }
 
 /** On-chain quote atoms (6-decimal dUSDC) → USD without `Number(bigint)` precision loss. */
