@@ -1,6 +1,7 @@
 import { TradeAmountInput } from "@/components/leverx/TradeFormControls";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { leverxInfo } from "@/lib/leverx/info-copy";
+import { formatAssetPriceUsdWithSymbol } from "@/lib/leverx/format-asset-price";
 import {
   formatRangeBoundsFromRaw,
   formatStrikeUsdFromRaw,
@@ -30,13 +31,6 @@ interface Props {
   oracleSpotUsd?: number | null;
   minStrikeRaw: number;
   disabled?: boolean;
-}
-
-function formatSpotUsd(spot: number): string {
-  return `$${spot.toLocaleString(undefined, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  })}`;
 }
 
 export function RangeStrikeSelector({
@@ -70,7 +64,7 @@ export function RangeStrikeSelector({
           <span className="shrink-0 text-sm text-muted-foreground">
             Spot{" "}
             <span className="font-mono text-foreground">
-              {formatSpotUsd(oracleSpotUsd)}
+              {formatAssetPriceUsdWithSymbol(oracleSpotUsd)}
             </span>
           </span>
         ) : null}

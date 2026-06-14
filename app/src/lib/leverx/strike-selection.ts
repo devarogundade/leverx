@@ -69,13 +69,7 @@ export function strikeRawFromPreset(
   return snapStrikeRaw(targetUsd, minStrikeRaw, tickSizeRaw);
 }
 
-export function formatStrikeUsdFromRaw(strikeRaw: number): string {
-  if (strikeRaw <= 0) return "—";
-  return `$${(strikeRaw / SCALE).toLocaleString(undefined, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  })}`;
-}
+export { formatStrikeUsdFromRaw } from "@/lib/leverx/format-asset-price";
 
 export function strikeUsdFromRaw(strikeRaw: number): number {
   if (strikeRaw <= 0) return 0;

@@ -26,6 +26,7 @@ import { ui } from "@/lib/copy";
 import { QuoteAmount } from "@/components/leverx/QuoteAmount";
 import { resolveLiquidationBps } from "@/lib/leverx/protocol";
 import { formatQuantity } from "@/lib/leverx/format-quantity";
+import { formatStrikeUsdFromRaw } from "@/lib/leverx/strike-selection";
 import { formatCountdownStopwatch } from "@/lib/leverx/trade-limits";
 import { cn } from "@/lib/utils";
 import { labelCaps } from "@/lib/leverx/tw";
@@ -51,10 +52,10 @@ interface PositionRow {
 
 function formatStrike(position: LeveragedPosition): string {
   if (position.is_range && position.higher_strike > 0) {
-    return `$${(position.strike / 1e9).toLocaleString()}–$${(position.higher_strike / 1e9).toLocaleString()}`;
+    return `${formatStrikeUsdFromRaw(position.strike)}–${formatStrikeUsdFromRaw(position.higher_strike)}`;
   }
   if (position.strike > 0) {
-    return `$${(position.strike / 1e9).toLocaleString()}`;
+    return formatStrikeUsdFromRaw(position.strike);
   }
   return "—";
 }

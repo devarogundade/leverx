@@ -9,7 +9,7 @@ function compactScaled(value: number, divisor: number, suffix: string): string {
   return `${text}${suffix}`;
 }
 
-/** Compact number, e.g. 999, 12.5, 1.5K, 2.345M, 1.1B */
+/** Compact counts and balances — not for oracle spot or strike prices (use `format-asset-price`). */
 export function formatQuantity(value: number | bigint): string {
   const n = typeof value === "bigint" ? Number(value) : value;
   if (!Number.isFinite(n)) return "0";
@@ -24,11 +24,6 @@ export function formatQuantity(value: number | bigint): string {
   if (abs >= 1_000_000_000) return sign + compactScaled(abs, 1_000_000_000, "B");
   if (abs >= 1_000_000) return sign + compactScaled(abs, 1_000_000, "M");
   return sign + compactScaled(abs, 1_000, "K");
-}
-
-export function formatUsd(amount: number): string {
-  if (!Number.isFinite(amount) || amount <= 0) return "—";
-  return `$${formatQuantity(amount)}`;
 }
 
 export function formatDusdc(amount: number): string {

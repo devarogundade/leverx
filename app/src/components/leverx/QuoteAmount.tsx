@@ -13,6 +13,7 @@ type QuoteAmountProps = {
   loading?: boolean;
   /** When true, amounts ≤ 0 render the placeholder (matches formatUsdcOrPlaceholder). */
   hideZero?: boolean;
+  /** Compact K/M/B/T for balances and quantities — not for asset spot/strike prices. */
   compact?: boolean;
   digits?: number;
   className?: string;

@@ -1,4 +1,5 @@
 import { FLOAT_SCALING } from "@/lib/predict/constants";
+import { formatStrikeUsdFromRaw } from "@/lib/leverx/format-asset-price";
 import type { MarketCatalogEntry } from "@/lib/leverx/indexer-client";
 import type { PredictSide } from "@/lib/predict/instruments";
 import { scaleQuote } from "@/lib/predict/scaling";
@@ -56,10 +57,6 @@ export function formatContractPremiumLabel(args: {
   return formatPremiumOrPlaceholder(null);
 }
 
-function formatStrikeUsd(strike: number): string {
-  return `$${(strike / SCALE).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
-}
-
 function oracleAssetLabel(oracleId: string): string {
   return oracleId.slice(2, 6).toUpperCase() || "MKT";
 }
@@ -78,10 +75,10 @@ export function buildQuestion(
     year: "numeric",
   });
   if (isRange) {
-    return `Will ${asset} settle between ${formatStrikeUsd(strike)} and ${formatStrikeUsd(higherStrike)} on ${date}?`;
+    return `Will ${asset} settle between ${formatStrikeUsdFromRaw(strike)} and ${formatStrikeUsdFromRaw(higherStrike)} on ${date}?`;
   }
   const direction = isUp ? "above" : "below";
-  return `Will ${asset} be ${direction} ${formatStrikeUsd(strike)} on ${date}?`;
+  return `Will ${asset} be ${direction} ${formatStrikeUsdFromRaw(strike)} on ${date}?`;
 }
 
 export function catalogEntryToMarketRow(entry: MarketCatalogEntry): LeverxMarketRow {

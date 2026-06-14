@@ -1,4 +1,5 @@
 import type { PriceLevel } from "@/lib/charts/price-level";
+import { formatStrikeUsdFromRaw } from "@/lib/leverx/format-asset-price";
 import { predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
 import type { PredictSide } from "@/lib/predict/instruments";
 import { FLOAT_SCALING } from "@/lib/predict/constants";
@@ -19,10 +20,6 @@ export interface PositionStrikeChartInput {
   higherStrikeRaw?: number;
 }
 
-function formatStrikeUsd(raw: number): string {
-  return `$${(raw / SCALE).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
-}
-
 /** Strike lines from the user's open positions on this oracle. */
 export function buildPositionStrikeChartLevels(
   positions: readonly PositionStrikeChartInput[],
@@ -36,12 +33,12 @@ export function buildPositionStrikeChartLevels(
       if (!seen.has(rangeKey)) {
         seen.add(rangeKey);
         levels.push({
-          label: `Range ${formatStrikeUsd(position.strikeRaw)}–${formatStrikeUsd(position.higherStrikeRaw!)}`,
+          label: `Range ${formatStrikeUsdFromRaw(position.strikeRaw)}–${formatStrikeUsdFromRaw(position.higherStrikeRaw!)}`,
           price: position.strikeRaw / SCALE,
           tone: "entry-range",
         });
         levels.push({
-          label: `Range high ${formatStrikeUsd(position.higherStrikeRaw!)}`,
+          label: `Range high ${formatStrikeUsdFromRaw(position.higherStrikeRaw!)}`,
           price: position.higherStrikeRaw! / SCALE,
           tone: "entry-range",
         });
@@ -56,7 +53,7 @@ export function buildPositionStrikeChartLevels(
 
     const side = predictSideLabel[sideFromIsUp(position.isUp)];
     levels.push({
-      label: `${side} ${formatStrikeUsd(position.strikeRaw)}`,
+      label: `${side} ${formatStrikeUsdFromRaw(position.strikeRaw)}`,
       price: position.strikeRaw / SCALE,
       tone: position.isUp ? "entry-up" : "entry-down",
     });

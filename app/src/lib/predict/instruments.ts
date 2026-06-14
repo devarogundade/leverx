@@ -64,6 +64,8 @@ export function sideToggleClass(side: PredictSide, active: boolean): string {
   return "bg-accent/20 text-accent ring-1 ring-accent/40";
 }
 
+import { formatAssetPriceUsdWithSymbol } from "@/lib/leverx/format-asset-price";
+
 export function formatRangeStrikes(lower: number, upper: number): string {
-  return `$${lower.toLocaleString("en-US", { maximumFractionDigits: 0 })} – $${upper.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+  return `${formatAssetPriceUsdWithSymbol(lower)} – ${formatAssetPriceUsdWithSymbol(upper)}`;
 }

@@ -1,5 +1,6 @@
 import { ColorType, CrosshairMode, LineStyle, type DeepPartial, type ChartOptions, type IChartApi, type ISeriesApi } from "lightweight-charts";
 import type { PriceLevel } from "@/lib/charts/price-level";
+import { formatAssetPriceUsd } from "@/lib/leverx/format-asset-price";
 
 export function levelLineColor(tone: PriceLevel["tone"]): string {
   switch (tone) {
@@ -101,8 +102,7 @@ export function lightweightChartOptions(
       secondsVisible: false,
     },
     localization: {
-      priceFormatter: (price: number) =>
-        price.toLocaleString(undefined, { maximumFractionDigits: price >= 1000 ? 0 : 2 }),
+      priceFormatter: (price: number) => formatAssetPriceUsd(price),
     },
   };
 }

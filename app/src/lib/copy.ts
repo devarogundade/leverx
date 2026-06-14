@@ -1,4 +1,6 @@
 /** Shared plain-language labels for UI surfaces. */
+import { formatAssetPriceUsdWithSymbol } from "@/lib/leverx/format-asset-price";
+
 export const ui = {
   appTagline: "Leveraged trading on price predictions",
   tabMarkets: "Markets",
@@ -141,7 +143,7 @@ export function formatAmount(value: number): string {
 }
 
 export function formatPrice(_base: string, value: number): string {
-  return `$${formatAmount(value)}`;
+  return formatAssetPriceUsdWithSymbol(value);
 }
 
 export function formatUsdc(amount: number): string {
