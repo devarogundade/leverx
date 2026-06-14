@@ -85,6 +85,7 @@ import {
 } from "@/lib/leverx/strike-selection";
 import {
   tradeCtaClass,
+  btnTradeSignin,
   labelCaps,
   leverageBadge,
   pillToggleActive,
@@ -154,7 +155,8 @@ export function PredictLeveragePanel({
   onRangeBoundsChange,
 }: Props) {
   const { isWalletConnected, address } = useWallet();
-  const { openTrade, isProtocolReady } = useLeverxTransactions();
+  const { openTrade, createMarginAccount, isProtocolReady } = useLeverxTransactions();
+  const [marginAccountReady, setMarginAccountReady] = useState(false);
   const [orderType, setOrderType] = useState<OrderType>("market");
   const [limitPrice, setLimitPrice] = useState("");
   const [margin, setMargin] = useState("");
@@ -176,8 +178,14 @@ export function PredictLeveragePanel({
   const { data: protocol } = useIndexerProtocol();
   const liquidationBps = resolveLiquidationBps(protocol);
   const { data: leverxAccounts = [] } = useIndexerAccounts(address ?? undefined);
+  const hasMarginAccount = leverxAccounts.length > 0 || marginAccountReady;
+  const needsMarginAccountSetup = isWalletConnected && !hasMarginAccount;
   const hasLinkedManager = Boolean(leverxAccounts[0]?.predict_manager_id);
   const tradeContextKey = `${oracleId}:${side}`;
+
+  useEffect(() => {
+    setMarginAccountReady(false);
+  }, [address]);
 
   const resetTradeInputs = useCallback(() => {
     setMargin("");
@@ -816,6 +824,16 @@ export function PredictLeveragePanel({
       ? resolvedRangeLowerRaw > 0 && resolvedRangeUpperRaw > resolvedRangeLowerRaw
       : resolvedBinaryStrikeRaw > 0);
 
+  const handleCreateMarginAccount = () => {
+    createMarginAccount.mutate(undefined, {
+      onError: showTxError,
+      onSuccess: () => {
+        setMarginAccountReady(true);
+        showTxSuccess("Margin account created");
+      },
+    });
+  };
+
   const handleSubmit = () => {
     if (!canSubmit || !expiryMs || !tradeKey) return;
 
@@ -1208,21 +1226,48 @@ export function PredictLeveragePanel({
             </p>
           ))}
           {isWalletConnected ? (
-            <button
-              type="button"
-              className={ctaClass}
-              disabled={!canSubmit || openTrade.isPending}
-              onClick={handleSubmit}
-            >
-              {openTrade.isPending ? (
-                <>
-                  <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
-                  Submitting…
-                </>
-              ) : (
-                submitLabel
-              )}
-            </button>
+            needsMarginAccountSetup ? (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className={cn(btnTradeSignin, "min-w-0 flex-1")}
+                  disabled={!isProtocolReady || createMarginAccount.isPending}
+                  onClick={handleCreateMarginAccount}
+                >
+                  {createMarginAccount.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
+                      Creating…
+                    </>
+                  ) : (
+                    "Create margin account"
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className={cn(ctaClass, "min-w-0 flex-1")}
+                  disabled
+                >
+                  {submitLabel}
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className={ctaClass}
+                disabled={!canSubmit || openTrade.isPending}
+                onClick={handleSubmit}
+              >
+                {openTrade.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
+                    Submitting…
+                  </>
+                ) : (
+                  submitLabel
+                )}
+              </button>
+            )
           ) : (
             <WalletConnectButton fullWidth large className={ctaClass} />
           )}

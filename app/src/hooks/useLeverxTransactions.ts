@@ -16,6 +16,7 @@ import {
   executeCancelLimitOrder,
   executeClearTriggers,
   executeClosePosition,
+  executeCreateMarginAccount,
   executeLinkManager,
   executeOpenTrade,
   executeRegisterExecutor,
@@ -131,6 +132,19 @@ export function useLeverxTransactions() {
       }
       invalidate();
     },
+  });
+
+  const createMarginAccount = useMutation({
+    mutationFn: async () => {
+      const ready = requireReady();
+      return executeCreateMarginAccount({
+        client,
+        wallet: ready.wallet,
+        account: ready.account,
+        cfg: ready.cfg,
+      });
+    },
+    onSuccess: () => invalidate(),
   });
 
   const closePosition = useMutation({
@@ -304,6 +318,7 @@ export function useLeverxTransactions() {
     cfg,
     isProtocolReady: Boolean(cfg) && !isResolving,
     openTrade,
+    createMarginAccount,
     closePosition,
     settleExpired,
     repayDebt,

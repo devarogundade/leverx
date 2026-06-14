@@ -9,7 +9,7 @@ import {
   TRADE_GAS_BUDGET,
 } from "@/lib/leverx/constants";
 import { addMarketKey, type MarketKeyArgs } from "@/lib/leverx/market-keys";
-import { ensureLeverxAccount } from "@/lib/leverx/onboarding";
+import { ensureLeverxAccount, type LeverxAccount } from "@/lib/leverx/onboarding";
 import {
   appendCancelLimit,
   appendClearTriggers,
@@ -117,6 +117,30 @@ function orderToKey(order: LimitMintOrder): MarketKeyArgs {
 function resolveMintOrderKind(input: OpenTradeInput): "market" | "limit" | "place" {
   if (input.orderType === "market") return "market";
   return input.limitExecution === "resting" ? "place" : "limit";
+}
+
+/** Create the on-chain margin account (UserProxy + Predict manager) before the first trade. */
+export async function executeCreateMarginAccount(params: {
+  client: SuiJsonRpcClient;
+  wallet: WalletWithRequiredFeatures;
+  account: WalletAccount;
+  cfg: LeverxProtocolConfig;
+}): Promise<Required<LeverxAccount>> {
+  const leverxAccount = await ensureLeverxAccount({
+    client: params.client,
+    wallet: params.wallet,
+    account: params.account,
+    cfg: params.cfg,
+  });
+
+  if (!leverxAccount.predictManagerId) {
+    throw new Error("Predict manager is not linked to your trading account.");
+  }
+
+  return {
+    accountId: leverxAccount.accountId,
+    predictManagerId: leverxAccount.predictManagerId,
+  };
 }
 
 export async function executeOpenTrade(params: {
