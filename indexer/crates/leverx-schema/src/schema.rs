@@ -103,6 +103,11 @@ diesel::table! {
         opened_at_ms -> Nullable<Int8>,
         closed_at_ms -> Nullable<Int8>,
         realized_payout -> Int8,
+        entry_mark -> Nullable<Int8>,
+        closing_mark -> Nullable<Int8>,
+        close_debt_repaid -> Int8,
+        close_interest_paid -> Int8,
+        close_surplus_quote -> Int8,
     }
 }
 

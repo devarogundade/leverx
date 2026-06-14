@@ -8,6 +8,7 @@ import { MarketFavoriteButton } from "@/components/leverx/MarketFavoriteButton";
 import { MarketPremiumQuote } from "@/components/leverx/MarketPremiumQuote";
 import { MarketSideActions } from "@/components/leverx/MarketSideActions";
 import { useMarketPremiumSparklines } from "@/hooks/useMarketPremiumSparklines";
+import { useVisibleMarketAsks } from "@/hooks/useVisibleMarketAsks";
 import { useVisibleOracleSpots } from "@/hooks/useVisibleOracleSpots";
 import {
   MARKETS_GRID_PAGE_SIZE,
@@ -65,7 +66,9 @@ export function PredictMarketsGrid({
     () => paginateSlice(markets, page, MARKETS_GRID_PAGE_SIZE),
     [markets, page],
   );
-  const { markets: visibleMarkets } = useVisibleOracleSpots(pageMarkets);
+  const { markets: marketsWithAsks, isLoading: premiumLoading } =
+    useVisibleMarketAsks(pageMarkets);
+  const { markets: visibleMarkets } = useVisibleOracleSpots(marketsWithAsks);
   const { seriesByMarketId } = useMarketPremiumSparklines(visibleMarkets);
   const now = useNow(1000);
 
@@ -128,7 +131,7 @@ export function PredictMarketsGrid({
                     className={cn(marketCardInteractive, marketCardPrice, "no-underline")}
                   >
                     <div className={marketCardPriceValue}>
-                      {formatPremiumOrPlaceholder(m.lastAskPremium)}
+                      {premiumLoading ? "…" : formatPremiumOrPlaceholder(m.lastAskPremium)}
                     </div>
                   </Link>
                 </div>
@@ -158,6 +161,7 @@ export function PredictMarketsGrid({
                 footer
                 series={seriesByMarketId.get(m.id) ?? []}
                 lastAskPremium={m.lastAskPremium}
+                premiumLoading={premiumLoading}
               />
             </article>
           );

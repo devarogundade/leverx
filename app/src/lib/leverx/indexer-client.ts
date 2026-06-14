@@ -112,6 +112,11 @@ export type LeveragedPosition = {
   opened_at_ms: number | null;
   closed_at_ms: number | null;
   realized_payout: number;
+  entry_mark: number | null;
+  closing_mark: number | null;
+  close_debt_repaid: number;
+  close_interest_paid: number;
+  close_surplus_quote: number;
 };
 
 export type UserProxy = {

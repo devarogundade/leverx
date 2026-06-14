@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 interface Props {
   series: readonly number[];
   lastAskPremium: number | null;
+  premiumLoading?: boolean;
   variant?: "inline" | "band";
   /** Band at card footer — full width, no background tint */
   footer?: boolean;
@@ -21,6 +22,7 @@ interface Props {
 export function MarketPremiumQuote({
   series,
   lastAskPremium,
+  premiumLoading,
   variant = "inline",
   footer = false,
   className,
@@ -45,7 +47,9 @@ export function MarketPremiumQuote({
   return (
     <div className={cn(marketsPriceCell, className)}>
       <MarketSparkline series={series} width={52} height={20} positive={positive} />
-      <span className={marketsPriceValue}>{formatPremiumOrPlaceholder(lastAskPremium)}</span>
+      <span className={marketsPriceValue}>
+        {premiumLoading ? "…" : formatPremiumOrPlaceholder(lastAskPremium)}
+      </span>
       {showChange ? (
         <span
           className={cn(

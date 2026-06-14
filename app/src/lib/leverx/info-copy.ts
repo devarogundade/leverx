@@ -40,6 +40,8 @@ export const leverxInfo = {
   openPositions: "Number of trades still open.",
   openPositionsTable:
     "Live unrealized P&L and health update from on-chain redeem quotes. Use Manage to close, repay debt, or settle after expiry.",
+  closedPnlBreakdown:
+    "Net return on your posted margin after the redeem payout repays vault debt. Borrow repaid is principal; interest is the borrow-fee portion of that repayment.",
   accountSettings:
     "Link your trading account and allow trusted addresses to trade on your behalf.",
   predictManager: "Your on-chain trading account that holds positions.",

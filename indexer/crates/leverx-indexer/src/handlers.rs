@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use diesel::dsl::sql;
-use diesel::sql_types::BigInt;
+use diesel::sql_types::{BigInt, Nullable};
 use diesel::upsert::excluded;
 use diesel::ExpressionMethods;
 use diesel::QueryDsl;
@@ -99,6 +99,9 @@ pub struct PositionClosePatch {
     pub account_id: String,
     pub quantity: i64,
     pub payout: i64,
+    pub debt_repaid: i64,
+    pub surplus_quote: i64,
+    pub closing_mark: Option<i64>,
     pub settled: bool,
     pub closed_at_ms: i64,
     pub remaining_borrow_quote: i64,
@@ -484,6 +487,13 @@ impl Handler for LeverxEventsHandler {
                    WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN mint_cost \
                    ELSE (mint_cost * GREATEST(open_quantity - $1, 0) / GREATEST(open_quantity, 1)) \
                  END, \
+                 closing_mark = CASE \
+                   WHEN $10 IS NOT NULL AND $10 > 0 THEN $10 \
+                   ELSE closing_mark \
+                 END, \
+                 close_debt_repaid = close_debt_repaid + $8, \
+                 close_interest_paid = close_interest_paid + ($8 - GREATEST(borrow_quote - $3, 0)), \
+                 close_surplus_quote = close_surplus_quote + $9, \
                  status = CASE \
                    WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN CASE WHEN $7 THEN 'settled' ELSE 'closed' END \
                    ELSE 'open' \
@@ -498,6 +508,9 @@ impl Handler for LeverxEventsHandler {
             .bind::<diesel::sql_types::Text, _>(&close.position_key)
             .bind::<diesel::sql_types::Text, _>(&close.account_id)
             .bind::<diesel::sql_types::Bool, _>(close.settled)
+            .bind::<diesel::sql_types::BigInt, _>(close.debt_repaid)
+            .bind::<diesel::sql_types::BigInt, _>(close.surplus_quote)
+            .bind::<diesel::sql_types::Nullable<diesel::sql_types::BigInt>, _>(close.closing_mark)
             .execute(conn)
             .await?;
         }
@@ -538,6 +551,16 @@ impl Handler for LeverxEventsHandler {
                         "CASE WHEN leveraged_positions.status != 'open' \
                          THEN excluded.mint_cost \
                          ELSE leveraged_positions.mint_cost + excluded.mint_cost END",
+                    )),
+                    leveraged_positions::entry_mark.eq(sql::<Nullable<BigInt>>(
+                        "CASE \
+                         WHEN excluded.entry_mark IS NULL THEN leveraged_positions.entry_mark \
+                         WHEN leveraged_positions.status != 'open' THEN excluded.entry_mark \
+                         WHEN leveraged_positions.entry_mark IS NULL THEN excluded.entry_mark \
+                         ELSE (leveraged_positions.entry_mark * leveraged_positions.open_quantity \
+                               + excluded.entry_mark * excluded.open_quantity) \
+                              / GREATEST(leveraged_positions.open_quantity + excluded.open_quantity, 1) \
+                         END",
                     )),
                     leveraged_positions::last_order_type.eq(excluded(leveraged_positions::last_order_type)),
                     leveraged_positions::status.eq("open"),

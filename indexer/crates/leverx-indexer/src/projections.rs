@@ -316,6 +316,11 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     opened_at_ms: Some(ctx.timestamp_ms),
                     closed_at_ms: None,
                     realized_payout: 0,
+                    entry_mark: Some(premium as i64),
+                    closing_mark: None,
+                    close_debt_repaid: 0,
+                    close_interest_paid: 0,
+                    close_surplus_quote: 0,
                     },
                 });
                 batch.trades.push(NewMarketTrade {
@@ -375,6 +380,13 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     account_id: ev.account_id.to_string(),
                     quantity: ev.quantity as i64,
                     payout: ev.payout as i64,
+                    debt_repaid: ev.debt_repaid as i64,
+                    surplus_quote: ev.surplus_quote as i64,
+                    closing_mark: if ev.quantity > 0 {
+                        Some((ev.payout / ev.quantity) as i64)
+                    } else {
+                        None
+                    },
                     settled: ev.is_settled,
                     closed_at_ms: ctx.timestamp_ms,
                     remaining_borrow_quote: ev.remaining_debt as i64,
@@ -386,7 +398,11 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     trade_kind: "close".into(),
                     side: "sell".into(),
                     quantity: ev.quantity as i64,
-                    premium_per_unit: None,
+                    premium_per_unit: if ev.quantity > 0 {
+                        Some((ev.payout / ev.quantity) as i64)
+                    } else {
+                        None
+                    },
                     notional_quote: Some(ev.payout as i64),
                     account_id: Some(ev.account_id.to_string()),
                     owner: Some(ev.owner.to_string()),
@@ -793,6 +809,9 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     account_id: ev.account_id.to_string(),
                     quantity: 0,
                     payout: 0,
+                    debt_repaid: 0,
+                    surplus_quote: 0,
+                    closing_mark: None,
                     settled: true,
                     closed_at_ms: ctx.timestamp_ms,
                     remaining_borrow_quote: 0,

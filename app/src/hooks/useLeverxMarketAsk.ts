@@ -19,6 +19,18 @@ function quoteCfg(
   };
 }
 
+export function leverxMarketAskQueryKey(key: MarketKeyArgs) {
+  return [
+    "leverx-market-ask",
+    key.oracleId,
+    key.expiryMs,
+    key.strike,
+    key.higherStrike,
+    key.isUp,
+    key.isRange,
+  ] as const;
+}
+
 /** Live per-contract ask for a market (no margin / account required). */
 export function useLeverxMarketAsk(key?: MarketKeyArgs) {
   const { client } = useWallet();
@@ -32,15 +44,7 @@ export function useLeverxMarketAsk(key?: MarketKeyArgs) {
   );
 
   return useQuery({
-    queryKey: [
-      "leverx-market-ask",
-      key?.oracleId,
-      key?.expiryMs,
-      key?.strike,
-      key?.higherStrike,
-      key?.isUp,
-      key?.isRange,
-    ],
+    queryKey: key ? leverxMarketAskQueryKey(key) : ["leverx-market-ask", "idle"],
     queryFn: async () => {
       if (!cfg || !key) return null;
       return fetchPredictMarketAsk({ client, cfg, key });

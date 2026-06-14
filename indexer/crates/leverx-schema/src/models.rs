@@ -181,6 +181,11 @@ pub struct LeveragedPositionRow {
     pub opened_at_ms: Option<i64>,
     pub closed_at_ms: Option<i64>,
     pub realized_payout: i64,
+    pub entry_mark: Option<i64>,
+    pub closing_mark: Option<i64>,
+    pub close_debt_repaid: i64,
+    pub close_interest_paid: i64,
+    pub close_surplus_quote: i64,
 }
 
 #[derive(Queryable, Selectable, Serialize, Debug, Clone)]
@@ -306,6 +311,11 @@ pub struct NewLeveragedPosition {
     pub opened_at_ms: Option<i64>,
     pub closed_at_ms: Option<i64>,
     pub realized_payout: i64,
+    pub entry_mark: Option<i64>,
+    pub closing_mark: Option<i64>,
+    pub close_debt_repaid: i64,
+    pub close_interest_paid: i64,
+    pub close_surplus_quote: i64,
 }
 
 #[derive(Queryable, Selectable, Serialize, Debug, Clone)]

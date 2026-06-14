@@ -28,6 +28,26 @@ export function marketKeyMatchesPosition(
 
 /** Canonical `position_key` / `market_key` string (matches indexer encoding). */
 /** Build a market key from trade-terminal context (oracle, expiry, strike, side). */
+export function marketRowToKey(row: {
+  oracleId: string;
+  expiry: number;
+  strikeRaw: number;
+  higherStrikeRaw: number;
+  isUp: boolean;
+  isRange: boolean;
+}): MarketKeyArgs | undefined {
+  if (row.expiry <= 0 || row.strikeRaw <= 0) return undefined;
+  if (row.isRange && row.higherStrikeRaw <= row.strikeRaw) return undefined;
+  return {
+    oracleId: row.oracleId,
+    expiryMs: row.expiry,
+    strike: row.strikeRaw,
+    higherStrike: row.isRange ? row.higherStrikeRaw : 0,
+    isUp: row.isUp,
+    isRange: row.isRange,
+  };
+}
+
 export function tradeSideToMarketKey(args: {
   oracleId: string;
   expiryMs: number;

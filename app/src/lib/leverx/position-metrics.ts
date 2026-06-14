@@ -2,7 +2,7 @@ import type { RedeemQuote } from "@/lib/leverx/quotes";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { DEFAULT_LIQUIDATION_BPS } from "@/lib/leverx/protocol";
 import { PREDICT_PRICE_SCALE } from "@/lib/leverx/constants";
-import { premiumRawToCents } from "@/lib/leverx/trade-math";
+import { premiumRawToCents, premiumPerUnitFromMintCost } from "@/lib/leverx/trade-math";
 import { scaleQuote } from "@/lib/predict/scaling";
 
 export type PositionMarkToMarket = {
@@ -34,23 +34,93 @@ export function isEndedPosition(position: LeveragedPosition): boolean {
   return position.status !== "open";
 }
 
-/** Realized P&L for closed/settled/liquidated rows (payout minus cost basis). */
+/** Realized P&L for closed/settled/liquidated rows. */
 export function realizedPnlUsd(position: LeveragedPosition): number | null {
   if (!isEndedPosition(position)) return null;
+  if (hasClosePnlBreakdown(position)) {
+    return scaleQuote(position.close_surplus_quote) - scaleQuote(position.margin_quote);
+  }
   const payoutUsd = scaleQuote(position.realized_payout);
   const costUsd = scaleQuote(effectiveMintCostAtoms(position));
   return payoutUsd - costUsd;
 }
 
+export type ClosedPositionPnlBreakdown = {
+  borrowRepaidUsd: number;
+  interestPaidUsd: number;
+  netPnlUsd: number;
+  hasBreakdown: boolean;
+};
+
+export function hasClosePnlBreakdown(position: LeveragedPosition): boolean {
+  return (
+    isEndedPosition(position) &&
+    (position.close_debt_repaid > 0 ||
+      position.close_interest_paid > 0 ||
+      position.close_surplus_quote > 0)
+  );
+}
+
+export function closedPositionPnlBreakdown(
+  position: LeveragedPosition,
+): ClosedPositionPnlBreakdown | null {
+  if (!isEndedPosition(position)) return null;
+  const hasBreakdown = hasClosePnlBreakdown(position);
+  const borrowRepaidUsd = scaleQuote(
+    Math.max(0, position.close_debt_repaid - position.close_interest_paid),
+  );
+  const interestPaidUsd = scaleQuote(position.close_interest_paid);
+  const netPnlUsd = hasBreakdown
+    ? scaleQuote(position.close_surplus_quote) - scaleQuote(position.margin_quote)
+    : (realizedPnlUsd(position) ?? 0);
+  return {
+    borrowRepaidUsd,
+    interestPaidUsd,
+    netPnlUsd,
+    hasBreakdown,
+  };
+}
+
+export function entryMarkPremiumRaw(position: LeveragedPosition): bigint | null {
+  if (position.entry_mark != null && position.entry_mark > 0) {
+    return BigInt(position.entry_mark);
+  }
+  return entryPremiumPerUnitRaw(position);
+}
+
+export function closingMarkPremiumRaw(position: LeveragedPosition): bigint | null {
+  if (position.closing_mark != null && position.closing_mark > 0) {
+    return BigInt(position.closing_mark);
+  }
+  if (
+    !isEndedPosition(position) ||
+    position.realized_payout <= 0 ||
+    position.open_quantity <= 0
+  ) {
+    return null;
+  }
+  return premiumPerUnitFromMintCost(
+    BigInt(position.realized_payout),
+    BigInt(position.open_quantity),
+  );
+}
+
 export function realizedPnlPct(position: LeveragedPosition): number | null {
   const pnlUsd = realizedPnlUsd(position);
-  const costUsd = scaleQuote(effectiveMintCostAtoms(position));
+  const costUsd = hasClosePnlBreakdown(position)
+    ? scaleQuote(position.margin_quote)
+    : scaleQuote(effectiveMintCostAtoms(position));
   if (pnlUsd == null || costUsd <= 0) return null;
   return (pnlUsd / costUsd) * 100;
 }
 
 export function closedEntryPremiumCents(position: LeveragedPosition): number | null {
-  const premium = entryPremiumPerUnitRaw(position);
+  const premium = entryMarkPremiumRaw(position);
+  return premium != null ? premiumRawToCents(premium) : null;
+}
+
+export function closedClosingPremiumCents(position: LeveragedPosition): number | null {
+  const premium = closingMarkPremiumRaw(position);
   return premium != null ? premiumRawToCents(premium) : null;
 }
 
@@ -102,7 +172,7 @@ export function computePositionMarkToMarket(
   const borrowedUsd = scaleQuote(position.borrow_quote);
   const positionSizeUsd = marginUsd + borrowedUsd;
 
-  const entryPremium = entryPremiumPerUnitRaw(position);
+  const entryPremium = entryMarkPremiumRaw(position);
   const entryPremiumCents = entryPremium != null ? premiumRawToCents(entryPremium) : null;
 
   if (!redeemQuote || position.open_quantity <= 0) {

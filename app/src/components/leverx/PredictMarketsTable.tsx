@@ -8,6 +8,7 @@ import { MarketFavoriteButton } from "@/components/leverx/MarketFavoriteButton";
 import { MarketPremiumQuote } from "@/components/leverx/MarketPremiumQuote";
 import { MarketSideActions } from "@/components/leverx/MarketSideActions";
 import { useMarketPremiumSparklines } from "@/hooks/useMarketPremiumSparklines";
+import { useVisibleMarketAsks } from "@/hooks/useVisibleMarketAsks";
 import { useVisibleOracleSpots } from "@/hooks/useVisibleOracleSpots";
 import {
   MARKETS_TABLE_PAGE_SIZE,
@@ -103,11 +104,13 @@ function MarketMobileCard({
   market: m,
   liquidityLabel,
   premiumSeries,
+  premiumLoading,
   now,
 }: {
   market: LeverxMarketRow;
   liquidityLabel: string;
   premiumSeries: readonly number[];
+  premiumLoading?: boolean;
   now: number;
 }) {
   return (
@@ -128,6 +131,7 @@ function MarketMobileCard({
         <MarketPremiumQuote
           series={premiumSeries}
           lastAskPremium={m.lastAskPremium}
+          premiumLoading={premiumLoading}
         />
       </div>
 
@@ -135,6 +139,7 @@ function MarketMobileCard({
         variant="band"
         series={premiumSeries}
         lastAskPremium={m.lastAskPremium}
+        premiumLoading={premiumLoading}
         className="mt-2"
       />
 
@@ -200,7 +205,9 @@ export function PredictMarketsTable({
     () => paginateSlice(markets, page, MARKETS_TABLE_PAGE_SIZE),
     [markets, page],
   );
-  const { markets: visibleMarkets } = useVisibleOracleSpots(pageMarkets);
+  const { markets: marketsWithAsks, isLoading: premiumLoading } =
+    useVisibleMarketAsks(pageMarkets);
+  const { markets: visibleMarkets } = useVisibleOracleSpots(marketsWithAsks);
   const { seriesByMarketId } = useMarketPremiumSparklines(visibleMarkets);
   const now = useNow(1000);
 
@@ -233,6 +240,7 @@ export function PredictMarketsTable({
             market={m}
             liquidityLabel={liquidityLabel}
             premiumSeries={seriesByMarketId.get(m.id) ?? []}
+            premiumLoading={premiumLoading}
             now={now}
           />
         ))}
@@ -302,6 +310,7 @@ export function PredictMarketsTable({
                     <MarketPremiumQuote
                       series={seriesByMarketId.get(m.id) ?? []}
                       lastAskPremium={m.lastAskPremium}
+                      premiumLoading={premiumLoading}
                     />
                   </td>
                   <td className={cn(marketsTd, marketsTdMono, marketsTdHideMd)}>

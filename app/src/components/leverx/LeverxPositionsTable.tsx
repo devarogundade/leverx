@@ -1,17 +1,22 @@
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
+import { ChevronDown } from "lucide-react";
 import { DataTable, type Column } from "@/components/DataTable";
 import { AssetBadge } from "@/components/AssetBadge";
 import { PositionActionsTrigger } from "@/components/leverx/PositionActionsModal";
 import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
+import { QuoteAmount } from "@/components/leverx/QuoteAmount";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { usePredictOracleRows } from "@/hooks/usePredictOracles";
 import { useIndexerProtocol } from "@/hooks/useIndexer";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { assetLabelForOracleId } from "@/lib/predict/oracles";
 import {
+  closedClosingPremiumCents,
   closedEntryPremiumCents,
+  closedPositionPnlBreakdown,
   formatHealthBps,
   formatPnlPct,
   formatPnlUsd,
@@ -23,7 +28,6 @@ import {
 import { predictSideFromBinary, type PredictSide } from "@/lib/predict/instruments";
 import { scaleQuote } from "@/lib/predict/scaling";
 import { ui } from "@/lib/copy";
-import { QuoteAmount } from "@/components/leverx/QuoteAmount";
 import { resolveLiquidationBps } from "@/lib/leverx/protocol";
 import { formatQuantity } from "@/lib/leverx/format-quantity";
 import { formatStrikeUsdFromRaw } from "@/lib/leverx/strike-selection";
@@ -92,6 +96,15 @@ function buildRows(
   }));
 }
 
+function PnlBreakdownRow({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-1.5 text-sm text-muted-foreground">
+      <span>{label}</span>
+      <span className="font-mono tabular-nums text-foreground">{value}</span>
+    </div>
+  );
+}
+
 function PnlCell({
   position,
   mtm,
@@ -108,11 +121,67 @@ function PnlCell({
     }
     const tone =
       pnlUsd > 0 ? "text-success" : pnlUsd < 0 ? "text-destructive" : "text-muted-foreground";
-    return (
-      <div className={cn("text-right tabular-nums", tone)}>
+    const breakdown = closedPositionPnlBreakdown(position);
+    const pnlContent = (
+      <>
         <div className="text-sm font-medium">{formatPnlUsd(pnlUsd)}</div>
         <div className="text-[11px] opacity-80">{formatPnlPct(realizedPnlPct(position))}</div>
-      </div>
+      </>
+    );
+
+    if (!breakdown?.hasBreakdown) {
+      return <div className={cn("text-right tabular-nums", tone)}>{pnlContent}</div>;
+    }
+
+    return (
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className={cn(
+              "group inline-flex items-center justify-end gap-1 rounded-sm text-right tabular-nums transition-colors hover:opacity-90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+              tone,
+            )}
+            aria-label="P&L breakdown"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <div>{pnlContent}</div>
+            <ChevronDown className="h-3 w-3 shrink-0 opacity-60 group-hover:opacity-100" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="end"
+          className="w-56 p-0"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <div className="border-b border-border px-3 py-2.5">
+            <LabelWithInfo
+              label="P&L breakdown"
+              labelClassName="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
+              info={leverxInfo.closedPnlBreakdown}
+            />
+          </div>
+          <div className="px-3 py-1">
+            <PnlBreakdownRow
+              label="Borrow repaid"
+              value={<QuoteAmount amount={breakdown.borrowRepaidUsd} hideZero={false} />}
+            />
+            <PnlBreakdownRow
+              label="Interest paid"
+              value={<QuoteAmount amount={breakdown.interestPaidUsd} hideZero={false} />}
+            />
+            <PnlBreakdownRow
+              label="Net P&L"
+              value={
+                <span className={tone}>
+                  <QuoteAmount amount={breakdown.netPnlUsd} hideZero={false} />
+                </span>
+              }
+            />
+          </div>
+        </PopoverContent>
+      </Popover>
     );
   }
   if (!mtm?.isLive) {
@@ -324,10 +393,10 @@ export function LeverxPositionsTable({
       cell: (r) => {
         const closed = r.position.status !== "open";
         if (closed) {
-          const entryCents = closedEntryPremiumCents(r.position);
+          const closingCents = closedClosingPremiumCents(r.position);
           return (
             <span className="font-mono text-sm tabular-nums text-muted-foreground">
-              {entryCents != null ? `${entryCents.toFixed(1)}¢` : "—"}
+              {closingCents != null ? `${closingCents.toFixed(1)}¢` : "—"}
             </span>
           );
         }
