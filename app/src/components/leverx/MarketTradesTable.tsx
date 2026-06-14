@@ -3,6 +3,7 @@ import { DataTable, type Column } from "@/components/DataTable";
 import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
 import { AnimatedPremium, AnimatedQuantity } from "@/components/ui/animated-numbers";
 import type { GlobalMarketTrade } from "@/lib/leverx/indexer-client";
+import { tradePremiumRaw } from "@/lib/leverx/indexer-markets";
 import type { PredictSide } from "@/lib/predict/instruments";
 import { cn } from "@/lib/utils";
 
@@ -27,9 +28,7 @@ function formatTradeTime(ms: number): string {
 }
 
 function tradePriceRaw(trade: GlobalMarketTrade): number | null {
-  if (trade.ask_price) return trade.ask_price;
-  if (trade.bid_price) return trade.bid_price;
-  return null;
+  return tradePremiumRaw(trade);
 }
 
 function tradeOutcomeSide(trade: GlobalMarketTrade): PredictSide {

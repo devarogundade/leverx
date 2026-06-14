@@ -82,27 +82,29 @@ export function closedPositionPnlBreakdown(
 }
 
 export function entryMarkPremiumRaw(position: LeveragedPosition): bigint | null {
+  const fromCost = entryPremiumPerUnitRaw(position);
+  if (fromCost != null) return fromCost;
   if (position.entry_mark != null && position.entry_mark > 0) {
     return BigInt(position.entry_mark);
   }
-  return entryPremiumPerUnitRaw(position);
+  return null;
 }
 
 export function closingMarkPremiumRaw(position: LeveragedPosition): bigint | null {
+  if (
+    isEndedPosition(position) &&
+    position.realized_payout > 0 &&
+    position.open_quantity > 0
+  ) {
+    return premiumPerUnitFromMintCost(
+      BigInt(position.realized_payout),
+      BigInt(position.open_quantity),
+    );
+  }
   if (position.closing_mark != null && position.closing_mark > 0) {
     return BigInt(position.closing_mark);
   }
-  if (
-    !isEndedPosition(position) ||
-    position.realized_payout <= 0 ||
-    position.open_quantity <= 0
-  ) {
-    return null;
-  }
-  return premiumPerUnitFromMintCost(
-    BigInt(position.realized_payout),
-    BigInt(position.open_quantity),
-  );
+  return null;
 }
 
 export function realizedPnlPct(position: LeveragedPosition): number | null {
@@ -127,6 +129,8 @@ export function closedClosingPremiumCents(position: LeveragedPosition): number |
 /** Cap ghost mint_cost until indexer migration repairs historical rows. */
 export function effectiveMintCostAtoms(position: LeveragedPosition): number {
   if (position.mint_cost <= 0) return 0;
+  // Closed rows zero borrow_quote; use full mint_cost for entry premium and P&L basis.
+  if (isEndedPosition(position)) return position.mint_cost;
   const cap = position.margin_quote + position.borrow_quote;
   return cap > 0 ? Math.min(position.mint_cost, cap) : position.mint_cost;
 }

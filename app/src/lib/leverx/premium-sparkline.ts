@@ -1,9 +1,9 @@
 import { downsampleSeries } from "@/lib/charts/sparkline-path";
 import type { GlobalMarketTrade } from "@/lib/leverx/indexer-client";
-import { premiumToCents, type LeverxMarketRow } from "@/lib/leverx/indexer-markets";
+import { premiumToCents, tradePremiumRaw, type LeverxMarketRow } from "@/lib/leverx/indexer-markets";
 
 function tradePremiumCents(trade: GlobalMarketTrade): number | null {
-  const raw = trade.trade_side === "mint" ? trade.ask_price : trade.bid_price;
+  const raw = tradePremiumRaw(trade);
   if (raw == null || raw <= 0) return null;
   return premiumToCents(raw);
 }

@@ -1,6 +1,7 @@
 import { FLOAT_SCALING } from "@/lib/predict/constants";
 import { formatStrikeUsdFromRaw } from "@/lib/leverx/format-asset-price";
-import type { MarketCatalogEntry } from "@/lib/leverx/indexer-client";
+import type { GlobalMarketTrade, MarketCatalogEntry } from "@/lib/leverx/indexer-client";
+import { premiumPerUnitFromMintCost } from "@/lib/leverx/trade-math";
 import type { PredictSide } from "@/lib/predict/instruments";
 import { scaleQuote } from "@/lib/predict/scaling";
 
@@ -32,6 +33,26 @@ const SCALE = Number(FLOAT_SCALING);
 export function premiumToCents(premium: number): number {
   if (premium <= 0) return 0;
   return (premium / SCALE) * 100;
+}
+
+/** Per-contract premium (1e9) from a global tape row, with cost/payout fallback. */
+export function tradePremiumRaw(trade: GlobalMarketTrade): number | null {
+  if (trade.trade_side === "mint") {
+    if (trade.ask_price != null && trade.ask_price > 0) return trade.ask_price;
+    if (trade.cost != null && trade.cost > 0 && trade.quantity > 0) {
+      return Number(
+        premiumPerUnitFromMintCost(BigInt(trade.cost), BigInt(trade.quantity)),
+      );
+    }
+    return null;
+  }
+  if (trade.bid_price != null && trade.bid_price > 0) return trade.bid_price;
+  if (trade.payout != null && trade.payout > 0 && trade.quantity > 0) {
+    return Number(
+      premiumPerUnitFromMintCost(BigInt(trade.payout), BigInt(trade.quantity)),
+    );
+  }
+  return null;
 }
 
 export function formatPremiumCents(premium: number): string {

@@ -101,7 +101,7 @@ fn market_trade_to_global(
         cost: if is_open { trade.notional_quote } else { None },
         payout: if is_open { None } else { trade.notional_quote },
         ask_price: if is_open { trade.premium_per_unit } else { None },
-        bid_price: if is_open { None } else { None },
+        bid_price: if is_open { None } else { trade.premium_per_unit },
         trader: if is_open { trade.owner.clone() } else { None },
         owner: if is_open { None } else { trade.owner.clone() },
         executor: None,

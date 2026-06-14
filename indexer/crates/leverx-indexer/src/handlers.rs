@@ -488,6 +488,8 @@ impl Handler for LeverxEventsHandler {
                    ELSE (mint_cost * GREATEST(open_quantity - $1, 0) / GREATEST(open_quantity, 1)) \
                  END, \
                  closing_mark = CASE \
+                   WHEN GREATEST(open_quantity - $1, 0) <= 0 AND open_quantity > 0 AND (realized_payout + $2) > 0 THEN \
+                     ((realized_payout + $2) * 1000000000 + open_quantity - 1) / open_quantity \
                    WHEN $10 IS NOT NULL AND $10 > 0 THEN $10 \
                    ELSE closing_mark \
                  END, \
