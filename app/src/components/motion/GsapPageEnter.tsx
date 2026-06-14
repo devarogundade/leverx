@@ -1,18 +1,32 @@
 import { type ReactNode, useLayoutEffect, useRef } from "react";
 import { gsap } from "@/lib/animation/gsap-config";
+import { consumeInitialPageEnter } from "@/lib/animation/page-enter-once";
 import { revealFromHidden, staggerReveal } from "@/lib/animation/presets";
+
+type PageEnterMode = "initial" | "always" | "never";
 
 type Props = {
   children: ReactNode;
   className?: string;
   /** Stagger direct children instead of animating the wrapper. */
   stagger?: boolean;
+  /** `initial` — animate once per hard load; `always` / `never` override. */
+  mode?: PageEnterMode;
 };
 
-export function GsapPageEnter({ children, className, stagger = false }: Props) {
+function shouldAnimateEnter(mode: PageEnterMode): boolean {
+  if (mode === "always") return true;
+  if (mode === "never") return false;
+  return consumeInitialPageEnter();
+}
+
+export function GsapPageEnter({ children, className, stagger = false, mode = "initial" }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  const animateRef = useRef(shouldAnimateEnter(mode));
 
   useLayoutEffect(() => {
+    if (!animateRef.current) return;
+
     const el = ref.current;
     if (!el) return;
 

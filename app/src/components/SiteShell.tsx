@@ -1,5 +1,4 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { useRouterState } from "@tanstack/react-router";
 import { GsapPageEnter } from "@/components/motion/GsapPageEnter";
 import { useGsapHeaderScroll } from "@/hooks/useGsapHeaderScroll";
 import { Link } from "@tanstack/react-router";
@@ -24,7 +23,6 @@ interface Props {
 export function SiteShell({ children, fullWidth }: Props) {
   const [open, setOpen] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const closeMenu = () => setOpen(false);
 
   useGsapHeaderScroll(headerRef);
@@ -122,7 +120,7 @@ export function SiteShell({ children, fullWidth }: Props) {
           fullWidth ? "max-w-none" : "max-w-[var(--page-max)]",
         )}
       >
-        <GsapPageEnter key={pathname} className={pageShellContent}>
+        <GsapPageEnter className={pageShellContent}>
           {children}
         </GsapPageEnter>
       </main>
