@@ -13,6 +13,11 @@ import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { positionKeyFromArgs, type MarketKeyArgs } from "@/lib/leverx/market-keys";
 import { formatQuantity } from "@/lib/leverx/format-quantity";
 import { fetchManagerOpenQuantity } from "@/lib/leverx/quotes";
+import {
+  hasIndexerOpenQuantity,
+  settleContractQuantity,
+  type OnChainQuantityRead,
+} from "@/lib/leverx/position-quantity";
 import { showTxError, showTxSuccess } from "@/lib/toast";
 import { usePredictOracleRows } from "@/hooks/usePredictOracles";
 import { predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
@@ -53,7 +58,7 @@ type PositionActionAvailability = {
 /** Which manage actions are valid for this position (on-chain qty + oracle state). */
 function getPositionActionAvailability(params: {
   position: LeveragedPosition;
-  onChainQuantity: bigint | null | undefined;
+  onChainQuantity: OnChainQuantityRead;
   quantityLoading: boolean;
   oracleSettled: boolean;
   now?: number;
@@ -63,27 +68,35 @@ function getPositionActionAvailability(params: {
   const expired = position.expiry_ms > 0 && position.expiry_ms < now;
   const hasDebt = position.borrow_quote > 0;
 
-  const quantityKnown = onChainQuantity != null;
-  const hasOnChainQuantity = quantityKnown && onChainQuantity > 0n;
-  const hasRedeemableQuantity = quantityKnown
-    ? onChainQuantity > 0n
-    : position.open_quantity > 0;
+  const settleQty = settleContractQuantity(onChainQuantity, position);
+  const hasRedeemableQuantity =
+    onChainQuantity != null
+      ? onChainQuantity > 0n
+      : hasIndexerOpenQuantity(position);
 
   // Live market/limit redeem — only while oracle is unsettled and contracts remain.
   const canCloseRedeem = hasRedeemableQuantity && !oracleSettled;
 
-  // Post-expiry settlement — oracle settled, contracts still on-chain (not yet redeemed).
-  const canSettle =
-    expired && oracleSettled && hasOnChainQuantity && !quantityLoading;
+  // Post-expiry settlement — oracle settled; use on-chain qty with indexer fallback (keeper path).
+  const canSettle = expired && oracleSettled && settleQty > 0n && !quantityLoading;
 
   const canRepayDebt = hasDebt;
 
   let emptyMessage: string | null = null;
   if (!quantityLoading && !canCloseRedeem && !canSettle && !canRepayDebt) {
-    if (quantityKnown && onChainQuantity === 0n) {
-      emptyMessage = "Contracts fully redeemed.";
-    } else if (expired && !oracleSettled) {
+    if (settleQty === 0n && !hasIndexerOpenQuantity(position)) {
+      emptyMessage =
+        "Contracts fully redeemed. Any remaining dUSDC may be in Withdraw to wallet below your positions.";
+    } else if (expired && !oracleSettled && hasIndexerOpenQuantity(position)) {
       emptyMessage = "Waiting for oracle settlement before you can settle.";
+    } else if (
+      onChainQuantity === 0n &&
+      hasIndexerOpenQuantity(position) &&
+      expired &&
+      oracleSettled
+    ) {
+      emptyMessage =
+        "On-chain reads no contracts but the portfolio index still lists this position. Try Settle expired — if that fails, refresh or check Withdraw to wallet.";
     } else {
       emptyMessage = "No actions available for this position.";
     }
@@ -104,14 +117,17 @@ function PositionDetailGrid({
   quantityLoading,
 }: {
   position: LeveragedPosition;
-  contractQuantity?: bigint | null;
+  contractQuantity?: OnChainQuantityRead;
   quantityLoading?: boolean;
 }) {
   const indexerQty = position.open_quantity;
   const onChainQty = contractQuantity != null ? Number(contractQuantity) : null;
-  const displayQty = onChainQty ?? indexerQty;
-  const qtyStale =
+  const settleQty = Number(settleContractQuantity(contractQuantity ?? null, position));
+  const displayQty = onChainQty != null && onChainQty > 0 ? onChainQty : settleQty;
+  const qtyStaleHigh =
     onChainQty != null && onChainQty > 0 && onChainQty !== indexerQty;
+  const qtyStaleLow =
+    onChainQty === 0 && indexerQty > 0;
 
   return (
     <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
@@ -126,12 +142,15 @@ function PositionDetailGrid({
           formatQuantity(displayQty)
         )}
       </dd>
-      {qtyStale ? (
-        <>
-          <dt className="col-span-2 text-xs text-muted-foreground">
-            On-chain quantity (portfolio index may be stale).
-          </dt>
-        </>
+      {qtyStaleHigh ? (
+        <dt className="col-span-2 text-xs text-muted-foreground">
+          On-chain quantity (portfolio index may be stale).
+        </dt>
+      ) : null}
+      {qtyStaleLow ? (
+        <dt className="col-span-2 text-xs text-muted-foreground">
+          Portfolio index still lists contracts; on-chain read is zero — settle uses index size.
+        </dt>
       ) : null}
       <dt className="text-muted-foreground">Margin</dt>
       <dd className="text-right">
@@ -182,6 +201,9 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
     retry: 1,
   });
 
+  const onChainQtyRead: OnChainQuantityRead =
+    quantityLoading ? null : (onChainQuantity ?? null);
+
   const oracleRow = oracles.find((o) => o.oracle_id === position.oracle_id);
   const oracleSettled = isOracleSettledForTrade(oracleRow);
 
@@ -195,7 +217,7 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
   const { canCloseRedeem, canSettle, canRepayDebt, emptyMessage } =
     getPositionActionAvailability({
       position,
-      onChainQuantity,
+      onChainQuantity: onChainQtyRead,
       quantityLoading,
       oracleSettled,
     });
@@ -268,7 +290,7 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
           <div className="space-y-3">
             <PositionDetailGrid
               position={position}
-              contractQuantity={onChainQuantity}
+              contractQuantity={onChainQtyRead}
               quantityLoading={quantityLoading}
             />
             <div className="space-y-2">
@@ -445,7 +467,7 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
       >
         <PositionDetailGrid
           position={position}
-          contractQuantity={onChainQuantity}
+          contractQuantity={onChainQtyRead}
           quantityLoading={quantityLoading}
         />
       </ConfirmDialog>
@@ -476,7 +498,7 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
       >
         <PositionDetailGrid
           position={position}
-          contractQuantity={onChainQuantity}
+          contractQuantity={onChainQtyRead}
           quantityLoading={quantityLoading}
         />
       </ConfirmDialog>

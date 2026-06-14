@@ -25,6 +25,7 @@ import {
   type MintOrderParams,
 } from "@/lib/leverx/ptb-builder";
 import { lxplpCoinType, type LeverxProtocolConfig } from "@/lib/leverx/protocol";
+import { settleContractQuantity } from "@/lib/leverx/position-quantity";
 import { fetchManagerOpenQuantity, fetchMintQuote, fetchRedeemQuote } from "@/lib/leverx/quotes";
 import {
   applySlippageBps,
@@ -97,9 +98,31 @@ async function resolveRedeemQuantity(params: {
     predictManagerId: params.position.predict_manager_id,
     key: positionToKey(params.position),
   });
-  if (onChain > 0n) return onChain;
+  if (onChain != null && onChain > 0n) return onChain;
   throw new Error(
     "No open contracts remain in your Predict manager for this market. Refresh your portfolio — it may already be settled.",
+  );
+}
+
+async function resolveSettleQuantity(params: {
+  client: SuiJsonRpcClient;
+  cfg: LeverxProtocolConfig;
+  position: LeveragedPosition;
+}): Promise<bigint> {
+  if (!params.position.predict_manager_id) {
+    throw new Error("Position is missing a linked Predict manager.");
+  }
+  const onChain = await fetchManagerOpenQuantity({
+    client: params.client,
+    packageId: params.cfg.packageId,
+    predictPackageId: params.cfg.predictPackageId,
+    predictManagerId: params.position.predict_manager_id,
+    key: positionToKey(params.position),
+  });
+  const quantity = settleContractQuantity(onChain, params.position);
+  if (quantity > 0n) return quantity;
+  throw new Error(
+    "No contracts to settle for this market. If you already redeemed, check Withdraw to wallet for any remaining dUSDC.",
   );
 }
 
@@ -355,7 +378,7 @@ export async function executeSettleExpired(params: {
     throw new Error("Position is missing a linked Predict manager.");
   }
   const predictManagerId = params.position.predict_manager_id;
-  const quantity = await resolveRedeemQuantity({
+  const quantity = await resolveSettleQuantity({
     client: params.client,
     cfg: params.cfg,
     position: params.position,
