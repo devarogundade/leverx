@@ -309,7 +309,7 @@ export async function fetchManagerQuoteBalance(params: {
   packageId: string;
   predictManagerId: string;
   quoteType: string;
-}): Promise<bigint> {
+}): Promise<bigint | null> {
   const tx = new Transaction();
   tx.setSender(READONLY_SENDER);
 
@@ -324,11 +324,12 @@ export async function fetchManagerQuoteBalance(params: {
       transactionBlock: tx,
       sender: READONLY_SENDER,
     });
-    if (inspect.effects?.status?.status !== "success") return 0n;
+    if (inspect.effects?.status?.status !== "success") return null;
     const tuple = findReturnTuple(inspect.results, 1);
-    return tuple?.[0] ?? 0n;
+    if (!tuple) return null;
+    return tuple[0] ?? 0n;
   } catch {
-    return 0n;
+    return null;
   }
 }
 

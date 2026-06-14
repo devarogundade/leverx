@@ -8,6 +8,7 @@ import { AnimatedCount } from "@/components/ui/animated-numbers";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
+import { resolvePredictManagerId } from "@/lib/leverx/account-resolution";
 import { fetchManagerQuoteBalance } from "@/lib/leverx/quotes";
 import { useWallet } from "@/context/WalletContext";
 import { useIndexerAccounts, useIndexerPositions } from "@/hooks/useIndexer";
@@ -61,11 +62,18 @@ export function BalanceBreakdown({ className }: Props) {
     isFetched: walletBalanceFetched,
   } = useWalletCoinBalance(isWalletConnected ? appConfig.quoteType : null, 6);
 
-  const predictManagerId = accounts[0]?.predict_manager_id;
+  const predictManagerId = useMemo(
+    () => resolvePredictManagerId(accounts, positions),
+    [accounts, positions],
+  );
+  const managerQueryEnabled = Boolean(
+    isWalletConnected && predictManagerId && cfg?.packageId && cfg?.quoteType,
+  );
   const {
     data: managerBalanceAtoms,
     isLoading: managerBalanceLoading,
     isFetched: managerBalanceFetched,
+    isError: managerBalanceError,
   } = useQuery({
     queryKey: [
       "manager-quote-balance",
@@ -81,9 +89,7 @@ export function BalanceBreakdown({ className }: Props) {
         predictManagerId: predictManagerId!,
         quoteType: cfg!.quoteType,
       }),
-    enabled: Boolean(
-      isWalletConnected && predictManagerId && cfg?.packageId && cfg?.quoteType,
-    ),
+    enabled: managerQueryEnabled,
     staleTime: 10_000,
     refetchInterval: 15_000,
     retry: 1,
@@ -93,7 +99,7 @@ export function BalanceBreakdown({ className }: Props) {
     isWalletConnected && accountsFetched && positionsFetched && !accountsLoading && !positionsLoading;
   const walletReady = isWalletConnected && walletBalanceFetched && !walletBalanceLoading;
   const managerReady =
-    !predictManagerId || (managerBalanceFetched && !managerBalanceLoading);
+    !managerQueryEnabled || (managerBalanceFetched && !managerBalanceLoading);
 
   const activePositions = useMemo(
     () => positions.filter(isActiveOpenPosition),
@@ -104,9 +110,14 @@ export function BalanceBreakdown({ className }: Props) {
     ? activePositions.reduce((sum, p) => sum + scaleQuote(p.margin_quote), 0)
     : null;
   const borrowed = ready ? scaleQuote(accounts[0]?.borrowed_quote ?? 0) : null;
-  const managerBalance = managerReady
-    ? scaleQuoteAtoms(managerBalanceAtoms ?? 0n)
-    : null;
+  const managerBalance =
+    !managerQueryEnabled
+      ? null
+      : !managerReady
+        ? null
+        : managerBalanceAtoms == null
+          ? null
+          : scaleQuoteAtoms(managerBalanceAtoms);
   const positionCount = ready ? activePositions.length : null;
 
   const total =
@@ -168,17 +179,23 @@ export function BalanceBreakdown({ className }: Props) {
                   />
                 }
               />
-              <BalanceRow
-                label={ui.balanceManager}
-                info={leverxInfo.balanceManager}
-                value={
-                  <QuoteAmount
-                    amount={managerBalance}
-                    loading={isWalletConnected && !managerReady}
-                    hideZero={false}
-                  />
-                }
-              />
+              {managerQueryEnabled ? (
+                <BalanceRow
+                  label={ui.balanceManager}
+                  info={leverxInfo.balanceManager}
+                  value={
+                    managerBalanceError ? (
+                      "…"
+                    ) : (
+                      <QuoteAmount
+                        amount={managerBalance}
+                        loading={isWalletConnected && !managerReady}
+                        hideZero={false}
+                      />
+                    )
+                  }
+                />
+              ) : null}
               <BalanceRow
                 label="Margin"
                 info={leverxInfo.balanceMargin}

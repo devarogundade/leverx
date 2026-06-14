@@ -14,6 +14,7 @@ import { usePositionsMarkToMarket } from "@/hooks/usePositionsMarkToMarket";
 import { pageTitle } from "@/lib/brand";
 import { ui } from "@/lib/copy";
 import { aggregatePortfolioSummary } from "@/lib/leverx/portfolio-summary";
+import { resolveTradingAccount } from "@/lib/leverx/account-resolution";
 import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
 import { pageSimple, pageSimpleTitle } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
@@ -65,7 +66,11 @@ function PortfolioPage() {
 
   const { byPositionId, isRefreshing } = usePositionsMarkToMarket(activeOpenPositions);
 
-  const account = accounts[0];
+  const account = useMemo(
+    () =>
+      resolveTradingAccount(accounts, [...openPositions, ...closedPositions], address ?? ""),
+    [accounts, openPositions, closedPositions, address],
+  );
   const isLoading = accountsLoading || openLoading || closedLoading || ordersLoading;
   const statsReady = accountsFetched && openFetched && closedFetched && ordersFetched && !isLoading;
 

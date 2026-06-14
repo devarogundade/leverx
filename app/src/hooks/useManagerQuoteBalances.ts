@@ -48,12 +48,14 @@ export function useManagerQuoteBalances(
           predictManagerId,
           quoteType: cfg!.quoteType,
         });
-        if (balanceAtoms > MAX_MANAGER_BALANCE_ATOMS) {
+        if (balanceAtoms == null) {
+          balanceAtoms = 0n;
+        } else if (balanceAtoms > MAX_MANAGER_BALANCE_ATOMS) {
           balanceAtoms = 0n;
         }
         return { predictManagerId, balanceAtoms };
       },
-      enabled: Boolean(cfg?.packageId && cfg?.quoteType && accountId),
+      enabled: Boolean(cfg?.packageId && cfg?.quoteType && managerIds.length > 0),
       staleTime: 10_000,
       refetchInterval: 15_000,
       retry: 1,

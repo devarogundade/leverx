@@ -23,6 +23,7 @@ import {
 import { WalletConnectButton } from "@/components/WalletConnectButton";
 import { useWallet } from "@/context/WalletContext";
 import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
+import { resolvePredictManagerId } from "@/lib/leverx/account-resolution";
 import { fetchManagerQuoteBalance } from "@/lib/leverx/quotes";
 import { scaleQuoteAtoms } from "@/lib/predict/scaling";
 import { useNow } from "@/hooks/useNow";
@@ -71,7 +72,7 @@ import {
   pickDefaultLimitOrderExpiryMs,
   availableLimitOrderExpiryPresets,
 } from "@/lib/leverx/trade-limits";
-import { ui } from "@/lib/copy";
+import { ui, formatAmount } from "@/lib/copy";
 import { StrikePriceSelector } from "@/components/leverx/StrikePriceSelector";
 import { RangeStrikeSelector } from "@/components/leverx/RangeStrikeSelector";
 import { ChevronDown, ArrowLeftRight, Loader2, UserCog, Wallet } from "lucide-react";
@@ -188,8 +189,11 @@ export function PredictLeveragePanel({
   const { data: leverxAccounts = [] } = useIndexerAccounts(address ?? undefined);
   const hasMarginAccount = leverxAccounts.length > 0 || marginAccountReady;
   const needsMarginAccountSetup = isWalletConnected && !hasMarginAccount;
-  const hasLinkedManager = Boolean(leverxAccounts[0]?.predict_manager_id);
-  const predictManagerId = leverxAccounts[0]?.predict_manager_id;
+  const predictManagerId = useMemo(
+    () => resolvePredictManagerId(leverxAccounts, openPositions),
+    [leverxAccounts, openPositions],
+  );
+  const hasLinkedManager = Boolean(predictManagerId);
   const tradeContextKey = `${oracleId}:${side}`;
 
   useEffect(() => {
@@ -511,6 +515,20 @@ export function PredictLeveragePanel({
     if (availableQuoteBalance == null) return "—";
     return availableQuoteBalance;
   }, [availableBalanceLoading, availableQuoteBalance]);
+
+  const toggleDepositSource = useCallback(() => {
+    setDepositSource((source) => (source === "wallet" ? "manager" : "wallet"));
+  }, []);
+
+  const depositSourceHint =
+    depositSource === "manager"
+      ? leverxInfo.depositSourceManager
+      : leverxInfo.depositSourceWallet;
+
+  const depositSourceAriaLabel =
+    depositSource === "manager"
+      ? "Deposit source: trading account. Switch to wallet."
+      : "Deposit source: wallet. Switch to trading account.";
 
   const quickAmounts = useMemo(
     () => buildQuickAmounts(availableQuoteBalance),
@@ -1100,47 +1118,44 @@ export function PredictLeveragePanel({
                 labelClassName={labelCaps}
                 info={leverxInfo.margin}
               />
-              <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-                {depositSource === "manager" ? (
-                  <UserCog className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                ) : (
+              {hasLinkedManager ? (
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 rounded-md px-0.5 py-0.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  title={depositSourceHint}
+                  aria-label={depositSourceAriaLabel}
+                  onClick={toggleDepositSource}
+                >
+                  {depositSource === "manager" ? (
+                    <UserCog className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  ) : (
+                    <Wallet className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  )}
+                  {ui.balanceAvailable}{" "}
+                  {typeof quoteBalanceLabel === "number" ? (
+                    <span className="font-mono tabular-nums text-foreground">
+                      {formatAmount(quoteBalanceLabel)}
+                    </span>
+                  ) : (
+                    <span className="font-mono text-foreground">{quoteBalanceLabel}</span>
+                  )}
+                  <QuoteIcon className="h-3.5 w-3.5 shrink-0" />
+                  <ArrowLeftRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                </button>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
                   <Wallet className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                )}
-                {ui.balanceAvailable}{" "}
-                {typeof quoteBalanceLabel === "number" ? (
-                  <QuoteAmount
-                    amount={quoteBalanceLabel}
-                    className="text-foreground"
-                    amountClassName="text-foreground"
-                  />
-                ) : (
-                  <span className="font-mono text-foreground">{quoteBalanceLabel}</span>
-                )}
-                <QuoteIcon className="h-3.5 w-3.5 shrink-0" />
-                {hasLinkedManager ? (
-                  <button
-                    type="button"
-                    className="inline-flex shrink-0 rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    title={
-                      depositSource === "manager"
-                        ? leverxInfo.depositSourceManager
-                        : leverxInfo.depositSourceWallet
-                    }
-                    aria-label={
-                      depositSource === "manager"
-                        ? "Deposit source: trading account. Switch to wallet."
-                        : "Deposit source: wallet. Switch to trading account."
-                    }
-                    onClick={() =>
-                      setDepositSource((source) =>
-                        source === "wallet" ? "manager" : "wallet",
-                      )
-                    }
-                  >
-                    <ArrowLeftRight className="h-3.5 w-3.5" />
-                  </button>
-                ) : null}
-              </span>
+                  {ui.balanceAvailable}{" "}
+                  {typeof quoteBalanceLabel === "number" ? (
+                    <span className="font-mono tabular-nums text-foreground">
+                      {formatAmount(quoteBalanceLabel)}
+                    </span>
+                  ) : (
+                    <span className="font-mono text-foreground">{quoteBalanceLabel}</span>
+                  )}
+                  <QuoteIcon className="h-3.5 w-3.5 shrink-0" />
+                </span>
+              )}
             </div>
             <TradeAmountInput
               prefix={<span className="font-mono text-sm">$</span>}
@@ -1151,12 +1166,9 @@ export function PredictLeveragePanel({
               onChange={(e) => setMargin(e.target.value)}
               placeholder="0.00"
               suffix={
-                <span className="inline-flex items-center gap-1.5">
-                  {leveragedMintAllowed ? (
-                    <span className={leverageBadge}>{formatLeverageBadge(lev)}</span>
-                  ) : null}
-                  <QuoteIcon className="h-5 w-5" />
-                </span>
+                leveragedMintAllowed ? (
+                  <span className={leverageBadge}>{formatLeverageBadge(lev)}</span>
+                ) : null
               }
             />
             <div className="mt-2">
