@@ -8,6 +8,7 @@ import {
   lineSeriesAccentColor,
   lightweightChartOptions,
 } from "@/lib/charts/lightweight-shared";
+import { safeRemoveChart } from "@/lib/charts/chart-lifecycle";
 import { useTheme } from "@/lib/theme";
 import {
   flatChartLine,
@@ -37,9 +38,15 @@ function applyVaultChartSize(chart: IChartApi, el: HTMLElement): boolean {
   const width = el.clientWidth;
   const height = el.clientHeight;
   if (width < 2 || height < 2) return false;
-  chart.applyOptions({ width, height });
-  return true;
+  try {
+    chart.applyOptions({ width, height });
+    return true;
+  } catch {
+    return false;
+  }
 }
+
+const INITIAL_SIZE_RAF_ATTEMPTS = 60;
 
 export function VaultPerformanceChart({ snapshots = [], loading, className }: Props) {
   const [mounted, setMounted] = useState(false);
@@ -97,14 +104,18 @@ export function VaultPerformanceChart({ snapshots = [], loading, className }: Pr
     setChartReady(true);
 
     const ro = new ResizeObserver(() => {
-      if (chartRef.current) applyVaultChartSize(chartRef.current, el);
+      const activeChart = chartRef.current;
+      if (activeChart) applyVaultChartSize(activeChart, el);
     });
     ro.observe(el);
 
     let raf = 0;
+    let sizeAttempts = 0;
     const ensureSize = () => {
-      if (!chartRef.current) return;
-      if (!applyVaultChartSize(chartRef.current, el)) {
+      const activeChart = chartRef.current;
+      if (!activeChart) return;
+      if (applyVaultChartSize(activeChart, el)) return;
+      if (++sizeAttempts < INITIAL_SIZE_RAF_ATTEMPTS) {
         raf = requestAnimationFrame(ensureSize);
       }
     };
@@ -113,10 +124,11 @@ export function VaultPerformanceChart({ snapshots = [], loading, className }: Pr
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
-      setChartReady(false);
-      chart.remove();
+      const activeChart = chartRef.current;
       chartRef.current = null;
       lineRef.current = null;
+      setChartReady(false);
+      safeRemoveChart(activeChart);
     };
   }, [mounted]);
 

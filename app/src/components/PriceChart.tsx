@@ -32,6 +32,7 @@ import {
   lightweightChartOptions,
 } from "@/lib/charts/lightweight-shared";
 import { buildStrikeAnchoredSpotLineData } from "@/lib/charts/line-data";
+import { safeRemoveChart, safeResizeChart } from "@/lib/charts/chart-lifecycle";
 import {
   createChartViewportGuard,
   followChartRightEdge,
@@ -87,13 +88,7 @@ interface Props {
   onDisplayModeChange?: (mode: ChartDisplayMode) => void;
 }
 
-function applyChartSize(chart: IChartApi, el: HTMLElement): boolean {
-  const width = el.clientWidth;
-  const height = el.clientHeight;
-  if (width < 2 || height < 2) return false;
-  chart.resize(width, height);
-  return true;
-}
+const INITIAL_SIZE_RAF_ATTEMPTS = 60;
 
 export function PriceChart({
   asset,
@@ -211,7 +206,10 @@ export function PriceChart({
   }, []);
 
   useEffect(() => {
-    if (!mounted || !containerRef.current) return;
+    if (!mounted || !layoutActive || !containerRef.current) {
+      setChartReady(false);
+      return;
+    }
 
     const el = containerRef.current;
     const chart = createChart(
@@ -230,14 +228,18 @@ export function PriceChart({
     setChartReady(true);
 
     const ro = new ResizeObserver(() => {
-      if (chartRef.current) applyChartSize(chartRef.current, el);
+      const activeChart = chartRef.current;
+      if (activeChart) safeResizeChart(activeChart, el);
     });
     ro.observe(el);
 
     let raf = 0;
+    let sizeAttempts = 0;
     const ensureSize = () => {
-      if (!chartRef.current) return;
-      if (!applyChartSize(chartRef.current, el)) {
+      const activeChart = chartRef.current;
+      if (!activeChart) return;
+      if (safeResizeChart(activeChart, el)) return;
+      if (++sizeAttempts < INITIAL_SIZE_RAF_ATTEMPTS) {
         raf = requestAnimationFrame(ensureSize);
       }
     };
@@ -248,16 +250,17 @@ export function PriceChart({
       ro.disconnect();
       viewportGuardRef.current?.destroy();
       viewportGuardRef.current = null;
-      setChartReady(false);
-      chart.remove();
+      const activeChart = chartRef.current;
       chartRef.current = null;
       priceSeriesRef.current = null;
       seriesModeRef.current = null;
       dataLenRef.current = 0;
       seriesAnchorTimeRef.current = null;
       strikeKeyRef.current = "";
+      setChartReady(false);
+      safeRemoveChart(activeChart);
     };
-  }, [mounted, oracleId]);
+  }, [mounted, layoutActive, oracleId]);
 
   useEffect(() => {
     if (!chartReady) return;
@@ -277,11 +280,13 @@ export function PriceChart({
 
   useEffect(() => {
     if (!layoutActive || !mounted) return;
-    const chart = chartRef.current;
     const el = containerRef.current;
-    if (!chart || !el) return;
+    if (!el) return;
 
-    const resize = () => applyChartSize(chart, el);
+    const resize = () => {
+      const chart = chartRef.current;
+      if (chart) safeResizeChart(chart, el);
+    };
     resize();
     const raf = requestAnimationFrame(resize);
     const timer = window.setTimeout(resize, 120);
@@ -292,7 +297,7 @@ export function PriceChart({
   }, [layoutActive, mounted, dataLength]);
 
   useEffect(() => {
-    if (!chartReady) return;
+    if (!chartReady || !layoutActive) return;
     const chart = chartRef.current;
     if (!chart || !hasData) return;
 
@@ -483,9 +488,11 @@ export function PriceChart({
     rangeUpper,
     strikeLevelsKey,
     interval,
+    layoutActive,
   ]);
 
   useEffect(() => {
+    if (!chartReady || !layoutActive) return;
     const series = priceSeriesRef.current;
     if (!series) return;
 
@@ -502,10 +509,14 @@ export function PriceChart({
 
     return () => {
       for (const line of priceLines) {
-        series.removePriceLine(line);
+        try {
+          series.removePriceLine(line);
+        } catch {
+          /* chart may already be disposed */
+        }
       }
     };
-  }, [strikeLevelsKey, strikeLevels, theme]);
+  }, [chartReady, layoutActive, strikeLevelsKey, strikeLevels, theme]);
 
   const chartLabel = pair ?? `${asset}/USDC`;
   const showChart = mounted && !isLoading && !isError && hasData;

@@ -13,6 +13,7 @@ import { LeverxLimitOrdersTable } from "@/components/leverx/LeverxLimitOrdersTab
 import { LeverxPositionsTable } from "@/components/leverx/LeverxPositionsTable";
 import { MarketTradesTable } from "@/components/leverx/MarketTradesTable";
 import { usePositionsMarkToMarket } from "@/hooks/usePositionsMarkToMarket";
+import { useMinMdViewport } from "@/hooks/use-min-md-viewport";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { PriceChart } from "@/components/PriceChart";
 import { PredictOrderBook } from "@/components/leverx/PredictOrderBook";
@@ -744,6 +745,9 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   );
   const showMobileChart = mobileWorkspace === "chart";
   const showMobileTrade = mobileWorkspace === "trade";
+  const isMdViewport = useMinMdViewport();
+  const desktopChartActive = isMdViewport;
+  const mobileChartActive = !isMdViewport && showMobileChart;
 
   const positionsPanelProps: TradePositionsPanelProps = {
     activeTab,
@@ -886,6 +890,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
             activeSide={activeSide}
             chartRangeLower={chartRangeLower}
             chartRangeUpper={chartRangeUpper}
+            layoutActive={desktopChartActive}
             chartSeries={chartSeries}
             interval={chartInterval}
             onIntervalChange={setChartInterval}
@@ -934,7 +939,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
             activeSide={activeSide}
             chartRangeLower={chartRangeLower}
             chartRangeUpper={chartRangeUpper}
-            layoutActive={showMobileChart}
+            layoutActive={mobileChartActive}
             chartSeries={chartSeries}
             interval={chartInterval}
             onIntervalChange={setChartInterval}
