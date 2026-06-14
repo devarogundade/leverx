@@ -709,7 +709,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
         }
         "KeyBorrowUpdated" => {
             if let Some(parsed) = parse_key_borrow_updated(ctx.event.contents.as_slice()) {
-                let (account_id, owner, oracle_id, expiry_ms, strike, higher_strike, is_up, is_range, key_borrowed_quote, margin_quote, leverage_bps) =
+                let (account_id, owner, oracle_id, expiry_ms, strike, higher_strike, is_up, is_range, key_borrowed_quote, leverage_bps) =
                     match parsed {
                         ParsedKeyBorrowUpdated::Full(ev) => (
                             ev.account_id.to_string(),
@@ -721,7 +721,6 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                             ev.is_up,
                             ev.is_range,
                             ev.key_borrowed_quote as i64,
-                            Some(ev.key_margin_debt as i64),
                             Some(ev.leverage_bps as i64),
                         ),
                         ParsedKeyBorrowUpdated::Legacy(ev) => (
@@ -734,7 +733,6 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                             ev.is_up,
                             ev.is_range,
                             ev.key_borrowed_quote as i64,
-                            None,
                             None,
                         ),
                     };
@@ -751,7 +749,6 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     position_key: pk,
                     account_id: account_id.clone(),
                     key_borrowed_quote,
-                    margin_quote,
                     leverage_bps,
                 });
                 timeline(batch, ctx, account_id, Some(owner.to_string()));
@@ -782,7 +779,6 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     position_key: pk.clone(),
                     account_id: ev.account_id.to_string(),
                     key_borrowed_quote: 0,
-                    margin_quote: Some(0),
                     leverage_bps: Some(10_000),
                 });
                 batch.debt_repaid.push(DebtRepaidPatch {
@@ -857,6 +853,13 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     had_position_redeem: ev.redeemed_quantity > 0,
                     timestamp_ms: ctx.timestamp_ms,
                     event_kind: "force_deleverage".into(),
+                });
+                batch.key_borrow_patches.push(KeyBorrowPatch {
+                    event_digest: ctx.event_digest.to_string(),
+                    position_key: pk,
+                    account_id: ev.account_id.to_string(),
+                    key_borrowed_quote: 0,
+                    leverage_bps: Some(10_000),
                 });
                 timeline(batch, ctx, ev.account_id.to_string(), Some(ev.owner.to_string()));
             }

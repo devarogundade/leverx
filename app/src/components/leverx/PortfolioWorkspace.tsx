@@ -151,6 +151,7 @@ export function PortfolioWorkspace({
                 positions={closedPositions}
                 markToMarket={new Map()}
                 showHeader={false}
+                hideLiveMetrics
               />
             </div>
           )

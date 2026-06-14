@@ -244,9 +244,13 @@ async fn positions(
         Some("all") => {}
         Some(status) => {
             query = query.filter(leveraged_positions::status.eq(status));
+            if status == "open" {
+                query = query.filter(leveraged_positions::open_quantity.gt(0));
+            }
         }
         None => {
             query = query.filter(leveraged_positions::status.eq("open"));
+            query = query.filter(leveraged_positions::open_quantity.gt(0));
         }
     }
     if let Some(min_borrow) = q.min_borrow_quote {

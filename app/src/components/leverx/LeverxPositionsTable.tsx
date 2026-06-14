@@ -38,6 +38,8 @@ interface Props {
   owner?: string;
   compact?: boolean;
   showHeader?: boolean;
+  /** Hide Health (est.) and Expiry columns — used for closed positions. */
+  hideLiveMetrics?: boolean;
   className?: string;
 }
 
@@ -233,6 +235,7 @@ export function LeverxPositionsTable({
   owner,
   compact,
   showHeader = true,
+  hideLiveMetrics = false,
   className,
 }: Props) {
   const { data: oracles = [] } = usePredictOracleRows();
@@ -241,7 +244,7 @@ export function LeverxPositionsTable({
     [positions, markToMarket, oracles],
   );
 
-  const cols: Column<PositionRow>[] = [
+  const allCols: Column<PositionRow>[] = [
     {
       key: "market",
       header: "Market",
@@ -321,13 +324,10 @@ export function LeverxPositionsTable({
       cell: (r) => {
         const closed = r.position.status !== "open";
         if (closed) {
+          const entryCents = closedEntryPremiumCents(r.position);
           return (
-            <span className="text-sm text-muted-foreground">
-              {r.position.realized_payout > 0 ? (
-                <QuoteAmount amount={scaleQuote(r.position.realized_payout)} className="text-sm" />
-              ) : (
-                "—"
-              )}
+            <span className="font-mono text-sm tabular-nums text-muted-foreground">
+              {entryCents != null ? `${entryCents.toFixed(1)}¢` : "—"}
             </span>
           );
         }
@@ -410,6 +410,10 @@ export function LeverxPositionsTable({
         ) : null,
     },
   ];
+
+  const cols = hideLiveMetrics
+    ? allCols.filter((col) => col.key !== "health" && col.key !== "expiry")
+    : allCols;
 
   return (
     <div className={cn("space-y-2", className)}>

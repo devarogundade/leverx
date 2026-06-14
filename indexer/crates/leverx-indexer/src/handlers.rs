@@ -126,8 +126,6 @@ pub struct KeyBorrowPatch {
     pub position_key: String,
     pub account_id: String,
     pub key_borrowed_quote: i64,
-    /// When `None`, leave `margin_quote` unchanged (legacy events).
-    pub margin_quote: Option<i64>,
     /// When `None`, leave `leverage_bps` unchanged (legacy events).
     pub leverage_bps: Option<i64>,
 }
@@ -473,17 +471,17 @@ impl Handler for LeverxEventsHandler {
             rows += diesel::sql_query(
                 "UPDATE leveraged_positions SET \
                  open_quantity = CASE \
-                   WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN 0 \
+                   WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN open_quantity \
                    ELSE GREATEST(open_quantity - $1, 0) \
                  END, \
                  realized_payout = realized_payout + $2, \
                  borrow_quote = $3, \
                  margin_quote = CASE \
-                   WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN 0 \
+                   WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN margin_quote \
                    ELSE (margin_quote * GREATEST(open_quantity - $1, 0) / GREATEST(open_quantity, 1)) \
                  END, \
                  mint_cost = CASE \
-                   WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN 0 \
+                   WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN mint_cost \
                    ELSE (mint_cost * GREATEST(open_quantity - $1, 0) / GREATEST(open_quantity, 1)) \
                  END, \
                  status = CASE \
@@ -509,6 +507,9 @@ impl Handler for LeverxEventsHandler {
                 continue;
             }
             let pos = &patch.row;
+            if pos.open_quantity <= 0 {
+                continue;
+            }
             rows += diesel::insert_into(leveraged_positions::table)
                 .values(pos)
                 .on_conflict((leveraged_positions::position_key, leveraged_positions::account_id))
@@ -537,11 +538,6 @@ impl Handler for LeverxEventsHandler {
                         "CASE WHEN leveraged_positions.status != 'open' \
                          THEN excluded.mint_cost \
                          ELSE leveraged_positions.mint_cost + excluded.mint_cost END",
-                    )),
-                    leveraged_positions::realized_payout.eq(sql::<BigInt>(
-                        "CASE WHEN leveraged_positions.status != 'open' \
-                         THEN 0 \
-                         ELSE leveraged_positions.realized_payout END",
                     )),
                     leveraged_positions::last_order_type.eq(excluded(leveraged_positions::last_order_type)),
                     leveraged_positions::status.eq("open"),
@@ -740,18 +736,8 @@ impl Handler for LeverxEventsHandler {
                 .filter(leveraged_positions::position_key.eq(&patch.position_key))
                 .filter(leveraged_positions::account_id.eq(&patch.account_id))
                 .filter(leveraged_positions::status.eq("open"));
-            rows += match (patch.margin_quote, patch.leverage_bps) {
-                (Some(margin), Some(leverage)) => {
-                    diesel::update(filter)
-                        .set((
-                            leveraged_positions::borrow_quote.eq(patch.key_borrowed_quote),
-                            leveraged_positions::margin_quote.eq(margin),
-                            leveraged_positions::leverage_bps.eq(leverage),
-                        ))
-                        .execute(conn)
-                        .await?
-                }
-                (None, Some(leverage)) => {
+            rows += match patch.leverage_bps {
+                Some(leverage) => {
                     diesel::update(filter)
                         .set((
                             leveraged_positions::borrow_quote.eq(patch.key_borrowed_quote),
@@ -760,16 +746,7 @@ impl Handler for LeverxEventsHandler {
                         .execute(conn)
                         .await?
                 }
-                (Some(margin), None) => {
-                    diesel::update(filter)
-                        .set((
-                            leveraged_positions::borrow_quote.eq(patch.key_borrowed_quote),
-                            leveraged_positions::margin_quote.eq(margin),
-                        ))
-                        .execute(conn)
-                        .await?
-                }
-                (None, None) => {
+                None => {
                     diesel::update(filter)
                         .set(leveraged_positions::borrow_quote.eq(patch.key_borrowed_quote))
                         .execute(conn)

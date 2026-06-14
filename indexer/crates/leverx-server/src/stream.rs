@@ -207,6 +207,7 @@ impl StreamHub {
                     query = query.filter(leveraged_positions::oracle_id.eq(oid));
                 }
                 query = query.filter(leveraged_positions::status.eq("open"));
+                query = query.filter(leveraged_positions::open_quantity.gt(0));
                 let rows = query
                     .order(leveraged_positions::opened_at_ms.desc())
                     .limit(STREAM_PAGE_LIMIT + 1)
