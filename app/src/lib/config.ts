@@ -4,7 +4,7 @@
  * - https://docs.sui.io/onchain-finance/deepbook-predict/contract-information
  * Predict testnet expirations: 1, 2, 7, 14, 21 days.
  *
- * Defaults mirror `contracts/deploy-testnet.env` (publish tx 4xABgj…).
+ * Defaults mirror `contracts/deploy-testnet.env` (publish tx G848YC…).
  * Shared object IDs (registry, vault, fee collector) come from the indexer
  * `/v1/protocol` after `deploy_and_share`, or optional `VITE_LEVERX_*` env vars.
  */
@@ -22,13 +22,13 @@ const TESTNET_PREDICT = {
 /** Published LeverX package (testnet). Shared objects filled via indexer or .env. */
 const TESTNET_LEVERX = {
   packageId:
-    "0x624db6bf4dd968e345a961964d25e24a965e1d5d7c60967678ef8b392744cc4f",
+    "0xe960e158acfea28447f0b9945d452ad59f8222e7a72139c1e876e26816064cc9",
   registryId:
-    "0xfdd22d75272dc9b69d0f43137ed198bf500d7f52e504dcb5a687ae8f0b2df740",
+    "0x4d23bb5f39a62e2b0fa73c568c8288a9770ce4ba5eb50519c188fa313a905f7f",
   vaultId:
-    "0xffe2cb656b71c98f2deaafb62b22f926d04d9409d48486e9a64c7a059f969e7e",
+    "0xe798095691416b8fc44ebeab1e5feefdf89cc8b342d48f373c861fac65c14743",
   feeCollectorId:
-    "0xfbaebb19aed9f501a2304e14d43cbe882ebd5697820cb258bb8f7222a51f14c5",
+    "0x8dd3376f772e6a98bd74e98c2e21fb1f0dfd6779ffc388da0ad4de1c6b50b145",
 } as const;
 
 function viteEnv(name: string): string {

@@ -92,7 +92,7 @@ After a fresh contract publish, wipe Postgres and re-index from the publish chec
 
 ```bash
 bash indexer/scripts/reset-from-publish.sh
-# or: docker compose -f indexer/docker-compose.ec2.yml down -v && FIRST_CHECKPOINT=348266507 docker compose -f indexer/docker-compose.ec2.yml up -d --build
+# or: docker compose -f indexer/docker-compose.ec2.yml down -v && FIRST_CHECKPOINT=348755519 docker compose -f indexer/docker-compose.ec2.yml up -d --build
 ```
 
 Verify: `curl -s http://127.0.0.1:3100/v1/protocol` should return the new `registry_id` / `vault_id` from `contracts/deploy-testnet.env`.

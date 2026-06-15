@@ -21,8 +21,8 @@ fi
 cd "$ROOT"
 source "${ROOT}/deploy-testnet.env" 2>/dev/null || true
 
-UPGRADE_CAP="${LEVERX_UPGRADE_CAP_ID:-0x54a342e5d6107e89efce235d4781278a060821b1eefadc1fb2c81b88d60a0042}"
-PACKAGE_ID="${LEVERX_PACKAGE_ID:-0x624db6bf4dd968e345a961964d25e24a965e1d5d7c60967678ef8b392744cc4f}"
+UPGRADE_CAP="${LEVERX_UPGRADE_CAP_ID:-0x388950d8934be24269fe47cfa9728f5c44c4d35fe91b4d242e64ba5e9af9dd22}"
+PACKAGE_ID="${LEVERX_PACKAGE_ID:-0xe960e158acfea28447f0b9945d452ad59f8222e7a72139c1e876e26816064cc9}"
 PREDICT_PKG="0xf5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138"
 
 echo "Using sui: $("$SUI" --version)"
@@ -49,7 +49,7 @@ import json
 import os
 import urllib.request
 
-package = os.environ.get("LEVERX_PACKAGE_ID", "0x624db6bf4dd968e345a961964d25e24a965e1d5d7c60967678ef8b392744cc4f")
+package = os.environ.get("LEVERX_PACKAGE_ID", "0xe960e158acfea28447f0b9945d452ad59f8222e7a72139c1e876e26816064cc9")
 predict_pkg = "0xf5ea2b3749c65d6e56507cc35388719aadb28f9cab873696a2f8687f5c785138"
 body = json.dumps(
     {
