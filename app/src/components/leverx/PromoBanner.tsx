@@ -1,26 +1,32 @@
+import overflowBg from "@/assets/overflow.png";
 import { Link } from "@tanstack/react-router";
-import { Trophy } from "lucide-react";
+import { ArrowRight, Trophy } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-export function PromoBanner() {
+export function PromoBanner({ className }: { className?: string; }) {
   return (
-    <div className="hero-panel promo-banner relative items-center justify-center overflow-hidden">
-      <div className="landing-grid-bg absolute inset-0 opacity-30" aria-hidden />
-      <div className="promo-banner-glow absolute inset-0" aria-hidden />
-      <div className="relative z-10 p-6">
-        <span className="promo-banner-badge">
-          <Trophy className="h-3 w-3" aria-hidden />
-          Sui Overflow season
-        </span>
-        <h3 className="mt-3 font-display text-xl font-bold leading-tight tracking-tight">
-          Sui Overflow
-          <br />
-          Leaderboard
-        </h3>
-        <p className="mt-2 max-w-[220px] text-sm leading-relaxed text-muted-foreground">
-          Earn points for trading on the demo leaderboard.
-        </p>
-        <Link to="/points" className="btn-connect mt-5 inline-flex text-sm">
-          View Details
+    <div className={cn("overflow-season-banner", className)}>
+      <img
+        src={overflowBg}
+        alt=""
+        className="overflow-season-banner-image"
+        aria-hidden
+      />
+      <div className="overflow-season-banner-overlay" aria-hidden />
+      <div className="overflow-season-banner-inner">
+        <div className="overflow-season-banner-copy">
+          <span className="overflow-season-eyebrow">
+            <Trophy className="h-3 w-3 shrink-0" aria-hidden />
+            Sui Overflow Season
+          </span>
+          <h2 className="overflow-season-title">Earn LVX points</h2>
+          <p className="overflow-season-desc">
+            Trade with leverage on demo markets and climb the volume leaderboard.
+          </p>
+        </div>
+        <Link to="/points" className="overflow-season-cta">
+          View leaderboard
+          <ArrowRight className="h-4 w-4" aria-hidden />
         </Link>
       </div>
     </div>
