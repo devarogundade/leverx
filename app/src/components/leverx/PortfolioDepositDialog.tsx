@@ -24,6 +24,7 @@ import {
   withdrawUsdDisplayAmount,
 } from "@/lib/leverx/trade-math";
 import { pillToggleBtn, pillToggleIdle } from "@/lib/leverx/tw";
+import { showTxError, showTxSuccess } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import type { DepositKeyTarget } from "@/hooks/useDepositKeyTargets";
 
