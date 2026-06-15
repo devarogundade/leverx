@@ -83,7 +83,7 @@ public fun set_trading_paused(_admin: &AdminCap, registry: &mut LeverxRegistry, 
     events::emit_trading_paused_changed(object::id(registry), paused);
 }
 
-/// Update the liquidation health threshold (liquidate when health < `liquidation_bps`).
+/// Update the liquidation health threshold (liquidate when health < `liquidation_bps`; max 150%).
 public fun set_liquidation_bps(
     _admin: &AdminCap,
     registry: &mut LeverxRegistry,

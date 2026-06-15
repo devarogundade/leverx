@@ -29,8 +29,13 @@ fun margin_bounds() {
 }
 
 #[test]
-fun margin_call_below_full_health() {
-    assert!(protocol_constants::default_liquidation_bps() == 9_500, 0);
+fun liquidation_threshold_defaults_and_bounds() {
+    assert!(protocol_constants::default_liquidation_bps() == 10_500, 0);
     assert!(protocol_constants::margin_call_bps() == protocol_constants::default_liquidation_bps(), 0);
-    assert!(protocol_constants::margin_call_bps() < protocol_constants::bps(), 0);
+    assert!(protocol_constants::max_liquidation_bps() == 15_000, 0);
+    assert!(protocol_constants::liquidation_flash_buffer_bps() == 500, 0);
+    assert!(
+        protocol_constants::default_liquidation_bps() <= protocol_constants::max_liquidation_bps(),
+        0,
+    );
 }

@@ -49,6 +49,15 @@ export class LiquidationService {
           continue;
         }
 
+        const openQty = BigInt(position.open_quantity || 0);
+        if (openQty === 0n) {
+          const writeOff = await this.tryWriteOffFlat(position);
+          if (writeOff) {
+            results.push(writeOff);
+          }
+          continue;
+        }
+
         const liquidatable = await this.isLiquidatable(position);
         if (liquidatable === null) {
           results.push({
@@ -63,12 +72,7 @@ export class LiquidationService {
           continue;
         }
 
-        const borrowAmount = flashBorrowAmountForLiquidation(
-          position.borrow_quote,
-          position.margin_quote,
-          FLASH_BORROW_BUFFER_BPS,
-        );
-
+        const borrowAmount = await this.resolveFlashBorrowAmount(position);
         const tx = new Transaction();
         this.ptb.buildLiquidation(tx, cfg, position, borrowAmount);
         if (!(await this.sui.devInspect(tx))) {
@@ -76,6 +80,11 @@ export class LiquidationService {
             this.logger,
             `liquidation simulation failed ${target} (flash_liquidate abort — redeem may not cover vault debt)`,
           );
+          const writeOff = await this.tryWriteOffFlat(position);
+          if (writeOff?.success) {
+            results.push(writeOff);
+            continue;
+          }
           results.push({
             kind: 'liquidation',
             target,
@@ -95,6 +104,60 @@ export class LiquidationService {
     }
 
     return results;
+  }
+
+  private async resolveFlashBorrowAmount(
+    position: LeveragedPosition,
+  ): Promise<bigint> {
+    const cfg = this.sui.getConfig();
+    const quoteTx = this.ptb.buildQuoteLiquidationFlashBorrow(
+      cfg,
+      position,
+      FLASH_BORROW_BUFFER_BPS,
+    );
+    const quoted = await this.sui.devInspectU64(quoteTx);
+    if (quoted != null && quoted > 0n) {
+      return quoted;
+    }
+    return flashBorrowAmountForLiquidation(
+      position.borrow_quote,
+      position.margin_quote,
+      FLASH_BORROW_BUFFER_BPS,
+    );
+  }
+
+  private async tryWriteOffFlat(
+    position: LeveragedPosition,
+  ): Promise<TaskResult | null> {
+    const target = `${position.account_id}:${position.position_key}`;
+    const now = Date.now();
+    if (position.expiry_ms > now) {
+      return null;
+    }
+    if (!position.predict_manager_id) {
+      return null;
+    }
+
+    const cfg = this.sui.getConfig();
+    const tx = new Transaction();
+    this.ptb.buildWriteOffFlatBorrow(tx, cfg, position);
+    if (!(await this.sui.devInspect(tx))) {
+      return null;
+    }
+
+    try {
+      const digest = await this.sui.execute(tx);
+      this.logger.log(`bad debt write-off ${target} digest=${digest}`);
+      return { kind: 'liquidation', target, success: true, digest };
+    } catch (err) {
+      const message = logKeeperError(this.logger, `bad debt write-off failed ${target}`, err);
+      return {
+        kind: 'liquidation',
+        target,
+        success: false,
+        error: message,
+      };
+    }
   }
 
   private async isLiquidatable(

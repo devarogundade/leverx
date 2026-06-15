@@ -3,6 +3,10 @@ import { useWallet } from "@/context/WalletContext";
 import { useIndexerAccounts } from "@/hooks/useIndexer";
 import { useLeverxProtocolConfig } from "@/hooks/useLeverxTransactions";
 import type { MarketKeyArgs } from "@/lib/leverx/market-keys";
+import {
+  DEV_INSPECT_QUOTE_REFETCH_MS,
+  DEV_INSPECT_QUOTE_STALE_MS,
+} from "@/lib/leverx/constants";
 import { fetchMintQuote } from "@/lib/leverx/quotes";
 import { leverageToBps, marginUsdToQuoteAtoms } from "@/lib/leverx/trade-math";
 
@@ -56,8 +60,8 @@ export function useLeverxMintQuote(args: {
       Boolean(args.key) &&
       marginAtoms > 0n &&
       (args.marginUsd ?? 0) > 0,
-    staleTime: 10_000,
-    refetchInterval: 15_000,
+    staleTime: DEV_INSPECT_QUOTE_STALE_MS,
+    refetchInterval: DEV_INSPECT_QUOTE_REFETCH_MS,
     refetchIntervalInBackground: false,
     placeholderData: (previous) => previous,
     retry: 1,

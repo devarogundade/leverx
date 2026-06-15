@@ -206,6 +206,11 @@ export type ProtocolSettings = {
   slope2_bps: number | null;
   flash_fee_bps: number | null;
   liquidation_bps: number | null;
+  /** Coalesced threshold from indexer (`liquidation_bps` or protocol default). */
+  effective_liquidation_bps?: number | null;
+  default_liquidation_bps?: number | null;
+  max_liquidation_bps?: number | null;
+  healthy_band_buffer_bps?: number | null;
   updated_at_ms: number;
 };
 

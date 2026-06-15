@@ -6,7 +6,10 @@ import type { LeverxMarketRow } from "@/lib/leverx/indexer-markets";
 import { leverxMarketAskQueryKey } from "@/hooks/useLeverxMarketAsk";
 import { useLeverxProtocolConfig } from "@/hooks/useLeverxTransactions";
 import { marketRowToKey } from "@/lib/leverx/market-keys";
-import { MARKET_CATALOG_REFETCH_MS } from "@/hooks/useIndexer";
+import {
+  DEV_INSPECT_QUOTE_REFETCH_MS,
+  DEV_INSPECT_QUOTE_STALE_MS,
+} from "@/lib/leverx/constants";
 import { fetchPredictMarketAsk } from "@/lib/leverx/quotes";
 
 function quoteCfg(
@@ -88,7 +91,7 @@ export function useVisibleMarketAsks(markets: readonly LeverxMarketRow[]) {
             const ask = await queryClient.fetchQuery({
               queryKey: leverxMarketAskQueryKey(key),
               queryFn: () => fetchPredictMarketAsk({ client, cfg, key }),
-              staleTime: 10_000,
+              staleTime: DEV_INSPECT_QUOTE_STALE_MS,
             });
             if (ask == null || ask <= 0n) {
               paused.add(marketId);
@@ -104,8 +107,8 @@ export function useVisibleMarketAsks(markets: readonly LeverxMarketRow[]) {
       return { asks, paused };
     },
     enabled: Boolean(cfg && marketKeys.length > 0),
-    staleTime: MARKET_CATALOG_REFETCH_MS / 2,
-    refetchInterval: MARKET_CATALOG_REFETCH_MS,
+    staleTime: DEV_INSPECT_QUOTE_STALE_MS,
+    refetchInterval: DEV_INSPECT_QUOTE_REFETCH_MS,
     refetchIntervalInBackground: false,
     placeholderData: (previous) => previous,
     retry: 1,

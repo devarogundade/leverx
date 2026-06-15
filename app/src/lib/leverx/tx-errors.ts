@@ -38,6 +38,9 @@ const INSUFFICIENT_POSITION_MESSAGE =
 const TRADING_PAUSED_MESSAGE =
   "Trading is paused for new opens and limit fills. You can still close, repay debt, and settle expired positions.";
 
+const OPEN_HEALTH_BELOW_LIQUIDATION_MESSAGE =
+  "Projected position health is below the protocol liquidation threshold. Lower leverage, add margin, or wait for a better contract price.";
+
 export function formatTxError(error: unknown): string {
   const raw =
     error instanceof Error
@@ -108,6 +111,12 @@ export function formatTxError(error: unknown): string {
     (raw.includes("predict_manager") && raw.includes(", 1)"))
   ) {
     return INSUFFICIENT_POSITION_MESSAGE;
+  }
+  if (
+    raw.includes("open_health_below_liquidation") ||
+    (raw.includes("trade") && raw.includes(", 51)"))
+  ) {
+    return OPEN_HEALTH_BELOW_LIQUIDATION_MESSAGE;
   }
   if (raw.includes("Predict manager is not linked")) {
     return "Predict manager is not linked. Open Portfolio → Account to link your manager.";

@@ -1844,6 +1844,71 @@ public fun evaluate_range_position_health_with_open_position<Quote>(
     )
 }
 
+/// Vault flash principal for liquidation: accrued ledger debt plus protocol buffer bps.
+public fun quote_liquidation_flash_borrow<Quote>(
+    registry: &LeverxRegistry,
+    vault: &mut LeverageVault<Quote>,
+    ledger_principal: u64,
+    buffer_bps: u64,
+    clock: &Clock,
+): u64 {
+    protocol_registry::assert_vault(registry, vault);
+    if (ledger_principal == 0) return 1;
+    vault_mod::accrue_interest(vault, clock);
+    let debt = vault_mod::debt_with_accrued_interest(vault, ledger_principal);
+    debt + protocol_constants::mul_bps(debt, buffer_bps)
+}
+
+/// Permissionless: write off residual binary borrow when contracts are flat and market ended/settled.
+public fun write_off_flat_binary_borrow_permissionless<Quote>(
+    registry: &LeverxRegistry,
+    vault: &mut LeverageVault<Quote>,
+    collector: &mut FeeCollector<Quote>,
+    proxy: &mut UserProxy,
+    predict_global: &Predict,
+    manager: &PredictManager,
+    oracle: &OracleSVI,
+    key: MarketKey,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    assert_registry_predict(registry, predict_global);
+    assert_registry_vault_collector(registry, vault, collector);
+    assert!(object::id(manager) == proxy.predict_manager_id(), errors::invalid_manager());
+    assert!(proxy.binary_borrowed_quote(key) > 0, errors::no_leveraged_exposure());
+    assert!(predict_client::manager_binary_position(manager, key) == 0, errors::zero_quantity());
+    assert!(
+        oracle.is_settled() || clock.timestamp_ms() >= key.expiry(),
+        errors::market_still_open(),
+    );
+    write_off_residual_binary_debt(vault, collector, proxy, key, clock, ctx);
+}
+
+/// Permissionless range variant of [`write_off_flat_binary_borrow_permissionless`].
+public fun write_off_flat_range_borrow_permissionless<Quote>(
+    registry: &LeverxRegistry,
+    vault: &mut LeverageVault<Quote>,
+    collector: &mut FeeCollector<Quote>,
+    proxy: &mut UserProxy,
+    predict_global: &Predict,
+    manager: &PredictManager,
+    oracle: &OracleSVI,
+    key: RangeKey,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    assert_registry_predict(registry, predict_global);
+    assert_registry_vault_collector(registry, vault, collector);
+    assert!(object::id(manager) == proxy.predict_manager_id(), errors::invalid_manager());
+    assert!(proxy.range_borrowed_quote(key) > 0, errors::no_leveraged_exposure());
+    assert!(predict_client::manager_range_position(manager, key) == 0, errors::zero_quantity());
+    assert!(
+        oracle.is_settled() || clock.timestamp_ms() >= key.expiry(),
+        errors::market_still_open(),
+    );
+    write_off_residual_range_debt(vault, collector, proxy, key, clock, ctx);
+}
+
 // === Internal ===
 
 fun quote_borrow_for_leverage_binary(
@@ -2038,6 +2103,17 @@ fun execute_leveraged_mint_binary<Quote>(
         proxy.add_binary_margin_debt(key, margin_quote, ctx);
     };
     proxy.set_binary_remint_after_deleverage(key, remint_after_deleverage, ctx);
+    assert_leveraged_open_health_binary(
+        registry,
+        vault,
+        proxy,
+        predict_global,
+        oracle,
+        key,
+        quantity,
+        leverage_bps,
+        clock,
+    );
 }
 
 /// Core range leveraged mint: borrow, fund Predict manager, mint, and emit `LeveragedPositionOpened`.
@@ -2118,6 +2194,17 @@ fun execute_leveraged_mint_range<Quote>(
         proxy.add_range_margin_debt(key, margin_quote, ctx);
     };
     proxy.set_range_remint_after_deleverage(key, remint_after_deleverage, ctx);
+    assert_leveraged_open_health_range(
+        registry,
+        vault,
+        proxy,
+        predict_global,
+        oracle,
+        key,
+        quantity,
+        leverage_bps,
+        clock,
+    );
 }
 
 fun assert_valid_order_type(order_type: u8) {
@@ -2313,6 +2400,63 @@ fun assert_leveraged_resting_order_expiry(
 /// Force-deleverage may only run in the same final-hour window (before expiry).
 fun assert_force_deleverage_window(expiry_ms: u64, clock: &Clock) {
     assert_final_hour_before_expiry(expiry_ms, clock, errors::force_deleverage_outside_window());
+}
+
+/// After a leveraged mint, open health must meet the registry liquidation threshold.
+fun assert_leveraged_open_health_binary<Quote>(
+    registry: &LeverxRegistry,
+    vault: &mut LeverageVault<Quote>,
+    proxy: &UserProxy,
+    predict_global: &Predict,
+    oracle: &OracleSVI,
+    key: MarketKey,
+    quantity: u64,
+    leverage_bps: u64,
+    clock: &Clock,
+) {
+    if (!ltv::is_leveraged(leverage_bps)) return;
+    let health = evaluate_binary_position_health_with_open_position(
+        registry,
+        vault,
+        proxy,
+        predict_global,
+        oracle,
+        key,
+        quantity,
+        clock,
+    );
+    assert!(
+        health >= protocol_registry::liquidation_bps(registry),
+        errors::open_health_below_liquidation(),
+    );
+}
+
+fun assert_leveraged_open_health_range<Quote>(
+    registry: &LeverxRegistry,
+    vault: &mut LeverageVault<Quote>,
+    proxy: &UserProxy,
+    predict_global: &Predict,
+    oracle: &OracleSVI,
+    key: RangeKey,
+    quantity: u64,
+    leverage_bps: u64,
+    clock: &Clock,
+) {
+    if (!ltv::is_leveraged(leverage_bps)) return;
+    let health = evaluate_range_position_health_with_open_position(
+        registry,
+        vault,
+        proxy,
+        predict_global,
+        oracle,
+        key,
+        quantity,
+        clock,
+    );
+    assert!(
+        health >= protocol_registry::liquidation_bps(registry),
+        errors::open_health_below_liquidation(),
+    );
 }
 
 /// Underwater keys must use liquidation, not force-deleverage. Collateral includes live redeem bid.

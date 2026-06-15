@@ -14,19 +14,29 @@ export function useLiveContractPremium(args: {
   side: PredictSide;
   catalogPremium?: number | null;
 }) {
-  const marketKey = useMemo(
-    () =>
-      args.expiryMs && args.strikeRaw
-        ? tradeSideToMarketKey({
-            oracleId: args.oracleId,
-            expiryMs: args.expiryMs,
-            strike: args.strikeRaw,
-            higherStrike: args.higherStrikeRaw,
-            side: args.side,
-          })
-        : undefined,
-    [args.oracleId, args.expiryMs, args.strikeRaw, args.higherStrikeRaw, args.side],
-  );
+  const marketKey = useMemo(() => {
+    if (!args.expiryMs) return undefined;
+    if (args.side === "range") {
+      const lower = args.strikeRaw;
+      const upper = args.higherStrikeRaw;
+      if (!lower || !upper || upper <= lower) return undefined;
+      return tradeSideToMarketKey({
+        oracleId: args.oracleId,
+        expiryMs: args.expiryMs,
+        strike: lower,
+        higherStrike: upper,
+        side: args.side,
+      });
+    }
+    if (!args.strikeRaw) return undefined;
+    return tradeSideToMarketKey({
+      oracleId: args.oracleId,
+      expiryMs: args.expiryMs,
+      strike: args.strikeRaw,
+      higherStrike: args.higherStrikeRaw,
+      side: args.side,
+    });
+  }, [args.oracleId, args.expiryMs, args.strikeRaw, args.higherStrikeRaw, args.side]);
 
   const {
     data: liveAskRaw,

@@ -334,4 +334,59 @@ export class PtbBuilderService {
 
     return tx;
   }
+
+  /** On-chain accrued debt + buffer for liquidation flash loans. */
+  buildQuoteLiquidationFlashBorrow(
+    cfg: KeeperConfig,
+    position: LeveragedPosition,
+    bufferBps: number,
+  ): Transaction {
+    const tx = new Transaction();
+    const ledgerPrincipal =
+      BigInt(position.borrow_quote || 0) > 0n
+        ? BigInt(position.borrow_quote)
+        : BigInt(position.margin_quote || 0);
+
+    tx.moveCall({
+      target: `${cfg.packageId}::trade::quote_liquidation_flash_borrow`,
+      typeArguments: [cfg.quoteType],
+      arguments: [
+        tx.object(cfg.registryId),
+        tx.object(cfg.vaultId),
+        tx.pure.u64(ledgerPrincipal),
+        tx.pure.u64(bufferBps),
+        tx.object(SUI_CLOCK_OBJECT_ID),
+      ],
+    });
+    return tx;
+  }
+
+  /** Permissionless bad-debt write-off when contracts are flat and market ended. */
+  buildWriteOffFlatBorrow(
+    tx: Transaction,
+    cfg: KeeperConfig,
+    position: LeveragedPosition,
+  ): Transaction {
+    const key = this.addMarketKey(tx, cfg, this.keyFromPosition(position));
+    const fn = position.is_range
+      ? 'write_off_flat_range_borrow_permissionless'
+      : 'write_off_flat_binary_borrow_permissionless';
+
+    tx.moveCall({
+      target: `${cfg.packageId}::trade::${fn}`,
+      typeArguments: [cfg.quoteType],
+      arguments: [
+        tx.object(cfg.registryId),
+        tx.object(cfg.vaultId),
+        tx.object(cfg.feeCollectorId),
+        tx.object(position.account_id),
+        tx.object(cfg.predictId),
+        tx.object(position.predict_manager_id!),
+        tx.object(position.oracle_id),
+        key,
+        tx.object(SUI_CLOCK_OBJECT_ID),
+      ],
+    });
+    return tx;
+  }
 }

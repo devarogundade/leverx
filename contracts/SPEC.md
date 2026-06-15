@@ -288,7 +288,7 @@ All events live in `leverx::events`. Index by `account_id`, `vault_id`, `registr
 | `SwapPoolRegistered` | `registry_id`, `asset`, `pool_id` | Swap pool mapped |
 | `TradingPausedChanged` | `registry_id`, `paused` | Pause toggled |
 | `PythMaxAgeUpdated` | `registry_id`, `max_age_secs` | Oracle staleness updated |
-| `BorrowRateParamsUpdated` | `vault_id`, rate curve params | Admin rate update |
+| `BorrowRateParamsUpdated` | `vault_id`, rate curve params | Vault init (`leverage_vault::new`) and admin rate update |
 
 ### 5.2 Vault & LP
 

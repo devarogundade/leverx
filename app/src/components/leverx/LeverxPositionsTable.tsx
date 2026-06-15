@@ -39,7 +39,7 @@ import {
 } from "@/components/ui/animated-numbers";
 import { predictSideFromBinary, type PredictSide } from "@/lib/predict/instruments";
 import { ui } from "@/lib/copy";
-import { resolveLiquidationBps } from "@/lib/leverx/protocol";
+import { formatLiquidationThresholdPct, resolveLiquidationBps } from "@/lib/leverx/protocol";
 import { formatStrikeUsdFromRaw } from "@/lib/leverx/strike-selection";
 import { TableExpiryCountdown } from "@/components/leverx/TableExpiryCountdown";
 import { cn } from "@/lib/utils";
@@ -285,7 +285,7 @@ function HealthCell({
       </div>
       <div
         className="relative h-1.5 overflow-hidden rounded-full bg-muted"
-        title={`Liquidation at ${liquidationPct.toFixed(1)}%`}
+        title={`Liquidation below ${formatLiquidationThresholdPct(liquidationBps)} health`}
       >
         {healthPct >= liquidationPct ? (
           <>

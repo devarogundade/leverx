@@ -1,4 +1,5 @@
 pub mod models;
+pub mod protocol;
 pub mod relations;
 pub mod schema;
 pub mod vault_snapshot;

@@ -54,7 +54,7 @@ import { isContractQuotePaused } from "@/lib/leverx/contract-quote";
 import { marketKeyMatchesPosition, type MarketKeyArgs } from "@/lib/leverx/market-keys";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
-import { resolveLiquidationBps } from "@/lib/leverx/protocol";
+import { formatLiquidationThresholdPct, resolveLiquidationBps } from "@/lib/leverx/protocol";
 import { buildQuickAmounts } from "@/lib/leverx/form-helpers";
 import { tradeCtaLabel, tradeNeedsDeposit } from "@/lib/leverx/trade-cta";
 import {
@@ -1169,7 +1169,8 @@ export function PredictLeveragePanel({
                 {lev > LEVERAGE_MIN + 1e-6 ? (
                   <>
                     {" · "}
-                    Margin call at {(liquidationBps / 100).toFixed(0)}%
+                    Liquidation below{" "}
+                    {formatLiquidationThresholdPct(liquidationBps)}
                   </>
                 ) : null}
               </p>

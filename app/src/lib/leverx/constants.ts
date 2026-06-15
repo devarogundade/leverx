@@ -10,6 +10,10 @@ export const PREDICT_PRICE_SCALE = 1_000_000_000n;
  */
 export const PREDICT_QUOTE_REFERENCE_QUANTITY = 1_000_000n;
 
+/** React Query cache + poll cadence for devInspect quote simulations. */
+export const DEV_INSPECT_QUOTE_STALE_MS = 10_000;
+export const DEV_INSPECT_QUOTE_REFETCH_MS = 10_000;
+
 /** Headroom below leveraged position size so mint_cost <= margin + borrow on-chain. */
 export const MINT_BUDGET_SAFETY_BPS = 50;
 

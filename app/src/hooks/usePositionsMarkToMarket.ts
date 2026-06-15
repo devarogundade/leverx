@@ -3,6 +3,10 @@ import { useQueries } from "@tanstack/react-query";
 import { useWallet } from "@/context/WalletContext";
 import { useIndexerProtocol } from "@/hooks/useIndexer";
 import { useLeverxProtocolConfig } from "@/hooks/useLeverxTransactions";
+import {
+  DEV_INSPECT_QUOTE_REFETCH_MS,
+  DEV_INSPECT_QUOTE_STALE_MS,
+} from "@/lib/leverx/constants";
 import { resolveLiquidationBps } from "@/lib/leverx/protocol";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { positionKeyFromArgs } from "@/lib/leverx/market-keys";
@@ -55,8 +59,8 @@ export function usePositionsMarkToMarket(positions: readonly LeveragedPosition[]
         });
       },
       enabled: Boolean(cfg?.registryId && coerceQuoteAtoms(position.open_quantity) > 0),
-      staleTime: 8_000,
-      refetchInterval: 12_000,
+      staleTime: DEV_INSPECT_QUOTE_STALE_MS,
+      refetchInterval: DEV_INSPECT_QUOTE_REFETCH_MS,
       retry: 1,
     })),
   });

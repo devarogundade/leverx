@@ -77,6 +77,7 @@ const E_FORCE_DELEVERAGE_OUTSIDE_WINDOW: u64 = 47;
 const E_MARKET_STILL_OPEN: u64 = 48;
 const E_INVALID_LIQUIDATION_BPS: u64 = 49;
 const E_TRIGGER_THRESHOLD_NOT_MET: u64 = 50;
+const E_OPEN_HEALTH_BELOW_LIQUIDATION: u64 = 51;
 
 // --- Auth & access control ---
 
@@ -220,3 +221,6 @@ public fun market_still_open(): u64 { E_MARKET_STILL_OPEN }
 
 /// Liquidation health threshold must be in `(0, 10_000]` basis points.
 public fun invalid_liquidation_bps(): u64 { E_INVALID_LIQUIDATION_BPS }
+
+/// Leveraged open would leave health below the registry liquidation threshold.
+public fun open_health_below_liquidation(): u64 { E_OPEN_HEALTH_BELOW_LIQUIDATION }

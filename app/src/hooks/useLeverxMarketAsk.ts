@@ -3,8 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useWallet } from "@/context/WalletContext";
 import { appConfig } from "@/lib/config";
 import type { MarketKeyArgs } from "@/lib/leverx/market-keys";
+import {
+  DEV_INSPECT_QUOTE_REFETCH_MS,
+  DEV_INSPECT_QUOTE_STALE_MS,
+} from "@/lib/leverx/constants";
 import { fetchPredictMarketAsk } from "@/lib/leverx/quotes";
-import { MARKET_CATALOG_REFETCH_MS } from "@/hooks/useIndexer";
 import { useLeverxProtocolConfig } from "@/hooks/useLeverxTransactions";
 
 function quoteCfg(
@@ -51,8 +54,8 @@ export function useLeverxMarketAsk(key?: MarketKeyArgs) {
       return fetchPredictMarketAsk({ client, cfg, key });
     },
     enabled: Boolean(cfg && key),
-    staleTime: MARKET_CATALOG_REFETCH_MS / 2,
-    refetchInterval: MARKET_CATALOG_REFETCH_MS,
+    staleTime: DEV_INSPECT_QUOTE_STALE_MS,
+    refetchInterval: DEV_INSPECT_QUOTE_REFETCH_MS,
     refetchIntervalInBackground: false,
     placeholderData: (previous) => previous,
     retry: 1,

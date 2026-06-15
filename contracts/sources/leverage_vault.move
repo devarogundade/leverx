@@ -63,17 +63,27 @@ public fun new<Quote>(
     treasury_cap: TreasuryCap<LXPLP>,
     ctx: &mut TxContext,
 ): LeverageVault<Quote> {
-    LeverageVault {
+    let rate_config = default_rate_config();
+    let vault = LeverageVault {
         id: object::new(ctx),
         balance: balance::zero(),
         total_borrowed: 0,
         total_principal_borrowed: 0,
         total_shares: 0,
         treasury_cap,
-        rate_config: default_rate_config(),
+        rate_config,
         last_accrue_ms: 0,
         insurance_fund: balance::zero(),
-    }
+    };
+    events::emit_borrow_rate_params_updated(
+        object::id(&vault),
+        rate_config.base_rate_bps,
+        rate_config.kink_utilization_bps,
+        rate_config.slope1_bps,
+        rate_config.slope2_bps,
+        rate_config.flash_fee_bps,
+    );
+    vault
 }
 
 /// Publish the vault as a shared object for LP supply and protocol borrows.

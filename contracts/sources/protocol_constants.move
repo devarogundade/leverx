@@ -17,9 +17,14 @@ const QUOTE_DECIMALS: u8 = 6;
 const MAX_LEVERAGE: u64 = 10;
 /// Minimum leverage in bps (10_000 bps = 1x, no vault borrow).
 const MIN_LEVERAGE_BPS: u64 = 10_000;
-const MARGIN_CALL_BPS: u64 = 9_500;
-/// Default liquidation health threshold at registry init (95% = liquidate when health < 9_500 bps).
-const DEFAULT_LIQUIDATION_BPS: u64 = MARGIN_CALL_BPS;
+/// Default liquidation health threshold at registry init (105% = 5% buffer before underwater).
+const DEFAULT_LIQUIDATION_BPS: u64 = 10_500;
+/// Legacy alias — matches default liquidation threshold at deploy.
+const MARGIN_CALL_BPS: u64 = DEFAULT_LIQUIDATION_BPS;
+/// Maximum admin-configurable liquidation threshold (150% health).
+const MAX_LIQUIDATION_BPS: u64 = 15_000;
+/// Extra quote on vault flash loans for liquidation PTBs (covers accrued interest + fees).
+const LIQUIDATION_FLASH_BUFFER_BPS: u64 = 500;
 
 /// Leveraged mints (>1x) are blocked in the final hour before oracle expiry.
 const LEVERAGED_MINT_WINDOW_MS: u64 = 3_600_000;
@@ -112,13 +117,19 @@ public fun max_margin_quote(): u64 { MAX_MARGIN_QUOTE }
 /// Margin-call health threshold in basis points (liquidate when health < this).
 public fun margin_call_bps(): u64 { MARGIN_CALL_BPS }
 
-/// Default liquidation threshold used when the registry is initialized (95%).
+/// Default liquidation threshold used when the registry is initialized (105%).
 public fun default_liquidation_bps(): u64 { DEFAULT_LIQUIDATION_BPS }
 
-/// Assert liquidation threshold is in `(0, bps()]`.
+/// Maximum liquidation threshold admins may set (150%).
+public fun max_liquidation_bps(): u64 { MAX_LIQUIDATION_BPS }
+
+/// Buffer bps added to accrued vault debt when sizing liquidation flash loans.
+public fun liquidation_flash_buffer_bps(): u64 { LIQUIDATION_FLASH_BUFFER_BPS }
+
+/// Assert liquidation threshold is in `(0, max_liquidation_bps()]`.
 public fun assert_liquidation_bps(liquidation_bps: u64) {
     assert!(liquidation_bps > 0, errors::invalid_liquidation_bps());
-    assert!(liquidation_bps <= bps(), errors::invalid_liquidation_bps());
+    assert!(liquidation_bps <= MAX_LIQUIDATION_BPS, errors::invalid_liquidation_bps());
 }
 
 // --- Public getters: interest rate model ---

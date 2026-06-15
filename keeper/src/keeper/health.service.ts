@@ -26,6 +26,9 @@ export const KEEPER_CONTRACT_CALLS: Record<KeeperTaskKind, string[]> = {
     'liquidation::flash_liquidate_range_with_redeem_permissionless',
     'trade::is_binary_position_liquidatable_with_open_position',
     'trade::is_range_position_liquidatable_with_open_position',
+    'trade::quote_liquidation_flash_borrow',
+    'trade::write_off_flat_binary_borrow_permissionless',
+    'trade::write_off_flat_range_borrow_permissionless',
   ],
   trigger: [
     'trade::leveraged_redeem_binary_market',

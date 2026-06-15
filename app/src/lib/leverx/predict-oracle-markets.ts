@@ -67,13 +67,6 @@ export function resolveRangeBounds(args: {
     }
   }
 
-  const catalogRange = catalogRows.find(
-    (m) => m.oracleId === args.oracleId && m.isRange && m.higherStrikeRaw > m.strikeRaw,
-  );
-  if (catalogRange) {
-    return { lower: catalogRange.strikeRaw, upper: catalogRange.higherStrikeRaw };
-  }
-
   const minStrikeRaw = toStrikeRaw(args.oracle?.min_strike);
   const tickRaw = toStrikeRaw(args.oracle?.tick_size) || minStrikeRaw || SCALE;
   const spot =

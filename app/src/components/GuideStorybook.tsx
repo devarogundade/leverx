@@ -15,7 +15,12 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ui } from "@/lib/copy";
-import { MARGIN_CALL_BPS } from "@/lib/leverx/protocol";
+import {
+  formatLiquidationThresholdPct,
+  resolveHealthyBandBufferBps,
+  resolveLiquidationBps,
+} from "@/lib/leverx/protocol";
+import { useIndexerProtocol } from "@/hooks/useIndexer";
 import {
   LEVERAGE_MAX,
   LEVERAGE_MIN,
@@ -36,8 +41,6 @@ import { isRangeTradingEnabled } from "@/lib/predict/instruments";
 const MARGIN_RANGE = `${MIN_MARGIN_USD}–${MAX_MARGIN_USD} dUSDC`;
 const LEVERAGE_RANGE = `${LEVERAGE_MIN}×–${LEVERAGE_MAX}×`;
 const rangeEnabled = isRangeTradingEnabled();
-const MARGIN_CALL_PCT = (MARGIN_CALL_BPS / 100).toFixed(0);
-const HEALTHY_PCT = ((MARGIN_CALL_BPS + 500) / 100).toFixed(0);
 
 const CHAPTERS = [
   { id: "introduction", label: "Introduction" },
@@ -56,6 +59,14 @@ type ChapterId = (typeof CHAPTERS)[number]["id"];
 
 export function GuideStorybook() {
   const [activeChapter, setActiveChapter] = useState<ChapterId>("introduction");
+  const { data: protocol } = useIndexerProtocol();
+  const liquidationBps = resolveLiquidationBps(protocol);
+  const healthyBufferBps = resolveHealthyBandBufferBps(protocol);
+  const liquidationPct = formatLiquidationThresholdPct(liquidationBps, 1);
+  const healthyPct = formatLiquidationThresholdPct(
+    liquidationBps + healthyBufferBps,
+    1,
+  );
   const expirationList = PREDICT_TESTNET_EXPIRATION_DAYS.join(", ");
 
   useEffect(() => {
@@ -282,10 +293,11 @@ export function GuideStorybook() {
               Open trades are marked to the live redeem bid — what you would receive if you closed
               right now. Unrealized P&amp;L is that mark value minus what you paid to open. If you
               borrowed from the vault, health compares mark value to outstanding borrow: 100% means
-              collateral exactly covers debt; above {HEALTHY_PCT}% is comfortable; between{" "}
-              {MARGIN_CALL_PCT}% and {HEALTHY_PCT}% is a margin-call band; below {MARGIN_CALL_PCT}%
-              the position is underwater and eligible for liquidation. Positions at 1× with no vault
-              borrow are never liquidated on health alone.
+              collateral exactly covers debt; above {healthyPct}% is comfortable; between{" "}
+              {liquidationPct}% and {healthyPct}% is a margin-call band; below {liquidationPct}%
+              health a keeper can liquidate the position (the protocol may require a buffer above
+              100% before triggering). Positions at 1× with no vault borrow are never liquidated on
+              health alone.
             </p>
             <GuidePanel label="Ways you can exit">
               <dl className="guide-risk-grid">
@@ -342,7 +354,7 @@ export function GuideStorybook() {
               <PillarCard
                 icon={<Shield className="h-4 w-4" />}
                 title="Liquidation"
-                body={`When health drops below ${MARGIN_CALL_PCT}% on a leveraged trade, a keeper redeems your contracts and repays vault debt from the proceeds. Any surplus goes to the insurance backstop; shortfalls may be written off as bad debt.`}
+                body={`When health drops below ${liquidationPct}% on a leveraged trade, a keeper redeems your contracts and repays vault debt from the proceeds. Any surplus goes to the insurance backstop; shortfalls may be written off as bad debt.`}
                 accent="short"
               />
               <PillarCard
@@ -371,7 +383,7 @@ export function GuideStorybook() {
                   <dt>Healthy vs underwater</dt>
                   <dd>
                     Force deleverage only applies when mark value still covers borrow. If health is
-                    already below {MARGIN_CALL_PCT}%, liquidation runs instead — the same path as a
+                    already below {liquidationPct}%, liquidation runs instead — the same path as a
                     mid-market margin call.
                   </dd>
                 </div>
@@ -530,15 +542,15 @@ export function GuideStorybook() {
                 <dt>What is health?</dt>
                 <dd>
                   Mark value divided by vault borrow, shown as a percentage. It updates with the
-                  live redeem bid. Above {HEALTHY_PCT}% is healthy; {MARGIN_CALL_PCT}%–{HEALTHY_PCT}%
-                  is margin-call territory; below {MARGIN_CALL_PCT}% a leveraged position can be
+                  live redeem bid. Above {healthyPct}% is healthy; {liquidationPct}%–{healthyPct}%
+                  is margin-call territory; below {liquidationPct}% a leveraged position can be
                   liquidated.
                 </dd>
               </div>
               <div className="guide-faq-item">
                 <dt>Liquidation vs force deleverage?</dt>
                 <dd>
-                  Liquidation happens any time health falls below {MARGIN_CALL_PCT}% on a borrowed
+                  Liquidation happens any time health falls below {liquidationPct}% on a borrowed
                   position. Force deleverage only runs in the final hour before expiry to bring
                   healthy leveraged trades down to 1×. Underwater positions in that hour are
                   liquidated, not deleveraged.

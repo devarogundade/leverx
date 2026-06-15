@@ -14,6 +14,10 @@ use leverx_schema::models::{
     LimitMintOrderRow, LiquidationRow, MarketTradeRow, PositionTriggerRow, ProtocolSettingsRow,
     ProxyExecutorRow, UserProxyRow, VaultSnapshotRow,
 };
+use leverx_schema::protocol::{
+    effective_liquidation_bps, DEFAULT_LIQUIDATION_BPS, HEALTHY_BAND_BUFFER_BPS,
+    MAX_LIQUIDATION_BPS,
+};
 use leverx_schema::schema::{
     account_timeline, leveraged_positions, leverx_events, limit_mint_orders,
     liquidations, market_trades, position_triggers, protocol_settings, proxy_executors,
@@ -512,6 +516,14 @@ async fn protocol_settings_handler(
 
     let mut value = serde_json::to_value(row).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     if let Some(obj) = value.as_object_mut() {
+        let effective = effective_liquidation_bps(row.liquidation_bps);
+        obj.insert("effective_liquidation_bps".into(), json!(effective));
+        obj.insert("default_liquidation_bps".into(), json!(DEFAULT_LIQUIDATION_BPS));
+        obj.insert("max_liquidation_bps".into(), json!(MAX_LIQUIDATION_BPS));
+        obj.insert(
+            "healthy_band_buffer_bps".into(),
+            json!(HEALTHY_BAND_BUFFER_BPS),
+        );
         if let Ok(package_id) = std::env::var("LEVERX_PACKAGE_ID") {
             let package_id = package_id.trim();
             if !package_id.is_empty() {

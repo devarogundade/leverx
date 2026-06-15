@@ -4,6 +4,7 @@ import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 import { Transaction } from '@mysten/sui/transactions';
 import type { KeeperConfig } from '../config/keeper.config';
+import { MAX_LIQUIDATION_BPS } from '../config/constants';
 import { logKeeperError, logKeeperWarn } from '../lib/keeper-log';
 import type { ProtocolSettings } from '../indexer/indexer.types';
 
@@ -87,8 +88,10 @@ export class SuiService implements OnModuleInit {
       this.tradingPaused = settings.trading_paused === true;
       this.liquidationBps =
         typeof settings.liquidation_bps === 'number'
-          ? settings.liquidation_bps
-          : null;
+          ? Math.min(settings.liquidation_bps, MAX_LIQUIDATION_BPS)
+          : typeof settings.effective_liquidation_bps === 'number'
+            ? Math.min(settings.effective_liquidation_bps, MAX_LIQUIDATION_BPS)
+            : null;
 
       const merged = this.getConfig();
       this.logger.log(
@@ -210,6 +213,31 @@ export class SuiService implements OnModuleInit {
 
     const [bytes] = first;
     return Buffer.from(bytes).readUInt8(0) === 1;
+  }
+
+  /** Read a Move `u64` return value from the last PTB command. */
+  async devInspectU64(
+    tx: Transaction,
+    sender?: string,
+  ): Promise<bigint | null> {
+    const address = sender ?? this.keypair?.getPublicKey().toSuiAddress();
+    if (!address) return null;
+
+    const result = await this.client.devInspectTransactionBlock({
+      transactionBlock: tx,
+      sender: address,
+    });
+    if (result.effects?.status?.status !== 'success') {
+      return null;
+    }
+
+    const returnValues = result.results?.at(-1)?.returnValues;
+    const first = returnValues?.[0];
+    if (!first) return null;
+
+    const [bytes] = first;
+    if (bytes.length < 8) return null;
+    return Buffer.from(bytes).readBigUInt64LE(0);
   }
 
   /** Read a Move `(u64, u64)` return tuple from the last PTB command. */

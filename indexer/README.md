@@ -117,7 +117,7 @@ Verify: `curl -s http://127.0.0.1:3100/v1/protocol` should return the new `regis
 | `GET /v1/markets/:oracleId/trades` | LeverX market trades |
 | `GET /v1/global-markets/:oracleId/trades?trade_side&is_range` | Predict global mint/redeem trades |
 | `GET /v1/events?event_type` | Raw indexed events |
-| `GET /v1/protocol` | Protocol settings (registry, vault, fee collector, pause, borrow params, **liquidation_bps**) |
+| `GET /v1/protocol` | Protocol settings (registry, vault, fee collector, pause, borrow params, **liquidation_bps**, plus **effective_liquidation_bps**, **default_liquidation_bps**, **max_liquidation_bps** metadata) |
 | `GET /v1/triggers?account_id` | Active take-profit / stop-loss triggers |
 | `GET /v1/executors?account_id` | Active proxy executors |
 | `GET /v1/liquidations?account_id&owner` | Liquidation history |

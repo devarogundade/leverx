@@ -1,6 +1,6 @@
 import type { RedeemQuote } from "@/lib/leverx/quotes";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
-import { DEFAULT_LIQUIDATION_BPS } from "@/lib/leverx/protocol";
+import { DEFAULT_LIQUIDATION_BPS, resolveHealthLabel } from "@/lib/leverx/protocol";
 import { premiumRawToCents, premiumPerUnitFromMintCost } from "@/lib/leverx/trade-math";
 import { coerceQuoteAtoms, scaleQuote } from "@/lib/predict/scaling";
 
@@ -292,9 +292,7 @@ export function computePositionMarkToMarket(
 
   let healthLabel: PositionMarkToMarket["healthLabel"] = "unknown";
   if (healthBps != null) {
-    if (healthBps >= liquidationBps + 500) healthLabel = "healthy";
-    else if (healthBps >= liquidationBps) healthLabel = "margin_call";
-    else healthLabel = "at_risk";
+    healthLabel = resolveHealthLabel(healthBps, liquidationBps);
   }
 
   const markBidCents = premiumRawToCents(redeemQuote.marketBidPerUnit);

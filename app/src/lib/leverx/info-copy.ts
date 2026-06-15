@@ -83,7 +83,7 @@ export const leverxInfo = {
   depositSourceManager:
     "Fund the trade from dUSDC already in your Predict manager balance (moved to this market key when you open).",
   estimatedHealth:
-    "Estimated collateral ratio (mark value ÷ borrow). On-chain health also considers accrued interest and per-key ledger state.",
+    "Estimated collateral ratio (mark value ÷ borrow). Liquidation can trigger above 100% when the protocol buffer requires extra collateral. On-chain health also considers accrued interest.",
 
   vaultSupply: "Add dUSDC to the pool and receive shares that earn from trading fees.",
   vaultWithdraw: "Cash out your shares back to dUSDC, including any earnings.",

@@ -52,7 +52,7 @@ import {
   resolveRangeBounds,
   resolveTradeMarket,
 } from "@/lib/leverx/predict-oracle-markets";
-import { oracleStrikeBounds } from "@/lib/leverx/strike-selection";
+import { defaultRangeBoundsRaw, oracleStrikeBounds } from "@/lib/leverx/strike-selection";
 import { useTradeNavigation } from "@/context/TradeNavigationContext";
 import { baseFromUnderlying } from "@/lib/markets";
 import { summarizeGlobalTrades } from "@/lib/leverx/trade-stats";
@@ -566,25 +566,41 @@ export function PredictTradeTerminal({ oracleId }: Props) {
     return selectedStrikeRaw ?? defaultBinaryStrikeRaw;
   }, [activeSide, selectedStrikeRaw, defaultBinaryStrikeRaw]);
 
-  const rangeBounds = useMemo(
-    () =>
-      resolveRangeBounds({
-        oracleId,
-        catalogRows: marketRows,
-        oracle: oracleSummary,
-        oracleSpot,
-        lowerStrikeRaw: selectedRangeLower,
-        upperStrikeRaw: selectedRangeUpper,
-      }),
-    [
+  const rangeBounds = useMemo(() => {
+    if (
+      selectedRangeLower &&
+      selectedRangeUpper &&
+      selectedRangeUpper > selectedRangeLower
+    ) {
+      return { lower: selectedRangeLower, upper: selectedRangeUpper };
+    }
+    const resolved = resolveRangeBounds({
       oracleId,
-      marketRows,
-      oracleSummary,
+      catalogRows: marketRows,
+      oracle: oracleSummary,
       oracleSpot,
-      selectedRangeLower,
-      selectedRangeUpper,
-    ],
-  );
+      lowerStrikeRaw: selectedRangeLower,
+      upperStrikeRaw: selectedRangeUpper,
+    });
+    if (resolved) return resolved;
+    if (oracleSpot != null && oracleSpot > 0) {
+      return defaultRangeBoundsRaw(
+        oracleSpot,
+        oracleStrikeConfig.minStrikeRaw,
+        oracleStrikeConfig.tickSizeRaw,
+      );
+    }
+    return null;
+  }, [
+    oracleId,
+    marketRows,
+    oracleSummary,
+    oracleSpot,
+    selectedRangeLower,
+    selectedRangeUpper,
+    oracleStrikeConfig.minStrikeRaw,
+    oracleStrikeConfig.tickSizeRaw,
+  ]);
 
   const handleRangeBoundsChange = useCallback((lower: number, upper: number) => {
     setSelectedRangeLower(lower);
