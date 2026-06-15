@@ -141,7 +141,7 @@ function PnlCell({
       </>
     );
 
-    if (!breakdown?.hasBreakdown) {
+    if (!breakdown) {
       return <div className={cn("text-right tabular-nums", tone)}>{pnlContent}</div>;
     }
 

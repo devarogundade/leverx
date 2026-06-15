@@ -174,7 +174,7 @@ export function PortfolioFundsSection({
           </p>
         </div>
 
-        <div className="grid divide-y divide-border grid-cols-2 border-b border-border lg:grid-cols-5 lg:divide-x lg:divide-y-0">
+        <div className="grid grid-cols-2 divide-y divide-border border-b border-border md:grid-cols-5 md:divide-x md:divide-y-0">
           <FundsMetric
             label={ui.balanceWallet}
             info={leverxInfo.balanceWallet}

@@ -78,10 +78,19 @@ export function positionCashInUsd(position: LeveragedPosition): number {
   return positionMarginUsd(position) + walletRepaidPrincipalUsd(position);
 }
 
+/** Indexer close_* fields populated (leveraged close path). */
+function hasDetailedCloseFields(position: LeveragedPosition): boolean {
+  return (
+    coerceQuoteAtoms(position.close_debt_repaid) > 0 ||
+    coerceQuoteAtoms(position.close_interest_paid) > 0 ||
+    coerceQuoteAtoms(position.close_surplus_quote) > 0
+  );
+}
+
 /** Realized P&L for closed/settled/liquidated rows — net wallet result. */
 export function realizedPnlUsd(position: LeveragedPosition): number | null {
   if (!isEndedPosition(position)) return null;
-  if (hasClosePnlBreakdown(position)) {
+  if (hasDetailedCloseFields(position)) {
     return (
       scaleQuote(position.close_surplus_quote) -
       positionMarginUsd(position) -
@@ -104,27 +113,22 @@ export type ClosedPositionPnlBreakdown = {
 };
 
 export function hasClosePnlBreakdown(position: LeveragedPosition): boolean {
-  return (
-    isEndedPosition(position) &&
-    (coerceQuoteAtoms(position.close_debt_repaid) > 0 ||
-      coerceQuoteAtoms(position.close_interest_paid) > 0 ||
-      coerceQuoteAtoms(position.close_surplus_quote) > 0)
-  );
+  return isEndedPosition(position);
 }
 
 export function closedPositionPnlBreakdown(
   position: LeveragedPosition,
 ): ClosedPositionPnlBreakdown | null {
   if (!isEndedPosition(position)) return null;
-  const hasBreakdown = hasClosePnlBreakdown(position);
+  const hasDetailedClose = hasDetailedCloseFields(position);
   const marginPostedUsd = positionMarginUsd(position);
   const walletRepaidUsd = walletRepaidPrincipalUsd(position);
-  const cashBackUsd = scaleQuote(position.close_surplus_quote);
+  const cashBackUsd = hasDetailedClose
+    ? scaleQuote(position.close_surplus_quote)
+    : scaleQuote(position.realized_payout);
   const borrowRepaidUsd = scaleQuote(closePrincipalRepaidAtoms(position));
   const interestPaidUsd = scaleQuote(position.close_interest_paid);
-  const netPnlUsd = hasBreakdown
-    ? cashBackUsd - marginPostedUsd - walletRepaidUsd
-    : (realizedPnlUsd(position) ?? 0);
+  const netPnlUsd = realizedPnlUsd(position) ?? 0;
   return {
     marginPostedUsd,
     walletRepaidUsd,
@@ -132,7 +136,7 @@ export function closedPositionPnlBreakdown(
     borrowRepaidUsd,
     interestPaidUsd,
     netPnlUsd,
-    hasBreakdown,
+    hasBreakdown: true,
   };
 }
 
@@ -162,7 +166,7 @@ export function closingMarkPremiumRaw(position: LeveragedPosition): bigint | nul
 
 export function realizedPnlPct(position: LeveragedPosition): number | null {
   const pnlUsd = realizedPnlUsd(position);
-  const basisUsd = hasClosePnlBreakdown(position)
+  const basisUsd = hasDetailedCloseFields(position)
     ? positionCashInUsd(position)
     : scaleQuote(effectiveMintCostAtoms(position));
   if (pnlUsd == null || basisUsd <= 0) return null;
