@@ -9,6 +9,7 @@ import { Transaction } from "@mysten/sui/transactions";
 import type { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
 import { appConfig } from "@/lib/config";
 import {
+  formatInsufficientGasMessage,
   InsufficientGasError,
   MIN_SUI_GAS_MIST,
 } from "@/lib/sui/insufficient-gas";
@@ -19,13 +20,16 @@ const SUI_COIN_TYPE = "0x2::sui::SUI";
 async function ensureSuiGasBalance(
   client: SuiJsonRpcClient,
   owner: string,
+  gasBudget: number,
 ): Promise<void> {
   const { totalBalance } = await client.getBalance({
     owner,
     coinType: SUI_COIN_TYPE,
   });
-  if (BigInt(totalBalance) < MIN_SUI_GAS_MIST) {
-    throw new InsufficientGasError();
+  const have = BigInt(totalBalance);
+  const needed = BigInt(Math.max(gasBudget, Number(MIN_SUI_GAS_MIST)));
+  if (have < needed) {
+    throw new InsufficientGasError(formatInsufficientGasMessage(have, needed));
   }
 }
 
@@ -41,11 +45,12 @@ export async function executeWalletTransaction(
   build: (tx: Transaction) => void | Promise<void>,
   options?: { gasBudget?: number },
 ): Promise<{ digest: string }> {
-  await ensureSuiGasBalance(client, account.address);
+  const gasBudget = options?.gasBudget ?? DEFAULT_GAS_BUDGET;
+  await ensureSuiGasBalance(client, account.address, gasBudget);
 
   const tx = new Transaction();
   tx.setSender(account.address);
-  tx.setGasBudget(options?.gasBudget ?? DEFAULT_GAS_BUDGET);
+  tx.setGasBudget(gasBudget);
   await build(tx);
 
   const transactionForWallet = {

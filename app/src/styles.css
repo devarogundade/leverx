@@ -98,6 +98,7 @@
   --trade-chart-h: 280px;
   --markets-hero-h: 220px;
   --markets-catalog-h: 32rem;
+  --markets-sparkline-stroke: #d4c5b0;
   --trade-positions-body-min-h: 10rem;
   --trade-header-stats-h: 3.25rem;
   --trade-header-pills-h: 2rem;
@@ -3623,7 +3624,6 @@ select {
 }
 
 .markets-sparkline {
-  --markets-sparkline-stroke: #d4c5b0;
   --markets-sparkline-fill-opacity-start: 0.38;
   --markets-sparkline-fill-opacity-end: 0;
   --markets-sparkline-stroke-opacity-start: 0.35;

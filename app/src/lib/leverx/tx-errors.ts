@@ -1,9 +1,11 @@
 import {
+  formatInsufficientGasMessage,
   GAS_BUDGET_EXCEEDED_MESSAGE,
   INSUFFICIENT_GAS_MESSAGE,
   InsufficientGasError,
   isGasBudgetExceededError,
   isInsufficientGasError,
+  parseGasBalanceShortfall,
 } from "@/lib/sui/insufficient-gas";
 
 const PREMIUM_BOUNDS_MESSAGE =
@@ -43,7 +45,14 @@ export function formatTxError(error: unknown): string {
       : typeof error === "string"
         ? error
         : "Transaction failed.";
-  if (error instanceof InsufficientGasError || isInsufficientGasError(raw)) {
+  if (error instanceof InsufficientGasError) {
+    return error.message;
+  }
+  const gasShortfall = parseGasBalanceShortfall(raw);
+  if (gasShortfall) {
+    return formatInsufficientGasMessage(gasShortfall.have, gasShortfall.needed);
+  }
+  if (isInsufficientGasError(raw)) {
     return INSUFFICIENT_GAS_MESSAGE;
   }
   if (isGasBudgetExceededError(raw)) {

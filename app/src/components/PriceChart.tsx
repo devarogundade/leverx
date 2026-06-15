@@ -23,12 +23,12 @@ import type { PriceLevel } from "@/lib/charts/price-level";
 import {
   applyCandlestickSeriesTheme,
   applyLightweightChartTheme,
-  applyLineSeriesWinTheme,
+  applyLineSeriesMarketsSparklineTheme,
   candlestickDownColor,
   candlestickUpColor,
   levelLineColor,
   levelLineStyle,
-  lineSeriesWinColor,
+  lineSeriesMarketsSparklineColor,
   lightweightChartOptions,
 } from "@/lib/charts/lightweight-shared";
 import { buildStrikeAnchoredSpotLineData } from "@/lib/charts/line-data";
@@ -274,7 +274,7 @@ export function PriceChart({
     if (series && seriesMode === "candlestick") {
       applyCandlestickSeriesTheme(series as ISeriesApi<"Candlestick">);
     } else if (series && seriesMode === "line") {
-      applyLineSeriesWinTheme(series as ISeriesApi<"Line">);
+      applyLineSeriesMarketsSparklineTheme(series as ISeriesApi<"Line">);
     }
   }, [theme, chartReady]);
 
@@ -456,7 +456,7 @@ export function PriceChart({
       seriesModeRef.current = "candlestick";
     } else {
       const lineSeries = chart.addSeries(LineSeries, {
-        color: lineSeriesWinColor(),
+        color: lineSeriesMarketsSparklineColor(),
         lineWidth: 2,
         crosshairMarkerVisible: true,
         lastValueVisible: true,

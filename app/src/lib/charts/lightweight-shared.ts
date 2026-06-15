@@ -154,6 +154,10 @@ export function applyLineSeriesWinTheme(series: ISeriesApi<"Line">) {
   series.applyOptions({ color: lineSeriesWinColor() });
 }
 
+export function applyLineSeriesMarketsSparklineTheme(series: ISeriesApi<"Line">) {
+  series.applyOptions({ color: lineSeriesMarketsSparklineColor() });
+}
+
 export function applyLineSeriesAccentTheme(series: ISeriesApi<"Line">) {
   series.applyOptions({ color: lineSeriesAccentColor() });
 }
@@ -164,6 +168,11 @@ export function lineSeriesAccentColor(): string {
 
 export function lineSeriesWinColor(): string {
   return readCssVar("--long-text", "#38ef7d");
+}
+
+/** Matches `.markets-sparkline` stroke on the markets grid. */
+export function lineSeriesMarketsSparklineColor(): string {
+  return readCssVar("--markets-sparkline-stroke", "#d4c5b0");
 }
 
 export function lineSeriesLossColor(): string {

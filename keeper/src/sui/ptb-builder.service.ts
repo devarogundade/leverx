@@ -327,7 +327,7 @@ export class PtbBuilderService {
         tx.object(cfg.feeCollectorId),
         quoteLeft,
         receipt,
-        tx.object(position.account_id),
+        tx.pure.id(position.account_id),
         tx.object(SUI_CLOCK_OBJECT_ID),
       ],
     });
