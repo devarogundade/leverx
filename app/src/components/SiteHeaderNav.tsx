@@ -39,7 +39,16 @@ export function SiteHeaderNav({ className, onNavigate, vertical }: Props) {
         const cls = cn(
           "nav-tab",
           vertical && "rounded-sm px-3 py-2",
+          entry.badge && "relative",
           active && "nav-tab-active",
+        );
+        const content = (
+          <>
+            {entry.label}
+            {entry.badge ? (
+              <span className="badge-new absolute top-0 -right-5">{entry.badge}</span>
+            ) : null}
+          </>
         );
 
         if (entry.external) {
@@ -52,14 +61,14 @@ export function SiteHeaderNav({ className, onNavigate, vertical }: Props) {
               onClick={onNavigate}
               className={cls}
             >
-              {entry.label}
+              {content}
             </a>
           );
         }
 
         return (
           <Link key={entry.label} to={entry.to} onClick={onNavigate} className={cls}>
-            {entry.label}
+            {content}
           </Link>
         );
       })}

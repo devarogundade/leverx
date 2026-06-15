@@ -8,6 +8,7 @@ export interface SiteNavLink {
   to: string;
   isActive: (pathname: string) => boolean;
   external?: boolean;
+  badge?: string;
 }
 
 export interface SiteNavDropdownItem {
@@ -71,6 +72,7 @@ export const SITE_NAV_ENTRIES: SiteNavEntry[] = [
     icon: Trophy,
     to: "/points",
     isActive: (pathname) => pathname.startsWith("/points"),
+    badge: "New",
   },
   {
     type: "link",
