@@ -254,15 +254,19 @@ export function gridUpDisplayRow(row: LeverxMarketRow): LeverxMarketRow {
       ? atmStrikeRaw(spot, minStrikeRaw, tickSizeRaw)
       : 0;
 
-  const quoteStrikeRaw = row.strikeRaw > 0 ? row.strikeRaw : atmStrike;
+  // Grid/list always quote UP ATM cents — never DOWN/RANGE catalog strike or premium.
+  const quoteStrikeRaw =
+    atmStrike > 0
+      ? atmStrike
+      : row.isUp && !row.isRange && row.strikeRaw > 0
+        ? row.strikeRaw
+        : 0;
 
-  const upQuoteKey =
-    quoteStrikeRaw > 0 ? upMarketKey(row.oracleId, row.expiry, quoteStrikeRaw) : row.id;
-  const sameKey = row.id === upQuoteKey && row.isUp && !row.isRange;
-  const catalogFallback =
-    row.isUp && !row.isRange && row.strikeRaw === quoteStrikeRaw
-      ? row.lastAskPremium
-      : null;
+  const catalogUpAtQuote =
+    row.isUp &&
+    !row.isRange &&
+    quoteStrikeRaw > 0 &&
+    row.strikeRaw === quoteStrikeRaw;
 
   return {
     ...row,
@@ -280,8 +284,8 @@ export function gridUpDisplayRow(row: LeverxMarketRow): LeverxMarketRow {
       true,
       spot,
     ),
-    lastAskPremium: sameKey ? row.lastAskPremium : catalogFallback,
-    quotePaused: sameKey ? row.quotePaused : undefined,
+    lastAskPremium: catalogUpAtQuote ? row.lastAskPremium : null,
+    quotePaused: catalogUpAtQuote ? row.quotePaused : undefined,
   };
 }
 

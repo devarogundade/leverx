@@ -516,7 +516,10 @@ export function PredictLeveragePanel({
     depositSource === "manager" ? ui.balanceManager : ui.balanceWallet;
 
   const quickAmounts = useMemo(
-    () => buildQuickAmounts(availableQuoteBalance, availableQuoteAtoms),
+    () =>
+      buildQuickAmounts(availableQuoteBalance, availableQuoteAtoms, {
+        capUsd: MAX_MARGIN_USD,
+      }),
     [availableQuoteBalance, availableQuoteAtoms],
   );
 
