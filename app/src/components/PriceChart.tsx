@@ -516,7 +516,7 @@ export function PriceChart({
         }
       }
     };
-  }, [chartReady, layoutActive, strikeLevelsKey, strikeLevels, theme]);
+  }, [chartReady, layoutActive, effectiveMode, strikeLevelsKey, strikeLevels, theme]);
 
   const chartLabel = pair ?? `${asset}/USDC`;
   const showChart = mounted && !isLoading && !isError && hasData;

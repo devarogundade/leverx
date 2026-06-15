@@ -59,10 +59,22 @@ export const leverxInfo = {
   marginInTrades: "dUSDC margin allocated to each open market key.",
   liquidations:
     "Liquidations, force-deleverages, and bad-debt write-offs when health falls below the protocol threshold.",
-  withdrawTradingBalance:
-    "dUSDC credited to your trading account after closing a trade. Withdraw here to your wallet once key borrow is fully repaid. If a third party redeemed your contracts, the payout may sit in your Predict manager balance instead of the market key.",
-  depositTradingBalance:
-    "Move dUSDC from your wallet into your trading account. Market-key deposits credit a specific market ledger; Predict manager deposits fund the shared manager pool used for minting.",
+  withdrawTradingBalance: "Move surplus to your wallet.",
+  withdrawTradingBalanceDetail:
+    "dUSDC credited after closing a trade. Withdraw once key borrow is repaid. If a third party redeemed your contracts, the payout may sit in your Predict manager balance instead of the market key.",
+  depositTradingBalance: "Move dUSDC from your wallet to trade.",
+  depositTradingBalanceDetail:
+    "Market-key deposits credit a specific market ledger. Predict manager deposits fund the shared pool used for minting.",
+  funds:
+    "Move dUSDC between wallet and trading account. Withdrawable is surplus you can pull out now; manager funds may stay locked until vault borrow is repaid.",
+  portfolioOverviewDetail:
+    "Net equity, unrealized P&L, margin posted, and vault borrow across open positions. Live marks refresh about every 12 seconds.",
+  withdrawEmpty: "Nothing to withdraw.",
+  withdrawEmptyDetail:
+    "Surplus appears on market keys after closing a trade, or in your Predict manager after an external redeem. Repay vault borrow if manager funds are locked.",
+  managerWithdrawLocked: "Manager surplus locked until borrow is repaid.",
+  managerWithdrawLockedDetail:
+    "While vault borrow is outstanding, the app treats Predict manager balance as locked for withdrawal. Repay borrow from open positions first.",
   depositSourceWallet: "Fund the trade from dUSDC in your connected wallet.",
   depositSourceManager:
     "Fund the trade from dUSDC already in your Predict manager balance (moved to this market key when you open).",
@@ -89,8 +101,9 @@ export const leverxInfo = {
 
   balanceTotal:
     "Wallet dUSDC plus margin and Predict manager balance, minus vault borrow across your account.",
-  balanceWithdrawable:
-    "Surplus you can withdraw to your wallet right now. Key and manager balances stay locked while that market key still has vault borrow — repay debt first to unlock more.",
+  balanceWithdrawable: "Surplus you can withdraw to your wallet now.",
+  balanceWithdrawableDetail:
+    "Key and manager balances stay locked while a market key still has vault borrow — repay debt first to unlock more.",
   balanceWallet: "dUSDC available in your connected wallet (not yet in open trades).",
   balanceManager:
     "dUSDC in your Predict manager balance — shared pool for minting and redeems, separate from per-market key ledgers.",

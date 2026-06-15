@@ -5,16 +5,19 @@ import {
   FundsDestinationTabs,
   type FundsDestinationTab,
 } from "@/components/leverx/FundsDestinationTabs";
+import { TradeAmountInput } from "@/components/leverx/TradeFormControls";
 import { QuoteAmount, QuoteAmountInline } from "@/components/leverx/QuoteAmount";
-import { Input } from "@/components/ui/input";
 import { useProxyKeyBalances } from "@/hooks/useProxyKeyBalances";
 import { useManagerQuoteBalances } from "@/hooks/useManagerQuoteBalances";
 import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
 import { leverxInfo } from "@/lib/leverx/info-copy";
+import { HintWithInfo } from "@/components/leverx/InfoPopover";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { showTxError, showTxSuccess } from "@/lib/toast";
+import { formatAmountWithMaxDigits, ui } from "@/lib/copy";
 import { assetLabelForOracleId } from "@/lib/predict/oracles";
 import { predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
+import { scaleQuoteAtoms } from "@/lib/predict/scaling";
 import { usePredictOracleRows } from "@/hooks/usePredictOracles";
 import {
   clampUsdToQuoteAtoms,
@@ -23,7 +26,7 @@ import {
   withdrawUsdDecimals,
   withdrawUsdDisplayAmount,
 } from "@/lib/leverx/trade-math";
-import { inputInField, pillToggleBtn, pillToggleIdle } from "@/lib/leverx/tw";
+import { pillToggleBtn, pillToggleIdle } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
 import type { ProxyKeyBalanceRow } from "@/hooks/useProxyKeyBalances";
 import type { ManagerQuoteBalanceRow } from "@/hooks/useManagerQuoteBalances";
@@ -67,6 +70,14 @@ export function PortfolioWithdrawDialog({
   const managerAvailable = managerRows.length > 0;
   const positionsAvailable = keyRows.length > 0;
   const hasAnyDestination = managerAvailable || positionsAvailable;
+  const withdrawableUsd = useMemo(() => {
+    const keyTotal = keyRows.reduce((sum, row) => sum + scaleQuoteAtoms(row.balanceAtoms), 0);
+    const managerTotal = managerRows.reduce(
+      (sum, row) => sum + scaleQuoteAtoms(row.balanceAtoms),
+      0,
+    );
+    return keyTotal + managerTotal;
+  }, [keyRows, managerRows]);
 
   const [tab, setTab] = useState<FundsDestinationTab>("manager");
   const [selectedManagerIndex, setSelectedManagerIndex] = useState(0);
@@ -170,15 +181,30 @@ export function PortfolioWithdrawDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Withdraw to wallet"
-      description={leverxInfo.withdrawTradingBalance}
     >
       <div className="space-y-4">
+        <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            {ui.balanceWithdrawable}
+          </p>
+          <p className="mt-0.5 font-mono text-lg tabular-nums text-foreground">
+            {isLoading && !hasAnyDestination ? (
+              "…"
+            ) : (
+              <QuoteAmount amount={withdrawableUsd} digits={2} hideZero={false} />
+            )}
+          </p>
+        </div>
+
         {isLoading && !hasAnyDestination ? (
           <p className="text-sm text-muted-foreground">Loading balances…</p>
         ) : !hasAnyDestination ? (
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            No withdrawable dUSDC right now. Free quote appears on market keys after closing a
-            trade, or in your Predict manager after an external redeem. Repay vault borrow first.
+          <p className="text-sm text-muted-foreground">
+            <HintWithInfo
+              summary={leverxInfo.withdrawEmpty}
+              detail={leverxInfo.withdrawEmptyDetail}
+              infoTitle="Withdraw"
+            />
           </p>
         ) : (
           <>
@@ -242,10 +268,18 @@ export function PortfolioWithdrawDialog({
                   })}
                 </div>
               ) : (
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  {borrowedQuote > 0
-                    ? "Repay vault borrow to unlock Predict manager surplus for withdrawal."
-                    : "No withdrawable balance in your Predict manager."}
+                <p className="text-sm text-muted-foreground">
+                  <HintWithInfo
+                    summary={
+                      borrowedQuote > 0
+                        ? leverxInfo.managerWithdrawLocked
+                        : "No withdrawable balance in your Predict manager."
+                    }
+                    detail={
+                      borrowedQuote > 0 ? leverxInfo.managerWithdrawLockedDetail : undefined
+                    }
+                    infoTitle="Predict manager"
+                  />
                 </p>
               )
             ) : positionsAvailable ? (
@@ -303,7 +337,7 @@ export function PortfolioWithdrawDialog({
 
             <div className="space-y-2">
               <p className="text-sm font-medium text-foreground">Amount</p>
-              <Input
+              <TradeAmountInput
                 type="number"
                 inputMode="decimal"
                 min={0}
@@ -311,7 +345,6 @@ export function PortfolioWithdrawDialog({
                 value={amountUsd}
                 onChange={(e) => setAmountUsd(e.target.value)}
                 placeholder="0.00"
-                className={cn(inputInField, "font-mono text-sm")}
                 disabled={!selected}
               />
               <button
@@ -320,7 +353,7 @@ export function PortfolioWithdrawDialog({
                 disabled={!selected || maxAtoms <= 0n}
                 onClick={() => setAmountUsd(formatMaxWithdrawUsd(maxAtoms))}
               >
-                Use max ({maxUsd.toLocaleString("en-US", { maximumFractionDigits: maxDigits })})
+                Use max ({formatAmountWithMaxDigits(maxUsd, maxDigits)})
               </button>
               {amountInvalid && amountUsd ? (
                 <p className="text-sm text-destructive">

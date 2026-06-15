@@ -1,4 +1,4 @@
-import { formatDecimalWithSubscript } from "@/lib/format-decimal-subscript";
+import { formatDecimalWithSubscript, truncateToFractionDigits } from "@/lib/format-decimal-subscript";
 
 /** Full USD asset price — never K/M/B/T (oracle spot, strikes, chart guides). */
 export function formatAssetPriceUsd(
@@ -11,7 +11,8 @@ export function formatAssetPriceUsd(
   if (subscript !== null) return subscript;
 
   const maximumFractionDigits = options?.maximumFractionDigits ?? 2;
-  return usd.toLocaleString("en-US", {
+  const truncated = truncateToFractionDigits(usd, maximumFractionDigits);
+  return truncated.toLocaleString("en-US", {
     minimumFractionDigits: 0,
     maximumFractionDigits,
   });

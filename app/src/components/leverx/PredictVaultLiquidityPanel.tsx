@@ -10,6 +10,7 @@ import { useWallet } from "@/context/WalletContext";
 import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
 import { showTxError, showTxSuccess } from "@/lib/toast";
 import { appConfig } from "@/lib/config";
+import { formatAmount } from "@/lib/copy";
 import { lxplpCoinType } from "@/lib/leverx/protocol";
 import { QuoteAmount, QuoteIcon } from "@/components/leverx/QuoteAmount";
 import { QUOTE_UNIT } from "@/lib/predict/constants";
@@ -149,10 +150,7 @@ export function PredictVaultLiquidityPanel({ vaultNav, vaultId, className }: Pro
               ) : balanceAmount == null ? (
                 "_"
               ) : (
-                `${balanceAmount.toLocaleString(undefined, {
-                  maximumFractionDigits: 6,
-                  minimumFractionDigits: 0,
-                })} ${symbol}`
+                `${formatAmount(balanceAmount)} ${symbol}`
               )}
             </span>
           </div>

@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils";
 
 export const MARKETS_TABLE_PAGE_SIZE = 10;
 export const MARKETS_GRID_PAGE_SIZE = 12;
+/** Default page size for DataTable-backed lists (positions, orders, trades, points). */
+export const DEFAULT_TABLE_PAGE_SIZE = MARKETS_TABLE_PAGE_SIZE;
 
 export function paginateSlice<T>(items: T[], page: number, pageSize: number) {
   const totalPages = Math.max(1, Math.ceil(items.length / pageSize));

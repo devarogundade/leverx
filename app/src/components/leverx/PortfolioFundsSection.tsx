@@ -30,17 +30,24 @@ function FundsMetric({
   label,
   value,
   info,
+  infoTitle,
   loading,
 }: {
   label: string;
   value: ReactNode;
   info?: string;
+  infoTitle?: string;
   loading?: boolean;
 }) {
   return (
     <div className="min-w-0 px-4 py-3">
       {info ? (
-        <LabelWithInfo label={label} labelClassName={labelCaps} info={info} />
+        <LabelWithInfo
+          label={label}
+          labelClassName={labelCaps}
+          info={info}
+          infoTitle={infoTitle ?? label}
+        />
       ) : (
         <p className={labelCaps}>{label}</p>
       )}
@@ -54,13 +61,11 @@ function FundsMetric({
 function FundsActionButton({
   icon: Icon,
   label,
-  description,
   disabled,
   onClick,
 }: {
   icon: typeof ArrowDownToLine;
   label: string;
-  description: string;
   disabled?: boolean;
   onClick: () => void;
 }) {
@@ -78,10 +83,7 @@ function FundsActionButton({
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-muted/40">
         <Icon className="h-4 w-4 text-muted-foreground" aria-hidden />
       </span>
-      <span className="min-w-0">
-        <span className="block text-sm font-medium text-foreground">{label}</span>
-        <span className="mt-0.5 block text-xs text-muted-foreground">{description}</span>
-      </span>
+      <span className="text-sm font-medium text-foreground">{label}</span>
     </button>
   );
 }
@@ -143,35 +145,37 @@ export function PortfolioFundsSection({
   }, [keyRows, managerRows]);
 
   const balancesLoading = keyBalancesLoading || managerBalancesLoading;
-  const hasLockedSurplus = borrowedUsd > 0 && (managerUsd ?? 0) > 0;
+  const openPositions = useMemo(
+    () => positions.filter(isActiveOpenPosition),
+    [positions],
+  );
 
   return (
     <>
       <section className={cn(tradeSurface, "overflow-hidden", className)}>
-        <div className="border-b border-border px-4 py-3">
+        <div className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-end sm:justify-between">
           <LabelWithInfo
             label="Funds"
             labelClassName={labelCaps}
-            info="Move dUSDC between your wallet and trading account balances."
+            info={leverxInfo.funds}
+            infoTitle="Funds"
           />
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Total balance matches the header pill. Withdraw only unlocks surplus not tied to borrow.
-          </p>
-        </div>
-
-        <div className="border-b border-border px-4 py-3.5">
-          <LabelWithInfo
-            label={ui.balanceTotal}
-            labelClassName={labelCaps}
-            info={leverxInfo.balanceTotal}
-          />
-          <p className="mt-1 font-mono text-2xl tabular-nums text-foreground sm:text-3xl">
-            {totalBalanceUsd == null ? (
-              "…"
-            ) : (
-              <QuoteAmount amount={totalBalanceUsd} digits={2} hideZero={false} />
-            )}
-          </p>
+          <div className="min-w-0 sm:text-right">
+            <LabelWithInfo
+              label={ui.balanceTotal}
+              labelClassName={labelCaps}
+              info={leverxInfo.balanceTotal}
+              infoTitle={ui.balanceTotal}
+              className="sm:justify-end"
+            />
+            <p className="mt-1 font-mono text-2xl tabular-nums text-foreground sm:text-3xl">
+              {totalBalanceUsd == null ? (
+                "…"
+              ) : (
+                <QuoteAmount amount={totalBalanceUsd} digits={2} hideZero={false} />
+              )}
+            </p>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 divide-y divide-border border-b border-border md:grid-cols-5 md:divide-x md:divide-y-0">
@@ -187,7 +191,11 @@ export function PortfolioFundsSection({
             loading={managerQueryEnabled && managerBalanceLoading && managerUsd == null}
             value={
               managerQueryEnabled ? (
-                <QuoteAmount amount={managerUsd ?? 0} digits={2} hideZero={false} />
+                <QuoteAmount
+                  amount={managerUsd ?? 0}
+                  quoteAtoms={managerBalanceAtoms}
+                  hideZero={false}
+                />
               ) : (
                 "—"
               )
@@ -205,30 +213,23 @@ export function PortfolioFundsSection({
           />
           <FundsMetric
             label={ui.balanceWithdrawable}
-            info={leverxInfo.balanceWithdrawable}
+            info={leverxInfo.balanceWithdrawableDetail}
+            infoTitle={ui.balanceWithdrawable}
             loading={balancesLoading && withdrawableUsd === 0}
             value={<QuoteAmount amount={withdrawableUsd} digits={2} hideZero={false} />}
           />
         </div>
 
-        {hasLockedSurplus ? (
-          <p className="border-b border-border px-4 py-2.5 text-xs leading-relaxed text-muted-foreground">
-            Repay vault borrow to unlock Predict manager surplus for withdrawal.
-          </p>
-        ) : null}
-
         <div className="grid gap-2 px-4 py-3 sm:grid-cols-2">
           <FundsActionButton
             icon={ArrowDownToLine}
             label="Deposit"
-            description="Move dUSDC from wallet to trade"
-            disabled={!predictManagerId && positions.length === 0}
+            disabled={!predictManagerId && openPositions.length === 0}
             onClick={() => setDepositOpen(true)}
           />
           <FundsActionButton
             icon={ArrowUpFromLine}
             label="Withdraw"
-            description="Move surplus back to wallet"
             onClick={() => setWithdrawOpen(true)}
           />
         </div>
@@ -239,7 +240,7 @@ export function PortfolioFundsSection({
         onOpenChange={setDepositOpen}
         accountId={accountId}
         predictManagerId={predictManagerId}
-        positions={positions}
+        positions={openPositions}
       />
       <PortfolioWithdrawDialog
         open={withdrawOpen}

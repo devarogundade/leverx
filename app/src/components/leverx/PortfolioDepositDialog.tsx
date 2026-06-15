@@ -5,14 +5,14 @@ import {
   FundsDestinationTabs,
   type FundsDestinationTab,
 } from "@/components/leverx/FundsDestinationTabs";
+import { TradeAmountInput } from "@/components/leverx/TradeFormControls";
 import { QuoteAmount, QuoteAmountInline } from "@/components/leverx/QuoteAmount";
-import { Input } from "@/components/ui/input";
 import { useDepositKeyTargets } from "@/hooks/useDepositKeyTargets";
 import { useLeverxProtocolConfig, useLeverxTransactions } from "@/hooks/useLeverxTransactions";
 import { useWalletCoinBalance } from "@/hooks/useWalletCoinBalance";
-import { leverxInfo } from "@/lib/leverx/info-copy";
+import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
-import { showTxError, showTxSuccess } from "@/lib/toast";
+import { formatAmountWithMaxDigits } from "@/lib/copy";
 import { assetLabelForOracleId } from "@/lib/predict/oracles";
 import { predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
 import { usePredictOracleRows } from "@/hooks/usePredictOracles";
@@ -24,7 +24,7 @@ import {
   withdrawUsdDecimals,
   withdrawUsdDisplayAmount,
 } from "@/lib/leverx/trade-math";
-import { inputInField, pillToggleBtn, pillToggleIdle } from "@/lib/leverx/tw";
+import { pillToggleBtn, pillToggleIdle } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
 import type { DepositKeyTarget } from "@/hooks/useDepositKeyTargets";
 
@@ -54,7 +54,11 @@ export function PortfolioDepositDialog({
 }: Props) {
   const { data: oracles = [] } = usePredictOracleRows();
   const { cfg } = useLeverxProtocolConfig();
-  const keyTargets = useDepositKeyTargets(positions);
+  const openPositions = useMemo(
+    () => positions.filter(isActiveOpenPosition),
+    [positions],
+  );
+  const keyTargets = useDepositKeyTargets(openPositions);
   const { depositQuote, depositManagerQuote, isProtocolReady } = useLeverxTransactions();
   const { data: walletUsd, isLoading: walletLoading } = useWalletCoinBalance(
     open ? (cfg?.quoteType ?? null) : null,
@@ -157,7 +161,6 @@ export function PortfolioDepositDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Deposit to trading account"
-      description={leverxInfo.depositTradingBalance}
     >
       <div className="space-y-4">
         <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5">
@@ -256,7 +259,7 @@ export function PortfolioDepositDialog({
 
             <div className="space-y-2">
               <p className="text-sm font-medium text-foreground">Amount</p>
-              <Input
+              <TradeAmountInput
                 type="number"
                 inputMode="decimal"
                 min={0}
@@ -264,7 +267,6 @@ export function PortfolioDepositDialog({
                 value={amountUsd}
                 onChange={(e) => setAmountUsd(e.target.value)}
                 placeholder="0.00"
-                className={cn(inputInField, "font-mono text-sm")}
                 disabled={!selected}
               />
               <button
@@ -273,7 +275,7 @@ export function PortfolioDepositDialog({
                 disabled={!selected || maxAtoms <= 0n}
                 onClick={() => setAmountUsd(formatMaxWithdrawUsd(walletAtoms))}
               >
-                Use max ({maxUsd.toLocaleString("en-US", { maximumFractionDigits: maxDigits })})
+                Use max ({formatAmountWithMaxDigits(maxUsd, maxDigits)})
               </button>
               {amountInvalid && amountUsd ? (
                 <p className="text-sm text-destructive">

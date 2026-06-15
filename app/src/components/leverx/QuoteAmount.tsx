@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { AssetBadge, type AssetBadgeSize } from "@/components/AssetBadge";
 import { useAnimatedCounter } from "@/hooks/useAnimatedCounter";
-import { formatAmount } from "@/lib/copy";
+import { formatAmountWithMaxDigits } from "@/lib/copy";
+import { formatQuoteAtomsAmount } from "@/lib/predict/scaling";
 import { isQuoteAssetSymbol } from "@/lib/asset-icons";
 import { formatQuantity } from "@/lib/leverx/format-quantity";
 import { DATA_PLACEHOLDER } from "@/lib/leverx/placeholders";
@@ -9,6 +10,8 @@ import { cn } from "@/lib/utils";
 
 type QuoteAmountProps = {
   amount: number | null | undefined;
+  /** When set, display uses exact on-chain quote atoms (6 dp) instead of a float amount. */
+  quoteAtoms?: bigint | number | string | null;
   symbol?: string;
   placeholder?: string;
   loading?: boolean;
@@ -26,10 +29,17 @@ type QuoteAmountProps = {
   align?: "start" | "end";
 };
 
-function formatQuoteValue(amount: number, compact?: boolean, digits?: number): string {
-  if (digits != null) return amount.toFixed(digits);
+function formatQuoteValue(
+  amount: number,
+  compact?: boolean,
+  digits?: number,
+  quoteAtoms?: bigint | number | string | null,
+): string {
   if (compact) return formatQuantity(amount);
-  return formatAmount(amount);
+  if (quoteAtoms != null && quoteAtoms !== "" && quoteAtoms !== 0 && quoteAtoms !== 0n) {
+    return formatQuoteAtomsAmount(quoteAtoms);
+  }
+  return formatAmountWithMaxDigits(amount, digits);
 }
 
 export function QuoteIcon({
@@ -52,6 +62,7 @@ export function QuoteIcon({
 
 export function QuoteAmount({
   amount,
+  quoteAtoms,
   symbol = "DUSDC",
   placeholder = DATA_PLACEHOLDER,
   loading,
@@ -91,7 +102,7 @@ export function QuoteAmount({
 
   const displayAmount = canAnimate ? animatedAmount : amount;
   const sym = symbol.trim().toUpperCase();
-  const text = formatQuoteValue(displayAmount, compact, digits);
+  const text = formatQuoteValue(displayAmount, compact, digits, quoteAtoms);
 
   if (!isQuoteAssetSymbol(sym)) {
     return (

@@ -55,6 +55,9 @@ interface Props {
   /** Hide Health (est.) and Expiry columns — used for closed positions. */
   hideLiveMetrics?: boolean;
   className?: string;
+  /** Resets table pagination when changed (e.g. open vs closed filter). */
+  paginationKey?: string | number;
+  pageSize?: number;
 }
 
 interface PositionRow {
@@ -371,6 +374,8 @@ export function LeverxPositionsTable({
   showHeader = true,
   hideLiveMetrics = false,
   className,
+  paginationKey,
+  pageSize,
 }: Props) {
   const { data: oracles = [] } = usePredictOracleRows();
   const rows = useMemo(
@@ -593,7 +598,13 @@ export function LeverxPositionsTable({
           ) : null}
         </div>
       ) : null}
-      <DataTable columns={cols} rows={rows} rowKey={(r) => r.id} />
+      <DataTable
+        columns={cols}
+        rows={rows}
+        rowKey={(r) => r.id}
+        paginationKey={paginationKey}
+        pageSize={pageSize}
+      />
     </div>
   );
 }

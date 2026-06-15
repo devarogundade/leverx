@@ -1,5 +1,10 @@
-import { type ReactNode } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
+import {
+  DEFAULT_TABLE_PAGE_SIZE,
+  MarketCatalogPagination,
+  paginateSlice,
+} from "@/components/leverx/MarketCatalogPagination";
 import {
   dataTableMobileCard,
   dataTableMobileCardFooter,
@@ -35,6 +40,10 @@ interface Props<T> {
   empty?: ReactNode;
   onRowClick?: (row: T) => void;
   rowClassName?: (row: T) => string;
+  /** When set, rows are paginated client-side (default 10). Pass `0` to show all rows. */
+  pageSize?: number;
+  /** Resets to page 1 when this value changes (e.g. tab or filter). */
+  paginationKey?: string | number;
 }
 
 function columnLabel<T>(column: Column<T>): ReactNode {
@@ -43,7 +52,36 @@ function columnLabel<T>(column: Column<T>): ReactNode {
   return column.key;
 }
 
-export function DataTable<T>({ columns, rows, rowKey, empty, onRowClick, rowClassName }: Props<T>) {
+export function DataTable<T>({
+  columns,
+  rows,
+  rowKey,
+  empty,
+  onRowClick,
+  rowClassName,
+  pageSize = DEFAULT_TABLE_PAGE_SIZE,
+  paginationKey,
+}: Props<T>) {
+  const [page, setPage] = useState(1);
+  const paginate = pageSize > 0 && rows.length > pageSize;
+
+  useEffect(() => {
+    setPage(1);
+  }, [paginationKey]);
+
+  const pagination = useMemo(
+    () => paginateSlice(rows, page, pageSize),
+    [rows, page, pageSize],
+  );
+
+  useEffect(() => {
+    if (page > pagination.totalPages) {
+      setPage(pagination.totalPages);
+    }
+  }, [page, pagination.totalPages]);
+
+  const displayRows = paginate ? pagination.items : rows;
+
   if (rows.length === 0 && empty) {
     return <div className={cn(pageState, "py-8")}>{empty}</div>;
   }
@@ -72,7 +110,7 @@ export function DataTable<T>({ columns, rows, rowKey, empty, onRowClick, rowClas
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {rows.map((row) => (
+            {displayRows.map((row) => (
               <tr
                 key={rowKey(row)}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
@@ -102,7 +140,7 @@ export function DataTable<T>({ columns, rows, rowKey, empty, onRowClick, rowClas
       </div>
 
       <div className={dataTableMobileList}>
-        {rows.map((row) => {
+        {displayRows.map((row) => {
           const emphasis = columns.filter((c) => c.mobileEmphasis);
           const trailing = columns.filter((c) => c.mobileTrailing);
           const footer = columns.filter((c) => c.mobileFooter);
@@ -183,6 +221,16 @@ export function DataTable<T>({ columns, rows, rowKey, empty, onRowClick, rowClas
           );
         })}
       </div>
+
+      {paginate ? (
+        <MarketCatalogPagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.totalItems}
+          pageSize={pageSize}
+          onPageChange={setPage}
+        />
+      ) : null}
     </>
   );
 }

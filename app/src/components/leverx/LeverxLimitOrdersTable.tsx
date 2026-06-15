@@ -13,6 +13,8 @@ import { scaleQuote } from "@/lib/predict/scaling";
 interface Props {
   orders: readonly LimitMintOrder[];
   className?: string;
+  paginationKey?: string | number;
+  pageSize?: number;
 }
 
 interface OrderRow {
@@ -22,7 +24,12 @@ interface OrderRow {
   side: PredictSide;
 }
 
-export function LeverxLimitOrdersTable({ orders, className }: Props) {
+export function LeverxLimitOrdersTable({
+  orders,
+  className,
+  paginationKey,
+  pageSize,
+}: Props) {
   const { data: oracles = [] } = usePredictOracleRows();
   const rows: OrderRow[] = useMemo(
     () =>
@@ -130,7 +137,13 @@ export function LeverxLimitOrdersTable({ orders, className }: Props) {
 
   return (
     <div className={className}>
-      <DataTable columns={cols} rows={rows} rowKey={(r) => r.id} />
+      <DataTable
+        columns={cols}
+        rows={rows}
+        rowKey={(r) => r.id}
+        paginationKey={paginationKey}
+        pageSize={pageSize}
+      />
     </div>
   );
 }

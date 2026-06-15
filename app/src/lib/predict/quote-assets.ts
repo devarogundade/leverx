@@ -1,4 +1,5 @@
 import { appConfig } from "@/lib/config";
+import { formatAmount } from "@/lib/copy";
 
 /** Ensure full `0x…::module::TYPE` form for RPC and comparisons. */
 export function normalizeQuoteAssetType(coinType: string): string {
@@ -40,9 +41,5 @@ export function normalizeQuoteAssetList(types: readonly string[]): string[] {
 export function formatCollateralAmount(coinType: string, amount: number): string {
   const symbol = quoteAssetSymbol(coinType);
   if (!Number.isFinite(amount)) return `0 ${symbol}`;
-  const formatted = amount.toLocaleString(undefined, {
-    maximumFractionDigits: 6,
-    minimumFractionDigits: 0,
-  });
-  return `${formatted} ${symbol}`;
+  return `${formatAmount(amount)} ${symbol}`;
 }

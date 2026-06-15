@@ -1,6 +1,6 @@
 import type { ComponentPropsWithoutRef } from "react";
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
-import { formatCount } from "@/lib/copy";
+import { formatCount, formatAmountWithMaxDigits } from "@/lib/copy";
 import { formatAssetPriceUsdWithSymbol } from "@/lib/leverx/format-asset-price";
 import { formatQuantity } from "@/lib/leverx/format-quantity";
 import { premiumToCents } from "@/lib/leverx/indexer-markets";
@@ -29,8 +29,8 @@ function levelNotionalUsd(price: number, size: number): number | null {
 }
 
 function formatLevelNotionalUsd(usd: number): string {
-  if (usd >= 1000) return `$${(usd / 1000).toFixed(1)}K`;
-  return `$${usd.toFixed(usd >= 10 ? 0 : 2)}`;
+  if (usd >= 1000) return `$${formatAmountWithMaxDigits(usd / 1000, 1)}K`;
+  return `$${formatAmountWithMaxDigits(usd, usd >= 10 ? 0 : 2)}`;
 }
 
 /** Contract premium in raw 1e9 scale → animated ¢ display. */

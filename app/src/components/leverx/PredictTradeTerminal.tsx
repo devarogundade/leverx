@@ -385,6 +385,8 @@ function TradePositionsPanel({
               owner={address ?? undefined}
               compact
               showHeader={false}
+              paginationKey={positionsFilter}
+              hideLiveMetrics={positionsFilter === "closed"}
             />
           ) : (
             <EmptyState

@@ -154,6 +154,12 @@ export const pillToggleGroup =
 
 export const pillToggleBtn = "rounded px-2.5 py-1 text-sm font-medium capitalize transition-colors";
 
+/** Pill action with leading/trailing icon — row layout */
+export const pillIconBtn = cn(
+  pillToggleBtn,
+  "inline-flex items-center justify-center gap-1.5 normal-case",
+);
+
 export const pillToggleActive = "bg-card font-semibold text-foreground shadow-sm";
 
 export const pillToggleIdle = "text-muted-foreground hover:text-foreground";

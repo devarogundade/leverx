@@ -9,8 +9,9 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   trades: readonly GlobalMarketTrade[];
-  limit?: number;
   className?: string;
+  paginationKey?: string | number;
+  pageSize?: number;
 }
 
 interface TradeRow {
@@ -36,8 +37,13 @@ function tradeOutcomeSide(trade: GlobalMarketTrade): PredictSide {
   return trade.is_up ? "up" : "down";
 }
 
-export function MarketTradesTable({ trades, limit = 12, className }: Props) {
-  const rows: TradeRow[] = trades.slice(0, limit).map((trade) => ({
+export function MarketTradesTable({
+  trades,
+  className,
+  paginationKey,
+  pageSize,
+}: Props) {
+  const rows: TradeRow[] = trades.map((trade) => ({
     id: trade.event_digest,
     trade,
   }));
@@ -104,7 +110,13 @@ export function MarketTradesTable({ trades, limit = 12, className }: Props) {
 
   return (
     <div className={className}>
-      <DataTable columns={cols} rows={rows} rowKey={(r) => r.id} />
+      <DataTable
+        columns={cols}
+        rows={rows}
+        rowKey={(r) => r.id}
+        paginationKey={paginationKey}
+        pageSize={pageSize}
+      />
     </div>
   );
 }

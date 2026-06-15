@@ -1,6 +1,11 @@
+import { formatDecimalWithSubscript, truncateToFractionDigits } from "@/lib/format-decimal-subscript";
+
 function formatSubThousand(abs: number): string {
+  const subscript = formatDecimalWithSubscript(abs);
+  if (subscript !== null) return subscript;
   if (Number.isInteger(abs)) return abs.toLocaleString("en-US");
-  return abs.toFixed(3).replace(/\.?0+$/, "");
+  const truncated = truncateToFractionDigits(abs, 3);
+  return truncated.toFixed(3).replace(/\.?0+$/, "");
 }
 
 function compactScaled(value: number, divisor: number, suffix: string): string {

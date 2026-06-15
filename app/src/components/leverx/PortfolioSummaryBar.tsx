@@ -72,12 +72,12 @@ export function PortfolioSummaryBar({ summary, loading, className }: Props) {
   return (
     <div className={cn(tradeSurface, className)}>
       <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
-        <div>
-          <p className={labelCaps}>Portfolio overview</p>
-          <p className="text-sm text-muted-foreground">
-            Live marks refresh every ~12s across open positions
-          </p>
-        </div>
+        <LabelWithInfo
+          label="Portfolio overview"
+          labelClassName={labelCaps}
+          info={leverxInfo.portfolioOverviewDetail}
+          infoTitle="Portfolio overview"
+        />
         {summary && summary.atRiskCount > 0 ? (
           <span className="inline-flex items-center gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] font-medium text-amber-600 dark:text-amber-400">
             <AlertTriangle className="h-3.5 w-3.5" />

@@ -11,27 +11,25 @@ import {
 import { ConfirmDialog } from "@/components/leverx/ConfirmDialog";
 import { ResponsiveModal } from "@/components/leverx/ResponsiveModal";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
-import { QuoteAmount } from "@/components/leverx/QuoteAmount";
 import { PortfolioFundsSection } from "@/components/leverx/PortfolioFundsSection";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loading-state";
 import { leverxInfo } from "@/lib/leverx/info-copy";
-import { useIndexerExecutors, useIndexerTriggers } from "@/hooks/useIndexer";
+import { useIndexerExecutors } from "@/hooks/useIndexer";
 import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
 import { showTxError, showTxSuccess } from "@/lib/toast";
 import type { LeveragedPosition, UserProxy } from "@/lib/leverx/indexer-client";
-import { scaleQuote } from "@/lib/predict/scaling";
 import { isValidSuiAddress } from "@/lib/leverx/form-helpers";
 import {
   inputInField,
   labelCaps,
+  pillIconBtn,
   pillToggleBtn,
   pillToggleIdle,
   settingsList,
   settingsListItem,
   settingsListItemHeader,
-  statValue,
   tradeSurface,
 } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
@@ -73,9 +71,9 @@ function CopyField({ label, value }: { label: string; value: string; }) {
       <button
         type="button"
         className={cn(
-          pillToggleBtn,
+          pillIconBtn,
           pillToggleIdle,
-          "shrink-0 gap-1 px-2 py-1.5 text-[11px]",
+          "shrink-0 px-2 py-1.5 text-[11px]",
         )}
         onClick={async () => {
           try {
@@ -91,30 +89,6 @@ function CopyField({ label, value }: { label: string; value: string; }) {
         {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
         {copied ? "Copied" : "Copy"}
       </button>
-    </div>
-  );
-}
-
-function AccountMetric({
-  label,
-  value,
-  info,
-  sub,
-}: {
-  label: string;
-  value: ReactNode;
-  info?: string;
-  sub?: string;
-}) {
-  return (
-    <div className="min-w-0 px-4 py-3.5">
-      {info ? (
-        <LabelWithInfo label={label} labelClassName={labelCaps} info={info} />
-      ) : (
-        <p className={labelCaps}>{label}</p>
-      )}
-      <p className={cn(statValue, "mt-1 truncate text-lg sm:text-xl")}>{value}</p>
-      {sub ? <p className="mt-0.5 text-[11px] text-muted-foreground">{sub}</p> : null}
     </div>
   );
 }
@@ -165,10 +139,6 @@ export function PortfolioAccountPanel({
   const accountId = account.account_id;
   const history = allPositions ?? positions;
   const {
-    data: triggers = [],
-    isLoading: triggersLoading,
-  } = useIndexerTriggers(accountId);
-  const {
     data: executors = [],
     isLoading: executorsLoading,
   } = useIndexerExecutors(accountId);
@@ -189,8 +159,6 @@ export function PortfolioAccountPanel({
 
   const managerValid = !managerId || isValidSuiAddress(managerId);
   const executorValid = !executorAddress || isValidSuiAddress(executorAddress);
-  const activeTriggers = triggers.filter((t) => t.active);
-  const activeExecutors = executors.filter((e) => e.active);
   const managerLinked = Boolean(account.predict_manager_id);
 
   return (
@@ -199,7 +167,12 @@ export function PortfolioAccountPanel({
         <div className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
-              <p className={labelCaps}>Trading account</p>
+              <LabelWithInfo
+                label="Trading account"
+                labelClassName={labelCaps}
+                info={leverxInfo.accountSettings}
+                infoTitle="Trading account"
+              />
               <Badge
                 variant="outline"
                 className={cn(
@@ -218,11 +191,10 @@ export function PortfolioAccountPanel({
                 {managerLinked ? "Manager linked" : "Manager not linked"}
               </Badge>
             </div>
-            <p className="text-sm text-muted-foreground">{leverxInfo.accountSettings}</p>
           </div>
           <button
             type="button"
-            className={cn(pillToggleBtn, pillToggleIdle, "gap-1.5 self-start px-3 py-1.5 text-sm")}
+            className={cn(pillIconBtn, pillToggleIdle, "self-start px-3 py-1.5 text-sm")}
             onClick={() => {
               setManagerId(account.predict_manager_id ?? "");
               setManagerOpen(true);
@@ -235,31 +207,6 @@ export function PortfolioAccountPanel({
             )}
             {managerLinked ? "Change manager" : "Link manager"}
           </button>
-        </div>
-
-        <div className="grid divide-y divide-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-          <AccountMetric
-            label="Vault borrow"
-            info={leverxInfo.borrowedQuote}
-            value={<QuoteAmount amount={scaleQuote(account.borrowed_quote)} hideZero />}
-            sub="Across all market keys"
-          />
-          <AccountMetric
-            label="Trusted traders"
-            info={leverxInfo.sessionExecutor}
-            value={executorsLoading ? "…" : String(activeExecutors.length)}
-            sub={
-              activeExecutors.length === 1
-                ? "Active session wallet"
-                : "Active session wallets"
-            }
-          />
-          <AccountMetric
-            label="Auto-exit rules"
-            info={leverxInfo.triggers}
-            value={triggersLoading ? "…" : String(activeTriggers.length)}
-            sub="Take-profit / stop-loss — manage per position"
-          />
         </div>
 
         <div className="grid gap-2 border-t border-border px-4 py-3 sm:grid-cols-2">
@@ -287,66 +234,66 @@ export function PortfolioAccountPanel({
       />
 
       <SettingsCard
-        title="Trusted traders"
+        title="Bot & Trusted traders"
         info={leverxInfo.sessionExecutor}
         icon={Shield}
         action={
-            <button
-              type="button"
-              className={cn(pillToggleBtn, pillToggleIdle, "gap-1 px-2.5 text-sm")}
-              onClick={() => {
-                setExecutorAddress("");
-                setExecutorOpen(true);
-              }}
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Add
-            </button>
-          }
-        >
-          {executorsLoading ? (
-            <LoadingState label="Loading trusted traders…" compact />
-          ) : executors.length === 0 ? (
-            <EmptyHint>
-              Register a separate wallet that can place trades for you without your main key.
-            </EmptyHint>
-          ) : (
-            <ul className={settingsList}>
-              {executors.map((ex) => (
-                <li key={ex.executor} className={settingsListItem}>
-                  <div className={settingsListItemHeader}>
-                    <div className="min-w-0">
-                      <p className="truncate font-mono text-sm" title={ex.executor}>
-                        {shortAddress(ex.executor, 10, 8)}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {ex.active
-                          ? `Added ${formatShortDate(ex.registered_at_ms)}`
-                          : ex.revoked_at_ms
-                            ? `Revoked ${formatShortDate(ex.revoked_at_ms)}`
-                            : "Revoked"}
-                      </p>
-                    </div>
-                    {ex.active ? (
-                      <button
-                        type="button"
-                        className={cn(pillToggleBtn, pillToggleIdle, "text-sm")}
-                        disabled={revokeExecutor.isPending}
-                        onClick={() => setRevokeTarget(ex.executor)}
-                      >
-                        Revoke
-                      </button>
-                    ) : (
-                      <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
-                        Inactive
-                      </Badge>
-                    )}
+          <button
+            type="button"
+            className={cn(pillIconBtn, pillToggleIdle, "px-2.5 text-sm")}
+            onClick={() => {
+              setExecutorAddress("");
+              setExecutorOpen(true);
+            }}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add
+          </button>
+        }
+      >
+        {executorsLoading ? (
+          <LoadingState label="Loading trusted traders…" compact />
+        ) : executors.length === 0 ? (
+          <EmptyHint>
+            Register a separate wallet that can place trades for you without your main key.
+          </EmptyHint>
+        ) : (
+          <ul className={settingsList}>
+            {executors.map((ex) => (
+              <li key={ex.executor} className={settingsListItem}>
+                <div className={settingsListItemHeader}>
+                  <div className="min-w-0">
+                    <p className="truncate font-mono text-sm" title={ex.executor}>
+                      {shortAddress(ex.executor, 10, 8)}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {ex.active
+                        ? `Added ${formatShortDate(ex.registered_at_ms)}`
+                        : ex.revoked_at_ms
+                          ? `Revoked ${formatShortDate(ex.revoked_at_ms)}`
+                          : "Revoked"}
+                    </p>
                   </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </SettingsCard>
+                  {ex.active ? (
+                    <button
+                      type="button"
+                      className={cn(pillToggleBtn, pillToggleIdle, "text-sm")}
+                      disabled={revokeExecutor.isPending}
+                      onClick={() => setRevokeTarget(ex.executor)}
+                    >
+                      Revoke
+                    </button>
+                  ) : (
+                    <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
+                      Inactive
+                    </Badge>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </SettingsCard>
 
       <ResponsiveModal
         open={managerOpen}

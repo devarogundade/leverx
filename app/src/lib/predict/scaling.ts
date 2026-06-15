@@ -1,4 +1,11 @@
 import { FLOAT_SCALING, QUOTE_UNIT } from "@/lib/predict/constants";
+import { formatAmountWithMaxDigits } from "@/lib/copy";
+import {
+  formatDecimalWithSubscriptFromParts,
+  SUBSCRIPT_DUST_THRESHOLD,
+} from "@/lib/format-decimal-subscript";
+
+const QUOTE_ATOM_FRACTION_DIGITS = 6;
 
 /** Coerce indexer / API atom fields (number, bigint, or numeric string) to number. */
 export function coerceQuoteAtoms(value: unknown): number {
@@ -48,6 +55,44 @@ export function scaleQuoteAtoms(atoms: bigint | number | string | null | undefin
   const frac = normalized % QUOTE_UNIT;
   const usd = Number(whole) + Number(frac) / Number(QUOTE_UNIT);
   return Number.isFinite(usd) ? usd : 0;
+}
+
+/**
+ * Format on-chain quote atoms for display — exact fractional dust, subscript when 2dp would hide it.
+ * e.g. 75_000_242 atoms → `75.0₃242`
+ */
+export function formatQuoteAtomsAmount(
+  atoms: bigint | number | string | null | undefined,
+): string {
+  const normalized = coerceQuoteAtomsToBigInt(atoms);
+  if (normalized <= 0n) return "0";
+
+  const sign = normalized < 0n ? "-" : "";
+  const abs = normalized < 0n ? -normalized : normalized;
+  const whole = abs / QUOTE_UNIT;
+  const frac = abs % QUOTE_UNIT;
+
+  if (frac === 0n) {
+    return formatAmountWithMaxDigits(Number(whole));
+  }
+
+  const fracStr = frac.toString().padStart(QUOTE_ATOM_FRACTION_DIGITS, "0");
+  const subscript = formatDecimalWithSubscriptFromParts(
+    whole.toString(),
+    fracStr,
+    sign,
+  );
+  if (subscript !== null) return subscript;
+
+  const relaxed = formatDecimalWithSubscriptFromParts(
+    whole.toString(),
+    fracStr,
+    sign,
+    SUBSCRIPT_DUST_THRESHOLD,
+  );
+  if (relaxed !== null) return relaxed;
+
+  return formatAmountWithMaxDigits(scaleQuoteAtoms(abs), QUOTE_ATOM_FRACTION_DIGITS);
 }
 
 /** Token amounts from on-chain atom counts. */

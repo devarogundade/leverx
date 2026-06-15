@@ -1238,9 +1238,9 @@ export function PredictLeveragePanel({
           </Collapsible>
 
           <TradeQuoteSummary
-            quote={mintQuote}
-            isLoading={isCalculatingQuote && !mintQuote}
-            isRefreshing={quoteRefreshing && Boolean(mintQuote)}
+            quote={marginNum > 0 ? mintQuote : null}
+            isLoading={marginNum > 0 && isCalculatingQuote && !mintQuote}
+            isRefreshing={marginNum > 0 && quoteRefreshing && Boolean(mintQuote)}
           />
 
           <div className={tpSlBlock}>

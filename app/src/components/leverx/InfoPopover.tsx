@@ -71,3 +71,24 @@ export function LabelWithInfo({
     </span>
   );
 }
+
+interface HintWithInfoProps {
+  summary: ReactNode;
+  detail?: ReactNode;
+  infoTitle?: string;
+  className?: string;
+}
+
+/** Short visible line with longer detail in a popover. */
+export function HintWithInfo({ summary, detail, infoTitle, className }: HintWithInfoProps) {
+  return (
+    <span className={cn("inline-flex items-start gap-1.5", className)}>
+      <span>{summary}</span>
+      {detail ? (
+        <InfoPopover title={infoTitle} iconClassName="h-3.5 w-3.5" className="mt-0.5 shrink-0">
+          {detail}
+        </InfoPopover>
+      ) : null}
+    </span>
+  );
+}

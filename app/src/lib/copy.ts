@@ -1,5 +1,10 @@
 /** Shared plain-language labels for UI surfaces. */
-import { formatDecimalWithSubscript } from "@/lib/format-decimal-subscript";
+import {
+  formatDecimalWithSubscript,
+  formatDecimalWithSubscriptFromParts,
+  SUBSCRIPT_DUST_THRESHOLD,
+  truncateToFractionDigits,
+} from "@/lib/format-decimal-subscript";
 import { formatAssetPriceUsdWithSymbol } from "@/lib/leverx/format-asset-price";
 
 export const ui = {
@@ -100,28 +105,62 @@ const MAX_DISPLAY_FRACTION_DIGITS = 6;
 const LARGE_AMOUNT_FRACTION_DIGITS = 2;
 const LARGE_AMOUNT_THRESHOLD = 1;
 
-export function formatAmount(value: number): string {
+function hasHiddenFractionalDust(abs: number, fractionDigits: number): boolean {
+  return abs > truncateToFractionDigits(abs, fractionDigits) + 1e-12;
+}
+
+function formatAmountSubscript(abs: number, sign: string, fractionDigits: number): string | null {
+  const subscript = formatDecimalWithSubscript(abs, sign);
+  if (subscript !== null) return subscript;
+
+  if (!hasHiddenFractionalDust(abs, fractionDigits)) return null;
+
+  const plain = abs.toString();
+  const str =
+    plain.includes("e") || plain.includes("E") || !plain.includes(".")
+      ? abs.toFixed(6)
+      : plain;
+  const dot = str.indexOf(".");
+  if (dot === -1) return null;
+  return formatDecimalWithSubscriptFromParts(
+    str.slice(0, dot),
+    str.slice(dot + 1),
+    sign,
+    SUBSCRIPT_DUST_THRESHOLD,
+  );
+}
+
+export function formatAmountWithMaxDigits(
+  value: number,
+  maximumFractionDigits?: number,
+): string {
   if (!Number.isFinite(value)) return "0";
 
   const sign = value < 0 ? "-" : "";
   const abs = Math.abs(value);
   if (abs === 0) return "0";
 
-  const subscript = formatDecimalWithSubscript(abs, sign);
+  const fractionDigits =
+    maximumFractionDigits ??
+    (abs >= LARGE_AMOUNT_THRESHOLD ? LARGE_AMOUNT_FRACTION_DIGITS : MAX_DISPLAY_FRACTION_DIGITS);
+
+  const subscript = formatAmountSubscript(abs, sign, fractionDigits);
   if (subscript !== null) return subscript;
 
-  const fractionDigits =
-    abs >= LARGE_AMOUNT_THRESHOLD ? LARGE_AMOUNT_FRACTION_DIGITS : MAX_DISPLAY_FRACTION_DIGITS;
-  const rounded = Number(abs.toFixed(fractionDigits));
-  if (rounded === 0) return "0";
+  const truncated = truncateToFractionDigits(abs, fractionDigits);
+  if (truncated === 0) return "0";
 
   return (
     sign +
-    rounded.toLocaleString(undefined, {
+    truncated.toLocaleString(undefined, {
       maximumFractionDigits: fractionDigits,
       minimumFractionDigits: 0,
     })
   );
+}
+
+export function formatAmount(value: number): string {
+  return formatAmountWithMaxDigits(value);
 }
 
 export function formatPrice(_base: string, value: number): string {

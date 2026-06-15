@@ -98,7 +98,7 @@
   --trade-chart-h: 280px;
   --markets-hero-h: 220px;
   --markets-catalog-h: 32rem;
-  --trade-positions-body-min-h: 18rem;
+  --trade-positions-body-min-h: 10rem;
   --trade-header-stats-h: 3.25rem;
   --trade-header-pills-h: 2rem;
   --featured-carousel-row-h: 3.75rem;
@@ -380,7 +380,7 @@
     --trade-chart-h: 460px;
     --trade-sidebar-w: 340px;
     --trade-orderbook-w: 280px;
-    --trade-positions-body-min-h: 24rem;
+    --trade-positions-body-min-h: 10rem;
   }
 }
 

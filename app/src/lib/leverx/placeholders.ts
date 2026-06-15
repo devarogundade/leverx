@@ -1,4 +1,4 @@
-import { formatUsdc } from "@/lib/copy";
+import { formatUsdc, formatAmount } from "@/lib/copy";
 import { formatQuantity } from "@/lib/leverx/format-quantity";
 
 /** Shown when indexer data is missing or unreachable — never blocks the page. */
@@ -72,7 +72,7 @@ export function formatUsdcPill(amount: number | null | undefined, ready: boolean
   if (!ready) return "…";
   if (amount == null || !Number.isFinite(amount)) return DATA_PLACEHOLDER;
   if (amount === 0) return "0";
-  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M`;
-  if (amount >= 1_000) return `${Math.round(amount / 1_000)}K`;
-  return amount < 1 ? amount.toFixed(2) : Math.round(amount).toString();
+  if (amount >= 1_000_000) return `${formatAmount(amount / 1_000_000)}M`;
+  if (amount >= 1_000) return `${formatAmount(amount / 1_000)}K`;
+  return formatAmount(amount);
 }

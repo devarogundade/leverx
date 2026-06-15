@@ -316,12 +316,12 @@ export function computePositionMarkToMarket(
   };
 }
 
+import { formatAmount } from "@/lib/copy";
+
 export function formatPnlUsd(value: number): string {
+  if (!Number.isFinite(value)) return "—";
   const sign = value > 0 ? "+" : value < 0 ? "-" : "";
-  return `${sign}$${Math.abs(value).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  return `${sign}$${formatAmount(Math.abs(value))}`;
 }
 
 export function formatPnlPct(value: number | null): string {
