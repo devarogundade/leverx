@@ -1,4 +1,5 @@
 /** Shared plain-language labels for UI surfaces. */
+import { formatDecimalWithSubscript } from "@/lib/format-decimal-subscript";
 import { formatAssetPriceUsdWithSymbol } from "@/lib/leverx/format-asset-price";
 
 export const ui = {
@@ -97,13 +98,6 @@ export const ui = {
 const MAX_DISPLAY_FRACTION_DIGITS = 6;
 const LARGE_AMOUNT_FRACTION_DIGITS = 2;
 const LARGE_AMOUNT_THRESHOLD = 1;
-const SUBSCRIPT_ZERO_THRESHOLD = 4;
-
-const SUBSCRIPT_DIGITS = "₀₁₂₃₄₅₆₇₈₉";
-
-function toSubscriptDigits(count: number): string {
-  return String(count).replace(/[0-9]/g, (digit) => SUBSCRIPT_DIGITS[Number(digit)]!);
-}
 
 export function formatAmount(value: number): string {
   if (!Number.isFinite(value)) return "0";
@@ -112,22 +106,8 @@ export function formatAmount(value: number): string {
   const abs = Math.abs(value);
   if (abs === 0) return "0";
 
-  if (abs < 10 ** -SUBSCRIPT_ZERO_THRESHOLD) {
-    const rounded = Number(abs.toFixed(MAX_DISPLAY_FRACTION_DIGITS));
-    if (rounded === 0) return "0";
-
-    const fracPart = rounded.toFixed(MAX_DISPLAY_FRACTION_DIGITS).split(".")[1] ?? "";
-    let zeroCount = 0;
-    for (const ch of fracPart) {
-      if (ch === "0") zeroCount++;
-      else break;
-    }
-
-    const significant = fracPart.slice(zeroCount).replace(/0+$/, "");
-    if (!significant) return "0";
-
-    return `${sign}0.0${toSubscriptDigits(zeroCount)}${significant}`;
-  }
+  const subscript = formatDecimalWithSubscript(abs, sign);
+  if (subscript !== null) return subscript;
 
   const fractionDigits =
     abs >= LARGE_AMOUNT_THRESHOLD ? LARGE_AMOUNT_FRACTION_DIGITS : MAX_DISPLAY_FRACTION_DIGITS;

@@ -30,6 +30,7 @@ import {
   walletRepaidPrincipalUsd,
   type PositionMarkToMarket,
 } from "@/lib/leverx/position-metrics";
+import { positionShowsManageAction } from "@/lib/leverx/position-quantity";
 import { premiumRawToCents } from "@/lib/leverx/trade-math";
 import {
   AnimatedPnl,
@@ -568,7 +569,7 @@ export function LeverxPositionsTable({
       align: "right",
       mobileFooter: true,
       cell: (r) =>
-        r.position.status === "open" ? (
+        positionShowsManageAction(r.position) ? (
           <PositionActionsTrigger position={r.position} />
         ) : null,
     },

@@ -4,16 +4,15 @@ import { ChevronLeft, Loader2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/leverx/ConfirmDialog";
 import { ResponsiveModal } from "@/components/leverx/ResponsiveModal";
 import { InfoPopover } from "@/components/leverx/InfoPopover";
-import { QuoteAmount, QuoteIcon } from "@/components/leverx/QuoteAmount";
+import { QuoteAmount } from "@/components/leverx/QuoteAmount";
 import { Input } from "@/components/ui/input";
 import { useWallet } from "@/context/WalletContext";
-import { useWalletCoinBalance } from "@/hooks/useWalletCoinBalance";
 import { useLeverxProtocolConfig, useLeverxTransactions } from "@/hooks/useLeverxTransactions";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { positionKeyFromArgs, type MarketKeyArgs } from "@/lib/leverx/market-keys";
 import { formatQuantity } from "@/lib/leverx/format-quantity";
-import { fetchKeyQuoteBalance, fetchManagerOpenQuantity, fetchManagerQuoteBalance } from "@/lib/leverx/quotes";
+import { fetchManagerOpenQuantity } from "@/lib/leverx/quotes";
 import {
   hasIndexerOpenQuantity,
   settleContractQuantity,
@@ -23,13 +22,18 @@ import { showTxError, showTxSuccess } from "@/lib/toast";
 import { usePredictOracleRows } from "@/hooks/usePredictOracles";
 import { predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
 import { assetLabelForOracleId, isOracleSettledForTrade } from "@/lib/predict/oracles";
-import { centsToPremiumRaw, marginUsdToQuoteAtoms, isLimitCentsWithinPredictBounds, PREDICT_MAX_PREMIUM_CENTS, PREDICT_MIN_PREMIUM_CENTS, clampUsdToQuoteAtoms, formatMaxWithdrawUsd, usdExceedsQuoteAtoms, withdrawUsdDecimals, withdrawUsdDisplayAmount } from "@/lib/leverx/trade-math";
+import {
+  centsToPremiumRaw,
+  marginUsdToQuoteAtoms,
+  isLimitCentsWithinPredictBounds,
+  PREDICT_MAX_PREMIUM_CENTS,
+  PREDICT_MIN_PREMIUM_CENTS,
+} from "@/lib/leverx/trade-math";
 import { scaleQuote } from "@/lib/predict/scaling";
 import { cn } from "@/lib/utils";
 import { pillToggleBtn, pillToggleIdle } from "@/lib/leverx/tw";
 
-type ActionView = "menu" | "close_limit" | "repay_debt" | "withdraw_surplus" | "deposit_margin";
-type DepositDestination = "key" | "manager";
+type ActionView = "menu" | "close_limit" | "repay_debt";
 type ConfirmAction = "market_close" | "settle" | null;
 
 interface Props {
@@ -53,11 +57,6 @@ type PositionActionAvailability = {
   canCloseRedeem: boolean;
   canSettle: boolean;
   canRepayDebt: boolean;
-  canWithdrawSurplus: boolean;
-  withdrawFromManager: boolean;
-  canDeposit: boolean;
-  depositToManager: boolean;
-  hasAnyAction: boolean;
   emptyMessage: string | null;
 };
 
@@ -67,31 +66,12 @@ function getPositionActionAvailability(params: {
   onChainQuantity: OnChainQuantityRead;
   quantityLoading: boolean;
   oracleSettled: boolean;
-  keyQuoteBalanceAtoms: bigint | null | undefined;
-  keyBalanceLoading: boolean;
-  managerQuoteBalanceAtoms: bigint | null | undefined;
-  managerBalanceLoading: boolean;
-  walletDepositAtoms: bigint;
-  walletBalanceLoading: boolean;
   now?: number;
 }): PositionActionAvailability {
-  const {
-    position,
-    onChainQuantity,
-    quantityLoading,
-    oracleSettled,
-    keyQuoteBalanceAtoms,
-    keyBalanceLoading,
-    managerQuoteBalanceAtoms,
-    managerBalanceLoading,
-    walletDepositAtoms,
-    walletBalanceLoading,
-  } = params;
+  const { position, onChainQuantity, quantityLoading, oracleSettled } = params;
   const now = params.now ?? Date.now();
   const expired = position.expiry_ms > 0 && position.expiry_ms < now;
   const hasDebt = position.borrow_quote > 0;
-  const keyBalance = keyQuoteBalanceAtoms ?? 0n;
-  const managerBalance = managerQuoteBalanceAtoms ?? 0n;
 
   const settleQty = settleContractQuantity(onChainQuantity);
   const hasRedeemableQuantity =
@@ -107,49 +87,24 @@ function getPositionActionAvailability(params: {
     !quantityLoading &&
     onChainQuantity != null;
   const canRepayDebt = hasDebt;
-  const canWithdrawKeySurplus =
-    !keyBalanceLoading && keyBalance > 0n && !hasDebt;
-  const canWithdrawManagerSurplus =
-    !managerBalanceLoading &&
-    !keyBalanceLoading &&
-    managerBalance > 0n &&
-    keyBalance === 0n &&
-    !hasDebt &&
-    onChainQuantity === 0n;
-  const canWithdrawSurplus = canWithdrawKeySurplus || canWithdrawManagerSurplus;
-  const withdrawFromManager = canWithdrawManagerSurplus && !canWithdrawKeySurplus;
-  const canDepositKey = !walletBalanceLoading && walletDepositAtoms > 0n;
-  const canDepositManager =
-    canDepositKey && Boolean(position.predict_manager_id);
-  const canDeposit = canDepositKey;
-  const depositToManager = canDepositManager;
 
   let emptyMessage: string | null = null;
   if (
     !quantityLoading &&
-    !keyBalanceLoading &&
-    !managerBalanceLoading &&
-    !walletBalanceLoading &&
     !canCloseRedeem &&
     !canSettle &&
-    !canRepayDebt &&
-    !canWithdrawSurplus &&
-    !canDeposit
+    !canRepayDebt
   ) {
     const indexStale =
       onChainQuantity === 0n && hasIndexerOpenQuantity(position);
-    if (indexStale && expired && oracleSettled && managerBalance > 0n) {
+    if (indexStale && expired && oracleSettled) {
       emptyMessage =
-        "Contracts are already redeemed on-chain. Use Withdraw to wallet to move dUSDC from your Predict manager balance.";
-    } else if (indexStale && expired && oracleSettled) {
-      emptyMessage =
-        "Contracts are already redeemed on-chain. The portfolio index is stale — this row should clear after refresh. Check Withdraw to wallet for any remaining dUSDC.";
+        "Contracts are already redeemed on-chain. The portfolio index is stale — this row should clear after refresh.";
     } else if (indexStale) {
       emptyMessage =
-        "Contracts are already redeemed on-chain. The portfolio index is stale — this row should clear after refresh. No withdrawable dUSDC was found on this market key.";
+        "Contracts are already redeemed on-chain. The portfolio index is stale — this row should clear after refresh.";
     } else if (settleQty === 0n && !hasIndexerOpenQuantity(position)) {
-      emptyMessage =
-        "Contracts fully redeemed. Any remaining dUSDC may be in Withdraw to wallet below your positions.";
+      emptyMessage = "Contracts fully redeemed.";
     } else if (expired && !oracleSettled && hasIndexerOpenQuantity(position)) {
       emptyMessage = "Waiting for oracle settlement before you can settle.";
     } else {
@@ -161,16 +116,6 @@ function getPositionActionAvailability(params: {
     canCloseRedeem,
     canSettle,
     canRepayDebt,
-    canWithdrawSurplus,
-    withdrawFromManager,
-    canDeposit,
-    depositToManager,
-    hasAnyAction:
-      canCloseRedeem ||
-      canSettle ||
-      canRepayDebt ||
-      canWithdrawSurplus ||
-      canDeposit,
     emptyMessage,
   };
 }
@@ -238,10 +183,6 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
     closePosition,
     settleExpired,
     repayDebt,
-    withdrawQuote,
-    withdrawManagerQuote,
-    depositQuote,
-    depositManagerQuote,
     isProtocolReady,
   } = useLeverxTransactions();
 
@@ -268,52 +209,6 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
     retry: 1,
   });
 
-  const { data: keyQuoteBalanceAtoms, isLoading: keyBalanceLoading } = useQuery({
-    queryKey: [
-      "proxy-key-balance",
-      position.account_id,
-      marketKey,
-      cfg?.packageId,
-      cfg?.predictPackageId,
-    ],
-    queryFn: () =>
-      fetchKeyQuoteBalance({
-        client,
-        leverxPackageId: cfg!.packageId,
-        predictPackageId: cfg!.predictPackageId,
-        accountId: position.account_id,
-        key: positionKey,
-      }),
-    enabled: Boolean(open && cfg?.packageId && cfg?.predictPackageId && position.account_id),
-    staleTime: 10_000,
-    retry: 1,
-  });
-
-  const { data: managerQuoteBalanceAtoms, isLoading: managerBalanceLoading } = useQuery({
-    queryKey: [
-      "manager-quote-balance",
-      position.predict_manager_id,
-      cfg?.packageId,
-      cfg?.quoteType,
-    ],
-    queryFn: () =>
-      fetchManagerQuoteBalance({
-        client,
-        packageId: cfg!.packageId,
-        predictManagerId: position.predict_manager_id!,
-        quoteType: cfg!.quoteType,
-      }),
-    enabled: Boolean(open && cfg?.packageId && cfg?.quoteType && position.predict_manager_id),
-    staleTime: 10_000,
-    retry: 1,
-  });
-
-  const { data: walletUsd, isLoading: walletBalanceLoading } = useWalletCoinBalance(
-    open ? (cfg?.quoteType ?? null) : null,
-  );
-  const walletDepositAtoms =
-    walletUsd != null && walletUsd > 0 ? marginUsdToQuoteAtoms(walletUsd) : 0n;
-
   const onChainQtyRead: OnChainQuantityRead =
     quantityLoading ? null : (onChainQuantity ?? null);
 
@@ -324,45 +219,23 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [limitCents, setLimitCents] = useState("");
   const [repayUsd, setRepayUsd] = useState("");
-  const [withdrawUsd, setWithdrawUsd] = useState("");
-  const [depositUsd, setDepositUsd] = useState("");
-  const [depositDestination, setDepositDestination] = useState<DepositDestination>("key");
 
   const pending =
     closePosition.isPending ||
     settleExpired.isPending ||
-    repayDebt.isPending ||
-    withdrawQuote.isPending ||
-    withdrawManagerQuote.isPending ||
-    depositQuote.isPending ||
-    depositManagerQuote.isPending;
+    repayDebt.isPending;
   const {
     canCloseRedeem,
     canSettle,
     canRepayDebt,
-    canWithdrawSurplus,
-    withdrawFromManager,
-    canDeposit,
-    depositToManager,
     emptyMessage,
   } = getPositionActionAvailability({
     position,
     onChainQuantity: onChainQtyRead,
     quantityLoading,
     oracleSettled,
-    keyQuoteBalanceAtoms,
-    keyBalanceLoading,
-    managerQuoteBalanceAtoms,
-    managerBalanceLoading,
-    walletDepositAtoms,
-    walletBalanceLoading,
   });
   const borrowedUsd = scaleQuote(position.borrow_quote);
-  const keyBalanceAtoms = keyQuoteBalanceAtoms ?? 0n;
-  const managerBalanceAtoms = managerQuoteBalanceAtoms ?? 0n;
-  const withdrawableAtoms = withdrawFromManager ? managerBalanceAtoms : keyBalanceAtoms;
-  const withdrawableUsd = withdrawUsdDisplayAmount(withdrawableAtoms);
-  const withdrawableDigits = withdrawUsdDecimals(withdrawableAtoms);
   const repayNum = parseFloat(repayUsd) || 0;
   const repayExceedsDebt = repayNum > borrowedUsd + 1e-6;
   const limitCentsNum = parseFloat(limitCents);
@@ -371,25 +244,6 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
     limitCentsNum <= 0 ||
     !isLimitCentsWithinPredictBounds(limitCentsNum);
   const repayInvalid = !Number.isFinite(repayNum) || repayNum <= 0;
-  const withdrawNum = parseFloat(withdrawUsd) || 0;
-  const withdrawExceedsBalance =
-    withdrawableAtoms > 0n && usdExceedsQuoteAtoms(withdrawNum, withdrawableAtoms);
-  const withdrawInvalid =
-    withdrawableAtoms <= 0n ||
-    !Number.isFinite(withdrawNum) ||
-    withdrawNum <= 0 ||
-    withdrawExceedsBalance;
-  const depositNum = parseFloat(depositUsd) || 0;
-  const depositExceedsWallet =
-    walletDepositAtoms > 0n && usdExceedsQuoteAtoms(depositNum, walletDepositAtoms);
-  const depositInvalid =
-    walletDepositAtoms <= 0n ||
-    !Number.isFinite(depositNum) ||
-    depositNum <= 0 ||
-    depositExceedsWallet;
-  const depositableUsd = withdrawUsdDisplayAmount(walletDepositAtoms);
-  const depositableDigits = withdrawUsdDecimals(walletDepositAtoms);
-  const depositUsesManager = depositDestination === "manager" && depositToManager;
 
   const reset = () => {
     setView("menu");
@@ -415,22 +269,14 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
       ? `${asset} · ${side}`
       : view === "close_limit"
         ? "Close at limit"
-        : view === "withdraw_surplus"
-          ? "Withdraw to wallet"
-          : view === "deposit_margin"
-            ? "Deposit from wallet"
-          : "Repay debt";
+        : "Repay debt";
 
   const description =
     view === "menu"
       ? "Choose how to manage this position."
       : view === "close_limit"
         ? leverxInfo.closeLimit
-        : view === "withdraw_surplus"
-          ? leverxInfo.withdrawTradingBalance
-          : view === "deposit_margin"
-            ? leverxInfo.depositTradingBalance
-          : leverxInfo.repayDebt;
+        : leverxInfo.repayDebt;
 
   return (
     <>
@@ -500,45 +346,6 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
                   info={leverxInfo.settleExpired}
                   disabled={!isProtocolReady || pending}
                   onClick={() => setConfirmAction("settle")}
-                />
-              ) : null}
-              {canWithdrawSurplus ? (
-                <ActionButton
-                  label="Withdraw to wallet"
-                  hint={
-                    <span className="inline-flex items-center gap-1">
-                      <QuoteAmount
-                        amount={withdrawableUsd}
-                        digits={withdrawableDigits}
-                      />{" "}
-                      {withdrawFromManager
-                        ? "in Predict manager"
-                        : "available on this key"}
-                    </span>
-                  }
-                  info={leverxInfo.withdrawTradingBalance}
-                  disabled={!isProtocolReady || pending}
-                  onClick={() => {
-                    setWithdrawUsd(formatMaxWithdrawUsd(withdrawableAtoms));
-                    setView("withdraw_surplus");
-                  }}
-                />
-              ) : null}
-              {canDeposit ? (
-                <ActionButton
-                  label="Deposit from wallet"
-                  hint={
-                    <span className="inline-flex items-center gap-1">
-                      <QuoteAmount amount={depositableUsd} digits={depositableDigits} /> in wallet
-                    </span>
-                  }
-                  info={leverxInfo.depositTradingBalance}
-                  disabled={!isProtocolReady || pending}
-                  onClick={() => {
-                    setDepositUsd(formatMaxWithdrawUsd(walletDepositAtoms));
-                    setDepositDestination("key");
-                    setView("deposit_margin");
-                  }}
                 />
               ) : null}
               {emptyMessage ? (
@@ -642,193 +449,6 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
                 <Loader2 className="mx-auto h-4 w-4 animate-spin" />
               ) : (
                 "Confirm repay"
-              )}
-            </button>
-          </div>
-        ) : null}
-
-        {view === "withdraw_surplus" ? (
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              {withdrawFromManager ? "Available in Predict manager" : "Available on this market key"}
-              :{" "}
-              <QuoteAmount
-                amount={withdrawableUsd}
-                digits={withdrawableDigits}
-                className="text-foreground"
-                amountClassName="text-foreground"
-              />
-            </p>
-            <Input
-              type="number"
-              inputMode="decimal"
-              min={0}
-              step={withdrawableDigits >= 6 ? 0.000001 : withdrawableDigits >= 4 ? 0.0001 : 0.01}
-              placeholder="Withdraw amount"
-              value={withdrawUsd}
-              onChange={(e) => setWithdrawUsd(e.target.value)}
-              className="font-mono"
-            />
-            <div className="flex gap-2">
-              <button
-                type="button"
-                className={cn(pillToggleBtn, pillToggleIdle, "flex-1 text-sm")}
-                onClick={() => setWithdrawUsd(formatMaxWithdrawUsd(withdrawableAtoms))}
-              >
-                Max
-              </button>
-            </div>
-            {withdrawExceedsBalance ? (
-              <p className="text-sm text-destructive">Amount exceeds available balance.</p>
-            ) : null}
-            <button
-              type="button"
-              className={cn(pillToggleBtn, pillToggleIdle, "w-full")}
-              disabled={pending || withdrawInvalid}
-              onClick={() => {
-                const usd = parseFloat(withdrawUsd);
-                const amountAtoms = clampUsdToQuoteAtoms(usd, withdrawableAtoms);
-                if (amountAtoms <= 0n) return;
-                if (withdrawFromManager) {
-                  if (!position.predict_manager_id) {
-                    showTxError(new Error("Position is missing a linked Predict manager."));
-                    return;
-                  }
-                  withdrawManagerQuote.mutate(
-                    {
-                      predictManagerId: position.predict_manager_id,
-                      amountAtoms,
-                    },
-                    {
-                      onError,
-                      onSuccess: () => onSuccess("dUSDC withdrawn to wallet"),
-                    },
-                  );
-                  return;
-                }
-                withdrawQuote.mutate(
-                  {
-                    accountId: position.account_id,
-                    key: positionKey,
-                    amountAtoms,
-                  },
-                  {
-                    onError,
-                    onSuccess: () => onSuccess("dUSDC withdrawn to wallet"),
-                  },
-                );
-              }}
-            >
-              {withdrawQuote.isPending || withdrawManagerQuote.isPending ? (
-                <Loader2 className="mx-auto h-4 w-4 animate-spin" />
-              ) : (
-                "Confirm withdraw"
-              )}
-            </button>
-          </div>
-        ) : null}
-
-        {view === "deposit_margin" ? (
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Wallet balance:{" "}
-              <QuoteAmount
-                amount={depositableUsd}
-                digits={depositableDigits}
-                className="text-foreground"
-                amountClassName="text-foreground"
-              />
-            </p>
-            {depositToManager ? (
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  className={cn(
-                    pillToggleBtn,
-                    depositDestination === "key" ? "bg-muted text-foreground" : pillToggleIdle,
-                    "flex-1 text-sm",
-                  )}
-                  onClick={() => setDepositDestination("key")}
-                >
-                  Market key
-                </button>
-                <button
-                  type="button"
-                  className={cn(
-                    pillToggleBtn,
-                    depositDestination === "manager" ? "bg-muted text-foreground" : pillToggleIdle,
-                    "flex-1 text-sm",
-                  )}
-                  onClick={() => setDepositDestination("manager")}
-                >
-                  Predict manager
-                </button>
-              </div>
-            ) : null}
-            <Input
-              type="number"
-              inputMode="decimal"
-              min={0}
-              step={depositableDigits >= 6 ? 0.000001 : depositableDigits >= 4 ? 0.0001 : 0.01}
-              placeholder="Deposit amount"
-              value={depositUsd}
-              onChange={(e) => setDepositUsd(e.target.value)}
-              className="font-mono"
-            />
-            <div className="flex gap-2">
-              <button
-                type="button"
-                className={cn(pillToggleBtn, pillToggleIdle, "flex-1 text-sm")}
-                onClick={() => setDepositUsd(formatMaxWithdrawUsd(walletDepositAtoms))}
-              >
-                Max
-              </button>
-            </div>
-            {depositExceedsWallet ? (
-              <p className="text-sm text-destructive">Amount exceeds wallet balance.</p>
-            ) : null}
-            <button
-              type="button"
-              className={cn(pillToggleBtn, pillToggleIdle, "w-full")}
-              disabled={pending || depositInvalid}
-              onClick={() => {
-                const usd = parseFloat(depositUsd);
-                const amountAtoms = clampUsdToQuoteAtoms(usd, walletDepositAtoms);
-                if (amountAtoms <= 0n) return;
-                if (depositUsesManager) {
-                  if (!position.predict_manager_id) {
-                    showTxError(new Error("Position is missing a linked Predict manager."));
-                    return;
-                  }
-                  depositManagerQuote.mutate(
-                    {
-                      predictManagerId: position.predict_manager_id,
-                      amountAtoms,
-                    },
-                    {
-                      onError,
-                      onSuccess: () => onSuccess("dUSDC deposited to Predict manager"),
-                    },
-                  );
-                  return;
-                }
-                depositQuote.mutate(
-                  {
-                    accountId: position.account_id,
-                    key: positionKey,
-                    amountAtoms,
-                  },
-                  {
-                    onError,
-                    onSuccess: () => onSuccess("dUSDC deposited to market key"),
-                  },
-                );
-              }}
-            >
-              {depositQuote.isPending || depositManagerQuote.isPending ? (
-                <Loader2 className="mx-auto h-4 w-4 animate-spin" />
-              ) : (
-                "Confirm deposit"
               )}
             </button>
           </div>
@@ -954,16 +574,12 @@ interface TriggerProps {
 /** Opens position actions in a dialog (desktop) or bottom sheet (mobile). */
 export function PositionActionsTrigger({ position, className }: TriggerProps) {
   const [open, setOpen] = useState(false);
-  const { isProtocolReady, closePosition, settleExpired, repayDebt, withdrawQuote, withdrawManagerQuote, depositQuote, depositManagerQuote } =
+  const { isProtocolReady, closePosition, settleExpired, repayDebt } =
     useLeverxTransactions();
   const pending =
     closePosition.isPending ||
     settleExpired.isPending ||
-    repayDebt.isPending ||
-    withdrawQuote.isPending ||
-    withdrawManagerQuote.isPending ||
-    depositQuote.isPending ||
-    depositManagerQuote.isPending;
+    repayDebt.isPending;
 
   return (
     <>

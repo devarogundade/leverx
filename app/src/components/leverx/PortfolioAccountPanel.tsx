@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Check,
@@ -14,18 +14,15 @@ import { ConfirmDialog } from "@/components/leverx/ConfirmDialog";
 import { ResponsiveModal } from "@/components/leverx/ResponsiveModal";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { QuoteAmount } from "@/components/leverx/QuoteAmount";
-import { PortfolioWithdrawSection } from "@/components/leverx/PortfolioWithdrawSection";
-import { PortfolioDepositSection } from "@/components/leverx/PortfolioDepositSection";
+import { PortfolioFundsSection } from "@/components/leverx/PortfolioFundsSection";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loading-state";
 import { leverxInfo } from "@/lib/leverx/info-copy";
-import {
-  useIndexerExecutors,
+import { useIndexerExecutors,
   useIndexerLiquidations,
   useIndexerTriggers,
 } from "@/hooks/useIndexer";
-import { useProxyKeyBalances } from "@/hooks/useProxyKeyBalances";
 import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
 import { showTxError, showTxSuccess } from "@/lib/toast";
 import type { LeveragedPosition, Liquidation, UserProxy } from "@/lib/leverx/indexer-client";
@@ -37,7 +34,7 @@ import { assetLabelForOracleId } from "@/lib/predict/oracles";
 import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
 import { predictSideFromBinary, predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
 import { usePredictOracleRows } from "@/hooks/usePredictOracles";
-import { scaleQuote, scaleQuoteAtoms } from "@/lib/predict/scaling";
+import { scaleQuote } from "@/lib/predict/scaling";
 import { isValidSuiAddress } from "@/lib/leverx/form-helpers";
 import {
   inputInField,
@@ -219,10 +216,6 @@ export function PortfolioAccountPanel({
     data: liquidations = [],
     isLoading: liquidationsLoading,
   } = useIndexerLiquidations({ accountId, owner });
-  const { rows: withdrawRows, isLoading: balancesLoading } = useProxyKeyBalances(
-    accountId,
-    history,
-  );
 
   const openMargins = positions.filter(isActiveOpenPosition);
   const {
@@ -246,11 +239,6 @@ export function PortfolioAccountPanel({
   const activeTriggers = triggers.filter((t) => t.active);
   const activeExecutors = executors.filter((e) => e.active);
   const managerLinked = Boolean(account.predict_manager_id);
-
-  const withdrawableUsd = useMemo(
-    () => withdrawRows.reduce((sum, row) => sum + scaleQuoteAtoms(row.balanceAtoms), 0),
-    [withdrawRows],
-  );
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -296,28 +284,12 @@ export function PortfolioAccountPanel({
           </button>
         </div>
 
-        <div className="grid divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
+        <div className="grid divide-y divide-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
           <AccountMetric
             label="Vault borrow"
             info={leverxInfo.borrowedQuote}
             value={<QuoteAmount amount={scaleQuote(account.borrowed_quote)} hideZero />}
             sub="Across all market keys"
-          />
-          <AccountMetric
-            label="Withdrawable"
-            info={leverxInfo.withdrawTradingBalance}
-            value={
-              balancesLoading && withdrawRows.length === 0 ? (
-                "…"
-              ) : (
-                <QuoteAmount amount={withdrawableUsd} hideZero />
-              )
-            }
-            sub={
-              withdrawRows.length > 0
-                ? `${withdrawRows.length} market key${withdrawRows.length === 1 ? "" : "s"}`
-                : "Free quote on keys"
-            }
           />
           <AccountMetric
             label="Trusted traders"
@@ -354,12 +326,12 @@ export function PortfolioAccountPanel({
         </div>
       </section>
 
-      <PortfolioDepositSection
+      <PortfolioFundsSection
         accountId={accountId}
         predictManagerId={account.predict_manager_id}
+        borrowedQuote={account.borrowed_quote}
         positions={history}
       />
-      <PortfolioWithdrawSection accountId={accountId} positions={history} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <SettingsCard

@@ -1,6 +1,7 @@
 import { PositionActionsTrigger } from "@/components/leverx/PositionActionsModal";
 import { CancelOrderTrigger } from "@/components/leverx/CancelOrderModal";
 import type { LimitMintOrder, LeveragedPosition } from "@/lib/leverx/indexer-client";
+import { positionShowsManageAction } from "@/lib/leverx/position-quantity";
 
 interface CloseProps {
   position: LeveragedPosition;
@@ -9,10 +10,8 @@ interface CloseProps {
 }
 
 export function LeverxClosePositionButton({ position, className }: CloseProps) {
-  if (position.status === "open") {
-    return <PositionActionsTrigger position={position} className={className} />;
-  }
-  return null;
+  if (!positionShowsManageAction(position)) return null;
+  return <PositionActionsTrigger position={position} className={className} />;
 }
 
 interface CancelProps {
