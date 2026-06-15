@@ -6,6 +6,7 @@ import type { MarketKeyArgs } from "@/lib/leverx/market-keys";
 import {
   DEV_INSPECT_QUOTE_REFETCH_MS,
   DEV_INSPECT_QUOTE_STALE_MS,
+  ORACLE_HOT_POLL_INTERVAL_MS,
 } from "@/lib/leverx/constants";
 import { fetchMintQuote } from "@/lib/leverx/quotes";
 import { leverageToBps, marginUsdToQuoteAtoms } from "@/lib/leverx/trade-math";
@@ -61,7 +62,17 @@ export function useLeverxMintQuote(args: {
       marginAtoms > 0n &&
       (args.marginUsd ?? 0) > 0,
     staleTime: DEV_INSPECT_QUOTE_STALE_MS,
-    refetchInterval: DEV_INSPECT_QUOTE_REFETCH_MS,
+    refetchInterval: (query) => {
+      const active =
+        Boolean(args.enabled ?? true) &&
+        Boolean(cfg) &&
+        Boolean(args.key) &&
+        marginAtoms > 0n &&
+        (args.marginUsd ?? 0) > 0;
+      if (!active) return false;
+      if (query.state.data != null) return DEV_INSPECT_QUOTE_REFETCH_MS;
+      return ORACLE_HOT_POLL_INTERVAL_MS;
+    },
     refetchIntervalInBackground: false,
     placeholderData: (previous) => previous,
     retry: 1,

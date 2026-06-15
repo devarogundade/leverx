@@ -637,10 +637,12 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   const {
     data: openPositions = [],
     isLoading: openPositionsLoading,
+    refetch: refetchOpenPositions,
   } = useIndexerPositions(address ?? undefined, { status: "open", oracleId });
   const {
     data: closedPositions = [],
     isLoading: closedPositionsLoading,
+    refetch: refetchClosedPositions,
   } = useIndexerPositions(address ?? undefined, { status: "closed", oracleId });
   const { data: limitOrders = [], isLoading: ordersLoading } = useIndexerLimitOrders(
     address ?? undefined,
@@ -682,14 +684,29 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   );
 
   const expiredRefetchDone = useRef(false);
+  const settledRefetchDone = useRef(false);
   useEffect(() => {
     expiredRefetchDone.current = false;
+    settledRefetchDone.current = false;
   }, [oracleId]);
   useEffect(() => {
     if (!isOracleExpired || expiredRefetchDone.current) return;
     expiredRefetchDone.current = true;
     void refetchOracles();
-  }, [isOracleExpired, refetchOracles]);
+    void refetchOpenPositions();
+    void refetchClosedPositions();
+  }, [
+    isOracleExpired,
+    refetchOracles,
+    refetchOpenPositions,
+    refetchClosedPositions,
+  ]);
+  useEffect(() => {
+    if (!isOracleSettled || settledRefetchDone.current) return;
+    settledRefetchDone.current = true;
+    void refetchOpenPositions();
+    void refetchClosedPositions();
+  }, [isOracleSettled, refetchOpenPositions, refetchClosedPositions]);
   const liquidity = vaultSummary?.snapshot?.nav
     ? scaleQuote(vaultSummary.snapshot.nav)
     : null;

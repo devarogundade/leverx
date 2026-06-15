@@ -14,6 +14,9 @@ export const PREDICT_QUOTE_REFERENCE_QUANTITY = 1_000_000n;
 export const DEV_INSPECT_QUOTE_STALE_MS = 10_000;
 export const DEV_INSPECT_QUOTE_REFETCH_MS = 10_000;
 
+/** Aggressive oracle / quote poll while waiting for on-chain ask (no mint quote yet). */
+export const ORACLE_HOT_POLL_INTERVAL_MS = 2_000;
+
 /** Headroom below leveraged position size so mint_cost <= margin + borrow on-chain. */
 export const MINT_BUDGET_SAFETY_BPS = 50;
 

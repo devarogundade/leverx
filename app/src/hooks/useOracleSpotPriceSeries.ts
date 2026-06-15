@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { ORACLE_HOT_POLL_INTERVAL_MS } from "@/lib/leverx/constants";
 import { useEffect, useState } from "react";
 import { ApiError } from "@/lib/api/fetch-json";
 import { fetchOraclePriceLatest } from "@/lib/predict/client";
@@ -38,7 +39,7 @@ function appendPricePoint(prev: PricePoint[], point: PricePoint): PricePoint[] {
 /** Shared poll for `GET /oracles/:id/prices/latest` (deduped via React Query). */
 export function useOraclePriceLatest(
   oracleId: string,
-  options?: { enabled?: boolean },
+  options?: { enabled?: boolean; hotPoll?: boolean },
 ) {
   const enabled = Boolean(oracleId) && (options?.enabled ?? true);
 
@@ -47,7 +48,14 @@ export function useOraclePriceLatest(
     queryFn: () => fetchOraclePriceLatest(oracleId),
     enabled,
     staleTime: ORACLE_SPOT_POLL_INTERVAL_MS / 2,
-    refetchInterval: enabled ? ORACLE_SPOT_POLL_INTERVAL_MS : false,
+    refetchInterval: (query) => {
+      if (!enabled) return false;
+      const hasSpot =
+        query.state.data?.spot != null && Number.isFinite(query.state.data.spot) && query.state.data.spot > 0;
+      if (options?.hotPoll) return ORACLE_HOT_POLL_INTERVAL_MS;
+      if (!hasSpot) return ORACLE_HOT_POLL_INTERVAL_MS;
+      return ORACLE_SPOT_POLL_INTERVAL_MS;
+    },
     refetchIntervalInBackground: false,
     retry: (failureCount, error) => {
       if (error instanceof ApiError && error.status === 429) return false;

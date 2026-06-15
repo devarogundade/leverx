@@ -8,8 +8,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { computeTotalBalanceUsd } from "@/lib/leverx/account-balance";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
-import { resolvePredictManagerId } from "@/lib/leverx/account-resolution";
+import { resolveAccountId, resolvePredictManagerId } from "@/lib/leverx/account-resolution";
 import { useManagerQuoteBalance } from "@/hooks/useManagerQuoteBalance";
+import { useManagerQuoteBalances } from "@/hooks/useManagerQuoteBalances";
+import { useProxyKeyBalances } from "@/hooks/useProxyKeyBalances";
 import { useWallet } from "@/context/WalletContext";
 import { useIndexerAccounts, useIndexerPositions } from "@/hooks/useIndexer";
 import { useLeverxProtocolConfig } from "@/hooks/useLeverxTransactions";
@@ -57,14 +59,37 @@ export function BalanceBreakdown({ className }: Props) {
     isFetched: positionsFetched,
   } = useIndexerPositions(address ?? undefined, { status: "open" });
   const {
+    data: closedPositions = [],
+    isLoading: closedPositionsLoading,
+    isFetched: closedPositionsFetched,
+  } = useIndexerPositions(address ?? undefined, { status: "closed" });
+  const {
     data: walletBalance,
     isLoading: walletBalanceLoading,
     isFetched: walletBalanceFetched,
   } = useWalletCoinBalance(isWalletConnected ? appConfig.quoteType : null, 6);
 
   const predictManagerId = useMemo(
-    () => resolvePredictManagerId(accounts, positions),
-    [accounts, positions],
+    () => resolvePredictManagerId(accounts, [...positions, ...closedPositions]),
+    [accounts, positions, closedPositions],
+  );
+  const accountId = useMemo(
+    () => resolveAccountId(accounts, [...positions, ...closedPositions]),
+    [accounts, positions, closedPositions],
+  );
+  const borrowedQuote = accounts[0]?.borrowed_quote ?? 0;
+  const allPositions = useMemo(
+    () => [...positions, ...closedPositions],
+    [positions, closedPositions],
+  );
+  const { rows: keyRows, isLoading: keyBalancesLoading } = useProxyKeyBalances(
+    accountId,
+    allPositions,
+  );
+  const { rows: managerRows, isLoading: managerBalancesLoading } = useManagerQuoteBalances(
+    accountId,
+    allPositions,
+    borrowedQuote,
   );
   const managerQueryEnabled = Boolean(
     isWalletConnected && predictManagerId && cfg?.packageId && cfg?.quoteType,
@@ -77,7 +102,13 @@ export function BalanceBreakdown({ className }: Props) {
   } = useManagerQuoteBalance(managerQueryEnabled ? predictManagerId : undefined);
 
   const ready =
-    isWalletConnected && accountsFetched && positionsFetched && !accountsLoading && !positionsLoading;
+    isWalletConnected &&
+    accountsFetched &&
+    positionsFetched &&
+    closedPositionsFetched &&
+    !accountsLoading &&
+    !positionsLoading &&
+    !closedPositionsLoading;
   const walletUsd = walletCoinBalanceUsd(walletBalance);
   const walletReady =
     isWalletConnected && walletBalanceFetched && !walletBalanceLoading && walletUsd != null;
@@ -108,6 +139,17 @@ export function BalanceBreakdown({ className }: Props) {
           ? null
           : scaleQuoteAtoms(managerBalanceAtoms);
   const positionCount = ready ? activePositions.length : null;
+
+  const withdrawableUsd = useMemo(() => {
+    const keyTotal = keyRows.reduce((sum, row) => sum + scaleQuoteAtoms(row.balanceAtoms), 0);
+    const managerTotal = managerRows.reduce(
+      (sum, row) => sum + scaleQuoteAtoms(row.balanceAtoms),
+      0,
+    );
+    return keyTotal + managerTotal;
+  }, [keyRows, managerRows]);
+  const withdrawableLoading =
+    isWalletConnected && Boolean(accountId) && (keyBalancesLoading || managerBalancesLoading);
 
   const total =
     ready && walletReady && managerReady && margin != null
@@ -206,6 +248,17 @@ export function BalanceBreakdown({ className }: Props) {
                 info={leverxInfo.balanceBorrowed}
                 value={
                   <QuoteAmount amount={borrowed} loading={!ready} hideZero={false} />
+                }
+              />
+              <BalanceRow
+                label={ui.balanceWithdrawable}
+                info={leverxInfo.balanceWithdrawableDetail}
+                value={
+                  <QuoteAmount
+                    amount={withdrawableUsd}
+                    loading={withdrawableLoading}
+                    hideZero={false}
+                  />
                 }
               />
               <BalanceRow

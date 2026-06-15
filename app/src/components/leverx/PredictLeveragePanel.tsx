@@ -12,6 +12,7 @@ import { leverxInfo } from "@/lib/leverx/info-copy";
 import { useIndexerProtocol, useIndexerAccounts } from "@/hooks/useIndexer";
 import { useLeverxMarketAsk } from "@/hooks/useLeverxMarketAsk";
 import { useLeverxMintQuote } from "@/hooks/useLeverxMintQuote";
+import { useOraclePriceLatest } from "@/hooks/useOracleSpotPriceSeries";
 import { useWalletCoinBalance } from "@/hooks/useWalletCoinBalance";
 import { premiumToCents } from "@/lib/leverx/indexer-markets";
 import { appConfig } from "@/lib/config";
@@ -548,7 +549,17 @@ export function PredictLeveragePanel({
     referencePremiumOverride: quoteReferencePremium,
   });
 
-  const isCalculatingQuote = quoteLoading || quoteRefreshing;
+  const awaitingOracleQuote =
+    orderType === "market" &&
+    marginNum > 0 &&
+    Boolean(tradeKey) &&
+    mintQuote == null &&
+    !(expiryMs && expiryMs > 0 && expiryMs <= now);
+
+  useOraclePriceLatest(oracleId, { hotPoll: awaitingOracleQuote });
+
+  const isCalculatingQuote =
+    quoteLoading || quoteRefreshing || awaitingOracleQuote;
 
   const tradeQuantity = mintQuote?.tradeQuantity ?? 1n;
 
