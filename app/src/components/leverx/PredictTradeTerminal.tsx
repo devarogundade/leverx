@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, Inbox } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -53,6 +53,7 @@ import {
   resolveTradeMarket,
 } from "@/lib/leverx/predict-oracle-markets";
 import { oracleStrikeBounds } from "@/lib/leverx/strike-selection";
+import { useTradeNavigation } from "@/context/TradeNavigationContext";
 import { baseFromUnderlying } from "@/lib/markets";
 import { summarizeGlobalTrades } from "@/lib/leverx/trade-stats";
 import { LEVERAGED_MINT_WINDOW_MS } from "@/lib/leverx/constants";
@@ -443,18 +444,12 @@ function tradeContextKey(oracleId: string, side: PredictSide): string {
   return `${oracleId}:${side}`;
 }
 
-type PredictTradeLocationState = {
-  predictSide?: PredictSide;
-};
-
 interface Props {
   oracleId: string;
 }
 
 export function PredictTradeTerminal({ oracleId }: Props) {
-  const navSide = useRouterState({
-    select: (s) => (s.location.state as PredictTradeLocationState | undefined)?.predictSide,
-  });
+  const { consumePendingTrade } = useTradeNavigation();
   const [activeSide, setActiveSide] = useState<PredictSide>("up");
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>("Positions");
   const [positionsFilter, setPositionsFilter] = useState<"open" | "closed">("open");
@@ -472,12 +467,28 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   }, []);
 
   useEffect(() => {
-    if (navSide === "up" || navSide === "down" || navSide === "range") {
-      setActiveSide(coercePredictSide(navSide));
-      return;
+    setSelectedStrikeRaw(undefined);
+    setSelectedRangeLower(undefined);
+    setSelectedRangeUpper(undefined);
+
+    const intent = consumePendingTrade(oracleId);
+
+    if (intent?.side) {
+      setActiveSide(coercePredictSide(intent.side));
+    } else {
+      setActiveSide("up");
     }
-    setActiveSide("up");
-  }, [oracleId, navSide]);
+    if (intent?.strike) setSelectedStrikeRaw(intent.strike);
+    if (intent?.lower) setSelectedRangeLower(intent.lower);
+    if (intent?.upper) setSelectedRangeUpper(intent.upper);
+  }, [oracleId, consumePendingTrade]);
+
+  const handleSideChange = useCallback((side: PredictSide) => {
+    setActiveSide(side);
+    setSelectedStrikeRaw(undefined);
+    setSelectedRangeLower(undefined);
+    setSelectedRangeUpper(undefined);
+  }, []);
 
   const { data: protocol } = useIndexerProtocol();
   const vaultId = protocol?.vault_id ?? undefined;
@@ -529,11 +540,6 @@ export function PredictTradeTerminal({ oracleId }: Props) {
     const spot = oracleSpot ?? undefined;
     return rows.map((row) => enrichMarketRow(row, oracleSummary, spot));
   }, [catalog, oracleSummary, oracleSpot]);
-  useEffect(() => {
-    setSelectedStrikeRaw(undefined);
-    setSelectedRangeLower(undefined);
-    setSelectedRangeUpper(undefined);
-  }, [oracleId, activeSide]);
 
   const oracleStrikeConfig = useMemo(
     () =>
@@ -924,14 +930,14 @@ export function PredictTradeTerminal({ oracleId }: Props) {
             oracleId={oracleId}
             market={market}
             activeSide={activeSide}
-            onSideChange={setActiveSide}
+            onSideChange={handleSideChange}
           />
           <div className={tradeTerminalSidebar}>
             <PredictLeveragePanel
               key={sessionKey}
               oracleId={oracleId}
               side={activeSide}
-              onSideChange={setActiveSide}
+              onSideChange={handleSideChange}
               expiryMs={expiry}
               oracleSpotUsd={oracleSpot}
               minStrikeRaw={oracleStrikeConfig.minStrikeRaw}
@@ -973,7 +979,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
             oracleId={oracleId}
             market={market}
             activeSide={activeSide}
-            onSideChange={setActiveSide}
+            onSideChange={handleSideChange}
             compact
           />
         </div>
@@ -987,7 +993,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
               key={sessionKey}
               oracleId={oracleId}
               side={activeSide}
-              onSideChange={setActiveSide}
+              onSideChange={handleSideChange}
               expiryMs={expiry}
               oracleSpotUsd={oracleSpot}
               minStrikeRaw={oracleStrikeConfig.minStrikeRaw}

@@ -7,9 +7,7 @@ import { AssetBadge } from "@/components/AssetBadge";
 import { MarketFavoriteButton } from "@/components/leverx/MarketFavoriteButton";
 import { MarketPremiumQuote } from "@/components/leverx/MarketPremiumQuote";
 import { MarketSideActions } from "@/components/leverx/MarketSideActions";
-import { useMarketPremiumSparklines } from "@/hooks/useMarketPremiumSparklines";
-import { useVisibleMarketAsks } from "@/hooks/useVisibleMarketAsks";
-import { useVisibleOracleSpots } from "@/hooks/useVisibleOracleSpots";
+import { useMarketsUpDisplay } from "@/hooks/useMarketsUpDisplay";
 import {
   MARKETS_GRID_PAGE_SIZE,
   MarketCatalogPagination,
@@ -17,6 +15,7 @@ import {
 } from "@/components/leverx/MarketCatalogPagination";
 import type { ReactNode } from "react";
 import { AnimatedCompactUsd, AnimatedMarketPremium } from "@/components/ui/animated-numbers";
+import { MarketTradeLink } from "@/components/leverx/MarketTradeLink";
 import type { LeverxMarketRow } from "@/lib/leverx/indexer-markets";
 import { ui } from "@/lib/copy";
 import {
@@ -43,8 +42,6 @@ interface Props {
   liquidityLabel?: ReactNode;
   loading?: boolean;
   offline?: boolean;
-  quotesEnriched?: boolean;
-  premiumLoading?: boolean;
   emptyTitle?: string;
   emptyDescription?: string;
 }
@@ -54,8 +51,6 @@ export function PredictMarketsGrid({
   liquidityLabel = "_",
   loading,
   offline,
-  quotesEnriched = false,
-  premiumLoading: premiumLoadingProp,
   emptyTitle = ui.emptyMarkets,
   emptyDescription = ui.emptyMarketsHint,
 }: Props) {
@@ -74,14 +69,9 @@ export function PredictMarketsGrid({
     () => paginateSlice(markets, page, MARKETS_GRID_PAGE_SIZE),
     [markets, page],
   );
-  const { markets: pageMarketsWithAsks, isLoading: pagePremiumLoading } =
-    useVisibleMarketAsks(quotesEnriched ? [] : pageMarkets);
-  const marketsWithAsks = quotesEnriched ? pageMarkets : pageMarketsWithAsks;
-  const premiumLoading = quotesEnriched
-    ? Boolean(premiumLoadingProp)
-    : pagePremiumLoading;
-  const { markets: visibleMarkets } = useVisibleOracleSpots(marketsWithAsks);
-  const { seriesByMarketId } = useMarketPremiumSparklines(visibleMarkets);
+
+  const { sourceByOracleId, displayMarkets, premiumLoading, seriesByMarketId } =
+    useMarketsUpDisplay(pageMarkets);
   const now = useNow(1000);
 
   if (loading) {
@@ -112,58 +102,63 @@ export function PredictMarketsGrid({
   return (
     <div className="flex flex-col">
       <div className={marketsGrid}>
-        {visibleMarkets.map((m) => {
-          const marketHref = {
-            to: "/predictions/$oracleId" as const,
-            params: { oracleId: m.oracleId },
-          };
+        {displayMarkets.map((display) => {
+          const source = sourceByOracleId.get(display.oracleId) ?? display;
 
           return (
-            <article key={m.id} className={marketCard}>
-              <Link
-                {...marketHref}
+            <article key={display.id} className={marketCard}>
+              <MarketTradeLink
+                market={display}
+                side="up"
                 className={marketCardOverlay}
                 aria-hidden
                 tabIndex={-1}
               />
               <div className={marketCardBody}>
                 <div className={marketCardHeader}>
-                  <AssetBadge asset={m.asset} size="sm" />
-                  <Link
-                    {...marketHref}
+                  <AssetBadge asset={display.asset} size="sm" />
+                  <MarketTradeLink
+                    market={display}
+                    side="up"
                     className={cn(marketCardInteractive, "min-w-0 flex-1 no-underline")}
                   >
                     <p className="line-clamp-2 text-sm font-medium leading-snug text-foreground transition-colors hover:text-accent">
-                      {m.question}
+                      {display.question}
                     </p>
-                    <MarketLeverageBadges expiryMs={m.expiry} now={now} quotePaused={m.quotePaused} />
-                  </Link>
-                  <Link
-                    {...marketHref}
+                    <MarketLeverageBadges
+                      expiryMs={display.expiry}
+                      now={now}
+                      quotePaused={display.quotePaused}
+                    />
+                  </MarketTradeLink>
+                  <MarketTradeLink
+                    market={display}
+                    side="up"
                     className={cn(marketCardInteractive, marketCardPrice, "no-underline")}
                   >
                     <div className={marketCardPriceValue}>
                       <AnimatedMarketPremium
-                        premium={m.lastAskPremium}
-                        quotePaused={m.quotePaused}
+                        premium={display.lastAskPremium}
+                        quotePaused={display.quotePaused}
                         loading={premiumLoading}
                       />
                     </div>
-                  </Link>
+                  </MarketTradeLink>
                 </div>
 
                 <div className={marketCardActions}>
-                  <MarketSideActions oracleId={m.oracleId} stretch className="w-full" />
+                  <MarketSideActions market={source} stretch className="w-full" />
                 </div>
 
                 <div className={marketCardMeta}>
                   <span>
-                    <AnimatedCompactUsd value={m.volume > 0 ? m.volume : null} /> · {liquidityLabel}
+                    <AnimatedCompactUsd value={source.volume > 0 ? source.volume : null} /> ·{" "}
+                    {liquidityLabel}
                   </span>
                   <div className={cn(marketCardInteractive, "flex items-center gap-2")}>
-                    <span>{m.expiry ? formatAutoClose(m.expiry) : "—"}</span>
+                    <span>{display.expiry ? formatAutoClose(display.expiry) : "—"}</span>
                     <MarketFavoriteButton
-                      marketId={m.id}
+                      marketId={source.id}
                       size="sm"
                       className="h-7 w-7 min-w-7 p-0"
                       iconClassName="h-3 w-3"
@@ -175,10 +170,10 @@ export function PredictMarketsGrid({
               <MarketPremiumQuote
                 variant="band"
                 footer
-                series={seriesByMarketId.get(m.id) ?? []}
-                lastAskPremium={m.lastAskPremium}
+                series={seriesByMarketId.get(display.id) ?? []}
+                lastAskPremium={display.lastAskPremium}
                 premiumLoading={premiumLoading}
-                quotePaused={m.quotePaused}
+                quotePaused={display.quotePaused}
               />
             </article>
           );

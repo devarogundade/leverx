@@ -9,13 +9,9 @@ export function isRangeTradingEnabled(): boolean {
   return appConfig.rangeEnabled;
 }
 
-/** Outcome sides shown in trade / order-book toggles. */
-export const TRADE_PREDICT_SIDES: readonly PredictSide[] = isRangeTradingEnabled()
-  ? PREDICT_SIDES
-  : (["up", "down"] as const);
+export const TRADE_PREDICT_SIDES: readonly PredictSide[] = PREDICT_SIDES;
 
 export function coercePredictSide(side: PredictSide): PredictSide {
-  if (side === "range" && !isRangeTradingEnabled()) return "up";
   return side;
 }
 

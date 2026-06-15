@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
+import { MarketTradeLink } from "@/components/leverx/MarketTradeLink";
 import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
-import { isRangeTradingEnabled, predictSideLabel, type PredictSide } from "@/lib/predict/instruments";
+import type { LeverxMarketRow } from "@/lib/leverx/indexer-markets";
+import type { PredictSide } from "@/lib/predict/instruments";
 import {
   marketSideAction,
   marketSideActionDown,
@@ -14,7 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 
 interface Props {
-  oracleId: string;
+  market: LeverxMarketRow;
   className?: string;
   stretch?: boolean;
   plain?: boolean;
@@ -22,30 +23,25 @@ interface Props {
 }
 
 function SideLink({
-  oracleId,
+  market,
   side,
   className,
   children,
 }: {
-  oracleId: string;
+  market: LeverxMarketRow;
   side: PredictSide;
   className?: string;
   children: ReactNode;
 }) {
   return (
-    <Link
-      to="/predictions/$oracleId"
-      params={{ oracleId }}
-      state={{ predictSide: side }}
-      className={className}
-    >
+    <MarketTradeLink market={market} side={side} className={className}>
       {children}
-    </Link>
+    </MarketTradeLink>
   );
 }
 
 export function MarketSideActions({
-  oracleId,
+  market,
   className,
   stretch = false,
   plain = false,
@@ -62,32 +58,30 @@ export function MarketSideActions({
       aria-label="Trade side"
     >
       <SideLink
-        oracleId={oracleId}
+        market={market}
         side="up"
         className={cn(marketSideAction, marketSideActionUp)}
       >
         <PredictSideLabel side="up" />
       </SideLink>
       <SideLink
-        oracleId={oracleId}
+        market={market}
         side="down"
         className={cn(marketSideAction, marketSideActionDown)}
       >
         <PredictSideLabel side="down" />
       </SideLink>
-      {isRangeTradingEnabled() ? (
-        <SideLink
-          oracleId={oracleId}
-          side="range"
-          className={cn(
-            marketSideAction,
-            marketSideActionRange,
-            hideRangeOnMobile && "hidden sm:inline-flex",
-          )}
-        >
-          {predictSideLabel.range}
-        </SideLink>
-      ) : null}
+      <SideLink
+        market={market}
+        side="range"
+        className={cn(
+          marketSideAction,
+          marketSideActionRange,
+          hideRangeOnMobile && "hidden sm:inline-flex",
+        )}
+      >
+        <PredictSideLabel side="range" />
+      </SideLink>
     </div>
   );
 }

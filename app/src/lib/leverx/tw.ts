@@ -260,6 +260,9 @@ export const marketCardSparkline =
 export const marketCardSparklineFooter =
   "pointer-events-none relative z-0 mt-auto flex h-8 w-full min-w-0 shrink-0 overflow-hidden bg-transparent [&_.markets-sparkline]:block [&_.markets-sparkline]:h-full [&_.markets-sparkline]:w-full";
 
+export const marketsTableSparklineBand =
+  "pointer-events-none relative z-0 h-5 w-full min-w-0 shrink-0 overflow-hidden bg-[color-mix(in_oklab,var(--color-surface)_50%,transparent)] [&_.markets-sparkline]:block [&_.markets-sparkline]:h-full [&_.markets-sparkline]:w-full";
+
 /** Trade terminal layout */
 export const tradeTerminal = "trade-terminal flex w-full flex-1 flex-col min-h-0";
 
@@ -577,7 +580,7 @@ export const marketsBookmark = cn(
   ghostAccentHover,
 );
 
-export const marketsPriceCell = "flex items-center gap-1.5 font-mono tabular-nums";
+export const marketsPriceCell = "flex items-center gap-1 font-mono tabular-nums";
 
 export const marketsPriceValue = "font-semibold text-foreground";
 

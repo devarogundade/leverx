@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Link } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/ui/loading-state";
 import { AssetBadge } from "@/components/AssetBadge";
 import { AnimatedMarketPremium } from "@/components/ui/animated-numbers";
+import { MarketTradeLink } from "@/components/leverx/MarketTradeLink";
 import type { LeverxMarketRow } from "@/lib/leverx/indexer-markets";
 import { ui } from "@/lib/copy";
 import { MarketLeverageBadge } from "@/components/leverx/MarketLeverageBadge";
@@ -46,10 +46,9 @@ export function FeaturedCarousel({ markets, loading }: Props) {
         <div className="flex-1 space-y-1">
           {slots.map((m, i) =>
             m ? (
-              <Link
+              <MarketTradeLink
                 key={m.id}
-                to="/predictions/$oracleId"
-                params={{ oracleId: m.oracleId }}
+                market={m}
                 className={cn(featuredCarouselRow, "transition-colors hover:bg-hover")}
               >
                 <AssetBadge asset={m.asset} size="sm" />
@@ -65,7 +64,7 @@ export function FeaturedCarousel({ markets, loading }: Props) {
                     className="mt-0.5 text-sm font-semibold"
                   />
                 </div>
-              </Link>
+              </MarketTradeLink>
             ) : (
               <div key={`empty-${i}`} className={featuredCarouselRowEmpty} />
             ),

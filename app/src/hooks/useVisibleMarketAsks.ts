@@ -6,6 +6,7 @@ import type { LeverxMarketRow } from "@/lib/leverx/indexer-markets";
 import { leverxMarketAskQueryKey } from "@/hooks/useLeverxMarketAsk";
 import { useLeverxProtocolConfig } from "@/hooks/useLeverxTransactions";
 import { marketRowToKey } from "@/lib/leverx/market-keys";
+import { MARKET_CATALOG_REFETCH_MS } from "@/hooks/useIndexer";
 import { fetchPredictMarketAsk } from "@/lib/leverx/quotes";
 
 function quoteCfg(
@@ -34,10 +35,12 @@ export function withLiveMarketAsks(
 
   return markets.map((m) => {
     const live = quoteState.asks.get(m.id);
-    const quotePaused = quoteState.paused.has(m.id);
+    const fetchFailed = quoteState.paused.has(m.id);
+    const premium = live ?? m.lastAskPremium ?? null;
+    const quotePaused = fetchFailed && (premium == null || premium <= 0);
     return {
       ...m,
-      lastAskPremium: live ?? (quotePaused ? null : m.lastAskPremium),
+      lastAskPremium: premium,
       quotePaused,
     };
   });
@@ -101,8 +104,8 @@ export function useVisibleMarketAsks(markets: readonly LeverxMarketRow[]) {
       return { asks, paused };
     },
     enabled: Boolean(cfg && marketKeys.length > 0),
-    staleTime: 10_000,
-    refetchInterval: 15_000,
+    staleTime: MARKET_CATALOG_REFETCH_MS / 2,
+    refetchInterval: MARKET_CATALOG_REFETCH_MS,
     refetchIntervalInBackground: false,
     placeholderData: (previous) => previous,
     retry: 1,

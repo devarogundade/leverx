@@ -120,5 +120,5 @@ export const appConfig = {
     "https://deepbook-indexer.mainnet.mystenlabs.com",
 
   /** Vertical RANGE instruments in trade UI and market actions. */
-  rangeEnabled: viteEnv("VITE_RANGE_ENABLED") !== "false",
+  rangeEnabled: true,
 } as const;

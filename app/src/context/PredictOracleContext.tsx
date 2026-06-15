@@ -6,7 +6,6 @@ import {
   type ReactNode,
 } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useIndexerProtocol } from "@/hooks/useIndexer";
 import { appConfig } from "@/lib/config";
 import {
   getPredictOracleRows,
@@ -38,8 +37,8 @@ type PredictOracleContextValue = {
 const PredictOracleContext = createContext<PredictOracleContextValue | null>(null);
 
 export function PredictOracleProvider({ children }: { children: ReactNode }) {
-  const { data: protocol } = useIndexerProtocol();
-  const predictId = protocol?.predict_id?.trim() || appConfig.predictId;
+  // Oracle catalog UI always follows configured DeepBook Predict id (matches predict-server API).
+  const predictId = appConfig.predictId;
 
   const query = useQuery({
     queryKey: predictOraclesQueryKey(predictId),

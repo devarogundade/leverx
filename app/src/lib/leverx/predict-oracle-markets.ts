@@ -20,11 +20,7 @@ function scaledRaw(value: number | undefined | null): number {
 }
 
 /** Round spot to tick for default ATM strike (raw 1e9 units). */
-export function atmStrikeRaw(
-  spotUsd: number,
-  minStrikeRaw: number,
-  tickSizeRaw: number,
-): number {
+export function atmStrikeRaw(spotUsd: number, minStrikeRaw: number, tickSizeRaw: number): number {
   if (spotUsd <= 0) return minStrikeRaw > 0 ? minStrikeRaw : 0;
   const spotRaw = Math.round(spotUsd * SCALE);
   const tick = tickSizeRaw > 0 ? tickSizeRaw : minStrikeRaw;
@@ -54,11 +50,7 @@ export function resolveRangeBounds(args: {
 }): { lower: number; upper: number } | null {
   const catalogRows = args.catalogRows ?? [];
 
-  if (
-    args.lowerStrikeRaw &&
-    args.upperStrikeRaw &&
-    args.upperStrikeRaw > args.lowerStrikeRaw
-  ) {
+  if (args.lowerStrikeRaw && args.upperStrikeRaw && args.upperStrikeRaw > args.lowerStrikeRaw) {
     return { lower: args.lowerStrikeRaw, upper: args.upperStrikeRaw };
   }
 
@@ -83,8 +75,7 @@ export function resolveRangeBounds(args: {
   }
 
   const minStrikeRaw = toStrikeRaw(args.oracle?.min_strike);
-  const tickRaw =
-    toStrikeRaw(args.oracle?.tick_size) || minStrikeRaw || SCALE;
+  const tickRaw = toStrikeRaw(args.oracle?.tick_size) || minStrikeRaw || SCALE;
   const spot =
     args.oracleSpot ??
     (args.oracle?.settlement_price
@@ -138,14 +129,56 @@ function buildSyntheticRangeRow(
 
 function groupCatalogByOracle(
   catalog: readonly MarketCatalogEntry[],
+  oracles: readonly PredictOracleSummary[],
 ): Map<string, MarketCatalogEntry[]> {
+  const oracleById = new Map(oracles.map((o) => [o.oracle_id, o]));
+  const oracleByExpiry = new Map<number, PredictOracleSummary[]>();
+  for (const oracle of oracles) {
+    if (!oracle.expiry || oracle.expiry <= 0) continue;
+    const list = oracleByExpiry.get(oracle.expiry) ?? [];
+    list.push(oracle);
+    oracleByExpiry.set(oracle.expiry, list);
+  }
+
   const map = new Map<string, MarketCatalogEntry[]>();
   for (const entry of catalog) {
-    const list = map.get(entry.oracle_id) ?? [];
-    list.push(entry);
-    map.set(entry.oracle_id, list);
+    const oracle = resolveOracleForCatalogEntry(entry, oracleById, oracleByExpiry);
+    if (!oracle) continue;
+
+    const normalized = catalogEntryWithOracle(entry, oracle.oracle_id);
+    const list = map.get(oracle.oracle_id) ?? [];
+    list.push(normalized);
+    map.set(oracle.oracle_id, list);
   }
   return map;
+}
+
+function resolveOracleForCatalogEntry(
+  entry: MarketCatalogEntry,
+  oracleById: Map<string, PredictOracleSummary>,
+  oracleByExpiry: Map<number, PredictOracleSummary[]>,
+  now = Date.now(),
+): PredictOracleSummary | undefined {
+  const byExpiry = oracleByExpiry.get(entry.expiry_ms) ?? [];
+  if (byExpiry.length > 0) {
+    return (
+      byExpiry.find((o) => isActiveOracleRow(o, now)) ??
+      byExpiry.find((o) => isLiveOracleRow(o)) ??
+      byExpiry[0]
+    );
+  }
+
+  return oracleById.get(entry.oracle_id);
+}
+
+function catalogEntryWithOracle(entry: MarketCatalogEntry, oracleId: string): MarketCatalogEntry {
+  if (entry.oracle_id === oracleId) return entry;
+
+  return {
+    ...entry,
+    oracle_id: oracleId,
+    market_key: `${oracleId}:${entry.expiry_ms}:${entry.strike}:${entry.higher_strike}:${entry.is_up ? 1 : 0}:${entry.is_range ? 1 : 0}`,
+  };
 }
 
 export function enrichMarketRow(
@@ -156,12 +189,16 @@ export function enrichMarketRow(
   if (!oracle) return row;
   const asset = oracleAsset(oracle);
   const expiry = row.expiry > 0 ? row.expiry : (oracle.expiry ?? 0);
+  const minStrikeRaw = scaledRaw(oracle.min_strike);
+  const tickSizeRaw = scaledRaw(oracle.tick_size);
   return {
     ...row,
     asset,
     expiry,
     oracleStatus: oracle.status,
     underlyingAsset: oracle.underlying_asset,
+    minStrikeRaw,
+    tickSizeRaw,
     spotPrice: spot ?? row.spotPrice ?? null,
     question: buildQuestion(
       asset,
@@ -202,6 +239,58 @@ function defaultUpRow(
     spotPrice: spot ?? null,
     oracleStatus: oracle.status,
     underlyingAsset: oracle.underlying_asset,
+    minStrikeRaw: scaledRaw(oracle.min_strike),
+    tickSizeRaw: scaledRaw(oracle.tick_size),
+  };
+}
+
+function upMarketKey(oracleId: string, expiry: number, strikeRaw: number): string {
+  return `${oracleId}:${expiry}:${strikeRaw}:0:1:0`;
+}
+
+/**
+ * Catalog cards always show the UP "above …" contract — same ATM strike logic as
+ * the trade terminal so live quotes resolve instead of pausing at 0¢.
+ */
+export function gridUpDisplayRow(row: LeverxMarketRow): LeverxMarketRow {
+  const spot = row.spotPrice;
+  const minStrikeRaw = row.minStrikeRaw ?? 0;
+  const tickSizeRaw = row.tickSizeRaw ?? 0;
+
+  const displayStrikeRaw =
+    spot != null && spot > 0
+      ? atmStrikeRaw(spot, minStrikeRaw, tickSizeRaw)
+      : row.strikeRaw > 0
+        ? row.strikeRaw
+        : 0;
+
+  const upId =
+    displayStrikeRaw > 0 ? upMarketKey(row.oracleId, row.expiry, displayStrikeRaw) : row.id;
+  const sameKey = row.id === upId && row.isUp && !row.isRange;
+  const catalogFallback =
+    row.isUp && !row.isRange && row.strikeRaw === displayStrikeRaw
+      ? row.lastAskPremium
+      : null;
+
+  return {
+    ...row,
+    id: upId,
+    strikeRaw: displayStrikeRaw,
+    strike: displayStrikeRaw / SCALE,
+    higherStrikeRaw: 0,
+    isUp: true,
+    isRange: false,
+    question: buildQuestion(
+      row.asset,
+      displayStrikeRaw,
+      row.expiry,
+      false,
+      0,
+      true,
+      spot,
+    ),
+    lastAskPremium: sameKey ? row.lastAskPremium : catalogFallback,
+    quotePaused: sameKey ? row.quotePaused : undefined,
   };
 }
 
@@ -210,7 +299,7 @@ function oraclesForCategory(
   category: MarketCategory,
 ): PredictOracleSummary[] {
   if (category === "Live") {
-    return oracles.filter((o) => isLiveOracleRow(o));
+    return oracles.filter((o) => isActiveOracleRow(o));
   }
 
   if (category === "Closed") {
@@ -222,16 +311,67 @@ function oraclesForCategory(
 
 function catalogEntriesForCategory(
   entries: readonly MarketCatalogEntry[],
-  category: MarketCategory,
+  _category: MarketCategory,
 ): MarketCatalogEntry[] {
-  let filtered = [...entries];
   if (!appConfig.rangeEnabled) {
-    filtered = filtered.filter((entry) => !entry.is_range);
+    return entries.filter((entry) => !entry.is_range);
   }
-  if (category === "Live") {
-    return filtered.filter((entry) => !entry.is_range);
-  }
-  return filtered;
+  return [...entries];
+}
+
+function primaryCatalogEntry(
+  entries: readonly MarketCatalogEntry[],
+): MarketCatalogEntry | undefined {
+  if (entries.length === 0) return undefined;
+  if (entries.length === 1) return entries[0];
+
+  return [...entries].sort(
+    (a, b) =>
+      b.volume_24h - a.volume_24h ||
+      b.trade_count_24h - a.trade_count_24h ||
+      b.updated_at_ms - a.updated_at_ms,
+  )[0];
+}
+
+function pushCatalogRow(
+  rows: LeverxMarketRow[],
+  seen: Set<string>,
+  entry: MarketCatalogEntry,
+  oracle: PredictOracleSummary,
+  spotByOracle?: ReadonlyMap<string, number>,
+) {
+  const row = enrichMarketRow(
+    catalogEntryToMarketRow(entry),
+    oracle,
+    spotByOracle?.get(oracle.oracle_id),
+  );
+  if (seen.has(row.id)) return;
+  seen.add(row.id);
+  rows.push(row);
+}
+
+function pushDefaultOracleRow(
+  rows: LeverxMarketRow[],
+  seen: Set<string>,
+  oracle: PredictOracleSummary,
+  spotByOracle?: ReadonlyMap<string, number>,
+) {
+  if (isSettledOracleRow(oracle)) return;
+
+  const spot =
+    spotByOracle?.get(oracle.oracle_id) ??
+    (oracle.settlement_price ? oracle.settlement_price / SCALE : undefined);
+  const strikeRaw = atmStrikeRaw(
+    spot ?? 0,
+    scaledRaw(oracle.min_strike),
+    scaledRaw(oracle.tick_size),
+  );
+  if (strikeRaw <= 0) return;
+
+  const row = defaultUpRow(oracle, strikeRaw, spot);
+  if (seen.has(row.id)) return;
+  seen.add(row.id);
+  rows.push(row);
 }
 
 export function mergeOracleMarkets(args: {
@@ -243,7 +383,7 @@ export function mergeOracleMarkets(args: {
 }): LeverxMarketRow[] {
   const { oracles, catalog, spotByOracle, category, search = "" } = args;
   const oracleById = new Map(oracles.map((o) => [o.oracle_id, o]));
-  const catalogByOracle = groupCatalogByOracle(catalog);
+  const catalogByOracle = groupCatalogByOracle(catalog, oracles);
 
   const selectedOracles = oraclesForCategory(oracles, category);
   const seen = new Set<string>();
@@ -255,38 +395,24 @@ export function mergeOracleMarkets(args: {
       category,
     );
 
-    if (entries.length > 0) {
-      for (const entry of entries) {
-        const row = enrichMarketRow(
-          catalogEntryToMarketRow(entry),
-          oracle,
-          spotByOracle?.get(oracle.oracle_id),
-        );
-        if (!seen.has(row.id)) {
-          seen.add(row.id);
-          rows.push(row);
-        }
+    if (category === "Live") {
+      const primary = primaryCatalogEntry(entries);
+      if (primary) {
+        pushCatalogRow(rows, seen, primary, oracle, spotByOracle);
+      } else {
+        pushDefaultOracleRow(rows, seen, oracle, spotByOracle);
       }
       continue;
     }
 
-    if (isSettledOracleRow(oracle)) continue;
-
-    const spot =
-      spotByOracle?.get(oracle.oracle_id) ??
-      (oracle.settlement_price ? oracle.settlement_price / SCALE : undefined);
-    const strikeRaw = atmStrikeRaw(
-      spot ?? 0,
-      scaledRaw(oracle.min_strike),
-      scaledRaw(oracle.tick_size),
-    );
-    if (strikeRaw <= 0) continue;
-
-    const row = defaultUpRow(oracle, strikeRaw, spot);
-    if (!seen.has(row.id)) {
-      seen.add(row.id);
-      rows.push(row);
+    if (entries.length > 0) {
+      for (const entry of entries) {
+        pushCatalogRow(rows, seen, entry, oracle, spotByOracle);
+      }
+      continue;
     }
+
+    pushDefaultOracleRow(rows, seen, oracle, spotByOracle);
   }
 
   rows.sort((a, b) => b.volume - a.volume || b.expiry - a.expiry);
@@ -336,11 +462,7 @@ export function resolveTradeMarket(args: {
         upperStrikeRaw,
       });
       if (!bounds) return m.isRange && (!lowerStrikeRaw || m.strikeRaw === lowerStrikeRaw);
-      return (
-        m.isRange &&
-        m.strikeRaw === bounds.lower &&
-        m.higherStrikeRaw === bounds.upper
-      );
+      return m.isRange && m.strikeRaw === bounds.lower && m.higherStrikeRaw === bounds.upper;
     }
     if (strikeRaw) {
       return !m.isRange && m.isUp === (side === "up") && m.strikeRaw === strikeRaw;
@@ -356,8 +478,8 @@ export function resolveTradeMarket(args: {
   const rawStrike =
     side === "range" && lowerStrikeRaw
       ? lowerStrikeRaw
-      : strikeRaw ??
-        atmStrikeRaw(spot, scaledRaw(oracle.min_strike), scaledRaw(oracle.tick_size));
+      : (strikeRaw ??
+        atmStrikeRaw(spot, scaledRaw(oracle.min_strike), scaledRaw(oracle.tick_size)));
 
   if (rawStrike <= 0) return undefined;
 

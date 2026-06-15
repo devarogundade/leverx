@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
 import {
   predictSideLabel,
   predictSideTextClass,
@@ -32,11 +32,8 @@ export function PredictSideLabel({
       ? tradePanelSideLabel[side]
       : predictSideLabel[side];
 
-  if (side === "range") {
-    return <span className={className}>{label}</span>;
-  }
-
-  const Icon = side === "up" ? ChevronUp : ChevronDown;
+  const Icon =
+    side === "up" ? ChevronUp : side === "down" ? ChevronDown : ChevronsUpDown;
 
   return (
     <span

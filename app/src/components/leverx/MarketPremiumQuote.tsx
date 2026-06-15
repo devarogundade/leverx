@@ -6,6 +6,7 @@ import {
   marketCardSparklineFooter,
   marketsPriceCell,
   marketsPriceValue,
+  marketsTableSparklineBand,
 } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +18,8 @@ interface Props {
   variant?: "inline" | "band";
   /** Band at card footer — full width, no background tint */
   footer?: boolean;
+  /** Shorter sparkline for markets list/table density */
+  compact?: boolean;
   className?: string;
 }
 
@@ -27,6 +30,7 @@ export function MarketPremiumQuote({
   quotePaused,
   variant = "inline",
   footer = false,
+  compact = false,
   className,
 }: Props) {
   const change = changePercentEndpoints(series);
@@ -34,19 +38,21 @@ export function MarketPremiumQuote({
   const showChange = series.length >= 2 && Math.abs(change) >= 0.05;
 
   if (variant === "band") {
+    const bandClass = footer
+      ? marketCardSparklineFooter
+      : compact
+        ? marketsTableSparklineBand
+        : marketCardSparkline;
+
     return (
-      <div
-        className={cn(
-          footer ? marketCardSparklineFooter : marketCardSparkline,
-          className,
-        )}
-      >
+      <div className={cn(bandClass, className)}>
         <MarketSparkline
           series={series}
-          height={32}
+          height={compact ? 20 : 32}
           width="100%"
           edgeToEdge={footer}
           viewWidth={footer ? 240 : 104}
+          viewHeight={compact ? 14 : 20}
         />
       </div>
     );
@@ -54,7 +60,12 @@ export function MarketPremiumQuote({
 
   return (
     <div className={cn(marketsPriceCell, className)}>
-      <MarketSparkline series={series} width={52} height={20} />
+      <MarketSparkline
+        series={series}
+        width={compact ? 28 : 52}
+        height={compact ? 14 : 20}
+        viewHeight={compact ? 14 : 20}
+      />
       <AnimatedMarketPremium
         className={marketsPriceValue}
         premium={lastAskPremium}

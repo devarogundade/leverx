@@ -1,5 +1,4 @@
 import { useMemo, type ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
 import { ChevronDown } from "lucide-react";
 import { DataTable, type Column } from "@/components/DataTable";
 import { AssetBadge } from "@/components/AssetBadge";
@@ -30,6 +29,7 @@ import {
   walletRepaidPrincipalUsd,
   type PositionMarkToMarket,
 } from "@/lib/leverx/position-metrics";
+import { PositionTradeLink } from "@/components/leverx/MarketTradeLink";
 import { positionShowsManageAction } from "@/lib/leverx/position-quantity";
 import { premiumRawToCents } from "@/lib/leverx/trade-math";
 import {
@@ -403,13 +403,12 @@ export function LeverxPositionsTable({
           <div className="flex items-center gap-2">
             <AssetBadge asset={r.asset} size="sm" />
             <div className="min-w-0">
-              <Link
-                to="/predictions/$oracleId"
-                params={{ oracleId: r.position.oracle_id }}
+              <PositionTradeLink
+                position={r.position}
                 className="truncate text-sm font-medium hover:underline"
               >
                 {r.asset}
-              </Link>
+              </PositionTradeLink>
               <p className="text-[11px]">
                 <PredictSideLabel side={r.side} colored />
               </p>

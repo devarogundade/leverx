@@ -66,6 +66,9 @@ export const indexerKeys = {
 
 const enabled = Boolean(appConfig.leverxIndexerUrl);
 
+/** Indexer market catalog poll interval on the markets list. */
+export const MARKET_CATALOG_REFETCH_MS = 12_000;
+
 export function useIndexerHealth() {
   return useQuery({
     queryKey: indexerKeys.health,
@@ -104,8 +107,8 @@ export function useMarketCatalog(args?: {
       return items;
     },
     enabled,
-    staleTime: 15_000,
-    refetchInterval: 30_000,
+    staleTime: MARKET_CATALOG_REFETCH_MS / 2,
+    refetchInterval: MARKET_CATALOG_REFETCH_MS,
     refetchIntervalInBackground: false,
     placeholderData: (previous) => previous,
     retry: 1,

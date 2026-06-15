@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
 import { ArrowDown, ArrowUp, BarChart3, ChevronsUpDown } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MarketTableSkeleton } from "@/components/ui/market-skeleton";
@@ -7,9 +6,8 @@ import { AssetBadge } from "@/components/AssetBadge";
 import { MarketFavoriteButton } from "@/components/leverx/MarketFavoriteButton";
 import { MarketPremiumQuote } from "@/components/leverx/MarketPremiumQuote";
 import { MarketSideActions } from "@/components/leverx/MarketSideActions";
-import { useMarketPremiumSparklines } from "@/hooks/useMarketPremiumSparklines";
-import { useVisibleMarketAsks } from "@/hooks/useVisibleMarketAsks";
-import { useVisibleOracleSpots } from "@/hooks/useVisibleOracleSpots";
+import { MarketTradeLink } from "@/components/leverx/MarketTradeLink";
+import { useMarketsUpDisplay } from "@/hooks/useMarketsUpDisplay";
 import {
   MARKETS_TABLE_PAGE_SIZE,
   MarketCatalogPagination,
@@ -102,13 +100,15 @@ function SortHeader({
 }
 
 function MarketMobileCard({
-  market: m,
+  display,
+  source,
   liquidityLabel,
   premiumSeries,
   premiumLoading,
   now,
 }: {
-  market: LeverxMarketRow;
+  display: LeverxMarketRow;
+  source: LeverxMarketRow;
   liquidityLabel: ReactNode;
   premiumSeries: readonly number[];
   premiumLoading?: boolean;
@@ -117,32 +117,38 @@ function MarketMobileCard({
   return (
     <article className={marketsTableMobileCard}>
       <div className={marketsTableMobileCardHeader}>
-        <MarketFavoriteButton marketId={m.id} />
-        <AssetBadge asset={m.asset} size="sm" />
+        <MarketFavoriteButton marketId={source.id} />
+        <AssetBadge asset={display.asset} size="sm" />
         <div className="min-w-0 flex-1">
-          <Link
-            to="/predictions/$oracleId"
-            params={{ oracleId: m.oracleId }}
+          <MarketTradeLink
+            market={display}
+            side="up"
             className={cn(marketsMarketLink, "font-medium")}
           >
-            {m.question}
-          </Link>
-          <MarketLeverageBadges expiryMs={m.expiry} now={now} quotePaused={m.quotePaused} />
+            {display.question}
+          </MarketTradeLink>
+          <MarketLeverageBadges
+            expiryMs={display.expiry}
+            now={now}
+            quotePaused={display.quotePaused}
+          />
         </div>
         <MarketPremiumQuote
           series={premiumSeries}
-          lastAskPremium={m.lastAskPremium}
+          lastAskPremium={display.lastAskPremium}
           premiumLoading={premiumLoading}
-          quotePaused={m.quotePaused}
+          quotePaused={display.quotePaused}
+          compact
         />
       </div>
 
       <MarketPremiumQuote
         variant="band"
         series={premiumSeries}
-        lastAskPremium={m.lastAskPremium}
+        lastAskPremium={display.lastAskPremium}
         premiumLoading={premiumLoading}
-        quotePaused={m.quotePaused}
+        quotePaused={display.quotePaused}
+        compact
         className="mt-2"
       />
 
@@ -150,7 +156,7 @@ function MarketMobileCard({
         <div>
           <dt className={marketsTableMobileStatLabel}>Volume</dt>
           <dd className={cn(marketsTableMobileStatValue, "font-mono tabular-nums")}>
-            <AnimatedCompactUsd value={m.volume > 0 ? m.volume : null} />
+            <AnimatedCompactUsd value={source.volume > 0 ? source.volume : null} />
           </dd>
         </div>
         <div>
@@ -162,12 +168,12 @@ function MarketMobileCard({
         <div>
           <dt className={marketsTableMobileStatLabel}>Auto close</dt>
           <dd className={cn(marketsTableMobileStatValue, "text-muted-foreground")}>
-            {m.expiry ? formatAutoClose(m.expiry) : "—"}
+            {display.expiry ? formatAutoClose(display.expiry) : "—"}
           </dd>
         </div>
       </dl>
 
-      <MarketSideActions oracleId={m.oracleId} stretch />
+      <MarketSideActions market={source} stretch />
     </article>
   );
 }
@@ -179,8 +185,6 @@ interface Props {
   liquidityLabel?: ReactNode;
   loading?: boolean;
   offline?: boolean;
-  quotesEnriched?: boolean;
-  premiumLoading?: boolean;
   emptyTitle?: string;
   emptyDescription?: string;
 }
@@ -192,8 +196,6 @@ export function PredictMarketsTable({
   liquidityLabel = "_",
   loading,
   offline,
-  quotesEnriched = false,
-  premiumLoading: premiumLoadingProp,
   emptyTitle = ui.emptyMarkets,
   emptyDescription = ui.emptyMarketsHint,
 }: Props) {
@@ -212,14 +214,9 @@ export function PredictMarketsTable({
     () => paginateSlice(markets, page, MARKETS_TABLE_PAGE_SIZE),
     [markets, page],
   );
-  const { markets: pageMarketsWithAsks, isLoading: pagePremiumLoading } =
-    useVisibleMarketAsks(quotesEnriched ? [] : pageMarkets);
-  const marketsWithAsks = quotesEnriched ? pageMarkets : pageMarketsWithAsks;
-  const premiumLoading = quotesEnriched
-    ? Boolean(premiumLoadingProp)
-    : pagePremiumLoading;
-  const { markets: visibleMarkets } = useVisibleOracleSpots(marketsWithAsks);
-  const { seriesByMarketId } = useMarketPremiumSparklines(visibleMarkets);
+
+  const { sourceByOracleId, displayMarkets, premiumLoading, seriesByMarketId } =
+    useMarketsUpDisplay(pageMarkets);
   const now = useNow(1000);
 
   if (loading) {
@@ -245,16 +242,20 @@ export function PredictMarketsTable({
   return (
     <div className={marketsTableShell}>
       <div className={marketsTableMobileList}>
-        {visibleMarkets.map((m) => (
-          <MarketMobileCard
-            key={m.id}
-            market={m}
-            liquidityLabel={liquidityLabel}
-            premiumSeries={seriesByMarketId.get(m.id) ?? []}
-            premiumLoading={premiumLoading}
-            now={now}
-          />
-        ))}
+        {displayMarkets.map((display) => {
+          const source = sourceByOracleId.get(display.oracleId) ?? display;
+          return (
+            <MarketMobileCard
+              key={display.id}
+              display={display}
+              source={source}
+              liquidityLabel={liquidityLabel}
+              premiumSeries={seriesByMarketId.get(display.id) ?? []}
+              premiumLoading={premiumLoading}
+              now={now}
+            />
+          );
+        })}
       </div>
 
       <div className={cn(marketsTableScroll, marketsTableDesktop)}>
@@ -298,45 +299,52 @@ export function PredictMarketsTable({
             </tr>
           </thead>
           <tbody>
-            {visibleMarkets.map((m) => {
+            {displayMarkets.map((display) => {
+              const source = sourceByOracleId.get(display.oracleId) ?? display;
+
               return (
-                <tr key={m.id} className={marketsRow}>
+                <tr key={display.id} className={marketsRow}>
                   <td className={cn(marketsTd, marketsTdMarket)}>
                     <div className={marketsMarketCell}>
-                      <MarketFavoriteButton marketId={m.id} />
-                      <AssetBadge asset={m.asset} size="sm" />
+                      <MarketFavoriteButton marketId={source.id} />
+                      <AssetBadge asset={display.asset} size="sm" />
                       <div className="min-w-0 flex-1">
-                        <Link
-                          to="/predictions/$oracleId"
-                          params={{ oracleId: m.oracleId }}
+                        <MarketTradeLink
+                          market={display}
+                          side="up"
                           className={cn(marketsMarketLink, "font-medium")}
                         >
-                          {m.question}
-                        </Link>
-                        <MarketLeverageBadges expiryMs={m.expiry} now={now} quotePaused={m.quotePaused} />
+                          {display.question}
+                        </MarketTradeLink>
+                        <MarketLeverageBadges
+                          expiryMs={display.expiry}
+                          now={now}
+                          quotePaused={display.quotePaused}
+                        />
                       </div>
                     </div>
                   </td>
                   <td className={marketsTd}>
                     <MarketPremiumQuote
-                      series={seriesByMarketId.get(m.id) ?? []}
-                      lastAskPremium={m.lastAskPremium}
+                      series={seriesByMarketId.get(display.id) ?? []}
+                      lastAskPremium={display.lastAskPremium}
                       premiumLoading={premiumLoading}
-                      quotePaused={m.quotePaused}
+                      quotePaused={display.quotePaused}
+                      compact
                     />
                   </td>
                   <td className={cn(marketsTd, marketsTdMono, marketsTdHideMd)}>
-                    <AnimatedCompactUsd value={m.volume > 0 ? m.volume : null} />
+                    <AnimatedCompactUsd value={source.volume > 0 ? source.volume : null} />
                   </td>
                   <td className={cn(marketsTd, marketsTdMono, marketsTdHideLg)}>
                     {liquidityLabel}
                   </td>
                   <td className={cn(marketsTd, marketsTdMuted, marketsTdHideSm)}>
-                    {m.expiry ? formatAutoClose(m.expiry) : "—"}
+                    {display.expiry ? formatAutoClose(display.expiry) : "—"}
                   </td>
                   <td className={cn(marketsTd, marketsTdTrade)}>
                     <div className={marketsTradeActions}>
-                      <MarketSideActions oracleId={m.oracleId} />
+                      <MarketSideActions market={source} />
                     </div>
                   </td>
                 </tr>

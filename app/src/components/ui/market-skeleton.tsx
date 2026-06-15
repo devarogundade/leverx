@@ -18,6 +18,7 @@ import {
   marketCardMeta,
   marketCardSparklineFooter,
   marketsGrid,
+  marketsTableSparklineBand,
   marketsRow,
   marketsTable,
   marketsTableDesktop,
@@ -120,12 +121,18 @@ function SkeletonActionsRow({ plain = false }: { plain?: boolean; }) {
   );
 }
 
-function SkeletonPremiumQuote({ band = false }: { band?: boolean; }) {
+function SkeletonPremiumQuote({
+  band = false,
+  compact = false,
+}: {
+  band?: boolean;
+  compact?: boolean;
+}) {
   if (band) {
     return (
       <div
         className={cn(
-          marketCardSparklineFooter,
+          compact ? marketsTableSparklineBand : marketCardSparklineFooter,
           "lx-skeleton lx-skeleton--band bg-surface/40",
         )}
       />
@@ -134,7 +141,7 @@ function SkeletonPremiumQuote({ band = false }: { band?: boolean; }) {
 
   return (
     <div className="flex items-center gap-1.5">
-      <SkeletonBar className="h-5 w-[3.25rem] shrink-0" />
+      <SkeletonBar className={cn("shrink-0", compact ? "h-3.5 w-10" : "h-5 w-[3.25rem]")} />
       <SkeletonBar className="h-4 w-10" />
     </div>
   );
@@ -184,10 +191,10 @@ function MarketTableMobileCardSkeleton() {
           <SkeletonBar className="h-2.5 w-full" />
           <SkeletonBar className="h-4 w-8" />
         </div>
-        <SkeletonPremiumQuote />
+        <SkeletonPremiumQuote compact />
       </div>
 
-      <SkeletonPremiumQuote band />
+      <SkeletonPremiumQuote band compact />
 
       <dl className={marketsTableMobileCardStats}>
         {Array.from({ length: 3 }, (_, i) => (
@@ -557,7 +564,7 @@ export function MarketTableSkeleton({ rows = 8 }: { rows?: number; }) {
                   </div>
                 </td>
                 <td className={marketsTd}>
-                  <SkeletonPremiumQuote />
+                  <SkeletonPremiumQuote compact />
                 </td>
                 <td className={cn(marketsTd, marketsTdHideMd)}>
                   <SkeletonBar className="h-3.5 w-14" />

@@ -25,6 +25,9 @@ export interface LeverxMarketRow {
   spotPrice?: number | null;
   oracleStatus?: string;
   underlyingAsset?: string;
+  /** Oracle strike grid (raw 1e9) — used for ATM UP quotes on catalog cards. */
+  minStrikeRaw?: number;
+  tickSizeRaw?: number;
 }
 
 const SCALE = Number(FLOAT_SCALING);

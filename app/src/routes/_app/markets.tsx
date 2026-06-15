@@ -11,7 +11,7 @@ import { PredictMarketsTable } from "@/components/leverx/PredictMarketsTable";
 import { PromoBanner } from "@/components/leverx/PromoBanner";
 import { useMarketFavorites } from "@/context/MarketFavoritesContext";
 import { useMergedMarkets } from "@/hooks/useMergedMarkets";
-import { useVisibleMarketAsks } from "@/hooks/useVisibleMarketAsks";
+import { useMarketsUpDisplay } from "@/hooks/useMarketsUpDisplay";
 import { useIndexerProtocol, useIndexerVaultSummary } from "@/hooks/useIndexer";
 import { pageTitle } from "@/lib/brand";
 import { ui } from "@/lib/copy";
@@ -88,13 +88,17 @@ function MarketsPage() {
     return sortMarketRows(filtered, sort);
   }, [catalogMarkets, category, favorites, sort]);
 
-  const { markets: quotedMarkets, isLoading: quotedMarketsLoading } =
-    useVisibleMarketAsks(notPausedOnly ? sortedMarkets : []);
+  const { displayMarkets: upDisplayedForFilter } = useMarketsUpDisplay(
+    notPausedOnly ? sortedMarkets : [],
+  );
 
   const markets = useMemo(() => {
     if (!notPausedOnly) return sortedMarkets;
-    return quotedMarkets.filter((market) => !market.quotePaused);
-  }, [notPausedOnly, sortedMarkets, quotedMarkets]);
+    const pausedOracleIds = new Set(
+      upDisplayedForFilter.filter((market) => market.quotePaused).map((market) => market.oracleId),
+    );
+    return sortedMarkets.filter((market) => !pausedOracleIds.has(market.oracleId));
+  }, [notPausedOnly, sortedMarkets, upDisplayedForFilter]);
 
   const emptyTitle = category === "Favorites" ? ui.emptyFavoriteMarkets : ui.emptyMarkets;
   const emptyDescription =
@@ -197,8 +201,6 @@ function MarketsPage() {
             liquidityLabel={liquidityLabel}
             loading={loading}
             offline={offline}
-            quotesEnriched={notPausedOnly}
-            premiumLoading={notPausedOnly ? quotedMarketsLoading : undefined}
             emptyTitle={emptyTitle}
             emptyDescription={emptyDescription}
           />
@@ -212,8 +214,6 @@ function MarketsPage() {
                 liquidityLabel={liquidityLabel}
                 loading={loading}
                 offline={offline}
-                quotesEnriched={notPausedOnly}
-                premiumLoading={notPausedOnly ? quotedMarketsLoading : undefined}
                 emptyTitle={emptyTitle}
                 emptyDescription={emptyDescription}
               />
@@ -224,8 +224,6 @@ function MarketsPage() {
                 liquidityLabel={liquidityLabel}
                 loading={loading}
                 offline={offline}
-                quotesEnriched={notPausedOnly}
-                premiumLoading={notPausedOnly ? quotedMarketsLoading : undefined}
                 emptyTitle={emptyTitle}
                 emptyDescription={emptyDescription}
               />

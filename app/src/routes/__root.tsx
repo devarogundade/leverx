@@ -12,6 +12,7 @@ import { APP_NAME } from "../lib/brand";
 import { IndexerStreamProvider } from "../context/IndexerStreamContext";
 import { MarketFavoritesProvider } from "../context/MarketFavoritesContext";
 import { PredictOracleProvider } from "../context/PredictOracleContext";
+import { TradeNavigationProvider } from "../context/TradeNavigationContext";
 import { Toaster } from "@/components/ui/sonner";
 import { GsapMotionProvider } from "@/components/motion/GsapMotionProvider";
 import { WalletProvider } from "../context/WalletContext";
@@ -110,18 +111,20 @@ function RootComponent() {
     <>
       <HeadContent />
       <PredictOracleProvider>
-        <IndexerStreamProvider>
-          <MarketFavoritesProvider>
-            <WalletProvider>
-              <GsapMotionProvider>
-                <div className="app-outlet flex min-h-dvh flex-col">
-                  <Outlet />
-                </div>
-              </GsapMotionProvider>
-              <Toaster position="bottom-right" richColors closeButton />
-            </WalletProvider>
-          </MarketFavoritesProvider>
-        </IndexerStreamProvider>
+        <TradeNavigationProvider>
+          <IndexerStreamProvider>
+            <MarketFavoritesProvider>
+              <WalletProvider>
+                <GsapMotionProvider>
+                  <div className="app-outlet flex min-h-dvh flex-col">
+                    <Outlet />
+                  </div>
+                </GsapMotionProvider>
+                <Toaster position="bottom-right" richColors closeButton />
+              </WalletProvider>
+            </MarketFavoritesProvider>
+          </IndexerStreamProvider>
+        </TradeNavigationProvider>
       </PredictOracleProvider>
     </>
   );

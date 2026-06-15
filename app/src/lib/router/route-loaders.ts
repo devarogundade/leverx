@@ -1,6 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { oraclePriceLatestQueryKey } from "@/hooks/useOracleSpotPriceSeries";
-import { indexerKeys } from "@/hooks/useIndexer";
+import { indexerKeys, MARKET_CATALOG_REFETCH_MS } from "@/hooks/useIndexer";
 import { appConfig } from "@/lib/config";
 import {
   CHART_OHLCV_INTERVAL,
@@ -75,7 +75,7 @@ export async function ensureMarketCatalog(
         });
         return items;
       },
-      staleTime: 15_000,
+      staleTime: MARKET_CATALOG_REFETCH_MS / 2,
     }),
   );
 }
