@@ -14,7 +14,7 @@ import { leverxInfo } from "@/lib/leverx/info-copy";
 import { HintWithInfo } from "@/components/leverx/InfoPopover";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { showTxError, showTxSuccess } from "@/lib/toast";
-import { formatAmountWithMaxDigits, ui } from "@/lib/copy";
+import { ui } from "@/lib/copy";
 import { assetLabelForOracleId } from "@/lib/predict/oracles";
 import { predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
 import { scaleQuoteAtoms } from "@/lib/predict/scaling";
@@ -353,7 +353,7 @@ export function PortfolioWithdrawDialog({
                 disabled={!selected || maxAtoms <= 0n}
                 onClick={() => setAmountUsd(formatMaxWithdrawUsd(maxAtoms))}
               >
-                Use max ({formatAmountWithMaxDigits(maxUsd, maxDigits)})
+                Use max ({formatMaxWithdrawUsd(maxAtoms)})
               </button>
               {amountInvalid && amountUsd ? (
                 <p className="text-sm text-destructive">

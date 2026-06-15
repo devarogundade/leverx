@@ -52,6 +52,23 @@ export function floorUsdFromQuoteAtoms(atoms: bigint, decimals = 6): number {
   return Number((atoms * factor) / QUOTE_UNIT) / Number(factor);
 }
 
+/** Floor USD input → quote atoms (never rounds up vs typed/max amount). */
+export function floorUsdToQuoteAtoms(usd: number): bigint {
+  if (!Number.isFinite(usd) || usd <= 0) return 0n;
+  return BigInt(Math.floor(usd * Number(QUOTE_UNIT) + 1e-9));
+}
+
+/** Format quote atoms as a floored USD input string (no float round-up). */
+export function formatQuoteAtomsToUsdInput(atoms: bigint, decimals: number): string {
+  if (atoms <= 0n) return "";
+  const factor = 10n ** BigInt(decimals);
+  const scaled = (atoms * factor) / QUOTE_UNIT;
+  const intPart = scaled / factor;
+  const fracPart = scaled % factor;
+  if (decimals === 0) return intPart.toString();
+  return `${intPart}.${fracPart.toString().padStart(decimals, "0")}`;
+}
+
 /** Decimals for withdraw UI — enough precision for dust without misleading round-up. */
 export function withdrawUsdDecimals(atoms: bigint): number {
   if (atoms < 10_000n) return 6;
@@ -67,17 +84,17 @@ export function withdrawUsdDisplayAmount(atoms: bigint): number {
 /** Max withdraw input string (floored, never exceeds `atoms`). */
 export function formatMaxWithdrawUsd(atoms: bigint): string {
   const decimals = withdrawUsdDecimals(atoms);
-  return floorUsdFromQuoteAtoms(atoms, decimals).toFixed(decimals);
+  return formatQuoteAtomsToUsdInput(atoms, decimals);
 }
 
 export function usdExceedsQuoteAtoms(usd: number, maxAtoms: bigint): boolean {
   if (!Number.isFinite(usd) || usd <= 0) return true;
-  return marginUsdToQuoteAtoms(usd) > maxAtoms;
+  return floorUsdToQuoteAtoms(usd) > maxAtoms;
 }
 
 /** Clamp a USD input to what on-chain atoms allow (for submit). */
 export function clampUsdToQuoteAtoms(usd: number, maxAtoms: bigint): bigint {
-  const requested = marginUsdToQuoteAtoms(usd);
+  const requested = floorUsdToQuoteAtoms(usd);
   if (requested <= 0n) return 0n;
   return requested > maxAtoms ? maxAtoms : requested;
 }

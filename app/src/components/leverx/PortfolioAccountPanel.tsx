@@ -6,7 +6,6 @@ import {
   Link2,
   Plus,
   Shield,
-  UserCog,
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/leverx/ConfirmDialog";
 import { ResponsiveModal } from "@/components/leverx/ResponsiveModal";
@@ -164,7 +163,7 @@ export function PortfolioAccountPanel({
   return (
     <div className={cn("space-y-4", className)}>
       <section className={tradeSurface}>
-        <div className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <LabelWithInfo
@@ -192,21 +191,19 @@ export function PortfolioAccountPanel({
               </Badge>
             </div>
           </div>
-          <button
-            type="button"
-            className={cn(pillIconBtn, pillToggleIdle, "self-start px-3 py-1.5 text-sm")}
-            onClick={() => {
-              setManagerId(account.predict_manager_id ?? "");
-              setManagerOpen(true);
-            }}
-          >
-            {managerLinked ? (
-              <UserCog className="h-3.5 w-3.5" />
-            ) : (
+          {!managerLinked ? (
+            <button
+              type="button"
+              className={cn(pillIconBtn, pillToggleIdle, "self-start px-3 py-1.5 text-sm")}
+              onClick={() => {
+                setManagerId("");
+                setManagerOpen(true);
+              }}
+            >
               <Link2 className="h-3.5 w-3.5" />
-            )}
-            {managerLinked ? "Change manager" : "Link manager"}
-          </button>
+              Link manager
+            </button>
+          ) : null}
         </div>
 
         <div className="grid gap-2 border-t border-border px-4 py-3 sm:grid-cols-2">
@@ -298,7 +295,7 @@ export function PortfolioAccountPanel({
       <ResponsiveModal
         open={managerOpen}
         onOpenChange={setManagerOpen}
-        title={managerLinked ? "Change Predict manager" : "Link Predict manager"}
+        title="Link Predict manager"
         description={leverxInfo.predictManager}
       >
         <div className="space-y-3">

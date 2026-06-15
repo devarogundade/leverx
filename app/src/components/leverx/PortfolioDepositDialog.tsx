@@ -12,7 +12,6 @@ import { useLeverxProtocolConfig, useLeverxTransactions } from "@/hooks/useLever
 import { useWalletCoinBalance } from "@/hooks/useWalletCoinBalance";
 import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
-import { formatAmountWithMaxDigits } from "@/lib/copy";
 import { assetLabelForOracleId } from "@/lib/predict/oracles";
 import { predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
 import { usePredictOracleRows } from "@/hooks/usePredictOracles";
@@ -275,7 +274,7 @@ export function PortfolioDepositDialog({
                 disabled={!selected || maxAtoms <= 0n}
                 onClick={() => setAmountUsd(formatMaxWithdrawUsd(walletAtoms))}
               >
-                Use max ({formatAmountWithMaxDigits(maxUsd, maxDigits)})
+                Use max ({formatMaxWithdrawUsd(walletAtoms)})
               </button>
               {amountInvalid && amountUsd ? (
                 <p className="text-sm text-destructive">
