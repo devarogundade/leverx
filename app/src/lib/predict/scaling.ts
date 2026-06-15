@@ -25,11 +25,27 @@ export function scaleQuote(value: number | bigint | string | null | undefined): 
   return n / Number(QUOTE_UNIT);
 }
 
+/** Coerce on-chain / API atom fields to bigint for fixed-point math. */
+export function coerceQuoteAtomsToBigInt(value: unknown): bigint {
+  if (value == null) return 0n;
+  if (typeof value === "bigint") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return BigInt(Math.trunc(value));
+  if (typeof value === "string") {
+    try {
+      return BigInt(value);
+    } catch {
+      return 0n;
+    }
+  }
+  return 0n;
+}
+
 /** On-chain quote atoms (6-decimal dUSDC) → USD without `Number(bigint)` precision loss. */
-export function scaleQuoteAtoms(atoms: bigint): number {
-  if (atoms <= 0n) return 0;
-  const whole = atoms / QUOTE_UNIT;
-  const frac = atoms % QUOTE_UNIT;
+export function scaleQuoteAtoms(atoms: bigint | number | string | null | undefined): number {
+  const normalized = coerceQuoteAtomsToBigInt(atoms);
+  if (normalized <= 0n) return 0;
+  const whole = normalized / QUOTE_UNIT;
+  const frac = normalized % QUOTE_UNIT;
   const usd = Number(whole) + Number(frac) / Number(QUOTE_UNIT);
   return Number.isFinite(usd) ? usd : 0;
 }

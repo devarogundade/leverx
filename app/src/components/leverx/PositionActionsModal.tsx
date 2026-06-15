@@ -8,6 +8,7 @@ import { QuoteAmount } from "@/components/leverx/QuoteAmount";
 import { Input } from "@/components/ui/input";
 import { useWallet } from "@/context/WalletContext";
 import { useLeverxProtocolConfig, useLeverxTransactions } from "@/hooks/useLeverxTransactions";
+import { useIndexerTriggers } from "@/hooks/useIndexer";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { positionKeyFromArgs, type MarketKeyArgs } from "@/lib/leverx/market-keys";
@@ -29,12 +30,16 @@ import {
   PREDICT_MAX_PREMIUM_CENTS,
   PREDICT_MIN_PREMIUM_CENTS,
 } from "@/lib/leverx/trade-math";
+import {
+  formatPositionTriggerSummary,
+  positionTriggerForPosition,
+} from "@/lib/leverx/position-triggers";
 import { scaleQuote } from "@/lib/predict/scaling";
 import { cn } from "@/lib/utils";
 import { pillToggleBtn, pillToggleIdle } from "@/lib/leverx/tw";
 
 type ActionView = "menu" | "close_limit" | "repay_debt";
-type ConfirmAction = "market_close" | "settle" | null;
+type ConfirmAction = "market_close" | "settle" | "clear_triggers" | null;
 
 interface Props {
   position: LeveragedPosition;
@@ -183,8 +188,17 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
     closePosition,
     settleExpired,
     repayDebt,
+    clearTriggers,
     isProtocolReady,
   } = useLeverxTransactions();
+
+  const { data: triggers = [], isLoading: triggersLoading } = useIndexerTriggers(
+    open ? position.account_id : undefined,
+  );
+  const positionTrigger = positionTriggerForPosition(triggers, position);
+  const triggerSummary = positionTrigger
+    ? formatPositionTriggerSummary(positionTrigger)
+    : null;
 
   const positionKey = positionToKey(position);
   const marketKey = positionKeyFromArgs(positionKey);
@@ -223,7 +237,8 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
   const pending =
     closePosition.isPending ||
     settleExpired.isPending ||
-    repayDebt.isPending;
+    repayDebt.isPending ||
+    clearTriggers.isPending;
   const {
     canCloseRedeem,
     canSettle,
@@ -346,6 +361,26 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
                   info={leverxInfo.settleExpired}
                   disabled={!isProtocolReady || pending}
                   onClick={() => setConfirmAction("settle")}
+                />
+              ) : null}
+              {triggersLoading ? (
+                <p className="rounded-lg border border-border bg-muted/30 px-3 py-3 text-sm text-muted-foreground">
+                  Loading auto-exit rules…
+                </p>
+              ) : positionTrigger && triggerSummary ? (
+                <ActionButton
+                  label="Clear auto-exit"
+                  hint={
+                    <span className="block font-mono text-[11px]">
+                      TP {triggerSummary.tpCents}¢ · SL {triggerSummary.slCents}¢
+                      <span className="mt-0.5 block font-sans text-muted-foreground">
+                        Exit slippage TP {triggerSummary.tpSlippage} · SL {triggerSummary.slSlippage}
+                      </span>
+                    </span>
+                  }
+                  info={leverxInfo.triggers}
+                  disabled={!isProtocolReady || pending}
+                  onClick={() => setConfirmAction("clear_triggers")}
                 />
               ) : null}
               {emptyMessage ? (
@@ -516,6 +551,39 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
           quantityLoading={quantityLoading}
         />
       </ConfirmDialog>
+
+      <ConfirmDialog
+        open={confirmAction === "clear_triggers"}
+        onOpenChange={(next) => {
+          if (!next) setConfirmAction(null);
+        }}
+        title="Clear auto-exit rules?"
+        description="Take-profit and stop-loss triggers for this market will be removed."
+        confirmLabel="Clear rules"
+        variant="destructive"
+        pending={clearTriggers.isPending}
+        onConfirm={() =>
+          clearTriggers.mutate(
+            {
+              accountId: position.account_id,
+              key: positionKey,
+            },
+            {
+              onError: (err) => {
+                showTxError(err);
+                setConfirmAction(null);
+              },
+              onSuccess: () => onSuccess("Auto-exit rules cleared"),
+            },
+          )
+        }
+      >
+        {triggerSummary ? (
+          <p className="font-mono text-sm text-muted-foreground">
+            TP {triggerSummary.tpCents}¢ · SL {triggerSummary.slCents}¢
+          </p>
+        ) : null}
+      </ConfirmDialog>
     </>
   );
 }
@@ -574,12 +642,13 @@ interface TriggerProps {
 /** Opens position actions in a dialog (desktop) or bottom sheet (mobile). */
 export function PositionActionsTrigger({ position, className }: TriggerProps) {
   const [open, setOpen] = useState(false);
-  const { isProtocolReady, closePosition, settleExpired, repayDebt } =
+  const { isProtocolReady, closePosition, settleExpired, repayDebt, clearTriggers } =
     useLeverxTransactions();
   const pending =
     closePosition.isPending ||
     settleExpired.isPending ||
-    repayDebt.isPending;
+    repayDebt.isPending ||
+    clearTriggers.isPending;
 
   return (
     <>

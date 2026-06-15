@@ -13,24 +13,33 @@ import type { PositionMarkToMarket } from "@/lib/leverx/position-metrics";
 import { TradingPausedNotice } from "@/components/leverx/TradingPausedNotice";
 import { useIndexerProtocol } from "@/hooks/useIndexer";
 import { leverxInfo } from "@/lib/leverx/info-copy";
-import { tradeSurface } from "@/lib/leverx/tw";
 import { ui } from "@/lib/copy";
 import { cn } from "@/lib/utils";
 
 const TABS = ["positions", "orders", "closed", "account"] as const;
 type PortfolioTab = (typeof TABS)[number];
 
-function tabLabel(tab: PortfolioTab, openCount: number, orderCount: number) {
+function tabLabel(
+  tab: PortfolioTab,
+  openCount: number,
+  orderCount: number,
+  closedCount: number,
+) {
   if (tab === "positions") return `Positions (${openCount})`;
   if (tab === "orders") return `Orders (${orderCount})`;
-  if (tab === "closed") return "Closed";
+  if (tab === "closed") return `Closed (${closedCount})`;
   return "Account";
 }
 
-function tabLabelMobile(tab: PortfolioTab, openCount: number, orderCount: number) {
+function tabLabelMobile(
+  tab: PortfolioTab,
+  openCount: number,
+  orderCount: number,
+  closedCount: number,
+) {
   if (tab === "positions") return `Pos (${openCount})`;
   if (tab === "orders") return `Ord (${orderCount})`;
-  if (tab === "closed") return "Closed";
+  if (tab === "closed") return `Closed (${closedCount})`;
   return "Account";
 }
 
@@ -71,24 +80,31 @@ export function PortfolioWorkspace({
         </span>
       ) : (
         <>
-          <span className="sm:hidden">{tabLabelMobile(value, openPositions.length, limitOrders.length)}</span>
-          <span className="hidden sm:inline">{tabLabel(value, openPositions.length, limitOrders.length)}</span>
+          <span className="sm:hidden">
+            {tabLabelMobile(
+              value,
+              openPositions.length,
+              limitOrders.length,
+              closedPositions.length,
+            )}
+          </span>
+          <span className="hidden sm:inline">
+            {tabLabel(value, openPositions.length, limitOrders.length, closedPositions.length)}
+          </span>
         </>
       ),
   }));
 
   return (
-    <div className={cn(tradeSurface, className)}>
-      <div className="px-3 pt-2 sm:px-4">
-        <UnderlineTabs
-          value={tab}
-          onValueChange={(v) => setTab(v as PortfolioTab)}
-          options={tabOptions}
-          listClassName="stretch"
-        />
-      </div>
+    <div className={cn("flex flex-col gap-4", className)}>
+      <UnderlineTabs
+        value={tab}
+        onValueChange={(v) => setTab(v as PortfolioTab)}
+        options={tabOptions}
+        listClassName="stretch"
+      />
 
-      <div className="p-3 sm:p-4">
+      <div>
         {protocol?.trading_paused ? (
           <TradingPausedNotice className="mb-3" />
         ) : null}

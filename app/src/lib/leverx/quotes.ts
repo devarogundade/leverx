@@ -13,6 +13,7 @@ import {
   maxMintBudgetAtoms,
   premiumPerUnitFromMintCost,
 } from "@/lib/leverx/trade-math";
+import { coerceQuoteAtomsToBigInt } from "@/lib/predict/scaling";
 
 export type PredictQuoteConfig = Pick<
   LeverxProtocolConfig,
@@ -297,7 +298,7 @@ export async function fetchManagerOpenQuantity(params: {
     if (inspect.effects?.status?.status !== "success") return null;
     const tuple = findReturnTuple(inspect.results, 1);
     if (!tuple) return null;
-    return tuple[0] ?? 0n;
+    return coerceQuoteAtomsToBigInt(tuple[0]);
   } catch {
     return null;
   }
@@ -327,7 +328,7 @@ export async function fetchManagerQuoteBalance(params: {
     if (inspect.effects?.status?.status !== "success") return null;
     const tuple = findReturnTuple(inspect.results, 1);
     if (!tuple) return null;
-    return tuple[0] ?? 0n;
+    return coerceQuoteAtomsToBigInt(tuple[0]);
   } catch {
     return null;
   }

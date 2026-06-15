@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { GsapPageEnter } from "@/components/motion/GsapPageEnter";
 import { useGsapHeaderScroll } from "@/hooks/useGsapHeaderScroll";
 import { Link } from "@tanstack/react-router";
+import { AppLogo } from "@/components/AppLogo";
 import { APP_NAME } from "@/lib/brand";
 import { SiteHeaderNav } from "@/components/SiteHeaderNav";
 import { Button } from "@/components/ui/button";
@@ -52,9 +53,7 @@ export function SiteShell({ children, fullWidth }: Props) {
             className="site-header-brand flex shrink-0 items-center gap-2"
             onClick={closeMenu}
           >
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-accent font-mono text-sm font-bold text-accent-foreground sm:h-8 sm:w-8">
-              LX
-            </div>
+            <AppLogo />
             <span className="hidden text-sm font-bold tracking-wide min-[400px]:inline">
               {APP_NAME}
             </span>

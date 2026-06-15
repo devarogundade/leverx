@@ -57,6 +57,7 @@ export const ui = {
   portfolioHint: "Your account balance, profit and loss, and open trades.",
   portfolioAccountValue: "Account value",
   balanceTotal: "Total balance",
+  balanceWithdrawable: "Withdrawable now",
   balanceAvailable: "Avail",
   balanceInPositions: "In open trades",
   balanceRealizedPnl: "Realized profit & loss",

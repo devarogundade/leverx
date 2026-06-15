@@ -4,6 +4,7 @@ import { ArrowRight, Menu, X } from "lucide-react";
 import { SiteNavEarnMenu } from "@/components/SiteNavEarnMenu";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { AppLogo } from "@/components/AppLogo";
 import { APP_NAME } from "@/lib/brand";
 import { isNavDropdown, SITE_NAV_ENTRIES } from "@/lib/site-nav";
 
@@ -28,7 +29,7 @@ export function LandingHeader() {
     <header className="landing-header">
       <div className="landing-header-inner">
         <Link to="/" className="landing-header-brand" onClick={closeMenu}>
-          <div className="landing-logo">LX</div>
+          <AppLogo size="md" className="landing-logo" />
           <span className="landing-brand-name hidden sm:inline">{APP_NAME}</span>
         </Link>
 

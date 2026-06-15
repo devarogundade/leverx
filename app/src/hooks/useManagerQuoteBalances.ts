@@ -2,13 +2,12 @@ import { useMemo } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { useWallet } from "@/context/WalletContext";
 import { useLeverxProtocolConfig } from "@/hooks/useLeverxTransactions";
+import {
+  managerQuoteBalanceQueryKey,
+  sanitizeManagerQuoteBalanceAtoms,
+} from "@/hooks/useManagerQuoteBalance";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { fetchManagerQuoteBalance } from "@/lib/leverx/quotes";
-import { MAX_MARGIN_USD } from "@/lib/leverx/trade-limits";
-import { QUOTE_UNIT } from "@/lib/predict/constants";
-
-/** Reject devInspect garbage — manager balance should not exceed max leveraged notional. */
-const MAX_MANAGER_BALANCE_ATOMS = BigInt(Math.ceil(MAX_MARGIN_USD * 10 * 10)) * QUOTE_UNIT;
 
 export type ManagerQuoteBalanceRow = {
   predictManagerId: string;
@@ -17,8 +16,9 @@ export type ManagerQuoteBalanceRow = {
 
 /** Unique Predict managers with on-chain quote balance (shared pool, not per market key). */
 export function useManagerQuoteBalances(
-  accountId: string | undefined,
+  _accountId: string | undefined,
   positions: readonly LeveragedPosition[],
+  borrowedQuote = 0,
 ) {
   const { client } = useWallet();
   const { cfg } = useLeverxProtocolConfig();
@@ -34,27 +34,21 @@ export function useManagerQuoteBalances(
   }, [positions]);
 
   const accountHasDebt = useMemo(
-    () => positions.some((position) => position.borrow_quote > 0),
-    [positions],
+    () =>
+      borrowedQuote > 0 || positions.some((position) => position.borrow_quote > 0),
+    [borrowedQuote, positions],
   );
 
   const queries = useQueries({
     queries: managerIds.map((predictManagerId) => ({
-      queryKey: ["manager-quote-balance", accountId, predictManagerId, cfg?.packageId, cfg?.quoteType],
-      queryFn: async (): Promise<ManagerQuoteBalanceRow> => {
-        let balanceAtoms = await fetchManagerQuoteBalance({
+      queryKey: managerQuoteBalanceQueryKey(predictManagerId, cfg?.packageId, cfg?.quoteType),
+      queryFn: () =>
+        fetchManagerQuoteBalance({
           client,
           packageId: cfg!.packageId,
           predictManagerId,
           quoteType: cfg!.quoteType,
-        });
-        if (balanceAtoms == null) {
-          balanceAtoms = 0n;
-        } else if (balanceAtoms > MAX_MANAGER_BALANCE_ATOMS) {
-          balanceAtoms = 0n;
-        }
-        return { predictManagerId, balanceAtoms };
-      },
+        }),
       enabled: Boolean(cfg?.packageId && cfg?.quoteType && managerIds.length > 0),
       staleTime: 10_000,
       refetchInterval: 15_000,
@@ -64,11 +58,13 @@ export function useManagerQuoteBalances(
 
   const rows = useMemo(
     () =>
-      queries
-        .map((q) => q.data)
-        .filter((row): row is ManagerQuoteBalanceRow => row != null)
+      managerIds
+        .map((predictManagerId, index) => {
+          const balanceAtoms = sanitizeManagerQuoteBalanceAtoms(queries[index]?.data);
+          return { predictManagerId, balanceAtoms };
+        })
         .filter((row) => row.balanceAtoms > 0n && !accountHasDebt),
-    [queries, accountHasDebt],
+    [managerIds, queries, accountHasDebt],
   );
 
   const isLoading = queries.some((q) => q.isLoading && q.fetchStatus !== "idle");

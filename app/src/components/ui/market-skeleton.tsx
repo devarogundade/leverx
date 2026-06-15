@@ -385,10 +385,7 @@ function PortfolioTabsSkeleton() {
   const tabs = ["Positions", "Orders", "Closed", "Account"] as const;
   return (
     <div
-      className={cn(
-        segTabsClass("stretch"),
-        "pointer-events-none border-b border-border px-3 pt-2 sm:px-4",
-      )}
+      className={cn(segTabsClass("stretch"), "pointer-events-none border-b border-border")}
       aria-hidden
     >
       {tabs.map((tab) => (
@@ -509,11 +506,9 @@ export function PositionsTableSkeleton({ rows = 5 }: { rows?: number }) {
 
 export function PortfolioWorkspaceSkeleton() {
   return (
-    <div className={tradeSurface} aria-hidden>
+    <div className="flex flex-col gap-4" aria-hidden>
       <PortfolioTabsSkeleton />
-      <div className="p-3 sm:p-4">
-        <PositionsTableSkeleton rows={5} />
-      </div>
+      <PositionsTableSkeleton rows={5} />
     </div>
   );
 }

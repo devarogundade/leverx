@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { AppLogo } from "@/components/AppLogo";
 import { APP_NAME } from "@/lib/brand";
 import { ui } from "@/lib/copy";
 import {
@@ -131,7 +132,7 @@ export function WelcomeDialog() {
           <div className="landing-grid-bg absolute inset-0 opacity-30" aria-hidden />
           <div className="relative z-10 flex flex-col items-center gap-3">
             <div className="flex items-center gap-3">
-              <div className="landing-logo">LX</div>
+              <AppLogo size="md" className="landing-logo" />
               <span className="font-display text-xl font-bold tracking-tight">{APP_NAME}</span>
             </div>
             <div

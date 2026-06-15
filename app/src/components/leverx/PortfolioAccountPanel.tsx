@@ -6,9 +6,7 @@ import {
   Link2,
   Plus,
   Shield,
-  Target,
   UserCog,
-  Wallet,
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/leverx/ConfirmDialog";
 import { ResponsiveModal } from "@/components/leverx/ResponsiveModal";
@@ -19,21 +17,10 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loading-state";
 import { leverxInfo } from "@/lib/leverx/info-copy";
-import { useIndexerExecutors,
-  useIndexerLiquidations,
-  useIndexerTriggers,
-} from "@/hooks/useIndexer";
+import { useIndexerExecutors, useIndexerTriggers } from "@/hooks/useIndexer";
 import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
 import { showTxError, showTxSuccess } from "@/lib/toast";
-import type { LeveragedPosition, Liquidation, UserProxy } from "@/lib/leverx/indexer-client";
-import { liquidationEventKindLabel } from "@/lib/leverx/protocol";
-import type { PredictOracleSummary } from "@/lib/predict/types";
-import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
-import { formatTriggerSlippageBps, premiumRawToCents } from "@/lib/leverx/trade-math";
-import { assetLabelForOracleId } from "@/lib/predict/oracles";
-import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
-import { predictSideFromBinary, predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
-import { usePredictOracleRows } from "@/hooks/usePredictOracles";
+import type { LeveragedPosition, UserProxy } from "@/lib/leverx/indexer-client";
 import { scaleQuote } from "@/lib/predict/scaling";
 import { isValidSuiAddress } from "@/lib/leverx/form-helpers";
 import {
@@ -68,31 +55,6 @@ function formatShortDate(ms: number): string {
     day: "numeric",
     year: "numeric",
   });
-}
-
-function positionKeyForTrigger(
-  trigger: { oracle_id: string; is_range: boolean; },
-  positions: readonly LeveragedPosition[],
-) {
-  return positions.find(
-    (p) => p.oracle_id === trigger.oracle_id && p.is_range === trigger.is_range,
-  );
-}
-
-function liquidationLabel(
-  liquidation: Liquidation,
-  positions: readonly LeveragedPosition[],
-  oracles: readonly PredictOracleSummary[],
-) {
-  const match = positions.find((p) => p.position_key === liquidation.position_key);
-  if (match) {
-    const asset = assetLabelForOracleId(match.oracle_id, oracles);
-    const side = match.is_range
-      ? "range"
-      : predictSideLabel[sideFromIsUp(match.is_up)];
-    return `${asset} ${side}`;
-  }
-  return shortAddress(liquidation.position_key, 10, 6);
 }
 
 function CopyField({ label, value }: { label: string; value: string; }) {
@@ -196,14 +158,12 @@ function EmptyHint({ children }: { children: React.ReactNode; }) {
 
 export function PortfolioAccountPanel({
   account,
-  owner,
   positions = [],
   allPositions,
   className,
 }: Props) {
   const accountId = account.account_id;
   const history = allPositions ?? positions;
-  const { data: oracles = [] } = usePredictOracleRows();
   const {
     data: triggers = [],
     isLoading: triggersLoading,
@@ -212,14 +172,8 @@ export function PortfolioAccountPanel({
     data: executors = [],
     isLoading: executorsLoading,
   } = useIndexerExecutors(accountId);
-  const {
-    data: liquidations = [],
-    isLoading: liquidationsLoading,
-  } = useIndexerLiquidations({ accountId, owner });
 
-  const openMargins = positions.filter(isActiveOpenPosition);
   const {
-    clearTriggers,
     registerExecutor,
     revokeExecutor,
     linkManager,
@@ -229,7 +183,6 @@ export function PortfolioAccountPanel({
   const [managerOpen, setManagerOpen] = useState(false);
   const [executorOpen, setExecutorOpen] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState<string | null>(null);
-  const [clearTriggerTarget, setClearTriggerTarget] = useState<LeveragedPosition | null>(null);
 
   const [managerId, setManagerId] = useState(account.predict_manager_id ?? "");
   const [executorAddress, setExecutorAddress] = useState("");
@@ -305,7 +258,7 @@ export function PortfolioAccountPanel({
             label="Auto-exit rules"
             info={leverxInfo.triggers}
             value={triggersLoading ? "…" : String(activeTriggers.length)}
-            sub="Take-profit / stop-loss"
+            sub="Take-profit / stop-loss — manage per position"
           />
         </div>
 
@@ -333,12 +286,11 @@ export function PortfolioAccountPanel({
         positions={history}
       />
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <SettingsCard
-          title="Trusted traders"
-          info={leverxInfo.sessionExecutor}
-          icon={Shield}
-          action={
+      <SettingsCard
+        title="Trusted traders"
+        info={leverxInfo.sessionExecutor}
+        icon={Shield}
+        action={
             <button
               type="button"
               className={cn(pillToggleBtn, pillToggleIdle, "gap-1 px-2.5 text-sm")}
@@ -395,127 +347,6 @@ export function PortfolioAccountPanel({
             </ul>
           )}
         </SettingsCard>
-
-        <SettingsCard title="Auto-exit rules" info={leverxInfo.triggers} icon={Target}>
-          {triggersLoading ? (
-            <LoadingState label="Loading auto-exit rules…" compact />
-          ) : activeTriggers.length === 0 ? (
-            <EmptyHint>
-              Set take-profit and stop-loss when opening a trade. Rules clear automatically when
-              the position is fully closed.
-            </EmptyHint>
-          ) : (
-            <ul className={settingsList}>
-              {activeTriggers.map((t) => {
-                const match = positionKeyForTrigger(t, positions);
-                const asset = assetLabelForOracleId(t.oracle_id, oracles);
-                const side = t.is_range ? "Range" : "Binary";
-                return (
-                  <li key={`${t.oracle_id}-${t.is_range}`} className={settingsListItem}>
-                    <div className={settingsListItemHeader}>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium">
-                          {asset}{" "}
-                          <span className="font-normal text-muted-foreground">· {side}</span>
-                        </p>
-                        <p className="font-mono text-[11px] text-muted-foreground">
-                          TP {premiumRawToCents(BigInt(t.take_profit_premium)).toFixed(1)}¢ · SL{" "}
-                          {premiumRawToCents(BigInt(t.stop_loss_premium)).toFixed(1)}¢
-                        </p>
-                        <p className="font-mono text-[11px] text-muted-foreground">
-                          Exit slippage TP {formatTriggerSlippageBps(t.take_profit_slippage_bps)} · SL{" "}
-                          {formatTriggerSlippageBps(t.stop_loss_slippage_bps)}
-                        </p>
-                        {!match ? (
-                          <p className="mt-0.5 text-[11px] text-amber-600 dark:text-amber-400">
-                            No matching open position
-                          </p>
-                        ) : null}
-                      </div>
-                      {match ? (
-                        <button
-                          type="button"
-                          className={cn(pillToggleBtn, pillToggleIdle, "text-sm")}
-                          disabled={clearTriggers.isPending}
-                          onClick={() => setClearTriggerTarget(match)}
-                        >
-                          Clear
-                        </button>
-                      ) : null}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </SettingsCard>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <SettingsCard title="Margin in trades" info={leverxInfo.marginInTrades} icon={Wallet}>
-          {openMargins.length === 0 ? (
-            <EmptyHint>No margin is currently posted in open positions.</EmptyHint>
-          ) : (
-            <ul className={settingsList}>
-              {openMargins.slice(0, 12).map((p) => {
-                const asset = assetLabelForOracleId(p.oracle_id, oracles);
-                const side = predictSideFromBinary({
-                  isUp: p.is_up,
-                  isRange: p.is_range,
-                });
-                return (
-                  <li key={p.position_key} className={settingsListItem}>
-                    <div className={settingsListItemHeader}>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium">{asset}</p>
-                        <p className="text-[11px] text-muted-foreground">
-                          <PredictSideLabel side={side} />
-                        </p>
-                      </div>
-                      <span className="font-mono text-sm tabular-nums">
-                      <QuoteAmount amount={scaleQuote(p.margin_quote)} hideZero className="text-sm" />
-                      </span>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </SettingsCard>
-
-        <SettingsCard title="Auto-closed trades" info={leverxInfo.liquidations} icon={Shield}>
-          {liquidationsLoading ? (
-            <LoadingState label="Loading history…" compact />
-          ) : liquidations.length === 0 ? (
-            <EmptyHint>
-              Force-deleverages and liquidations appear here when the protocol steps in to close
-              risk.
-            </EmptyHint>
-          ) : (
-            <ul className={settingsList}>
-              {liquidations.slice(0, 8).map((l) => (
-                <li key={l.event_digest} className={settingsListItem}>
-                  <div className={settingsListItemHeader}>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium">
-                        {liquidationLabel(l, history, oracles)}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {liquidationEventKindLabel(l.event_kind)} ·{" "}
-                        {formatShortDate(l.timestamp_ms)} · Health{" "}
-                        {(l.health_bps / 100).toFixed(0)}%
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-sm">
-                      <QuoteAmount amount={scaleQuote(l.debt_repaid)} hideZero className="text-sm" />
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </SettingsCard>
-      </div>
 
       <ResponsiveModal
         open={managerOpen}
@@ -624,47 +455,6 @@ export function PortfolioAccountPanel({
         }}
       >
         <p className="font-mono text-sm">{revokeTarget}</p>
-      </ConfirmDialog>
-
-      <ConfirmDialog
-        open={clearTriggerTarget != null}
-        onOpenChange={(open) => {
-          if (!open) setClearTriggerTarget(null);
-        }}
-        title="Clear auto-exit rules?"
-        description="Take-profit and stop-loss triggers for this position will be removed."
-        confirmLabel="Clear rules"
-        variant="destructive"
-        pending={clearTriggers.isPending}
-        onConfirm={() => {
-          if (!clearTriggerTarget) return;
-          clearTriggers.mutate(
-            {
-              accountId,
-              key: {
-                oracleId: clearTriggerTarget.oracle_id,
-                expiryMs: clearTriggerTarget.expiry_ms,
-                strike: clearTriggerTarget.strike,
-                higherStrike: clearTriggerTarget.higher_strike,
-                isUp: clearTriggerTarget.is_up,
-                isRange: clearTriggerTarget.is_range,
-              },
-            },
-            {
-              onSuccess: () => {
-                showTxSuccess("Auto-exit rules cleared");
-                setClearTriggerTarget(null);
-              },
-              onError: showTxError,
-            },
-          );
-        }}
-      >
-        {clearTriggerTarget ? (
-          <p className="text-sm">
-            {assetLabelForOracleId(clearTriggerTarget.oracle_id, oracles)} position
-          </p>
-        ) : null}
       </ConfirmDialog>
     </div>
   );

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { LeverageSlider } from "@/components/leverx/LeverageSlider";
@@ -24,7 +23,7 @@ import { WalletConnectButton } from "@/components/WalletConnectButton";
 import { useWallet } from "@/context/WalletContext";
 import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
 import { resolvePredictManagerId } from "@/lib/leverx/account-resolution";
-import { fetchManagerQuoteBalance } from "@/lib/leverx/quotes";
+import { useManagerQuoteBalance } from "@/hooks/useManagerQuoteBalance";
 import { scaleQuoteAtoms } from "@/lib/predict/scaling";
 import { useNow } from "@/hooks/useNow";
 import { showTxError, showTxSuccess } from "@/lib/toast";
@@ -244,28 +243,9 @@ export function PredictLeveragePanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- lastAskPremium omitted to avoid refetch clobbering input
   }, [orderType, tradeContextKey]);
   const { data: walletQuoteBalance } = useWalletCoinBalance(appConfig.quoteType, 6);
-  const { data: managerBalanceAtoms, isLoading: managerBalanceLoading } = useQuery({
-    queryKey: [
-      "manager-quote-balance",
-      address,
-      predictManagerId,
-      cfg?.packageId,
-      cfg?.quoteType,
-    ],
-    queryFn: () =>
-      fetchManagerQuoteBalance({
-        client,
-        packageId: cfg!.packageId,
-        predictManagerId: predictManagerId!,
-        quoteType: cfg!.quoteType,
-      }),
-    enabled: Boolean(
-      isWalletConnected && hasLinkedManager && predictManagerId && cfg?.packageId && cfg?.quoteType,
-    ),
-    staleTime: 10_000,
-    refetchInterval: 15_000,
-    retry: 1,
-  });
+  const { data: managerBalanceAtoms, isLoading: managerBalanceLoading } = useManagerQuoteBalance(
+    hasLinkedManager && predictManagerId ? predictManagerId : undefined,
+  );
   const managerQuoteBalance =
     managerBalanceAtoms != null ? scaleQuoteAtoms(managerBalanceAtoms) : null;
 

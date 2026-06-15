@@ -798,10 +798,6 @@ select {
 
 .trade-terminal-positions {
   min-width: 0;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background-color: var(--color-card);
-  overflow: hidden;
 }
 
 @media (max-width: 767px) {
@@ -3231,19 +3227,9 @@ select {
 }
 
 .landing-logo {
-  display: flex;
-  height: 2.75rem;
-  width: 2.75rem;
-  align-items: center;
-  justify-content: center;
+  display: block;
+  flex-shrink: 0;
   border-radius: var(--radius-sm);
-  border: 1px solid color-mix(in oklab, var(--color-accent) 35%, transparent);
-  background: color-mix(in oklab, var(--color-accent) 12%, transparent);
-  font-family: var(--font-sans);
-  font-size: 0.8125rem;
-  font-weight: 700;
-  color: var(--color-accent);
-  box-shadow: 0 0 0 1px color-mix(in oklab, var(--color-accent) 8%, transparent);
 }
 
 .landing-brand-name {
@@ -4050,7 +4036,6 @@ select {
   align-items: stretch;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: var(--space-3);
 }
 
 @media (max-width: 639px) {
@@ -4060,11 +4045,6 @@ select {
 
   .trade-terminal-tabs-row {
     gap: var(--space-2);
-    padding: var(--space-2-5);
-  }
-
-  .trade-terminal-positions-body {
-    padding: var(--space-3);
   }
 }
 
@@ -4081,7 +4061,6 @@ select {
 
 .trade-terminal-positions-body {
   min-height: var(--trade-positions-body-min-h);
-  padding: var(--space-4);
   font-size: 0.875rem;
   color: var(--color-muted-foreground);
 }

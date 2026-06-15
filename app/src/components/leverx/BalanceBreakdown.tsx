@@ -1,15 +1,15 @@
 import { useMemo, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ChevronDown, Wallet } from "lucide-react";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { QuoteAmount } from "@/components/leverx/QuoteAmount";
 import { AnimatedCount } from "@/components/ui/animated-numbers";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { computeTotalBalanceUsd } from "@/lib/leverx/account-balance";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
 import { resolvePredictManagerId } from "@/lib/leverx/account-resolution";
-import { fetchManagerQuoteBalance } from "@/lib/leverx/quotes";
+import { useManagerQuoteBalance } from "@/hooks/useManagerQuoteBalance";
 import { useWallet } from "@/context/WalletContext";
 import { useIndexerAccounts, useIndexerPositions } from "@/hooks/useIndexer";
 import { useLeverxProtocolConfig } from "@/hooks/useLeverxTransactions";
@@ -44,7 +44,7 @@ function BalanceRow({
 }
 
 export function BalanceBreakdown({ className }: Props) {
-  const { address, client, isWalletConnected } = useWallet();
+  const { address, isWalletConnected } = useWallet();
   const { cfg } = useLeverxProtocolConfig();
   const {
     data: accounts = [],
@@ -74,26 +74,7 @@ export function BalanceBreakdown({ className }: Props) {
     isLoading: managerBalanceLoading,
     isFetched: managerBalanceFetched,
     isError: managerBalanceError,
-  } = useQuery({
-    queryKey: [
-      "manager-quote-balance",
-      address,
-      predictManagerId,
-      cfg?.packageId,
-      cfg?.quoteType,
-    ],
-    queryFn: () =>
-      fetchManagerQuoteBalance({
-        client,
-        packageId: cfg!.packageId,
-        predictManagerId: predictManagerId!,
-        quoteType: cfg!.quoteType,
-      }),
-    enabled: managerQueryEnabled,
-    staleTime: 10_000,
-    refetchInterval: 15_000,
-    retry: 1,
-  });
+  } = useManagerQuoteBalance(managerQueryEnabled ? predictManagerId : undefined);
 
   const ready =
     isWalletConnected && accountsFetched && positionsFetched && !accountsLoading && !positionsLoading;
@@ -122,7 +103,12 @@ export function BalanceBreakdown({ className }: Props) {
 
   const total =
     ready && walletReady && managerReady && margin != null
-      ? (walletBalance ?? 0) + margin + (managerBalance ?? 0) - (borrowed ?? 0)
+      ? computeTotalBalanceUsd({
+          walletUsd: walletBalance ?? 0,
+          marginUsd: margin,
+          managerUsd: managerBalance ?? 0,
+          borrowedUsd: borrowed ?? 0,
+        })
       : null;
 
   const pillLabel = !isWalletConnected ? (
@@ -139,7 +125,7 @@ export function BalanceBreakdown({ className }: Props) {
         <button
           type="button"
           className={cn("header-balance-pill", className)}
-          aria-label="Trading balance breakdown"
+          aria-label="Total balance breakdown"
         >
           <Wallet className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
           <span className="min-w-0 max-w-[4.5rem] truncate sm:max-w-none">{pillLabel}</span>

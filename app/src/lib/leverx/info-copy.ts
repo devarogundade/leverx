@@ -89,6 +89,8 @@ export const leverxInfo = {
 
   balanceTotal:
     "Wallet dUSDC plus margin and Predict manager balance, minus vault borrow across your account.",
+  balanceWithdrawable:
+    "Surplus you can withdraw to your wallet right now. Key and manager balances stay locked while that market key still has vault borrow — repay debt first to unlock more.",
   balanceWallet: "dUSDC available in your connected wallet (not yet in open trades).",
   balanceManager:
     "dUSDC in your Predict manager balance — shared pool for minting and redeems, separate from per-market key ledgers.",

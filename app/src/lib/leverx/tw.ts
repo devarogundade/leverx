@@ -347,18 +347,17 @@ export const tradeTerminalSidebar = cn(
 );
 
 export const tradeTerminalPositions = cn(
-  "trade-terminal-positions order-3 min-w-0 overflow-hidden rounded-lg border border-border bg-card",
+  "trade-terminal-positions order-3 flex min-w-0 flex-col gap-4",
   "md:col-span-2 md:row-start-3",
   "lg:col-span-2 lg:col-start-1 lg:row-start-2",
 );
 
 export const tradeTerminalTabsRow = cn(
-  "flex flex-col gap-2 p-2.5 sm:flex-row sm:items-stretch sm:justify-between sm:gap-3 sm:p-3",
+  "trade-terminal-tabs-row flex flex-col gap-2 sm:flex-row sm:items-stretch sm:justify-between sm:gap-3",
 );
 
 export const tradeTerminalPositionsBody = cn(
-  "trade-terminal-positions-body min-h-[var(--trade-positions-body-min-h)] p-3 sm:p-4",
-  "text-sm text-muted-foreground",
+  "trade-terminal-positions-body min-h-[var(--trade-positions-body-min-h)] text-sm text-muted-foreground",
 );
 
 /** Mobile predictions workspace switcher (Trade vs Chart) — portaled to body */

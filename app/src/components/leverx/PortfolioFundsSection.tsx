@@ -8,10 +8,14 @@ import { useLeverxProtocolConfig } from "@/hooks/useLeverxTransactions";
 import { useWalletCoinBalance } from "@/hooks/useWalletCoinBalance";
 import { useProxyKeyBalances } from "@/hooks/useProxyKeyBalances";
 import { useManagerQuoteBalances } from "@/hooks/useManagerQuoteBalances";
+import { useManagerQuoteBalance } from "@/hooks/useManagerQuoteBalance";
+import { computeTotalBalanceUsd } from "@/lib/leverx/account-balance";
 import { leverxInfo } from "@/lib/leverx/info-copy";
+import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
+import { ui } from "@/lib/copy";
 import { scaleQuote, scaleQuoteAtoms } from "@/lib/predict/scaling";
-import { labelCaps, pillToggleBtn, pillToggleIdle, tradeSurface } from "@/lib/leverx/tw";
+import { labelCaps, tradeSurface } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -34,16 +38,51 @@ function FundsMetric({
   loading?: boolean;
 }) {
   return (
-    <div className="min-w-0 px-4 py-3.5">
+    <div className="min-w-0 px-4 py-3">
       {info ? (
         <LabelWithInfo label={label} labelClassName={labelCaps} info={info} />
       ) : (
         <p className={labelCaps}>{label}</p>
       )}
-      <p className="mt-1 truncate font-mono text-lg tabular-nums text-foreground sm:text-xl">
+      <p className="mt-1 truncate font-mono text-base tabular-nums text-foreground sm:text-lg">
         {loading ? "…" : value}
       </p>
     </div>
+  );
+}
+
+function FundsActionButton({
+  icon: Icon,
+  label,
+  description,
+  disabled,
+  onClick,
+}: {
+  icon: typeof ArrowDownToLine;
+  label: string;
+  description: string;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "flex flex-1 items-center gap-3 rounded-lg border border-border bg-card/50 px-4 py-3 text-left transition-colors",
+        "hover:bg-hover/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "disabled:cursor-not-allowed disabled:opacity-50",
+      )}
+    >
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border bg-muted/40">
+        <Icon className="h-4 w-4 text-muted-foreground" aria-hidden />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-sm font-medium text-foreground">{label}</span>
+        <span className="mt-0.5 block text-xs text-muted-foreground">{description}</span>
+      </span>
+    </button>
   );
 }
 
@@ -60,12 +99,41 @@ export function PortfolioFundsSection({
   const { rows: managerRows, isLoading: managerBalancesLoading } = useManagerQuoteBalances(
     accountId,
     positions,
+    borrowedQuote,
+  );
+
+  const managerQueryEnabled = Boolean(predictManagerId && cfg?.packageId && cfg?.quoteType);
+  const { data: managerBalanceAtoms, isLoading: managerBalanceLoading } = useManagerQuoteBalance(
+    managerQueryEnabled ? predictManagerId ?? undefined : undefined,
   );
 
   const [depositOpen, setDepositOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
 
-  const tradingBalanceUsd = useMemo(() => {
+  const marginUsd = useMemo(
+    () =>
+      positions
+        .filter(isActiveOpenPosition)
+        .reduce((sum, position) => sum + scaleQuote(position.margin_quote), 0),
+    [positions],
+  );
+  const borrowedUsd = scaleQuote(borrowedQuote);
+  const managerUsd =
+    managerBalanceAtoms != null ? scaleQuoteAtoms(managerBalanceAtoms) : managerQueryEnabled ? null : 0;
+  const walletReady = walletUsd != null && !walletLoading;
+  const managerReady = !managerQueryEnabled || (managerBalanceAtoms != null && !managerBalanceLoading);
+
+  const totalBalanceUsd =
+    walletReady && managerReady
+      ? computeTotalBalanceUsd({
+          walletUsd: walletUsd ?? 0,
+          marginUsd,
+          managerUsd: managerUsd ?? 0,
+          borrowedUsd,
+        })
+      : null;
+
+  const withdrawableUsd = useMemo(() => {
     const keyTotal = keyRows.reduce((sum, row) => sum + scaleQuoteAtoms(row.balanceAtoms), 0);
     const managerTotal = managerRows.reduce(
       (sum, row) => sum + scaleQuoteAtoms(row.balanceAtoms),
@@ -75,9 +143,7 @@ export function PortfolioFundsSection({
   }, [keyRows, managerRows]);
 
   const balancesLoading = keyBalancesLoading || managerBalancesLoading;
-  const sourceCount = keyRows.length + managerRows.length;
-  const canDeposit = walletUsd != null && walletUsd > 0;
-  const canWithdraw = tradingBalanceUsd > 0;
+  const hasLockedSurplus = borrowedUsd > 0 && (managerUsd ?? 0) > 0;
 
   return (
     <>
@@ -89,72 +155,82 @@ export function PortfolioFundsSection({
             info="Move dUSDC between your wallet and trading account balances."
           />
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Deposit from wallet to trade, or withdraw surplus back to your wallet.
+            Total balance matches the header pill. Withdraw only unlocks surplus not tied to borrow.
           </p>
         </div>
 
-        <div className="grid divide-y divide-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+        <div className="border-b border-border px-4 py-3.5">
+          <LabelWithInfo
+            label={ui.balanceTotal}
+            labelClassName={labelCaps}
+            info={leverxInfo.balanceTotal}
+          />
+          <p className="mt-1 font-mono text-2xl tabular-nums text-foreground sm:text-3xl">
+            {totalBalanceUsd == null ? (
+              "…"
+            ) : (
+              <QuoteAmount amount={totalBalanceUsd} digits={2} hideZero={false} />
+            )}
+          </p>
+        </div>
+
+        <div className="grid divide-y divide-border grid-cols-2 border-b border-border lg:grid-cols-5 lg:divide-x lg:divide-y-0">
           <FundsMetric
-            label="Wallet"
+            label={ui.balanceWallet}
             info={leverxInfo.balanceWallet}
             loading={walletLoading && walletUsd == null}
-            value={<QuoteAmount amount={walletUsd ?? 0} digits={2} hideZero />}
+            value={<QuoteAmount amount={walletUsd ?? 0} digits={2} hideZero={false} />}
           />
           <FundsMetric
-            label="Trading balance"
-            info={leverxInfo.withdrawTradingBalance}
-            loading={balancesLoading && sourceCount === 0 && tradingBalanceUsd === 0}
-            value={<QuoteAmount amount={tradingBalanceUsd} digits={2} hideZero />}
+            label={ui.balanceManager}
+            info={leverxInfo.balanceManager}
+            loading={managerQueryEnabled && managerBalanceLoading && managerUsd == null}
+            value={
+              managerQueryEnabled ? (
+                <QuoteAmount amount={managerUsd ?? 0} digits={2} hideZero={false} />
+              ) : (
+                "—"
+              )
+            }
           />
           <FundsMetric
-            label="Vault borrow"
-            info={leverxInfo.borrowedQuote}
-            value={<QuoteAmount amount={scaleQuote(borrowedQuote)} hideZero />}
+            label="Margin"
+            info={leverxInfo.balanceMargin}
+            value={<QuoteAmount amount={marginUsd} digits={2} hideZero={false} />}
+          />
+          <FundsMetric
+            label="Borrowed"
+            info={leverxInfo.balanceBorrowed}
+            value={<QuoteAmount amount={borrowedUsd} digits={2} hideZero={false} />}
+          />
+          <FundsMetric
+            label={ui.balanceWithdrawable}
+            info={leverxInfo.balanceWithdrawable}
+            loading={balancesLoading && withdrawableUsd === 0}
+            value={<QuoteAmount amount={withdrawableUsd} digits={2} hideZero={false} />}
           />
         </div>
 
-        <div className="flex flex-col gap-2 border-t border-border px-4 py-3 sm:flex-row">
-          <button
-            type="button"
-            className={cn(
-              pillToggleBtn,
-              pillToggleIdle,
-              "flex-1 gap-2 py-2.5 text-sm font-medium",
-            )}
+        {hasLockedSurplus ? (
+          <p className="border-b border-border px-4 py-2.5 text-xs leading-relaxed text-muted-foreground">
+            Repay vault borrow to unlock Predict manager surplus for withdrawal.
+          </p>
+        ) : null}
+
+        <div className="grid gap-2 px-4 py-3 sm:grid-cols-2">
+          <FundsActionButton
+            icon={ArrowDownToLine}
+            label="Deposit"
+            description="Move dUSDC from wallet to trade"
             disabled={!predictManagerId && positions.length === 0}
             onClick={() => setDepositOpen(true)}
-          >
-            <ArrowDownToLine className="h-4 w-4" />
-            Deposit
-            {canDeposit ? (
-              <span className="text-muted-foreground">
-                · <QuoteAmount amount={walletUsd ?? 0} digits={2} hideZero className="inline-flex text-sm" />
-              </span>
-            ) : null}
-          </button>
-          <button
-            type="button"
-            className={cn(
-              pillToggleBtn,
-              pillToggleIdle,
-              "flex-1 gap-2 py-2.5 text-sm font-medium",
-            )}
+          />
+          <FundsActionButton
+            icon={ArrowUpFromLine}
+            label="Withdraw"
+            description="Move surplus back to wallet"
             onClick={() => setWithdrawOpen(true)}
-          >
-            <ArrowUpFromLine className="h-4 w-4" />
-            Withdraw
-            {canWithdraw ? (
-              <span className="text-muted-foreground">
-                ·{" "}
-                <QuoteAmount
-                  amount={tradingBalanceUsd}
-                  digits={2}
-                  hideZero
-                  className="inline-flex text-sm"
-                />
-              </span>
-            ) : null}
-          </button>
+          />
         </div>
       </section>
 
@@ -170,6 +246,7 @@ export function PortfolioFundsSection({
         onOpenChange={setWithdrawOpen}
         accountId={accountId}
         positions={positions}
+        borrowedQuote={borrowedQuote}
       />
     </>
   );

@@ -106,7 +106,7 @@ function buildRows(
   }));
 }
 
-function PnlBreakdownRow({ label, value }: { label: string; value: ReactNode }) {
+function PnlBreakdownRow({ label, value }: { label: string; value: ReactNode; }) {
   return (
     <div className="flex items-center justify-between gap-4 py-1.5 text-sm text-muted-foreground">
       <span>{label}</span>
@@ -318,7 +318,7 @@ function openEntryPremiumCents(position: LeveragedPosition): number | null {
   return premium != null ? premiumRawToCents(premium) : null;
 }
 
-function MarginBorrowCell({ position }: { position: LeveragedPosition }) {
+function MarginBorrowCell({ position }: { position: LeveragedPosition; }) {
   const marginUsd = positionMarginUsd(position);
   const borrowUsd = positionBorrowUsd(position);
   const leverage = positionLeverageMultiplier(position);
@@ -348,7 +348,7 @@ function MarginBorrowCell({ position }: { position: LeveragedPosition }) {
   );
 }
 
-function StatusCell({ status }: { status: string }) {
+function StatusCell({ status }: { status: string; }) {
   const isOpen = status === "open";
   return (
     <span
@@ -491,7 +491,7 @@ export function LeverxPositionsTable({
               {closingCents != null ? (
                 <AnimatedPremiumCents value={closingCents} placeholder="—" />
               ) : (
-                "—"
+                <AnimatedPremiumCents value={0} />
               )}
             </span>
           );

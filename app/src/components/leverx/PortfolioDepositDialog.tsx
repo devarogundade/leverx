@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ResponsiveModal } from "@/components/leverx/ResponsiveModal";
+import {
+  FundsDestinationTabs,
+  type FundsDestinationTab,
+} from "@/components/leverx/FundsDestinationTabs";
 import { QuoteAmount, QuoteAmountInline } from "@/components/leverx/QuoteAmount";
 import { Input } from "@/components/ui/input";
 import { useDepositKeyTargets } from "@/hooks/useDepositKeyTargets";
@@ -61,38 +65,47 @@ export function PortfolioDepositDialog({
     [walletUsd],
   );
 
-  const targets: DepositTarget[] = useMemo(() => {
-    const rows: DepositTarget[] = [];
-    if (predictManagerId) {
-      rows.push({ kind: "manager", predictManagerId });
-    }
-    for (const row of keyTargets) {
-      rows.push({ kind: "key", row });
-    }
-    return rows;
-  }, [keyTargets, predictManagerId]);
+  const managerAvailable = Boolean(predictManagerId);
+  const positionsAvailable = keyTargets.length > 0;
 
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [tab, setTab] = useState<FundsDestinationTab>("manager");
+  const [selectedPositionIndex, setSelectedPositionIndex] = useState(0);
   const [amountUsd, setAmountUsd] = useState("");
 
   useEffect(() => {
     if (!open) {
       setAmountUsd("");
-      setSelectedIndex(0);
+      setTab("manager");
+      setSelectedPositionIndex(0);
       return;
+    }
+    if (managerAvailable) {
+      setTab("manager");
+    } else if (positionsAvailable) {
+      setTab("positions");
     }
     if (walletAtoms > 0n) {
       setAmountUsd(formatMaxWithdrawUsd(walletAtoms));
     }
-  }, [open, walletAtoms]);
+  }, [open, walletAtoms, managerAvailable, positionsAvailable]);
 
   useEffect(() => {
-    if (selectedIndex >= targets.length) {
-      setSelectedIndex(0);
+    if (selectedPositionIndex >= keyTargets.length) {
+      setSelectedPositionIndex(0);
     }
-  }, [selectedIndex, targets.length]);
+  }, [selectedPositionIndex, keyTargets.length]);
 
-  const selected = targets[selectedIndex];
+  const selected = useMemo((): DepositTarget | null => {
+    if (tab === "manager" && predictManagerId) {
+      return { kind: "manager", predictManagerId };
+    }
+    if (tab === "positions") {
+      const row = keyTargets[selectedPositionIndex];
+      if (row) return { kind: "key", row };
+    }
+    return null;
+  }, [tab, predictManagerId, keyTargets, selectedPositionIndex]);
+
   const maxAtoms = walletAtoms;
   const maxUsd = withdrawUsdDisplayAmount(maxAtoms);
   const maxDigits = withdrawUsdDecimals(maxAtoms);
@@ -103,6 +116,7 @@ export function PortfolioDepositDialog({
     amountNum <= 0 ||
     usdExceedsQuoteAtoms(amountNum, maxAtoms);
   const pending = depositQuote.isPending || depositManagerQuote.isPending;
+  const hasAnyDestination = managerAvailable || positionsAvailable;
 
   const close = () => onOpenChange(false);
 
@@ -161,7 +175,7 @@ export function PortfolioDepositDialog({
 
         {walletLoading && walletUsd == null ? (
           <p className="text-sm text-muted-foreground">Loading wallet balance…</p>
-        ) : targets.length === 0 ? (
+        ) : !hasAnyDestination ? (
           <p className="text-sm leading-relaxed text-muted-foreground">
             Open a trade or link a Predict manager before depositing.
           </p>
@@ -171,30 +185,44 @@ export function PortfolioDepositDialog({
           </p>
         ) : (
           <>
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-foreground">Deposit to</p>
+            <FundsDestinationTabs
+              value={tab}
+              onChange={(next) => {
+                setTab(next);
+                setSelectedPositionIndex(0);
+              }}
+            />
+
+            {tab === "manager" ? (
+              managerAvailable ? (
+                <div className="rounded-lg border border-accent/30 bg-accent/10 px-3 py-2.5">
+                  <p className="flex items-center gap-2 text-sm font-medium text-foreground">
+                    Predict manager
+                    <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      Recommended
+                    </span>
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Shared pool for minting and redeems
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  Link a Predict manager in Account settings to deposit here.
+                </p>
+              )
+            ) : positionsAvailable ? (
               <div className="space-y-1.5">
-                {targets.map((target, index) => {
-                  const isSelected = index === selectedIndex;
-                  const label =
-                    target.kind === "manager"
-                      ? "Predict manager"
-                      : marketLabel(
-                          target.row,
-                          assetLabelForOracleId(target.row.position.oracle_id, oracles),
-                        );
-                  const sub =
-                    target.kind === "manager"
-                      ? "Shared pool for minting and redeems"
-                      : "Market key margin ledger";
+                {keyTargets.map((row, index) => {
+                  const isSelected = index === selectedPositionIndex;
+                  const label = marketLabel(
+                    row,
+                    assetLabelForOracleId(row.position.oracle_id, oracles),
+                  );
 
                   return (
                     <button
-                      key={
-                        target.kind === "manager"
-                          ? `manager-${target.predictManagerId}`
-                          : target.row.position.position_key
-                      }
+                      key={row.position.position_key}
                       type="button"
                       className={cn(
                         "flex w-full items-start justify-between gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors",
@@ -202,18 +230,13 @@ export function PortfolioDepositDialog({
                           ? "border-accent bg-accent/10"
                           : "border-border bg-card/50 hover:bg-hover/50",
                       )}
-                      onClick={() => setSelectedIndex(index)}
+                      onClick={() => setSelectedPositionIndex(index)}
                     >
                       <span className="min-w-0">
-                        <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-                          {label}
-                          {target.kind === "manager" ? (
-                            <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                              Recommended
-                            </span>
-                          ) : null}
+                        <span className="text-sm font-medium text-foreground">{label}</span>
+                        <span className="mt-0.5 block text-xs text-muted-foreground">
+                          Market key margin ledger
                         </span>
-                        <span className="mt-0.5 block text-xs text-muted-foreground">{sub}</span>
                       </span>
                       <span
                         className={cn(
@@ -225,7 +248,11 @@ export function PortfolioDepositDialog({
                   );
                 })}
               </div>
-            </div>
+            ) : (
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Open a trade first to deposit to a position key.
+              </p>
+            )}
 
             <div className="space-y-2">
               <p className="text-sm font-medium text-foreground">Amount</p>
@@ -238,10 +265,12 @@ export function PortfolioDepositDialog({
                 onChange={(e) => setAmountUsd(e.target.value)}
                 placeholder="0.00"
                 className={cn(inputInField, "font-mono text-sm")}
+                disabled={!selected}
               />
               <button
                 type="button"
                 className={cn(pillToggleBtn, pillToggleIdle, "w-full text-sm")}
+                disabled={!selected || maxAtoms <= 0n}
                 onClick={() => setAmountUsd(formatMaxWithdrawUsd(walletAtoms))}
               >
                 Use max ({maxUsd.toLocaleString("en-US", { maximumFractionDigits: maxDigits })})
