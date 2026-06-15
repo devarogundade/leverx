@@ -857,6 +857,11 @@ export function PredictLeveragePanel({
     now,
   ]);
 
+  const visibleValidationErrors = useMemo(() => {
+    if (!margin.trim() || marginNum <= 0) return [];
+    return validationErrors;
+  }, [margin, marginNum, validationErrors]);
+
   const canSubmit =
     !disabled &&
     isWalletConnected &&
@@ -1306,7 +1311,7 @@ export function PredictLeveragePanel({
               <InfoPopover title="Setup">{leverxInfo.protocolNotConfigured}</InfoPopover>
             </p>
           ) : null}
-          {validationErrors.map((err) => (
+          {visibleValidationErrors.map((err) => (
             <p key={err} className="text-sm text-destructive">
               {err}
             </p>
