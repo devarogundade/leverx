@@ -85,15 +85,15 @@ import {
 
 const TRADE_POSITION_TABS = ["Positions", "Open Orders", "Market trades", "Summary"] as const;
 
-function SkeletonBar({ className }: { className?: string }) {
+function SkeletonBar({ className }: { className?: string; }) {
   return <div className={cn("lx-skeleton", className)} />;
 }
 
-function SkeletonIcon({ className }: { className?: string }) {
+function SkeletonIcon({ className }: { className?: string; }) {
   return <SkeletonBar className={cn("h-6 w-6 shrink-0 rounded-md", className)} />;
 }
 
-function SkeletonActionsRow({ plain = false }: { plain?: boolean }) {
+function SkeletonActionsRow({ plain = false }: { plain?: boolean; }) {
   return (
     <div
       className={cn(
@@ -120,7 +120,7 @@ function SkeletonActionsRow({ plain = false }: { plain?: boolean }) {
   );
 }
 
-function SkeletonPremiumQuote({ band = false }: { band?: boolean }) {
+function SkeletonPremiumQuote({ band = false }: { band?: boolean; }) {
   if (band) {
     return (
       <div
@@ -203,7 +203,7 @@ function MarketTableMobileCardSkeleton() {
   );
 }
 
-export function MarketGridSkeleton({ count = 8 }: { count?: number }) {
+export function MarketGridSkeleton({ count = 8 }: { count?: number; }) {
   return (
     <div className={marketsGrid}>
       {Array.from({ length: count }, (_, i) => (
@@ -340,7 +340,7 @@ const POINTS_LEADERBOARD_COLUMNS: DataTableSkeletonColumn[] = [
   { header: "Points", width: "w-14", align: "right", mobileTrailing: true },
 ];
 
-export function PointsLeaderboardSkeleton({ rows = 10 }: { rows?: number }) {
+export function PointsLeaderboardSkeleton({ rows = 10 }: { rows?: number; }) {
   return <DataTableSkeleton columns={POINTS_LEADERBOARD_COLUMNS} rows={rows} />;
 }
 
@@ -355,11 +355,11 @@ const LIMIT_ORDERS_COLUMNS: DataTableSkeletonColumn[] = [
   { header: "Actions", width: "w-14", align: "right", hideOnMobile: true },
 ];
 
-export function LimitOrdersTableSkeleton({ rows = 5 }: { rows?: number }) {
+export function LimitOrdersTableSkeleton({ rows = 5 }: { rows?: number; }) {
   return <DataTableSkeleton columns={LIMIT_ORDERS_COLUMNS} rows={rows} />;
 }
 
-export function PortfolioSummaryBarSkeleton({ className }: { className?: string }) {
+export function PortfolioSummaryBarSkeleton({ className }: { className?: string; }) {
   return (
     <div className={cn(tradeSurface, className)} aria-hidden>
       <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
@@ -425,7 +425,7 @@ function PositionTableMobileCardSkeleton() {
   );
 }
 
-export function PositionsTableSkeleton({ rows = 5 }: { rows?: number }) {
+export function PositionsTableSkeleton({ rows = 5 }: { rows?: number; }) {
   const desktopCols = [
     { width: "w-28" },
     { width: "w-12" },
@@ -522,7 +522,7 @@ export function PortfolioPageSkeleton() {
   );
 }
 
-export function MarketTableSkeleton({ rows = 8 }: { rows?: number }) {
+export function MarketTableSkeleton({ rows = 8 }: { rows?: number; }) {
   return (
     <div className={marketsTableShell}>
       <div className={marketsTableMobileList}>
@@ -536,7 +536,7 @@ export function MarketTableSkeleton({ rows = 8 }: { rows?: number }) {
           <thead>
             <tr>
               <th className={cn(marketsTh, marketsThMarket)}>Market</th>
-              <th className={marketsTh}>Index price</th>
+              <th className={marketsTh}>Asset price</th>
               <th className={cn(marketsTh, marketsThHideMd)}>Volume</th>
               <th className={cn(marketsTh, marketsThHideLg)}>Liquidity</th>
               <th className={cn(marketsTh, marketsThHideSm)}>Auto close</th>
@@ -658,7 +658,7 @@ function TradeStatItem({
   );
 }
 
-function TradeTerminalHeaderShell({ oracleId }: { oracleId?: string }) {
+function TradeTerminalHeaderShell({ oracleId }: { oracleId?: string; }) {
   const asset = oracleId?.slice(2, 6).toUpperCase() ?? "—";
 
   return (
@@ -823,16 +823,16 @@ function tradePositionTabLabel(tab: (typeof TRADE_POSITION_TABS)[number]) {
   if (tab === "Open Orders") {
     return (
       <>
-        <span className="sm:hidden">Orders</span>
-        <span className="hidden sm:inline">Open Orders</span>
+        <span className="sm:hidden">Orders (…)</span>
+        <span className="hidden sm:inline">Open Orders (…)</span>
       </>
     );
   }
   if (tab === "Positions") {
     return (
       <>
-        <span className="max-[380px]:hidden">Positions</span>
-        <span className="hidden max-[380px]:inline">Pos</span>
+        <span className="max-[380px]:hidden">Positions (…)</span>
+        <span className="hidden max-[380px]:inline">Pos (…)</span>
       </>
     );
   }
@@ -855,7 +855,7 @@ function TradePositionsSkeleton() {
           variant="plain"
           className="min-w-0 flex-1 pointer-events-none"
           value="Positions"
-          onValueChange={() => {}}
+          onValueChange={() => { }}
           options={TRADE_POSITION_TABS.map((tab) => ({
             value: tab,
             label: tradePositionTabLabel(tab),
@@ -892,7 +892,7 @@ function TradePositionsSkeleton() {
 }
 
 /** Mirrors `PredictTradeTerminal` layout for route pending / loading. */
-export function TradeTerminalSkeleton({ oracleId }: { oracleId?: string } = {}) {
+export function TradeTerminalSkeleton({ oracleId }: { oracleId?: string; } = {}) {
   return (
     <section className={cn(tradeTerminal, "trade-terminal")}>
       <TradeTerminalHeaderShell oracleId={oracleId} />

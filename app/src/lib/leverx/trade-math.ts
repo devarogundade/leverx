@@ -52,10 +52,31 @@ export function floorUsdFromQuoteAtoms(atoms: bigint, decimals = 6): number {
   return Number((atoms * factor) / QUOTE_UNIT) / Number(factor);
 }
 
+/** dUSDC quote input uses full on-chain atom precision (6 decimals). */
+export const QUOTE_INPUT_DECIMALS = 6;
+export const QUOTE_INPUT_STEP = 0.000001;
+
 /** Floor USD input → quote atoms (never rounds up vs typed/max amount). */
 export function floorUsdToQuoteAtoms(usd: number): bigint {
   if (!Number.isFinite(usd) || usd <= 0) return 0n;
   return BigInt(Math.floor(usd * Number(QUOTE_UNIT) + 1e-9));
+}
+
+/** Parse a USD input string → quote atoms without float round-up. */
+export function parseUsdInputToQuoteAtoms(input: string): bigint {
+  const trimmed = input.trim();
+  if (!trimmed) return 0n;
+
+  const negative = trimmed.startsWith("-");
+  const raw = negative ? trimmed.slice(1) : trimmed;
+  const [intPart = "0", fracPart = ""] = raw.split(".");
+  if (!/^\d+$/.test(intPart) || (fracPart && !/^\d+$/.test(fracPart))) return 0n;
+
+  const fracPadded = fracPart
+    .padEnd(QUOTE_INPUT_DECIMALS, "0")
+    .slice(0, QUOTE_INPUT_DECIMALS);
+  const atoms = BigInt(intPart) * QUOTE_UNIT + BigInt(fracPadded || "0");
+  return negative ? -atoms : atoms;
 }
 
 /** Format quote atoms as a floored USD input string (no float round-up). */
@@ -81,10 +102,12 @@ export function withdrawUsdDisplayAmount(atoms: bigint): number {
   return floorUsdFromQuoteAtoms(atoms, decimals);
 }
 
-/** Max withdraw input string (floored, never exceeds `atoms`). */
+/** Max withdraw/deposit input string — full atom precision, never rounds up. */
 export function formatMaxWithdrawUsd(atoms: bigint): string {
-  const decimals = withdrawUsdDecimals(atoms);
-  return formatQuoteAtomsToUsdInput(atoms, decimals);
+  if (atoms <= 0n) return "";
+  const formatted = formatQuoteAtomsToUsdInput(atoms, QUOTE_INPUT_DECIMALS);
+  if (!formatted.includes(".")) return formatted;
+  return formatted.replace(/\.?0+$/, "") || "0";
 }
 
 export function usdExceedsQuoteAtoms(usd: number, maxAtoms: bigint): boolean {
@@ -92,9 +115,22 @@ export function usdExceedsQuoteAtoms(usd: number, maxAtoms: bigint): boolean {
   return floorUsdToQuoteAtoms(usd) > maxAtoms;
 }
 
+export function usdInputExceedsQuoteAtoms(input: string, maxAtoms: bigint): boolean {
+  const requested = parseUsdInputToQuoteAtoms(input);
+  if (requested <= 0n) return true;
+  return requested > maxAtoms;
+}
+
 /** Clamp a USD input to what on-chain atoms allow (for submit). */
 export function clampUsdToQuoteAtoms(usd: number, maxAtoms: bigint): bigint {
   const requested = floorUsdToQuoteAtoms(usd);
+  if (requested <= 0n) return 0n;
+  return requested > maxAtoms ? maxAtoms : requested;
+}
+
+/** Clamp a USD input string to what on-chain atoms allow (for submit). */
+export function clampUsdInputToQuoteAtoms(input: string, maxAtoms: bigint): bigint {
+  const requested = parseUsdInputToQuoteAtoms(input);
   if (requested <= 0n) return 0n;
   return requested > maxAtoms ? maxAtoms : requested;
 }

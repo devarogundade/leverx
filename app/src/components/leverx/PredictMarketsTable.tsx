@@ -264,7 +264,7 @@ export function PredictMarketsTable({
               <th className={cn(marketsTh, marketsThMarket)}>Market</th>
               <th className={marketsTh}>
                 <SortHeader
-                  label="Index price"
+                  label="Asset price"
                   active={sortKey === "price"}
                   direction={sortDir}
                   onClick={() => toggleSort("price")}

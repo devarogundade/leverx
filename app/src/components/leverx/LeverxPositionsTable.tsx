@@ -41,7 +41,7 @@ import { predictSideFromBinary, type PredictSide } from "@/lib/predict/instrumen
 import { ui } from "@/lib/copy";
 import { resolveLiquidationBps } from "@/lib/leverx/protocol";
 import { formatStrikeUsdFromRaw } from "@/lib/leverx/strike-selection";
-import { formatCountdownStopwatch } from "@/lib/leverx/trade-limits";
+import { TableExpiryCountdown } from "@/components/leverx/TableExpiryCountdown";
 import { cn } from "@/lib/utils";
 import { labelCaps } from "@/lib/leverx/tw";
 
@@ -77,18 +77,6 @@ function formatStrike(position: LeveragedPosition): string {
     return formatStrikeUsdFromRaw(position.strike);
   }
   return "—";
-}
-
-function formatExpiry(expiryMs: number): string {
-  if (!expiryMs) return "—";
-  const remaining = expiryMs - Date.now();
-  if (remaining <= 0) {
-    return new Date(expiryMs).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-    });
-  }
-  return `${formatCountdownStopwatch(remaining)} left`;
 }
 
 function buildRows(
@@ -235,12 +223,35 @@ function PnlCell({
   );
 }
 
-function HealthCell({ mtm, closed }: { mtm?: PositionMarkToMarket; closed: boolean; }) {
+function HealthCell({
+  mtm,
+  position,
+  closed,
+}: {
+  mtm?: PositionMarkToMarket;
+  position: LeveragedPosition;
+  closed: boolean;
+}) {
   const { data: protocol } = useIndexerProtocol();
   const liquidationBps = resolveLiquidationBps(protocol);
 
   if (closed || mtm?.healthBps == null) {
     return <span className="text-sm text-muted-foreground">—</span>;
+  }
+
+  const isLeveraged = position.leverage_bps > 10_000;
+
+  if (!isLeveraged) {
+    return (
+      <div className="min-w-[5.5rem]">
+        <div className="mb-1 flex items-center justify-end gap-1.5 text-sm font-medium tabular-nums">
+          <span className="text-success">{formatHealthBps(mtm.healthBps)}</span>
+        </div>
+        <div className="relative h-1.5 overflow-hidden rounded-full bg-muted">
+          <div className="absolute inset-y-0 left-0 w-full rounded-full bg-success" />
+        </div>
+      </div>
+    );
   }
 
   const healthPct = mtm.healthBps / 100;
@@ -257,8 +268,7 @@ function HealthCell({ mtm, closed }: { mtm?: PositionMarkToMarket; closed: boole
         ? "bg-amber-500"
         : "bg-destructive";
 
-  const belowLiquidationTone =
-    mtm.healthLabel === "at_risk" ? "bg-destructive/70" : "bg-success/35";
+  const belowLiquidationTone = "bg-destructive/35";
 
   return (
     <div className="min-w-[5.5rem]">
@@ -557,16 +567,17 @@ export function LeverxPositionsTable({
       ),
       align: "right",
       mobileLabel: "Health",
-      cell: (r) => <HealthCell mtm={r.mtm} closed={r.position.status !== "open"} />,
+      cell: (r) => (
+        <HealthCell mtm={r.mtm} position={r.position} closed={r.position.status !== "open"} />
+      ),
     },
     {
       key: "expiry",
       header: "Expiry",
       align: "right",
+      className: "w-[1px] whitespace-nowrap",
       mobileLabel: "Expiry",
-      cell: (r) => (
-        <span className="text-sm text-muted-foreground">{formatExpiry(r.position.expiry_ms)}</span>
-      ),
+      cell: (r) => <TableExpiryCountdown expiryMs={r.position.expiry_ms} />,
     },
     {
       key: "actions",

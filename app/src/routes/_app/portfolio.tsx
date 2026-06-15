@@ -116,15 +116,6 @@ function PortfolioPage() {
           />
         </div>
       )}
-
-      <div className="flex flex-wrap items-center justify-center gap-4 pt-2 text-sm">
-        <Link to="/markets" className="text-accent hover:underline">
-          Browse markets →
-        </Link>
-        <Link to="/vault" className="text-muted-foreground hover:text-foreground">
-          Provide vault liquidity →
-        </Link>
-      </div>
     </section>
   );
 }

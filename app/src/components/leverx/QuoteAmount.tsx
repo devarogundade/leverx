@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Lock } from "lucide-react";
 import { AssetBadge, type AssetBadgeSize } from "@/components/AssetBadge";
 import { useAnimatedCounter } from "@/hooks/useAnimatedCounter";
 import { formatAmountWithMaxDigits } from "@/lib/copy";
@@ -27,6 +28,9 @@ type QuoteAmountProps = {
   iconSize?: AssetBadgeSize;
   iconClassName?: string;
   align?: "start" | "end";
+  /** Show a lock before the quote icon (e.g. manager balance locked by vault borrow). */
+  locked?: boolean;
+  lockedTitle?: string;
 };
 
 function formatQuoteValue(
@@ -75,6 +79,8 @@ export function QuoteAmount({
   iconSize = "sm",
   iconClassName,
   align = "start",
+  locked = false,
+  lockedTitle = "Locked",
 }: QuoteAmountProps) {
   const canAnimate =
     animate &&
@@ -116,16 +122,26 @@ export function QuoteAmount({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1",
+        "inline-flex max-w-full items-center gap-1",
         align === "end" && "justify-end",
         className,
       )}
-      aria-label={`${text} ${sym}`}
+      aria-label={`${text} ${sym}${locked ? ", locked" : ""}`}
     >
-      <span className={cn("font-mono tabular-nums", amountClassName)} aria-hidden>
+      <span
+        className={cn("min-w-0 truncate font-mono tabular-nums", amountClassName)}
+        aria-hidden
+      >
         {text}
       </span>
-      <QuoteIcon symbol={sym} size={iconSize} className={iconClassName} />
+      {locked ? (
+        <Lock
+          className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400"
+          aria-hidden
+          title={lockedTitle}
+        />
+      ) : null}
+      <QuoteIcon symbol={sym} size={iconSize} className={cn("shrink-0", iconClassName)} />
     </span>
   );
 }

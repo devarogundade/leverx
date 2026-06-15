@@ -60,8 +60,12 @@ export const leverxInfo = {
   liquidations:
     "Liquidations, force-deleverages, and bad-debt write-offs when health falls below the protocol threshold.",
   withdrawTradingBalance: "Move surplus to your wallet.",
+  withdrawDialogDescription:
+    "Withdraw free surplus to your wallet. Borrowed vault debt is not withdrawable and is not manager balance minus borrow — repay debt to unlock manager surplus.",
+  withdrawDialogWithdrawableHint:
+    "Market-key surplus (no borrow on that key) plus unlocked Predict manager balance.",
   withdrawTradingBalanceDetail:
-    "dUSDC credited after closing a trade. Withdraw once key borrow is repaid. If a third party redeemed your contracts, the payout may sit in your Predict manager balance instead of the market key.",
+    "dUSDC credited after closing a trade. Withdraw once that market key’s vault borrow is repaid. If a third party redeemed your contracts, the payout may sit in your Predict manager balance instead of the market key.",
   depositTradingBalance: "Move dUSDC from your wallet to trade.",
   depositTradingBalanceDetail:
     "Market-key deposits credit a specific market ledger. Predict manager deposits fund the shared pool used for minting.",
@@ -69,12 +73,12 @@ export const leverxInfo = {
     "Move dUSDC between wallet and trading account. Withdrawable is surplus you can pull out now; manager funds may stay locked until vault borrow is repaid.",
   portfolioOverviewDetail:
     "Net equity, unrealized P&L, margin posted, and vault borrow across open positions. Live marks refresh about every 12 seconds.",
-  withdrawEmpty: "Nothing to withdraw.",
+  withdrawEmpty: "Nothing to withdraw right now.",
   withdrawEmptyDetail:
-    "Surplus appears on market keys after closing a trade, or in your Predict manager after an external redeem. Repay vault borrow if manager funds are locked.",
-  managerWithdrawLocked: "Manager surplus locked until borrow is repaid.",
+    "Withdrawable is free surplus — not borrowed vault debt. Surplus appears on market keys after you close a trade (once that key’s borrow is repaid), or in your Predict manager after an external redeem. Manager surplus stays locked while vault borrow is outstanding.",
+  managerWithdrawLocked: "Manager surplus locked until vault borrow is repaid.",
   managerWithdrawLockedDetail:
-    "While vault borrow is outstanding, the app treats Predict manager balance as locked for withdrawal. Repay borrow from open positions first.",
+    "Borrowed is debt on your trading account, not cash you can pull out. While any vault borrow is outstanding, free dUSDC in your Predict manager cannot be withdrawn. Close positions or repay debt first.",
   depositSourceWallet: "Fund the trade from dUSDC in your connected wallet.",
   depositSourceManager:
     "Fund the trade from dUSDC already in your Predict manager balance (moved to this market key when you open).",
@@ -102,13 +106,18 @@ export const leverxInfo = {
   balanceTotal:
     "Wallet dUSDC plus margin and Predict manager balance, minus vault borrow across your account.",
   balanceWithdrawable: "Surplus you can withdraw to your wallet now.",
+  balanceWithdrawableHint:
+    "Free surplus only — not vault borrow (debt), and not margin in open trades.",
   balanceWithdrawableDetail:
-    "Key and manager balances stay locked while a market key still has vault borrow — repay debt first to unlock more.",
+    "Counts dUSDC already sitting as surplus on market keys (with no borrow on that key) and unlocked Predict manager balance. Borrowed is debt you repay — it is not subtracted from manager balance to compute this. Manager surplus stays locked while any vault borrow is outstanding.",
+  balanceWithdrawableLockedManagerHint:
+    "Predict manager holds surplus that is locked until vault borrow is fully repaid.",
   balanceWallet: "dUSDC available in your connected wallet (not yet in open trades).",
   balanceManager:
     "dUSDC in your Predict manager balance — shared pool for minting and redeems, separate from per-market key ledgers.",
   balanceMargin: "Your own funds posted in open trades.",
-  balanceBorrowed: "Amount borrowed from the pool.",
+  balanceBorrowed:
+    "Vault debt from leveraged trades. Not withdrawable — repay by closing positions or repaying debt.",
   balancePositions: "Number of open trades.",
   unrealizedPnl: "Profit or loss if you closed all open trades at the current redeem bid.",
   openOrders: "Resting limit orders waiting to be filled.",

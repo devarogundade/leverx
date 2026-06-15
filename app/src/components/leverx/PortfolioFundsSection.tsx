@@ -5,7 +5,7 @@ import { QuoteAmount } from "@/components/leverx/QuoteAmount";
 import { PortfolioDepositDialog } from "@/components/leverx/PortfolioDepositDialog";
 import { PortfolioWithdrawDialog } from "@/components/leverx/PortfolioWithdrawDialog";
 import { useLeverxProtocolConfig } from "@/hooks/useLeverxTransactions";
-import { useWalletCoinBalance } from "@/hooks/useWalletCoinBalance";
+import { useWalletCoinBalance, walletCoinBalanceUsd } from "@/hooks/useWalletCoinBalance";
 import { useProxyKeyBalances } from "@/hooks/useProxyKeyBalances";
 import { useManagerQuoteBalances } from "@/hooks/useManagerQuoteBalances";
 import { useManagerQuoteBalance } from "@/hooks/useManagerQuoteBalance";
@@ -32,12 +32,14 @@ function FundsMetric({
   info,
   infoTitle,
   loading,
+  hint,
 }: {
   label: string;
   value: ReactNode;
   info?: string;
   infoTitle?: string;
   loading?: boolean;
+  hint?: string;
 }) {
   return (
     <div className="min-w-0 px-4 py-3">
@@ -51,9 +53,16 @@ function FundsMetric({
       ) : (
         <p className={labelCaps}>{label}</p>
       )}
-      <p className="mt-1 truncate font-mono text-base tabular-nums text-foreground sm:text-lg">
-        {loading ? "…" : value}
-      </p>
+      <div className="mt-1 min-w-0 text-base sm:text-lg">
+        {loading ? (
+          <span className="font-mono tabular-nums text-foreground">…</span>
+        ) : (
+          value
+        )}
+      </div>
+      {hint ? (
+        <p className="mt-1 text-[11px] leading-snug text-muted-foreground">{hint}</p>
+      ) : null}
     </div>
   );
 }
@@ -96,7 +105,8 @@ export function PortfolioFundsSection({
   className,
 }: Props) {
   const { cfg } = useLeverxProtocolConfig();
-  const { data: walletUsd, isLoading: walletLoading } = useWalletCoinBalance(cfg?.quoteType ?? null);
+  const { data: walletBalance, isLoading: walletLoading } = useWalletCoinBalance(cfg?.quoteType ?? null);
+  const walletUsd = walletCoinBalanceUsd(walletBalance);
   const { rows: keyRows, isLoading: keyBalancesLoading } = useProxyKeyBalances(accountId, positions);
   const { rows: managerRows, isLoading: managerBalancesLoading } = useManagerQuoteBalances(
     accountId,
@@ -144,6 +154,16 @@ export function PortfolioFundsSection({
     return keyTotal + managerTotal;
   }, [keyRows, managerRows]);
 
+  const accountHasDebt = useMemo(
+    () => borrowedQuote > 0 || positions.some((position) => position.borrow_quote > 0),
+    [borrowedQuote, positions],
+  );
+  const lockedManagerUsd =
+    accountHasDebt && managerUsd != null && managerUsd > 0 ? managerUsd : 0;
+  const withdrawableHint = lockedManagerUsd > 0
+    ? leverxInfo.balanceWithdrawableLockedManagerHint
+    : leverxInfo.balanceWithdrawableHint;
+
   const balancesLoading = keyBalancesLoading || managerBalancesLoading;
   const openPositions = useMemo(
     () => positions.filter(isActiveOpenPosition),
@@ -183,7 +203,14 @@ export function PortfolioFundsSection({
             label={ui.balanceWallet}
             info={leverxInfo.balanceWallet}
             loading={walletLoading && walletUsd == null}
-            value={<QuoteAmount amount={walletUsd ?? 0} digits={2} hideZero={false} />}
+            value={
+              <QuoteAmount
+                amount={walletUsd ?? 0}
+                quoteAtoms={walletBalance?.atoms}
+                digits={2}
+                hideZero={false}
+              />
+            }
           />
           <FundsMetric
             label={ui.balanceManager}
@@ -195,6 +222,8 @@ export function PortfolioFundsSection({
                   amount={managerUsd ?? 0}
                   quoteAtoms={managerBalanceAtoms}
                   hideZero={false}
+                  locked={accountHasDebt && (managerUsd ?? 0) > 0}
+                  lockedTitle={leverxInfo.managerWithdrawLocked}
                 />
               ) : (
                 "—"
@@ -216,6 +245,7 @@ export function PortfolioFundsSection({
             info={leverxInfo.balanceWithdrawableDetail}
             infoTitle={ui.balanceWithdrawable}
             loading={balancesLoading && withdrawableUsd === 0}
+            hint={withdrawableHint}
             value={<QuoteAmount amount={withdrawableUsd} digits={2} hideZero={false} />}
           />
         </div>

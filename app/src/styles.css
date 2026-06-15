@@ -5610,19 +5610,136 @@ button:disabled {
 }
 
 /* Keeper setup page */
+.keeper-page {
+  gap: 1.25rem;
+}
+@media (min-width: 640px) {
+  .keeper-page {
+    gap: 1.5rem;
+  }
+}
+.keeper-hero {
+  display: grid;
+  gap: 1.25rem;
+  align-items: start;
+}
+@media (min-width: 900px) {
+  .keeper-hero {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    gap: 2rem;
+    align-items: center;
+  }
+}
+.keeper-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.65rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--color-accent) 22%, var(--color-border));
+  background: color-mix(in oklab, var(--color-accent) 8%, transparent);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+.keeper-features {
+  display: grid;
+  gap: 0.55rem;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 520px) {
+  .keeper-features {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
+}
+.keeper-feature {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: color-mix(in oklab, var(--color-card) 80%, transparent);
+}
+.keeper-feature-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: color-mix(in oklab, var(--color-muted) 40%, transparent);
+  color: var(--color-accent);
+}
+.keeper-feature-text {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+.keeper-feature-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+.keeper-feature-detail {
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--color-muted-foreground);
+}
+.keeper-hero-visual .landing-illus-frame {
+  box-shadow:
+    0 1px 0 0 color-mix(in oklab, white 5%, transparent) inset,
+    0 20px 48px -24px color-mix(in oklab, black 50%, transparent),
+    0 0 0 1px color-mix(in oklab, var(--color-accent) 8%, var(--color-border));
+}
+.keeper-setup-panel {
+  padding: 1.15rem 1.25rem;
+}
+@media (min-width: 640px) {
+  .keeper-setup-panel {
+    padding: 1.35rem 1.5rem;
+  }
+}
+.keeper-setup-head {
+  margin-bottom: 1.15rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+.keeper-setup-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+.keeper-setup-subtitle {
+  margin-top: 0.25rem;
+  font-size: 0.8125rem;
+  color: var(--color-muted-foreground);
+}
 .keeper-steps {
   display: grid;
-  gap: 1rem;
-  margin-top: 1.5rem;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
-.keeper-step-card {
+.keeper-step {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+  gap: 0.85rem;
+}
+.keeper-step-rail {
   display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  padding: 1.25rem 1.35rem;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border);
-  background: var(--color-card);
+  flex-direction: column;
+  align-items: center;
+  padding-top: 0.15rem;
 }
 .keeper-step-num {
   display: inline-flex;
@@ -5632,42 +5749,177 @@ button:disabled {
   width: 1.75rem;
   height: 1.75rem;
   border-radius: 999px;
-  background: color-mix(in oklab, var(--color-accent) 14%, transparent);
+  border: 1px solid color-mix(in oklab, var(--color-accent) 25%, var(--color-border));
+  background: color-mix(in oklab, var(--color-accent) 12%, transparent);
   font-family: var(--font-mono);
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--color-accent);
 }
-.keeper-code-block {
-  overflow-x: auto;
-  padding: 0.85rem 1rem;
+.keeper-step-line {
+  flex: 1;
+  width: 1px;
+  min-height: 1.25rem;
+  margin: 0.35rem 0;
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--color-accent) 35%, var(--color-border)),
+    var(--color-border)
+  );
+}
+.keeper-step-card {
+  min-width: 0;
+  padding-bottom: 1.35rem;
+}
+.keeper-step--last .keeper-step-card {
+  padding-bottom: 0;
+}
+.keeper-step-head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+.keeper-step-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-muted);
+  color: var(--color-muted-foreground);
+}
+.keeper-step-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+.keeper-step-hint {
+  margin-top: 0.45rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--color-muted-foreground);
+}
+.keeper-code {
+  margin-top: 0.75rem;
+  overflow: hidden;
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
-  background: color-mix(in oklab, var(--color-muted) 35%, transparent);
+  background: color-mix(in oklab, var(--color-background) 55%, var(--color-muted));
+}
+.keeper-code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.45rem 0.65rem;
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in oklab, var(--color-muted) 30%, transparent);
+}
+.keeper-code-label {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+}
+.keeper-code-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-muted-foreground);
+  transition:
+    color 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
+}
+.keeper-code-copy:hover {
+  border-color: var(--color-border);
+  background: color-mix(in oklab, var(--color-card) 70%, transparent);
+  color: var(--color-foreground);
+}
+.keeper-code-body {
+  overflow-x: auto;
+  margin: 0;
+  padding: 0.85rem 1rem;
   font-family: var(--font-mono);
   font-size: 0.75rem;
-  line-height: 1.5;
+  line-height: 1.55;
   color: var(--color-foreground);
   white-space: pre-wrap;
   word-break: break-word;
 }
-.keeper-after-run {
-  margin-top: 1.5rem;
+.keeper-bottom-grid {
+  display: grid;
+  gap: 0.85rem;
+}
+@media (min-width: 768px) {
+  .keeper-bottom-grid {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+    gap: 1rem;
+  }
+}
+.keeper-health-card {
   display: grid;
   gap: 0.75rem;
+  padding: 1.15rem 1.25rem;
 }
-.keeper-vault-link {
-  display: inline-flex;
+.keeper-health-head {
+  display: flex;
   align-items: center;
-  gap: 0.4rem;
-  margin-top: 1.5rem;
+  gap: 0.55rem;
+}
+.keeper-health-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: #38ef7d;
+  box-shadow: 0 0 8px color-mix(in oklab, #38ef7d 45%, transparent);
+}
+.keeper-health-title {
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--color-muted-foreground);
-  transition: color 160ms ease;
-}
-.keeper-vault-link:hover {
   color: var(--color-foreground);
+}
+.keeper-rewards-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 1.15rem 1.25rem;
+}
+.keeper-rewards-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in oklab, #eab308 25%, var(--color-border));
+  background: color-mix(in oklab, #eab308 10%, transparent);
+  color: #eab308;
+}
+.keeper-vault-cta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease;
+}
+.keeper-vault-cta:hover {
+  border-color: color-mix(in oklab, var(--color-accent) 30%, var(--color-border));
+  background: color-mix(in oklab, var(--color-accent) 5%, var(--color-card));
 }
 
 /* ── Shared loading state ───────────────────────────────────────── */

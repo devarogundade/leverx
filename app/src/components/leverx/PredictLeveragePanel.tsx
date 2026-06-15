@@ -200,6 +200,7 @@ export function PredictLeveragePanel({
   }, [address]);
 
   const resetTradeInputs = useCallback(() => {
+    setOrderType("market");
     setMargin("");
     setLimitPrice("");
     setTpSl(false);
@@ -256,7 +257,9 @@ export function PredictLeveragePanel({
   }, [hasLinkedManager, depositSource]);
 
   const availableQuoteBalance =
-    depositSource === "manager" ? managerQuoteBalance : walletQuoteBalance;
+    depositSource === "manager" ? managerQuoteBalance : walletQuoteBalance?.usd;
+  const availableQuoteAtoms =
+    depositSource === "manager" ? managerBalanceAtoms : walletQuoteBalance?.atoms;
   const availableBalanceLoading =
     depositSource === "manager" ? managerBalanceLoading : false;
 
@@ -514,8 +517,8 @@ export function PredictLeveragePanel({
     depositSource === "manager" ? ui.balanceManager : ui.balanceWallet;
 
   const quickAmounts = useMemo(
-    () => buildQuickAmounts(availableQuoteBalance),
-    [availableQuoteBalance],
+    () => buildQuickAmounts(availableQuoteBalance, availableQuoteAtoms),
+    [availableQuoteBalance, availableQuoteAtoms],
   );
 
   const {
@@ -706,7 +709,7 @@ export function PredictLeveragePanel({
         "Predict manager is not linked. Open Portfolio → Account to link your manager before trading.",
       );
     }
-    if (orderType === "limit") {
+    if (orderType === "limit" && marginNum > 0) {
       if (!restingLimitAllowed) {
         errors.push(
           "Resting limit orders are unavailable in the final hour or when the market closes too soon.",

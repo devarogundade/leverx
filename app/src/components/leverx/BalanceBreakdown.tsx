@@ -13,7 +13,7 @@ import { useManagerQuoteBalance } from "@/hooks/useManagerQuoteBalance";
 import { useWallet } from "@/context/WalletContext";
 import { useIndexerAccounts, useIndexerPositions } from "@/hooks/useIndexer";
 import { useLeverxProtocolConfig } from "@/hooks/useLeverxTransactions";
-import { useWalletCoinBalance } from "@/hooks/useWalletCoinBalance";
+import { useWalletCoinBalance, walletCoinBalanceUsd } from "@/hooks/useWalletCoinBalance";
 import { ui } from "@/lib/copy";
 import { appConfig } from "@/lib/config";
 import {
@@ -78,7 +78,9 @@ export function BalanceBreakdown({ className }: Props) {
 
   const ready =
     isWalletConnected && accountsFetched && positionsFetched && !accountsLoading && !positionsLoading;
-  const walletReady = isWalletConnected && walletBalanceFetched && !walletBalanceLoading;
+  const walletUsd = walletCoinBalanceUsd(walletBalance);
+  const walletReady =
+    isWalletConnected && walletBalanceFetched && !walletBalanceLoading && walletUsd != null;
   const managerReady =
     !managerQueryEnabled || (managerBalanceFetched && !managerBalanceLoading);
 
@@ -91,6 +93,12 @@ export function BalanceBreakdown({ className }: Props) {
     ? activePositions.reduce((sum, p) => sum + scaleQuote(p.margin_quote), 0)
     : null;
   const borrowed = ready ? scaleQuote(accounts[0]?.borrowed_quote ?? 0) : null;
+  const accountHasDebt = useMemo(
+    () =>
+      (accounts[0]?.borrowed_quote ?? 0) > 0 ||
+      activePositions.some((position) => position.borrow_quote > 0),
+    [accounts, activePositions],
+  );
   const managerBalance =
     !managerQueryEnabled
       ? null
@@ -104,7 +112,7 @@ export function BalanceBreakdown({ className }: Props) {
   const total =
     ready && walletReady && managerReady && margin != null
       ? computeTotalBalanceUsd({
-          walletUsd: walletBalance ?? 0,
+          walletUsd: walletUsd ?? 0,
           marginUsd: margin,
           managerUsd: managerBalance ?? 0,
           borrowedUsd: borrowed ?? 0,
@@ -159,7 +167,8 @@ export function BalanceBreakdown({ className }: Props) {
                 info={leverxInfo.balanceWallet}
                 value={
                   <QuoteAmount
-                    amount={walletReady ? walletBalance ?? 0 : null}
+                    amount={walletUsd}
+                    quoteAtoms={walletBalance?.atoms}
                     loading={isWalletConnected && !walletReady}
                     hideZero={false}
                   />
@@ -175,8 +184,11 @@ export function BalanceBreakdown({ className }: Props) {
                     ) : (
                       <QuoteAmount
                         amount={managerBalance}
+                        quoteAtoms={managerBalanceAtoms}
                         loading={isWalletConnected && !managerReady}
                         hideZero={false}
+                        locked={accountHasDebt && (managerBalance ?? 0) > 0}
+                        lockedTitle={leverxInfo.managerWithdrawLocked}
                       />
                     )
                   }

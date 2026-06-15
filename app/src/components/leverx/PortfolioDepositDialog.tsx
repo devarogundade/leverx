@@ -9,17 +9,17 @@ import { TradeAmountInput } from "@/components/leverx/TradeFormControls";
 import { QuoteAmount, QuoteAmountInline } from "@/components/leverx/QuoteAmount";
 import { useDepositKeyTargets } from "@/hooks/useDepositKeyTargets";
 import { useLeverxProtocolConfig, useLeverxTransactions } from "@/hooks/useLeverxTransactions";
-import { useWalletCoinBalance } from "@/hooks/useWalletCoinBalance";
+import { useWalletCoinBalance, walletCoinBalanceUsd } from "@/hooks/useWalletCoinBalance";
 import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { assetLabelForOracleId } from "@/lib/predict/oracles";
 import { predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
 import { usePredictOracleRows } from "@/hooks/usePredictOracles";
 import {
-  clampUsdToQuoteAtoms,
+  clampUsdInputToQuoteAtoms,
   formatMaxWithdrawUsd,
-  marginUsdToQuoteAtoms,
-  usdExceedsQuoteAtoms,
+  QUOTE_INPUT_STEP,
+  usdInputExceedsQuoteAtoms,
   withdrawUsdDecimals,
   withdrawUsdDisplayAmount,
 } from "@/lib/leverx/trade-math";
@@ -59,14 +59,12 @@ export function PortfolioDepositDialog({
   );
   const keyTargets = useDepositKeyTargets(openPositions);
   const { depositQuote, depositManagerQuote, isProtocolReady } = useLeverxTransactions();
-  const { data: walletUsd, isLoading: walletLoading } = useWalletCoinBalance(
+  const { data: walletBalance, isLoading: walletLoading } = useWalletCoinBalance(
     open ? (cfg?.quoteType ?? null) : null,
   );
 
-  const walletAtoms = useMemo(
-    () => (walletUsd != null && walletUsd > 0 ? marginUsdToQuoteAtoms(walletUsd) : 0n),
-    [walletUsd],
-  );
+  const walletAtoms = walletBalance?.atoms ?? 0n;
+  const walletUsd = walletCoinBalanceUsd(walletBalance);
 
   const managerAvailable = Boolean(predictManagerId);
   const positionsAvailable = keyTargets.length > 0;
@@ -112,12 +110,10 @@ export function PortfolioDepositDialog({
   const maxAtoms = walletAtoms;
   const maxUsd = withdrawUsdDisplayAmount(maxAtoms);
   const maxDigits = withdrawUsdDecimals(maxAtoms);
-  const amountNum = parseFloat(amountUsd) || 0;
   const amountInvalid =
     maxAtoms <= 0n ||
-    !Number.isFinite(amountNum) ||
-    amountNum <= 0 ||
-    usdExceedsQuoteAtoms(amountNum, maxAtoms);
+    !amountUsd.trim() ||
+    usdInputExceedsQuoteAtoms(amountUsd, maxAtoms);
   const pending = depositQuote.isPending || depositManagerQuote.isPending;
   const hasAnyDestination = managerAvailable || positionsAvailable;
 
@@ -125,8 +121,7 @@ export function PortfolioDepositDialog({
 
   const onConfirm = () => {
     if (!selected) return;
-    const usd = parseFloat(amountUsd);
-    const amountAtoms = clampUsdToQuoteAtoms(usd, walletAtoms);
+    const amountAtoms = clampUsdInputToQuoteAtoms(amountUsd, walletAtoms);
     if (amountAtoms <= 0n) return;
 
     if (selected.kind === "manager") {
@@ -262,7 +257,7 @@ export function PortfolioDepositDialog({
                 type="number"
                 inputMode="decimal"
                 min={0}
-                step={maxDigits >= 6 ? 0.000001 : maxDigits >= 4 ? 0.0001 : 0.01}
+                step={QUOTE_INPUT_STEP}
                 value={amountUsd}
                 onChange={(e) => setAmountUsd(e.target.value)}
                 placeholder="0.00"

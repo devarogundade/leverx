@@ -287,6 +287,7 @@ export function useLeverxTransactions() {
 
   const vaultSupply = useMutation({
     mutationFn: async (amountAtoms: bigint) => {
+      primeSuccessSound();
       const ready = requireReady();
       return executeVaultSupply({
         client,
@@ -296,11 +297,15 @@ export function useLeverxTransactions() {
         amountAtoms,
       });
     },
-    onSuccess: () => invalidate(),
+    onSuccess: () => {
+      playSuccessSound();
+      invalidate();
+    },
   });
 
   const vaultWithdraw = useMutation({
     mutationFn: async (lpAmountAtoms: bigint) => {
+      primeSuccessSound();
       const ready = requireReady();
       return executeVaultWithdraw({
         client,
@@ -310,11 +315,15 @@ export function useLeverxTransactions() {
         lpAmountAtoms,
       });
     },
-    onSuccess: () => invalidate(),
+    onSuccess: () => {
+      playSuccessSound();
+      invalidate();
+    },
   });
 
   const withdrawQuote = useMutation({
     mutationFn: async (input: WithdrawQuoteInput) => {
+      primeSuccessSound();
       const ready = requireReady();
       return executeWithdrawQuote({
         client,
@@ -324,11 +333,15 @@ export function useLeverxTransactions() {
         input,
       });
     },
-    onSuccess: () => invalidate(),
+    onSuccess: () => {
+      playSuccessSound();
+      invalidate();
+    },
   });
 
   const withdrawManagerQuote = useMutation({
     mutationFn: async (input: WithdrawManagerQuoteInput) => {
+      primeSuccessSound();
       const ready = requireReady();
       return executeWithdrawManagerQuote({
         client,
@@ -338,11 +351,15 @@ export function useLeverxTransactions() {
         input,
       });
     },
-    onSuccess: () => invalidate(),
+    onSuccess: () => {
+      playSuccessSound();
+      invalidate();
+    },
   });
 
   const depositQuote = useMutation({
     mutationFn: async (input: DepositQuoteInput) => {
+      primeSuccessSound();
       const ready = requireReady();
       return executeDepositQuote({
         client,
@@ -352,11 +369,15 @@ export function useLeverxTransactions() {
         input,
       });
     },
-    onSuccess: () => invalidate(),
+    onSuccess: () => {
+      playSuccessSound();
+      invalidate();
+    },
   });
 
   const depositManagerQuote = useMutation({
     mutationFn: async (input: DepositManagerQuoteInput) => {
+      primeSuccessSound();
       const ready = requireReady();
       return executeDepositManagerQuote({
         client,
@@ -366,7 +387,10 @@ export function useLeverxTransactions() {
         input,
       });
     },
-    onSuccess: () => invalidate(),
+    onSuccess: () => {
+      playSuccessSound();
+      invalidate();
+    },
   });
 
   return {

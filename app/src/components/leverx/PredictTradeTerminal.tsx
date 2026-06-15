@@ -114,6 +114,10 @@ function tradeTabLabel(
   tab: (typeof TABS)[number],
   tradesLoading: boolean,
   tradeCount: string,
+  positionsLoading: boolean,
+  positionCount: number,
+  ordersLoading: boolean,
+  orderCount: number,
 ) {
   if (tab === "Market trades") {
     const count = tradesLoading ? "…" : tradeCount;
@@ -125,18 +129,20 @@ function tradeTabLabel(
     );
   }
   if (tab === "Open Orders") {
+    const count = ordersLoading ? "…" : formatCount(orderCount);
     return (
       <>
-        <span className="sm:hidden">Orders</span>
-        <span className="hidden sm:inline">Open Orders</span>
+        <span className="sm:hidden">Orders ({count})</span>
+        <span className="hidden sm:inline">Open Orders ({count})</span>
       </>
     );
   }
   if (tab === "Positions") {
+    const count = positionsLoading ? "…" : formatCount(positionCount);
     return (
       <>
-        <span className="max-[380px]:hidden">Positions</span>
-        <span className="hidden max-[380px]:inline">Pos</span>
+        <span className="max-[380px]:hidden">Positions ({count})</span>
+        <span className="hidden max-[380px]:inline">Pos ({count})</span>
       </>
     );
   }
@@ -276,6 +282,7 @@ type TradePositionsPanelProps = {
   address: string | null;
   positionsLoading: boolean;
   positions: Awaited<ReturnType<typeof useIndexerPositions>>["data"];
+  positionCount: number;
   ordersLoading: boolean;
   limitOrders: Awaited<ReturnType<typeof useIndexerLimitOrders>>["data"];
   vaultSummary: Awaited<ReturnType<typeof useIndexerVaultSummary>>["data"];
@@ -292,6 +299,7 @@ function TradePositionsPanel({
   address,
   positionsLoading,
   positions = [],
+  positionCount,
   ordersLoading,
   limitOrders = [],
   vaultSummary,
@@ -308,7 +316,15 @@ function TradePositionsPanel({
           onValueChange={(v) => setActiveTab(v as (typeof TABS)[number])}
           options={TABS.map((tab) => ({
             value: tab,
-            label: tradeTabLabel(tab, tradesLoading, formatCount(tradeStats.total)),
+            label: tradeTabLabel(
+              tab,
+              tradesLoading,
+              formatCount(tradeStats.total),
+              positionsLoading,
+              positionCount,
+              ordersLoading,
+              limitOrders.length,
+            ),
           }))}
         />
         {activeTab === "Positions" ? (
@@ -596,22 +612,31 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   );
 
   const { data: trades = [], isLoading: tradesLoading } = useIndexerGlobalTrades(oracleId);
-  const { data: positions = [], isLoading: positionsLoading } = useIndexerPositions(address ?? undefined, {
-    status: positionsFilter,
-    oracleId,
-  });
+  const {
+    data: openPositions = [],
+    isLoading: openPositionsLoading,
+  } = useIndexerPositions(address ?? undefined, { status: "open", oracleId });
+  const {
+    data: closedPositions = [],
+    isLoading: closedPositionsLoading,
+  } = useIndexerPositions(address ?? undefined, { status: "closed", oracleId });
   const { data: limitOrders = [], isLoading: ordersLoading } = useIndexerLimitOrders(
     address ?? undefined,
     oracleId,
   );
 
-  const displayPositions = useMemo(
-    () =>
-      positionsFilter === "open"
-        ? positions.filter(isActiveOpenPosition)
-        : positions,
-    [positions, positionsFilter],
+  const openOraclePositions = useMemo(
+    () => openPositions.filter(isActiveOpenPosition),
+    [openPositions],
   );
+
+  const displayPositions = useMemo(
+    () => (positionsFilter === "open" ? openOraclePositions : closedPositions),
+    [positionsFilter, openOraclePositions, closedPositions],
+  );
+
+  const positionsLoading =
+    positionsFilter === "open" ? openPositionsLoading : closedPositionsLoading;
 
   const handleTradeSuccess = useCallback(
     ({ orderType }: { orderType: "market" | "limit" }) => {
@@ -711,11 +736,6 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   const chartRangeLower = rangeLower ? scaleSpot(rangeLower) : undefined;
   const chartRangeUpper = rangeUpper ? scaleSpot(rangeUpper) : undefined;
 
-  const openOraclePositions = useMemo(
-    () => displayPositions.filter(isActiveOpenPosition),
-    [displayPositions],
-  );
-
   const chartStrikeLevels = useMemo(() => {
     if (openOraclePositions.length > 0) {
       return buildPositionStrikeChartLevels(
@@ -762,6 +782,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
     address: address ?? null,
     positionsLoading,
     positions: displayPositions,
+    positionCount: displayPositions.length,
     ordersLoading,
     limitOrders,
     vaultSummary,

@@ -13,8 +13,12 @@ import { appConfig } from "@/lib/config";
 import { formatAmount } from "@/lib/copy";
 import { lxplpCoinType } from "@/lib/leverx/protocol";
 import { QuoteAmount, QuoteIcon } from "@/components/leverx/QuoteAmount";
-import { QUOTE_UNIT } from "@/lib/predict/constants";
 import { buildQuickAmounts } from "@/lib/leverx/form-helpers";
+import {
+  clampUsdInputToQuoteAtoms,
+  QUOTE_INPUT_STEP,
+  usdInputExceedsQuoteAtoms,
+} from "@/lib/leverx/trade-math";
 import {
   btnTradeSignin,
   labelCaps,
@@ -54,20 +58,26 @@ export function PredictVaultLiquidityPanel({ vaultNav, vaultId, className }: Pro
   }, [action]);
 
   const symbol = action === "supply" ? "DUSDC" : "lxPLP";
-  const balanceAmount = action === "supply" ? quoteBalance : lxplpBalance;
+  const balanceAmount = action === "supply" ? quoteBalance?.usd : lxplpBalance?.usd;
+  const balanceAtoms = action === "supply" ? quoteBalance?.atoms : lxplpBalance?.atoms;
   const balanceLoading = action === "supply" ? quoteBalanceLoading : lxplpBalanceLoading;
 
-  const walletBalance = action === "supply" ? quoteBalance : lxplpBalance;
-  const quickAmounts = useMemo(() => buildQuickAmounts(walletBalance), [walletBalance]);
+  const quickAmounts = useMemo(
+    () => buildQuickAmounts(balanceAmount, balanceAtoms),
+    [balanceAmount, balanceAtoms],
+  );
 
-  const amountNum = parseFloat(amount) || 0;
   const exceedsBalance =
-    walletBalance != null && amountNum > 0 && amountNum > walletBalance + 1e-6;
+    balanceAtoms != null &&
+    balanceAtoms > 0n &&
+    amount.trim().length > 0 &&
+    usdInputExceedsQuoteAtoms(amount, balanceAtoms);
   const pending = vaultSupply.isPending || vaultWithdraw.isPending;
 
   const handleSubmit = () => {
-    if (amountNum <= 0 || !isProtocolReady) return;
-    const atoms = BigInt(Math.round(amountNum * Number(QUOTE_UNIT)));
+    if (!isProtocolReady || !balanceAtoms || balanceAtoms <= 0n) return;
+    const atoms = clampUsdInputToQuoteAtoms(amount, balanceAtoms);
+    if (atoms <= 0n) return;
 
     if (action === "supply") {
       vaultSupply.mutate(atoms, {
@@ -158,6 +168,7 @@ export function PredictVaultLiquidityPanel({ vaultNav, vaultId, className }: Pro
             type="number"
             inputMode="decimal"
             min={0}
+            step={QUOTE_INPUT_STEP}
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             suffix={
@@ -188,7 +199,7 @@ export function PredictVaultLiquidityPanel({ vaultNav, vaultId, className }: Pro
           <button
             type="button"
             className={btnTradeSignin}
-            disabled={!isProtocolReady || amountNum <= 0 || exceedsBalance || pending}
+            disabled={!isProtocolReady || !amount.trim() || exceedsBalance || pending}
             onClick={handleSubmit}
           >
             {pending ? (

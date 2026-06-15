@@ -540,6 +540,13 @@ export const marketsTdMono = "font-mono tabular-nums text-foreground";
 
 export const marketsTdMuted = "text-sm whitespace-nowrap text-muted-foreground";
 
+/** Stopwatch + suffix in tables — time slot is fixed-width so column layout stays stable. */
+export const tableCountdownCell =
+  "inline-flex items-baseline justify-end gap-1 text-sm whitespace-nowrap text-muted-foreground";
+
+export const tableCountdownTime =
+  "inline-block min-w-[10ch] text-right font-mono tabular-nums";
+
 export const marketsTdTrade = "pr-4";
 
 export const marketsTdHideLg = "hidden xl:table-cell";

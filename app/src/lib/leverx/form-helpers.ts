@@ -1,4 +1,5 @@
 import { MAX_MARGIN_USD } from "@/lib/leverx/trade-limits";
+import { formatMaxWithdrawUsd } from "@/lib/leverx/trade-math";
 
 /** Fraction presets for wallet-balance quick-amount buttons. */
 export const BALANCE_QUICK_FRACTIONS = [
@@ -24,12 +25,16 @@ export function formatAmountInput(amount: number): string {
 /** Build quick-amount button values from a wallet balance. */
 export function buildQuickAmounts(
   balance: number | null | undefined,
+  maxAtoms?: bigint | null,
 ): readonly { label: string; value: string }[] {
   const capped = balance != null && balance > 0 ? Math.min(balance, MAX_MARGIN_USD) : 0;
   const available = capped;
   return BALANCE_QUICK_FRACTIONS.map(({ label, fraction }) => ({
     label,
-    value: formatAmountInput(available * fraction),
+    value:
+      fraction === 1 && maxAtoms != null && maxAtoms > 0n
+        ? formatMaxWithdrawUsd(maxAtoms)
+        : formatAmountInput(available * fraction),
   }));
 }
 
