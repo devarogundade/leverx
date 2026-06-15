@@ -1,3 +1,11 @@
+import {
+  GAS_BUDGET_EXCEEDED_MESSAGE,
+  INSUFFICIENT_GAS_MESSAGE,
+  InsufficientGasError,
+  isGasBudgetExceededError,
+  isInsufficientGasError,
+} from "@/lib/sui/insufficient-gas";
+
 const PREMIUM_BOUNDS_MESSAGE =
   "Contract price is outside DeepBook Predict's tradable range (1¢–99¢). The market may be near expiry or temporarily unpriced — try another strike or wait for updated oracle prices.";
 
@@ -35,6 +43,12 @@ export function formatTxError(error: unknown): string {
       : typeof error === "string"
         ? error
         : "Transaction failed.";
+  if (error instanceof InsufficientGasError || isInsufficientGasError(raw)) {
+    return INSUFFICIENT_GAS_MESSAGE;
+  }
+  if (isGasBudgetExceededError(raw)) {
+    return GAS_BUDGET_EXCEEDED_MESSAGE;
+  }
   if (
     raw.includes("trading_paused") ||
     (raw.includes("trade") && raw.includes(", 2)"))
@@ -111,9 +125,13 @@ export function formatTxError(error: unknown): string {
       "(contracts/Move.toml), then deploy_and_share must be run again."
     );
   }
+  if (raw.includes("InsufficientCoinBalanceError")) {
+    return "Insufficient dUSDC in your wallet for this transaction.";
+  }
   if (
-    raw.includes("InsufficientCoinBalanceError") ||
-    (raw.includes("Insufficient") && raw.includes("balance"))
+    raw.includes("Insufficient") &&
+    raw.includes("balance") &&
+    !raw.includes("sui::SUI")
   ) {
     return "Insufficient dUSDC in your wallet for this transaction.";
   }
