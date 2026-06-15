@@ -9,7 +9,9 @@ import {
 import { FLOAT_SCALING } from "@/lib/predict/constants";
 import { isActiveOracleRow, isLiveOracleRow, isSettledOracleRow } from "@/lib/predict/oracles";
 import type { PredictOracleSummary } from "@/lib/predict/types";
-import { rangeBoundsFromPreset } from "@/lib/leverx/strike-selection";
+import { rangeBoundsFromPreset, atmStrikeRaw } from "@/lib/leverx/strike-selection";
+
+export { atmStrikeRaw };
 
 const SCALE = Number(FLOAT_SCALING);
 
@@ -18,15 +20,6 @@ export type MarketCategory = "All" | "Live" | "Closed";
 function scaledRaw(value: number | undefined | null): number {
   if (value == null || value <= 0) return 0;
   return value;
-}
-
-/** Round spot to tick for default ATM strike (raw 1e9 units). */
-export function atmStrikeRaw(spotUsd: number, minStrikeRaw: number, tickSizeRaw: number): number {
-  if (spotUsd <= 0) return minStrikeRaw > 0 ? minStrikeRaw : 0;
-  const spotRaw = Math.round(spotUsd * SCALE);
-  const tick = tickSizeRaw > 0 ? tickSizeRaw : minStrikeRaw;
-  if (tick <= 0) return spotRaw;
-  return Math.max(minStrikeRaw, Math.round(spotRaw / tick) * tick);
 }
 
 function oracleAsset(oracle: PredictOracleSummary): string {

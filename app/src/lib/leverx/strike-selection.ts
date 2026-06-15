@@ -1,11 +1,19 @@
 import { FLOAT_SCALING } from "@/lib/predict/constants";
 import { formatStrikeUsdFromRaw } from "@/lib/leverx/format-asset-price";
-import { atmStrikeRaw } from "@/lib/leverx/predict-oracle-markets";
 import { strikeUsdToRaw } from "@/lib/leverx/trade-math";
 
 export { formatStrikeUsdFromRaw };
 
 const SCALE = Number(FLOAT_SCALING);
+
+/** Round spot to tick for default ATM strike (raw 1e9 units). */
+export function atmStrikeRaw(spotUsd: number, minStrikeRaw: number, tickSizeRaw: number): number {
+  if (spotUsd <= 0) return minStrikeRaw > 0 ? minStrikeRaw : 0;
+  const spotRaw = Math.round(spotUsd * SCALE);
+  const tick = tickSizeRaw > 0 ? tickSizeRaw : minStrikeRaw;
+  if (tick <= 0) return spotRaw;
+  return Math.max(minStrikeRaw, Math.round(spotRaw / tick) * tick);
+}
 
 /** Normalize oracle min_strike / tick_size to raw 1e9 units. */
 export function toOracleStrikeRaw(value: number | undefined | null): number {
