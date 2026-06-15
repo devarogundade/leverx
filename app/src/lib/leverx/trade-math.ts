@@ -12,6 +12,11 @@ export function isPremiumWithinPredictBounds(premium: bigint): boolean {
   return premium >= PREDICT_MIN_ASK_PREMIUM && premium <= PREDICT_MAX_ASK_PREMIUM;
 }
 
+/** Positive on-chain ask for UI (includes sub-min vertical range premiums). */
+export function isPremiumDisplayable(premium: bigint): boolean {
+  return premium > 0n && premium < PREDICT_PRICE_SCALE;
+}
+
 export function isLimitCentsWithinPredictBounds(cents: number): boolean {
   if (!Number.isFinite(cents) || cents <= 0) return false;
   return cents >= PREDICT_MIN_PREMIUM_CENTS && cents <= PREDICT_MAX_PREMIUM_CENTS;

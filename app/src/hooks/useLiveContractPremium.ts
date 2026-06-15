@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useLeverxMarketAsk } from "@/hooks/useLeverxMarketAsk";
 import { isContractQuotePaused } from "@/lib/leverx/contract-quote";
 import { formatContractPremiumLabel } from "@/lib/leverx/indexer-markets";
@@ -38,6 +38,16 @@ export function useLiveContractPremium(args: {
     });
   }, [args.oracleId, args.expiryMs, args.strikeRaw, args.higherStrikeRaw, args.side]);
 
+  const marketKeySig = useMemo(
+    () =>
+      marketKey
+        ? `${marketKey.oracleId}:${marketKey.expiryMs}:${marketKey.strike}:${marketKey.higherStrike}:${marketKey.isRange ? 1 : 0}`
+        : "",
+    [marketKey],
+  );
+
+  const lastAskByKeyRef = useRef<{ key: string; ask: bigint } | null>(null);
+
   const {
     data: liveAskRaw,
     isPending,
@@ -45,6 +55,26 @@ export function useLiveContractPremium(args: {
     isError,
     isFetched,
   } = useLeverxMarketAsk(marketKey);
+
+  useEffect(() => {
+    if (!marketKeySig) {
+      lastAskByKeyRef.current = null;
+      return;
+    }
+    if (marketKeySig !== lastAskByKeyRef.current?.key) {
+      lastAskByKeyRef.current = null;
+    }
+    if (liveAskRaw != null && liveAskRaw > 0n) {
+      lastAskByKeyRef.current = { key: marketKeySig, ask: liveAskRaw };
+    }
+  }, [marketKeySig, liveAskRaw]);
+
+  const heldAskRaw =
+    liveAskRaw != null && liveAskRaw > 0n
+      ? liveAskRaw
+      : isFetching && lastAskByKeyRef.current?.key === marketKeySig
+        ? lastAskByKeyRef.current.ask
+        : liveAskRaw;
 
   const quotePaused = useMemo(
     () =>
@@ -54,33 +84,44 @@ export function useLiveContractPremium(args: {
         isFetching,
         isError,
         isFetched,
-        liveAskRaw,
+        liveAskRaw: heldAskRaw,
       }),
-    [marketKey, isPending, isFetching, isError, isFetched, liveAskRaw],
+    [marketKey, isPending, isFetching, isError, isFetched, heldAskRaw],
   );
+
+  const quoteResolving =
+    args.side === "range" && Boolean(args.expiryMs) && !marketKey;
 
   const label = useMemo(() => {
     if (quotePaused) return "Paused";
     return formatContractPremiumLabel({
-      liveAskRaw,
+      liveAskRaw: heldAskRaw,
       catalogPremium: args.catalogPremium,
-      loading: (isPending || isFetching) && liveAskRaw == null && !args.catalogPremium,
+      loading:
+        (isPending || isFetching) &&
+        heldAskRaw == null &&
+        !args.catalogPremium,
     });
-  }, [quotePaused, liveAskRaw, args.catalogPremium, isPending, isFetching]);
+  }, [quotePaused, heldAskRaw, args.catalogPremium, isPending, isFetching]);
 
   const premiumRaw = quotePaused
     ? null
-    : liveAskRaw != null && liveAskRaw > 0n
-      ? Number(liveAskRaw)
+    : heldAskRaw != null && heldAskRaw > 0n
+      ? Number(heldAskRaw)
       : args.catalogPremium != null && args.catalogPremium > 0
         ? args.catalogPremium
         : null;
 
+  const isLoading =
+    quoteResolving ||
+    ((isPending || isFetching) && premiumRaw == null && !quotePaused);
+
   return {
     label,
     premiumRaw,
-    liveAskRaw,
+    liveAskRaw: heldAskRaw,
     quotePaused,
-    isLoading: isPending && liveAskRaw == null,
+    quoteResolving,
+    isLoading,
   };
 }

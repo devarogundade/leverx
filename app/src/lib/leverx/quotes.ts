@@ -10,6 +10,7 @@ import type { LeverxProtocolConfig } from "@/lib/leverx/protocol";
 import {
   classifyPredictPremium,
   estimateQuantity,
+  isPremiumDisplayable,
   maxMintBudgetAtoms,
   premiumPerUnitFromMintCost,
 } from "@/lib/leverx/trade-math";
@@ -121,7 +122,8 @@ export async function fetchPredictMarketAsk(params: {
     key: params.key,
     quantity: PREDICT_QUOTE_REFERENCE_QUANTITY,
   });
-  if (!atRef || classifyPredictPremium(atRef.marketAskPerUnit) !== "ok") return null;
+  // Range bands can quote below the 1¢ mint floor; still show the live ask in UI.
+  if (!atRef || !isPremiumDisplayable(atRef.marketAskPerUnit)) return null;
   return atRef.marketAskPerUnit;
 }
 

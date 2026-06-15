@@ -9,6 +9,7 @@ import {
 import { FLOAT_SCALING } from "@/lib/predict/constants";
 import { isActiveOracleRow, isLiveOracleRow, isSettledOracleRow } from "@/lib/predict/oracles";
 import type { PredictOracleSummary } from "@/lib/predict/types";
+import { rangeBoundsFromPreset } from "@/lib/leverx/strike-selection";
 
 const SCALE = Number(FLOAT_SCALING);
 
@@ -38,7 +39,7 @@ function toStrikeRaw(value: number | undefined | null): number {
   return value < 1_000_000 ? Math.round(value * SCALE) : Math.round(value);
 }
 
-/** Resolve vertical range bounds for an oracle (catalog row, URL params, or ATM ± tick). */
+/** Resolve vertical range bounds for an oracle (catalog row, URL params, or spot ± 0.5%). */
 export function resolveRangeBounds(args: {
   oracleId: string;
   catalogRows?: readonly LeverxMarketRow[];
@@ -76,6 +77,10 @@ export function resolveRangeBounds(args: {
         ? args.oracle.settlement_price
         : args.oracle.settlement_price / SCALE
       : 0);
+
+  if (spot > 0) {
+    return rangeBoundsFromPreset("market", spot, minStrikeRaw, tickRaw);
+  }
 
   const atm =
     args.strikeRaw && args.strikeRaw > 0

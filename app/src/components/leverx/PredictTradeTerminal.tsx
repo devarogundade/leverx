@@ -698,6 +698,11 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   const rangeLower = rangeBounds?.lower ?? market?.strikeRaw;
   const rangeUpper = rangeBounds?.upper ?? market?.higherStrikeRaw;
 
+  const rangeQuoteLower =
+    activeSide === "range" ? rangeBounds?.lower : undefined;
+  const rangeQuoteUpper =
+    activeSide === "range" ? rangeBounds?.upper : undefined;
+
   const question = useMemo(() => {
     if (activeSide === "range" && rangeLower && rangeUpper) {
       return `Will ${asset} settle in ${formatRangeStrikes(rangeLower / 1e9, rangeUpper / 1e9)}?`;
@@ -729,8 +734,9 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   const contractPremium = useLiveContractPremium({
     oracleId,
     expiryMs: expiry,
-    strikeRaw: activeSide === "range" ? rangeLower : activeBinaryStrikeRaw || undefined,
-    higherStrikeRaw: activeSide === "range" ? rangeUpper : undefined,
+    strikeRaw:
+      activeSide === "range" ? rangeQuoteLower : activeBinaryStrikeRaw || undefined,
+    higherStrikeRaw: activeSide === "range" ? rangeQuoteUpper : undefined,
     side: activeSide,
     catalogPremium: market?.lastAskPremium,
   });
@@ -892,8 +898,10 @@ export function PredictTradeTerminal({ oracleId }: Props) {
                     <MarketQuotePausedBadge className="mt-0" />
                   ) : contractPremium.isLoading ? (
                     "…"
-                  ) : (
+                  ) : contractPremium.premiumRaw != null && contractPremium.premiumRaw > 0 ? (
                     <AnimatedPremium value={contractPremium.premiumRaw} />
+                  ) : (
+                    "…"
                   )
                 }
                 tone={contractPremium.quotePaused ? "destructive" : undefined}

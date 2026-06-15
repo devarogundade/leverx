@@ -8,8 +8,9 @@ export function isContractQuotePaused(args: {
   liveAskRaw?: bigint | null;
 }): boolean {
   if (!args.enabled) return false;
-  if (!args.isFetched && (args.isPending || args.isFetching)) return false;
-  if (args.isError) return true;
+  // In-flight devInspect — keep loading or last price; do not flash Paused.
+  if (args.isPending || args.isFetching) return false;
   if (!args.isFetched) return false;
+  if (args.isError) return true;
   return args.liveAskRaw == null || args.liveAskRaw <= 0n;
 }

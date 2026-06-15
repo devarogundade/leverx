@@ -1,6 +1,9 @@
 import { FLOAT_SCALING } from "@/lib/predict/constants";
+import { formatStrikeUsdFromRaw } from "@/lib/leverx/format-asset-price";
 import { atmStrikeRaw } from "@/lib/leverx/predict-oracle-markets";
 import { strikeUsdToRaw } from "@/lib/leverx/trade-math";
+
+export { formatStrikeUsdFromRaw };
 
 const SCALE = Number(FLOAT_SCALING);
 
@@ -69,15 +72,16 @@ export function strikeRawFromPreset(
   return snapStrikeRaw(targetUsd, minStrikeRaw, tickSizeRaw);
 }
 
-export { formatStrikeUsdFromRaw } from "@/lib/leverx/format-asset-price";
-
 export function strikeUsdFromRaw(strikeRaw: number): number {
   if (strikeRaw <= 0) return 0;
   return strikeRaw / SCALE;
 }
 
+/** Default “Market” range band: spot ± 0.5% (snapped to oracle tick grid). */
+export const RANGE_MARKET_WIDTH = 0.005;
+
 export const RANGE_PRESET_WIDTHS = {
-  market: null,
+  market: RANGE_MARKET_WIDTH,
   pct_1: 0.01,
   pct_2: 0.02,
   pct_3: 0.03,
@@ -96,8 +100,16 @@ export const RANGE_PRESET_OPTIONS: readonly {
   { id: "custom", label: "Custom" },
 ];
 
-/** Default oracle band: ATM − 1 tick through ATM + 1 tick. */
+/** Default range band for trade terminal fallbacks — same as the Market preset. */
 export function defaultRangeBoundsRaw(
+  spotUsd: number,
+  minStrikeRaw: number,
+  tickSizeRaw: number,
+): { lower: number; upper: number } {
+  return rangeBoundsFromPreset("market", spotUsd, minStrikeRaw, tickSizeRaw);
+}
+
+function tickWidenedRangeBounds(
   spotUsd: number,
   minStrikeRaw: number,
   tickSizeRaw: number,
@@ -115,14 +127,14 @@ export function rangeBoundsFromPreset(
   minStrikeRaw: number,
   tickSizeRaw: number,
 ): { lower: number; upper: number } {
-  if (preset === "market" || spotUsd <= 0) {
-    return defaultRangeBoundsRaw(spotUsd, minStrikeRaw, tickSizeRaw);
+  if (spotUsd <= 0) {
+    return tickWidenedRangeBounds(spotUsd, minStrikeRaw, tickSizeRaw);
   }
   const width = RANGE_PRESET_WIDTHS[preset];
   const lower = snapStrikeRaw(spotUsd * (1 - width), minStrikeRaw, tickSizeRaw);
   const upper = snapStrikeRaw(spotUsd * (1 + width), minStrikeRaw, tickSizeRaw);
   if (upper <= lower) {
-    return defaultRangeBoundsRaw(spotUsd, minStrikeRaw, tickSizeRaw);
+    return tickWidenedRangeBounds(spotUsd, minStrikeRaw, tickSizeRaw);
   }
   return { lower, upper };
 }
