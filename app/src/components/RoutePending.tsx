@@ -6,7 +6,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { PromoBanner } from "@/components/leverx/PromoBanner";
 import { UnderlineTabs } from "@/components/leverx/UnderlineTabs";
 import {
-  MarketGridSkeleton,
+  MarketsCatalogSkeleton,
   PointsLeaderboardSkeleton,
   PortfolioPageSkeleton,
   PositionsTableSkeleton,
@@ -24,6 +24,11 @@ import {
   segTabsClass,
 } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
+import { readMarketListView } from "@/lib/market-list-view";
+import {
+  MARKETS_GRID_PAGE_SIZE,
+  MARKETS_TABLE_PAGE_SIZE,
+} from "@/components/leverx/MarketCatalogPagination";
 
 const MARKET_CATEGORIES = ["All", "Live", "Favorites", "Closed"] as const;
 
@@ -93,7 +98,18 @@ export function RoutePendingContent() {
           options={MARKET_CATEGORIES.map((cat) => ({ value: cat, label: cat }))}
         />
 
-        <MarketGridSkeleton count={6} />
+        {readMarketListView() === "list" ? (
+          <>
+            <div className="hidden lg:block">
+              <MarketsCatalogSkeleton view="list" tableRows={MARKETS_TABLE_PAGE_SIZE} />
+            </div>
+            <div className="lg:hidden">
+              <MarketsCatalogSkeleton view="grid" gridCount={MARKETS_GRID_PAGE_SIZE} />
+            </div>
+          </>
+        ) : (
+          <MarketsCatalogSkeleton view="grid" gridCount={MARKETS_GRID_PAGE_SIZE} />
+        )}
       </section>
     );
   }

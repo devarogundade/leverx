@@ -47,8 +47,10 @@ export function useMergedMarkets(args: {
     categoryCounts,
     oracles,
     catalog,
-    loading: oraclesLoading && !oraclesFetched,
+    loading: !oraclesFetched || !catalogFetched,
     offline: oraclesError,
     catalogReady: catalogFetched,
+    oraclesFetched,
+    catalogFetched,
   };
 }

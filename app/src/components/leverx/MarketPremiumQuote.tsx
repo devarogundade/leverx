@@ -1,4 +1,5 @@
 import { MarketSparkline } from "@/components/leverx/MarketSparkline";
+import { MarketPremiumQuoteSkeleton } from "@/components/ui/market-skeleton";
 import { AnimatedMarketPremium } from "@/components/ui/animated-numbers";
 import { changePercentEndpoints } from "@/lib/charts/sparkline-path";
 import {
@@ -23,6 +24,18 @@ interface Props {
   className?: string;
 }
 
+function pricePending(
+  premiumLoading: boolean | undefined,
+  lastAskPremium: number | null,
+  quotePaused: boolean | undefined,
+): boolean {
+  return Boolean(
+    premiumLoading &&
+      !quotePaused &&
+      (lastAskPremium == null || lastAskPremium <= 0),
+  );
+}
+
 export function MarketPremiumQuote({
   series,
   lastAskPremium,
@@ -33,11 +46,22 @@ export function MarketPremiumQuote({
   compact = false,
   className,
 }: Props) {
+  const pending = pricePending(premiumLoading, lastAskPremium, quotePaused);
   const change = changePercentEndpoints(series);
   const positive = change >= 0;
-  const showChange = series.length >= 2 && Math.abs(change) >= 0.05;
+  const showChange = !pending && series.length >= 2 && Math.abs(change) >= 0.05;
 
   if (variant === "band") {
+    if (pending) {
+      return (
+        <MarketPremiumQuoteSkeleton
+          band
+          compact={compact}
+          className={className}
+        />
+      );
+    }
+
     const bandClass = footer
       ? marketCardSparklineFooter
       : compact
@@ -48,13 +72,22 @@ export function MarketPremiumQuote({
       <div className={cn(bandClass, className)}>
         <MarketSparkline
           series={series}
-          height={compact ? 20 : 32}
+          height={compact ? 12 : 32}
           width="100%"
           edgeToEdge={footer}
           viewWidth={footer ? 240 : 104}
-          viewHeight={compact ? 14 : 20}
+          viewHeight={compact ? 10 : 20}
         />
       </div>
+    );
+  }
+
+  if (pending) {
+    return (
+      <MarketPremiumQuoteSkeleton
+        compact={compact}
+        className={cn(marketsPriceCell, className)}
+      />
     );
   }
 
@@ -62,15 +95,17 @@ export function MarketPremiumQuote({
     <div className={cn(marketsPriceCell, className)}>
       <MarketSparkline
         series={series}
-        width={compact ? 28 : 52}
-        height={compact ? 14 : 20}
-        viewHeight={compact ? 14 : 20}
+        width={compact ? 64 : 52}
+        height={compact ? 20 : 20}
+        viewWidth={compact ? 96 : 104}
+        viewHeight={compact ? 20 : 20}
+        strokeWidth={compact ? 1.5 : 1.5}
       />
       <AnimatedMarketPremium
         className={marketsPriceValue}
         premium={lastAskPremium}
         quotePaused={quotePaused}
-        loading={premiumLoading}
+        loading={false}
       />
       {showChange ? (
         <span

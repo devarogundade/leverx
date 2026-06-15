@@ -142,16 +142,6 @@ function MarketMobileCard({
         />
       </div>
 
-      <MarketPremiumQuote
-        variant="band"
-        series={premiumSeries}
-        lastAskPremium={display.lastAskPremium}
-        premiumLoading={premiumLoading}
-        quotePaused={display.quotePaused}
-        compact
-        className="mt-2"
-      />
-
       <dl className={marketsTableMobileCardStats}>
         <div>
           <dt className={marketsTableMobileStatLabel}>Volume</dt>
@@ -183,7 +173,6 @@ interface Props {
   sort: MarketSortId;
   onSortChange: (sort: MarketSortId) => void;
   liquidityLabel?: ReactNode;
-  loading?: boolean;
   offline?: boolean;
   emptyTitle?: string;
   emptyDescription?: string;
@@ -194,7 +183,6 @@ export function PredictMarketsTable({
   sort,
   onSortChange,
   liquidityLabel = "_",
-  loading,
   offline,
   emptyTitle = ui.emptyMarkets,
   emptyDescription = ui.emptyMarketsHint,
@@ -218,10 +206,6 @@ export function PredictMarketsTable({
   const { sourceByOracleId, displayMarkets, premiumLoading, seriesByMarketId } =
     useMarketsUpDisplay(pageMarkets);
   const now = useNow(1000);
-
-  if (loading) {
-    return <MarketTableSkeleton />;
-  }
 
   if (markets.length === 0 && !offline) {
     return (

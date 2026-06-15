@@ -140,9 +140,26 @@ function SkeletonPremiumQuote({
   }
 
   return (
-    <div className="flex items-center gap-1.5">
-      <SkeletonBar className={cn("shrink-0", compact ? "h-3.5 w-10" : "h-5 w-[3.25rem]")} />
-      <SkeletonBar className="h-4 w-10" />
+    <div className={cn("flex items-center", compact ? "gap-1" : "gap-1.5")}>
+      <SkeletonBar className={cn("shrink-0", compact ? "h-5 w-16" : "h-5 w-[3.25rem]")} />
+      <SkeletonBar className={cn(compact ? "h-5 w-[4.5rem]" : "h-4 w-10")} />
+    </div>
+  );
+}
+
+/** Shimmer placeholder for inline / band contract price cells. */
+export function MarketPremiumQuoteSkeleton({
+  band = false,
+  compact = false,
+  className,
+}: {
+  band?: boolean;
+  compact?: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      <SkeletonPremiumQuote band={band} compact={compact} />
     </div>
   );
 }
@@ -194,8 +211,6 @@ function MarketTableMobileCardSkeleton() {
         <SkeletonPremiumQuote compact />
       </div>
 
-      <SkeletonPremiumQuote band compact />
-
       <dl className={marketsTableMobileCardStats}>
         {Array.from({ length: 3 }, (_, i) => (
           <div key={i} className="space-y-1.5">
@@ -217,6 +232,22 @@ export function MarketGridSkeleton({ count = 8 }: { count?: number; }) {
         <MarketCardSkeleton key={i} />
       ))}
     </div>
+  );
+}
+
+export function MarketsCatalogSkeleton({
+  view = "grid",
+  gridCount = 12,
+  tableRows = 10,
+}: {
+  view?: "grid" | "list";
+  gridCount?: number;
+  tableRows?: number;
+}) {
+  return view === "list" ? (
+    <MarketTableSkeleton rows={tableRows} />
+  ) : (
+    <MarketGridSkeleton count={gridCount} />
   );
 }
 

@@ -13,6 +13,11 @@ import { useMarketFavorites } from "@/context/MarketFavoritesContext";
 import { useMergedMarkets } from "@/hooks/useMergedMarkets";
 import { useMarketsUpDisplay } from "@/hooks/useMarketsUpDisplay";
 import { useIndexerProtocol, useIndexerVaultSummary } from "@/hooks/useIndexer";
+import { MarketsCatalogSkeleton } from "@/components/ui/market-skeleton";
+import {
+  MARKETS_GRID_PAGE_SIZE,
+  MARKETS_TABLE_PAGE_SIZE,
+} from "@/components/leverx/MarketCatalogPagination";
 import { pageTitle } from "@/lib/brand";
 import { ui } from "@/lib/copy";
 import type { MarketCategory } from "@/lib/leverx/predict-oracle-markets";
@@ -74,7 +79,7 @@ function MarketsPage() {
 
   const catalogCategory: MarketCategory = category === "Favorites" ? "All" : category;
 
-  const { markets: catalogMarkets, categoryCounts, loading, offline, catalogReady } =
+  const { markets: catalogMarkets, categoryCounts, offline, catalogReady, loading: catalogLoading } =
     useMergedMarkets({
       category: catalogCategory,
       search,
@@ -195,11 +200,23 @@ function MarketsPage() {
       </div>
 
       <div className={cn(view === "list" && marketsCatalogRegion)}>
-        {view === "grid" ? (
+        {catalogLoading ? (
+          view === "grid" ? (
+            <MarketsCatalogSkeleton view="grid" gridCount={MARKETS_GRID_PAGE_SIZE} />
+          ) : (
+            <>
+              <div className="hidden lg:block">
+                <MarketsCatalogSkeleton view="list" tableRows={MARKETS_TABLE_PAGE_SIZE} />
+              </div>
+              <div className="lg:hidden">
+                <MarketsCatalogSkeleton view="grid" gridCount={MARKETS_GRID_PAGE_SIZE} />
+              </div>
+            </>
+          )
+        ) : view === "grid" ? (
           <PredictMarketsGrid
             markets={markets}
             liquidityLabel={liquidityLabel}
-            loading={loading}
             offline={offline}
             emptyTitle={emptyTitle}
             emptyDescription={emptyDescription}
@@ -212,7 +229,6 @@ function MarketsPage() {
                 sort={sort}
                 onSortChange={setSort}
                 liquidityLabel={liquidityLabel}
-                loading={loading}
                 offline={offline}
                 emptyTitle={emptyTitle}
                 emptyDescription={emptyDescription}
@@ -222,7 +238,6 @@ function MarketsPage() {
               <PredictMarketsGrid
                 markets={markets}
                 liquidityLabel={liquidityLabel}
-                loading={loading}
                 offline={offline}
                 emptyTitle={emptyTitle}
                 emptyDescription={emptyDescription}

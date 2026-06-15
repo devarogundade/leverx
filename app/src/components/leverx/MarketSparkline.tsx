@@ -32,6 +32,7 @@ export function MarketSparkline({
   const series = rawSeries ?? [];
   const points = seriesToPolylinePoints(series, viewWidth, viewHeight, padding);
   const areaPath = seriesToAreaPath(series, viewWidth, viewHeight, padding);
+  const fixedSize = typeof width === "number";
 
   if (!points) {
     return (
@@ -40,7 +41,11 @@ export function MarketSparkline({
         height={height}
         viewBox={`0 0 ${viewWidth} ${viewHeight}`}
         preserveAspectRatio="none"
-        className={cn("markets-sparkline block h-full w-full min-w-0 opacity-30", className)}
+        className={cn(
+          "markets-sparkline block min-w-0 opacity-30",
+          fixedSize ? "shrink-0" : "h-full w-full",
+          className,
+        )}
         aria-hidden
       />
     );
@@ -52,7 +57,11 @@ export function MarketSparkline({
       height={height}
       viewBox={`0 0 ${viewWidth} ${viewHeight}`}
       preserveAspectRatio="none"
-      className={cn("markets-sparkline block h-full w-full min-w-0", className)}
+      className={cn(
+        "markets-sparkline block min-w-0",
+        fixedSize ? "shrink-0" : "h-full w-full",
+        className,
+      )}
       aria-hidden
     >
       <defs>

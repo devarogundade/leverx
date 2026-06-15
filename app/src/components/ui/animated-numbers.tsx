@@ -1,5 +1,6 @@
 import type { ComponentPropsWithoutRef } from "react";
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatCount, formatAmountWithMaxDigits } from "@/lib/copy";
 import { formatAssetPriceUsdWithSymbol } from "@/lib/leverx/format-asset-price";
 import { formatQuantity } from "@/lib/leverx/format-quantity";
@@ -8,6 +9,7 @@ import { formatPnlUsd } from "@/lib/leverx/position-metrics";
 import { DATA_PLACEHOLDER } from "@/lib/leverx/placeholders";
 import { costFromPremiumPerUnit } from "@/lib/leverx/trade-math";
 import { scaleQuote } from "@/lib/predict/scaling";
+import { cn } from "@/lib/utils";
 
 type PresetProps = Omit<ComponentPropsWithoutRef<typeof AnimatedNumber>, "value" | "format"> & {
   value: number | null | undefined;
@@ -74,7 +76,7 @@ export function AnimatedMarketPremium({
   className?: string;
 }) {
   if (loading) {
-    return <span className={className}>…</span>;
+    return <Skeleton className={cn("h-5 w-12", className)} />;
   }
   if (quotePaused) {
     return <span className={className}>0¢</span>;

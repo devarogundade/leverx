@@ -40,7 +40,6 @@ import { cn } from "@/lib/utils";
 interface Props {
   markets: LeverxMarketRow[];
   liquidityLabel?: ReactNode;
-  loading?: boolean;
   offline?: boolean;
   emptyTitle?: string;
   emptyDescription?: string;
@@ -49,7 +48,6 @@ interface Props {
 export function PredictMarketsGrid({
   markets,
   liquidityLabel = "_",
-  loading,
   offline,
   emptyTitle = ui.emptyMarkets,
   emptyDescription = ui.emptyMarketsHint,
@@ -73,10 +71,6 @@ export function PredictMarketsGrid({
   const { sourceByOracleId, displayMarkets, premiumLoading, seriesByMarketId } =
     useMarketsUpDisplay(pageMarkets);
   const now = useNow(1000);
-
-  if (loading) {
-    return <MarketGridSkeleton />;
-  }
 
   if (markets.length === 0 && !offline) {
     return (
@@ -140,7 +134,11 @@ export function PredictMarketsGrid({
                       <AnimatedMarketPremium
                         premium={display.lastAskPremium}
                         quotePaused={display.quotePaused}
-                        loading={premiumLoading}
+                        loading={
+                          premiumLoading &&
+                          !display.quotePaused &&
+                          (display.lastAskPremium == null || display.lastAskPremium <= 0)
+                        }
                       />
                     </div>
                   </MarketTradeLink>
