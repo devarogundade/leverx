@@ -251,38 +251,38 @@ function upMarketKey(oracleId: string, expiry: number, strikeRaw: number): strin
 /**
  * Catalog cards always show the UP "above …" contract — same ATM strike logic as
  * the trade terminal so live quotes resolve instead of pausing at 0¢.
+ * Preserves `row.id` so paginated catalog rows stay distinct (All vs Live tabs).
  */
 export function gridUpDisplayRow(row: LeverxMarketRow): LeverxMarketRow {
   const spot = row.spotPrice;
   const minStrikeRaw = row.minStrikeRaw ?? 0;
   const tickSizeRaw = row.tickSizeRaw ?? 0;
 
-  const displayStrikeRaw =
+  const atmStrike =
     spot != null && spot > 0
       ? atmStrikeRaw(spot, minStrikeRaw, tickSizeRaw)
-      : row.strikeRaw > 0
-        ? row.strikeRaw
-        : 0;
+      : 0;
 
-  const upId =
-    displayStrikeRaw > 0 ? upMarketKey(row.oracleId, row.expiry, displayStrikeRaw) : row.id;
-  const sameKey = row.id === upId && row.isUp && !row.isRange;
+  const quoteStrikeRaw = row.strikeRaw > 0 ? row.strikeRaw : atmStrike;
+
+  const upQuoteKey =
+    quoteStrikeRaw > 0 ? upMarketKey(row.oracleId, row.expiry, quoteStrikeRaw) : row.id;
+  const sameKey = row.id === upQuoteKey && row.isUp && !row.isRange;
   const catalogFallback =
-    row.isUp && !row.isRange && row.strikeRaw === displayStrikeRaw
+    row.isUp && !row.isRange && row.strikeRaw === quoteStrikeRaw
       ? row.lastAskPremium
       : null;
 
   return {
     ...row,
-    id: upId,
-    strikeRaw: displayStrikeRaw,
-    strike: displayStrikeRaw / SCALE,
+    strikeRaw: quoteStrikeRaw,
+    strike: quoteStrikeRaw / SCALE,
     higherStrikeRaw: 0,
     isUp: true,
     isRange: false,
     question: buildQuestion(
       row.asset,
-      displayStrikeRaw,
+      quoteStrikeRaw,
       row.expiry,
       false,
       0,

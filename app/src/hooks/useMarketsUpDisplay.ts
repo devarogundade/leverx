@@ -5,10 +5,10 @@ import { useVisibleOracleSpots } from "@/hooks/useVisibleOracleSpots";
 import type { LeverxMarketRow } from "@/lib/leverx/indexer-markets";
 import { gridUpDisplayRow } from "@/lib/leverx/predict-oracle-markets";
 
-/** UP "above …" catalog rows with live spot, ATM strike, and on-chain asks (grid + list). */
+/** UP "above …" catalog rows with live spot and on-chain asks (grid + list). */
 export function useMarketsUpDisplay(sourceMarkets: readonly LeverxMarketRow[]) {
-  const sourceByOracleId = useMemo(
-    () => new Map(sourceMarkets.map((market) => [market.oracleId, market])),
+  const sourceById = useMemo(
+    () => new Map(sourceMarkets.map((market) => [market.id, market])),
     [sourceMarkets],
   );
 
@@ -19,7 +19,7 @@ export function useMarketsUpDisplay(sourceMarkets: readonly LeverxMarketRow[]) {
   const { seriesByMarketId } = useMarketPremiumSparklines(displayMarkets);
 
   return {
-    sourceByOracleId,
+    sourceById,
     displayMarkets,
     premiumLoading,
     seriesByMarketId,

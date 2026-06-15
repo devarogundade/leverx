@@ -68,7 +68,7 @@ export function PredictMarketsGrid({
     [markets, page],
   );
 
-  const { sourceByOracleId, displayMarkets, premiumLoading, seriesByMarketId } =
+  const { sourceById, displayMarkets, premiumLoading, seriesByMarketId } =
     useMarketsUpDisplay(pageMarkets);
   const now = useNow(1000);
 
@@ -97,7 +97,7 @@ export function PredictMarketsGrid({
     <div className="flex flex-col">
       <div className={marketsGrid}>
         {displayMarkets.map((display) => {
-          const source = sourceByOracleId.get(display.oracleId) ?? display;
+          const source = sourceById.get(display.id) ?? display;
 
           return (
             <article key={display.id} className={marketCard}>

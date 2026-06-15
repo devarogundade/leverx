@@ -189,10 +189,14 @@ export function PredictMarketsTable({
 }: Props) {
   const { key: sortKey, dir: sortDir } = marketSortToKeyDir(sort);
   const [page, setPage] = useState(1);
+  const marketIdsKey = useMemo(
+    () => markets.map((market) => market.id).join(","),
+    [markets],
+  );
 
   useEffect(() => {
     setPage(1);
-  }, [markets.length, sort]);
+  }, [marketIdsKey, sort]);
 
   const toggleSort = (key: SortKey) => {
     onSortChange(toggleMarketTableSort(sort, key));
@@ -203,7 +207,7 @@ export function PredictMarketsTable({
     [markets, page],
   );
 
-  const { sourceByOracleId, displayMarkets, premiumLoading, seriesByMarketId } =
+  const { sourceById, displayMarkets, premiumLoading, seriesByMarketId } =
     useMarketsUpDisplay(pageMarkets);
   const now = useNow(1000);
 
@@ -227,7 +231,7 @@ export function PredictMarketsTable({
     <div className={marketsTableShell}>
       <div className={marketsTableMobileList}>
         {displayMarkets.map((display) => {
-          const source = sourceByOracleId.get(display.oracleId) ?? display;
+          const source = sourceById.get(display.id) ?? display;
           return (
             <MarketMobileCard
               key={display.id}
@@ -284,7 +288,7 @@ export function PredictMarketsTable({
           </thead>
           <tbody>
             {displayMarkets.map((display) => {
-              const source = sourceByOracleId.get(display.oracleId) ?? display;
+              const source = sourceById.get(display.id) ?? display;
 
               return (
                 <tr key={display.id} className={marketsRow}>
