@@ -2,7 +2,6 @@ import { randomBytes } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LessThan, Repository } from 'typeorm';
-import { TelegramAlertSentEntity } from '../database/entities/telegram-alert-sent.entity';
 import { TelegramLinkTokenEntity } from '../database/entities/telegram-link-token.entity';
 import { TelegramSubscriptionEntity } from '../database/entities/telegram-subscription.entity';
 import type { TelegramLinkToken, TelegramSubscription } from './telegram.types';
@@ -16,8 +15,6 @@ export class SubscriptionService {
     private readonly subscriptions: Repository<TelegramSubscriptionEntity>,
     @InjectRepository(TelegramLinkTokenEntity)
     private readonly linkTokens: Repository<TelegramLinkTokenEntity>,
-    @InjectRepository(TelegramAlertSentEntity)
-    private readonly alertSent: Repository<TelegramAlertSentEntity>,
   ) {}
 
   async createLinkToken(
@@ -110,21 +107,6 @@ export class SubscriptionService {
       .select('DISTINCT sub.account_id', 'account_id')
       .getRawMany<{ account_id: string }>();
     return rows.map((row) => row.account_id);
-  }
-
-  async shouldSendAlert(alertKey: string, cooldownMs: number): Promise<boolean> {
-    const row = await this.alertSent.findOne({ where: { alert_key: alertKey } });
-    const last = row ? Number(row.sent_at_ms) : 0;
-    return Date.now() - last >= cooldownMs;
-  }
-
-  async markAlertSent(alertKey: string): Promise<void> {
-    await this.alertSent.save(
-      this.alertSent.create({
-        alert_key: alertKey,
-        sent_at_ms: String(Date.now()),
-      }),
-    );
   }
 
   private async pruneExpiredTokens(): Promise<void> {

@@ -235,5 +235,5 @@ public fun keeper_not_configured(): u64 { E_KEEPER_NOT_CONFIGURED }
 /// Caller is not the on-chain keeper address registered in the protocol registry.
 public fun not_keeper(): u64 { E_NOT_KEEPER }
 
-/// Final window must be within admin bounds (10 minutes – 4 hours).
+/// Final window must be within admin bounds (1 minute – 4 hours).
 public fun invalid_final_window_ms(): u64 { E_INVALID_FINAL_WINDOW_MS }

@@ -56,7 +56,7 @@ import { defaultRangeBoundsRaw, oracleStrikeBounds } from "@/lib/leverx/strike-s
 import { useTradeNavigation } from "@/context/TradeNavigationContext";
 import { baseFromUnderlying } from "@/lib/markets";
 import { summarizeGlobalTrades } from "@/lib/leverx/trade-stats";
-import { LEVERAGED_MINT_WINDOW_MS } from "@/lib/leverx/constants";
+import { resolveFinalWindowMs } from "@/lib/leverx/protocol";
 import {
   formatMarketCloses,
   isFinalHourBeforeExpiry,
@@ -491,6 +491,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   }, []);
 
   const { data: protocol } = useIndexerProtocol();
+  const finalWindowMs = resolveFinalWindowMs(protocol);
   const vaultId = protocol?.vault_id ?? undefined;
   const { data: vaultSummary } = useIndexerVaultSummary(vaultId);
   const { data: catalog = [] } = useMarketCatalog({ oracleId, limit: 200 });
@@ -509,9 +510,9 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   const oracleStateRefetchMs = useMemo(() => {
     if (!expiryForPolling || expiryForPolling <= 0) return 60_000;
     if (expiryForPolling <= now) return 5_000;
-    if (expiryForPolling - now < LEVERAGED_MINT_WINDOW_MS) return 15_000;
+    if (expiryForPolling - now < finalWindowMs) return 15_000;
     return 60_000;
-  }, [expiryForPolling, now]);
+  }, [expiryForPolling, now, finalWindowMs]);
 
   const { data: oracleState } = usePredictOracleState(oracleId, {
     refetchInterval: oracleStateRefetchMs,
@@ -680,7 +681,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   const inFinalHour = Boolean(
     expiry &&
       expiry > now &&
-      isFinalHourBeforeExpiry(expiry, LEVERAGED_MINT_WINDOW_MS, now),
+      isFinalHourBeforeExpiry(expiry, finalWindowMs, now),
   );
 
   const expiredRefetchDone = useRef(false);

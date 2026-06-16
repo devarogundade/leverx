@@ -337,22 +337,24 @@ export async function fetchKeyQuoteBalance(params: {
   }
 }
 
-/** Free withdrawable quote on a key = ledger balance minus outstanding borrow. */
-export async function fetchKeyWithdrawableQuote(params: {
+/**
+ * Withdrawable balance of the single trading account (key-agnostic).
+ *
+ * Custody is pooled per proxy: one spendable trading-account balance funds every position and
+ * is fully withdrawable at any time (outstanding borrow is not subtracted). Positions hold only
+ * locked collateral, which is not part of this balance.
+ */
+export async function fetchTradingQuoteBalance(params: {
   client: SuiJsonRpcClient;
   leverxPackageId: string;
-  predictPackageId: string;
   accountId: string;
-  key: MarketKeyArgs;
 }): Promise<bigint> {
   const tx = new Transaction();
   tx.setSender(READONLY_SENDER);
-  const marketKey = addLeverxMarketKey(tx, params.key, params.predictPackageId);
-  const fn = params.key.isRange ? "range_withdrawable_quote" : "binary_withdrawable_quote";
 
   tx.moveCall({
-    target: `${params.leverxPackageId}::user_proxy::${fn}`,
-    arguments: [tx.object(params.accountId), marketKey],
+    target: `${params.leverxPackageId}::user_proxy::withdrawable_trading_quote`,
+    arguments: [tx.object(params.accountId)],
   });
 
   try {
@@ -361,7 +363,7 @@ export async function fetchKeyWithdrawableQuote(params: {
       sender: READONLY_SENDER,
     });
     if (inspect.effects?.status?.status !== "success") return 0n;
-    const tuple = findReturnTuple(inspect.results, 1);
+    const tuple = findReturnTuple(inspect.results, 0);
     return tuple?.[0] ?? 0n;
   } catch {
     return 0n;

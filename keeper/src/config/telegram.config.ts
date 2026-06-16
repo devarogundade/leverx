@@ -36,6 +36,6 @@ export default registerAs(
     polling: envBool('TELEGRAM_POLLING', true),
     pollIntervalSec: envInt('TELEGRAM_POLL_INTERVAL_SEC', 10),
     linkTokenTtlMs: 15 * 60 * 1000,
-    alertCooldownMs: 60 * 60 * 1000,
+    alertCooldownMs: envInt('TELEGRAM_ALERT_COOLDOWN_MS', 5 * 60 * 1000),
   }),
 );

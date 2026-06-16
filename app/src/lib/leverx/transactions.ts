@@ -72,13 +72,11 @@ export type ClosePositionInput = {
 
 export type WithdrawQuoteInput = {
   accountId: string;
-  key: MarketKeyArgs;
   amountAtoms: bigint;
 };
 
 export type DepositQuoteInput = {
   accountId: string;
-  key: MarketKeyArgs;
   amountAtoms: bigint;
 };
 
@@ -271,7 +269,7 @@ export async function executeOpenTrade(params: {
           marginAtoms,
           tx,
         );
-        appendDepositQuote(tx, cfg, leverxAccount.accountId, input.key, quoteCoin);
+        appendDepositQuote(tx, cfg, leverxAccount.accountId, quoteCoin);
         appendPlaceLimitMintOrder(tx, cfg, leverxAccount.accountId, placeParams);
         if (hasTriggers) {
           appendSetTriggers(tx, cfg, {
@@ -306,7 +304,7 @@ export async function executeOpenTrade(params: {
         marginAtoms,
         tx,
       );
-      appendDepositQuote(tx, cfg, leverxAccount.accountId, input.key, quoteCoin);
+      appendDepositQuote(tx, cfg, leverxAccount.accountId, quoteCoin);
       if (hasTriggers) {
         appendSetTriggers(tx, cfg, {
           key: input.key,
@@ -427,7 +425,6 @@ export async function executeWithdrawQuote(params: {
         tx,
         params.cfg,
         params.input.accountId,
-        params.input.key,
         params.input.amountAtoms,
       );
     },
@@ -462,7 +459,6 @@ export async function executeDepositQuote(params: {
         tx,
         params.cfg,
         params.input.accountId,
-        params.input.key,
         quoteCoin,
       );
     },

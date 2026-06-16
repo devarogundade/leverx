@@ -1,4 +1,5 @@
-import { LEVERAGED_MINT_WINDOW_MS } from "@/lib/leverx/constants";
+import { useIndexerProtocol } from "@/hooks/useIndexer";
+import { resolveFinalWindowMs } from "@/lib/leverx/protocol";
 import { maxLeverageLabelForExpiry } from "@/lib/leverx/trade-limits";
 import { leverageBadge } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
@@ -10,7 +11,9 @@ interface Props {
 }
 
 export function MarketLeverageBadge({ expiryMs, now, className }: Props) {
-  const label = maxLeverageLabelForExpiry(expiryMs, LEVERAGED_MINT_WINDOW_MS, now);
+  const { data: protocol } = useIndexerProtocol();
+  const finalWindowMs = resolveFinalWindowMs(protocol);
+  const label = maxLeverageLabelForExpiry(expiryMs, finalWindowMs, now);
   const isReduced = label === "1X";
   const isMax = label === "10X";
 

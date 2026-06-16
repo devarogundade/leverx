@@ -60,4 +60,5 @@ After publish:
 1. Mint `LXPLP` treasury cap and call `deploy::deploy_and_share` (vault + fee collector + registry)
 2. IDs land in `deploy-testnet.env` and `app/src/lib/config.ts`
 
-Margin-call threshold: health below 95% (`protocol_constants::margin_call_bps`).
+Liquidation threshold: health below the admin-configured `protocol_registry::liquidation_bps`
+(default 102%, min 100%; see `protocol_constants::default_liquidation_bps`).

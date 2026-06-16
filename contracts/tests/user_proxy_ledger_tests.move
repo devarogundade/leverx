@@ -14,14 +14,15 @@ fun binary_quote_ledger_deposit() {
     let key = test_fixtures::sample_binary_key();
     let mut quote_treasury = test_fixtures::quote_treasury(ctx);
 
-    user_proxy::deposit_quote_for_binary(
+    user_proxy::deposit_quote(
         &mut proxy,
-        key,
         coin::mint(&mut quote_treasury, 500, ctx),
         ctx,
     );
 
-    assert!(user_proxy::binary_quote_balance(&proxy, key) == 500, 0);
+    // Deposits land in the single trading account, not per-key custody.
+    assert!(user_proxy::trading_quote_balance(&proxy) == 500, 0);
+    assert!(user_proxy::binary_quote_balance(&proxy, key) == 0, 0);
     assert!(user_proxy::binary_margin_debt(&proxy, key) == 0, 0);
 
     scenario.end();
@@ -57,16 +58,16 @@ fun range_ledgers_mirror_binary_behavior() {
     let key = test_fixtures::sample_range_key();
     let mut quote_treasury = test_fixtures::quote_treasury(ctx);
 
-    user_proxy::deposit_quote_for_range(
+    user_proxy::deposit_quote(
         &mut proxy,
-        key,
         coin::mint(&mut quote_treasury, 777, ctx),
         ctx,
     );
     user_proxy::record_borrow_for_range(&mut proxy, key, 111, ctx);
     user_proxy::set_range_margin_debt(&mut proxy, key, 400, ctx);
 
-    assert!(user_proxy::range_quote_balance(&proxy, key) == 777, 0);
+    assert!(user_proxy::trading_quote_balance(&proxy) == 777, 0);
+    assert!(user_proxy::range_quote_balance(&proxy, key) == 0, 0);
     assert!(user_proxy::range_borrowed_quote(&proxy, key) == 111, 0);
     assert!(user_proxy::range_margin_debt(&proxy, key) == 400, 0);
 
@@ -100,9 +101,8 @@ fun limit_order_reserve_release_and_cancel() {
     let key = test_fixtures::sample_binary_key();
     let mut quote_treasury = test_fixtures::quote_treasury(ctx);
 
-    user_proxy::deposit_quote_for_binary(
+    user_proxy::deposit_quote(
         &mut proxy,
-        key,
         coin::mint(&mut quote_treasury, 1_000, ctx),
         ctx,
     );
@@ -123,11 +123,14 @@ fun limit_order_reserve_release_and_cancel() {
     user_proxy::place_binary_limit_mint(&mut proxy, key, order);
 
     assert!(user_proxy::get_binary_limit_mint(&proxy, key).is_some(), 0);
-    assert!(user_proxy::binary_quote_balance(&proxy, key) == 600, 0);
+    // Reserve moves spendable pool into the reserved bucket (not withdrawable until cancel/fill).
+    assert!(user_proxy::trading_quote_balance(&proxy) == 600, 0);
+    assert!(user_proxy::reserved_quote(&proxy) == 400, 0);
 
     user_proxy::cancel_binary_limit_mint_for_liquidation(&mut proxy, key, ctx);
     assert!(user_proxy::get_binary_limit_mint(&proxy, key).is_none(), 0);
-    assert!(user_proxy::binary_quote_balance(&proxy, key) == 1_000, 0);
+    assert!(user_proxy::trading_quote_balance(&proxy) == 1_000, 0);
+    assert!(user_proxy::reserved_quote(&proxy) == 0, 0);
 
     scenario.end();
 }
@@ -221,7 +224,7 @@ fun admin_executor_registration_via_registry() {
 }
 
 #[test]
-fun binary_partial_withdraw_while_borrow_outstanding() {
+fun trading_account_withdrawable_ignores_outstanding_borrow() {
     let owner = @0xA11CE;
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
@@ -230,33 +233,32 @@ fun binary_partial_withdraw_while_borrow_outstanding() {
     let key = test_fixtures::sample_binary_key();
     let mut quote_treasury = test_fixtures::quote_treasury(ctx);
 
-    user_proxy::deposit_quote_for_binary(
+    user_proxy::deposit_quote(
         &mut proxy,
-        key,
         coin::mint(&mut quote_treasury, 1_000, ctx),
         ctx,
     );
     user_proxy::record_borrow_for_binary(&mut proxy, key, 300, ctx);
 
-    assert!(user_proxy::binary_withdrawable_quote(&proxy, key) == 700, 0);
+    // Outstanding borrow does NOT reduce the withdrawable trading-account balance.
+    assert!(user_proxy::withdrawable_trading_quote(&proxy) == 1_000, 0);
 
-    user_proxy::withdraw_quote_for_binary<test_fixtures::TestQuote>(
+    user_proxy::withdraw_quote<test_fixtures::TestQuote>(
         &mut proxy,
-        key,
         400,
         ctx,
     );
 
-    assert!(user_proxy::binary_quote_balance(&proxy, key) == 600, 0);
+    assert!(user_proxy::trading_quote_balance(&proxy) == 600, 0);
     assert!(user_proxy::binary_borrowed_quote(&proxy, key) == 300, 0);
-    assert!(user_proxy::binary_withdrawable_quote(&proxy, key) == 300, 0);
+    assert!(user_proxy::withdrawable_trading_quote(&proxy) == 600, 0);
 
     scenario.end();
 }
 
 #[test]
 #[expected_failure(abort_code = errors::E_INSUFFICIENT_MARGIN)]
-fun binary_withdraw_over_withdrawable_aborts() {
+fun trading_account_withdraw_over_balance_aborts() {
     let owner = @0xA11CE;
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
@@ -265,18 +267,17 @@ fun binary_withdraw_over_withdrawable_aborts() {
     let key = test_fixtures::sample_binary_key();
     let mut quote_treasury = test_fixtures::quote_treasury(ctx);
 
-    user_proxy::deposit_quote_for_binary(
+    user_proxy::deposit_quote(
         &mut proxy,
-        key,
         coin::mint(&mut quote_treasury, 1_000, ctx),
         ctx,
     );
     user_proxy::record_borrow_for_binary(&mut proxy, key, 300, ctx);
 
-    user_proxy::withdraw_quote_for_binary<test_fixtures::TestQuote>(
+    // Only the trading-account balance caps withdrawals; 1_200 > 1_000 pool aborts.
+    user_proxy::withdraw_quote<test_fixtures::TestQuote>(
         &mut proxy,
-        key,
-        800,
+        1_200,
         ctx,
     );
 

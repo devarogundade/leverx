@@ -1,8 +1,9 @@
 import { Timer } from "lucide-react";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
+import { useIndexerProtocol } from "@/hooks/useIndexer";
 import { useNow } from "@/hooks/useNow";
-import { LEVERAGED_MINT_WINDOW_MS } from "@/lib/leverx/constants";
 import { leverxInfo } from "@/lib/leverx/info-copy";
+import { resolveFinalWindowMs } from "@/lib/leverx/protocol";
 import {
   formatCountdownStopwatch,
   leverageCountdownState,
@@ -16,10 +17,12 @@ interface Props {
 }
 
 export function LeverageWindowCountdown({ expiryMs, className }: Props) {
+  const { data: protocol } = useIndexerProtocol();
+  const finalWindowMs = resolveFinalWindowMs(protocol);
   const now = useNow(1000);
   const state =
     expiryMs && expiryMs > 0
-      ? leverageCountdownState(expiryMs, LEVERAGED_MINT_WINDOW_MS, now)
+      ? leverageCountdownState(expiryMs, finalWindowMs, now)
       : null;
 
   if (!state || state.phase === "market-closed") {

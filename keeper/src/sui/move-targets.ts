@@ -20,8 +20,7 @@ export function keeperAllowedMoveCallTargets(cfg: KeeperConfig): string[] {
       'predict_client::deposit_quote',
       'predict_client::withdraw_quote',
       // trade — keeper relays user intents (registered executor) or runs maintenance.
-      'trade::deposit_quote_for_binary_market',
-      'trade::deposit_quote_for_range_market',
+      'trade::deposit_quote',
       'trade::leveraged_mint_binary_market',
       'trade::leveraged_mint_range_market',
       'trade::leveraged_mint_binary_limit',

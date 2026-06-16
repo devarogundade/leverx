@@ -112,6 +112,12 @@ public struct UserProxy has key {
     predict_manager_id: ID,
     /// Aggregate quote borrowed across all market keys (sum of ledger `borrowed_quote`).
     borrowed_quote: u64,
+    /// Single spendable trading-account balance (the only deposit/withdraw surface).
+    /// Holds deposits, vault-borrow proceeds, mint leftover, and all redeem surplus / P&L.
+    /// Live positions hold no spendable quote; this pool is fully withdrawable at any time.
+    trading_quote_balance: u64,
+    /// Trading-account quote locked behind resting limit orders (not withdrawable until filled or cancelled).
+    reserved_quote: u64,
     /// Embedded balance manager holding all physical coins for this user.
     balance_manager: BalanceManager,
     /// Capability to deposit coins into `balance_manager`.
@@ -154,6 +160,8 @@ public fun create(predict_manager_id: ID, secondary_owner: address, ctx: &mut Tx
         secondary_owner,
         predict_manager_id,
         borrowed_quote: 0,
+        trading_quote_balance: 0,
+        reserved_quote: 0,
         balance_manager,
         deposit_cap,
         withdraw_cap,
@@ -218,6 +226,21 @@ public fun borrowed_quote(proxy: &UserProxy): u64 {
     proxy.borrowed_quote
 }
 
+/// Spendable trading-account balance (single deposit/withdraw surface; excludes reserved).
+public fun trading_quote_balance(proxy: &UserProxy): u64 {
+    proxy.trading_quote_balance
+}
+
+/// Trading-account quote locked behind resting limit orders.
+public fun reserved_quote(proxy: &UserProxy): u64 {
+    proxy.reserved_quote
+}
+
+/// Withdrawable trading-account quote = full spendable balance (outstanding borrow is NOT subtracted).
+public fun withdrawable_trading_quote(proxy: &UserProxy): u64 {
+    proxy.trading_quote_balance
+}
+
 /// Return the physical balance of `Asset` in the balance manager (all keys combined).
 public fun balance<Asset>(proxy: &UserProxy): u64 {
     proxy.balance_manager.balance<Asset>()
@@ -257,21 +280,6 @@ public fun range_borrowed_quote(proxy: &UserProxy, key: RangeKey): u64 {
     } else {
         0
     }
-}
-
-/// Free withdrawable quote on a binary key = balance minus outstanding borrow
-/// (saturating at 0). Outstanding debt reduces, but does not lock, withdrawals.
-public fun binary_withdrawable_quote(proxy: &UserProxy, key: MarketKey): u64 {
-    let balance = proxy.binary_quote_balance(key);
-    let borrowed = proxy.binary_borrowed_quote(key);
-    if (balance > borrowed) balance - borrowed else 0
-}
-
-/// Free withdrawable quote on a range key = balance minus outstanding borrow.
-public fun range_withdrawable_quote(proxy: &UserProxy, key: RangeKey): u64 {
-    let balance = proxy.range_quote_balance(key);
-    let borrowed = proxy.range_borrowed_quote(key);
-    if (balance > borrowed) balance - borrowed else 0
 }
 
 /// Return posted margin debt for a binary market key (1x margin-call denominator).
@@ -360,32 +368,13 @@ public fun get_range_triggers(proxy: &UserProxy, key: RangeKey): (u64, u64, u64,
 
 // === User deposits ===
 
-/// Deposit quote for a binary market: physical deposit + ledger credit. Owner or executor.
-public fun deposit_quote_for_binary<Quote>(
-    proxy: &mut UserProxy,
-    key: MarketKey,
-    coin: Coin<Quote>,
-    ctx: &mut TxContext,
-) {
+/// Deposit quote into the single trading-account balance. Owner or executor.
+public fun deposit_quote<Quote>(proxy: &mut UserProxy, coin: Coin<Quote>, ctx: &mut TxContext) {
     proxy.assert_can_act(ctx);
     let amount = coin.value();
     assert!(amount > 0, errors::zero_amount());
     proxy.balance_manager.deposit_with_cap(&proxy.deposit_cap, coin, ctx);
-    credit_binary_quote(proxy, key, amount, ctx);
-}
-
-/// Deposit quote for a range market: physical deposit + ledger credit. Owner or executor.
-public fun deposit_quote_for_range<Quote>(
-    proxy: &mut UserProxy,
-    key: RangeKey,
-    coin: Coin<Quote>,
-    ctx: &mut TxContext,
-) {
-    proxy.assert_can_act(ctx);
-    let amount = coin.value();
-    assert!(amount > 0, errors::zero_amount());
-    proxy.balance_manager.deposit_with_cap(&proxy.deposit_cap, coin, ctx);
-    credit_range_quote(proxy, key, amount, ctx);
+    proxy.trading_quote_balance = proxy.trading_quote_balance + amount;
 }
 
 // === Protocol quote credit ===
@@ -422,6 +411,61 @@ public(package) fun credit_quote_for_range<Quote>(
     };
 }
 
+/// Credit quote proceeds (borrow draw, mint leftover, redeem surplus / P&L) to the trading account.
+public(package) fun credit_trading_quote<Quote>(
+    proxy: &mut UserProxy,
+    coin: Coin<Quote>,
+    ctx: &mut TxContext,
+) {
+    let amount = coin.value();
+    if (amount > 0) {
+        proxy.balance_manager.deposit_with_cap(&proxy.deposit_cap, coin, ctx);
+        proxy.trading_quote_balance = proxy.trading_quote_balance + amount;
+    } else {
+        coin::destroy_zero(coin);
+    };
+}
+
+/// Debit the trading account and withdraw matching coins (fund a mint, repay debt).
+public(package) fun take_trading_quote<Quote>(
+    proxy: &mut UserProxy,
+    amount: u64,
+    ctx: &mut TxContext,
+): Coin<Quote> {
+    assert!(proxy.trading_quote_balance >= amount, errors::insufficient_margin());
+    proxy.trading_quote_balance = proxy.trading_quote_balance - amount;
+    proxy.balance_manager.withdraw_with_cap(&proxy.withdraw_cap, amount, ctx)
+}
+
+/// Allocate spendable trading-account quote as locked collateral on a binary position.
+///
+/// Pure accounting move (coins already custodied in the balance manager): debits the
+/// withdrawable pool and credits the position ledger. The allocation — including any mint
+/// surplus — stays locked with the position, backing its health and serving as liquidation
+/// coverage, until the position is closed and the residual is swept back to the pool.
+public(package) fun allocate_binary_margin(
+    proxy: &mut UserProxy,
+    key: MarketKey,
+    amount: u64,
+    ctx: &mut TxContext,
+) {
+    assert!(proxy.trading_quote_balance >= amount, errors::insufficient_margin());
+    proxy.trading_quote_balance = proxy.trading_quote_balance - amount;
+    credit_binary_quote(proxy, key, amount, ctx);
+}
+
+/// Allocate spendable trading-account quote as locked collateral on a range position.
+public(package) fun allocate_range_margin(
+    proxy: &mut UserProxy,
+    key: RangeKey,
+    amount: u64,
+    ctx: &mut TxContext,
+) {
+    assert!(proxy.trading_quote_balance >= amount, errors::insufficient_margin());
+    proxy.trading_quote_balance = proxy.trading_quote_balance - amount;
+    credit_range_quote(proxy, key, amount, ctx);
+}
+
 // === Protocol withdrawals ===
 
 /// Debit binary quote ledger and withdraw matching coins from the balance manager.
@@ -432,18 +476,6 @@ public(package) fun withdraw_quote_from_binary<Quote>(
     ctx: &mut TxContext,
 ): Coin<Quote> {
     debit_binary_quote(proxy, key, amount, 0);
-    proxy.balance_manager.withdraw_with_cap(&proxy.withdraw_cap, amount, ctx)
-}
-
-/// Debit binary quote for funding a mint; `slippage_bps` tolerates rapid market moves vs quote.
-public(package) fun withdraw_quote_from_binary_with_slippage<Quote>(
-    proxy: &mut UserProxy,
-    key: MarketKey,
-    amount: u64,
-    slippage_bps: u64,
-    ctx: &mut TxContext,
-): Coin<Quote> {
-    debit_binary_quote(proxy, key, amount, slippage_bps);
     proxy.balance_manager.withdraw_with_cap(&proxy.withdraw_cap, amount, ctx)
 }
 
@@ -458,98 +490,72 @@ public(package) fun withdraw_quote_from_range<Quote>(
     proxy.balance_manager.withdraw_with_cap(&proxy.withdraw_cap, amount, ctx)
 }
 
-/// Debit range quote for funding a mint; `slippage_bps` tolerates rapid market moves vs quote.
-public(package) fun withdraw_quote_from_range_with_slippage<Quote>(
-    proxy: &mut UserProxy,
-    key: RangeKey,
-    amount: u64,
-    slippage_bps: u64,
-    ctx: &mut TxContext,
-): Coin<Quote> {
-    debit_range_quote(proxy, key, amount, slippage_bps);
-    proxy.balance_manager.withdraw_with_cap(&proxy.withdraw_cap, amount, ctx)
-}
-
-/// Withdraw free quote from a binary market key to the trader (primary owner).
+/// Withdraw quote from the single trading-account balance to the trader (primary owner).
 ///
-/// Pays `proxy.owner` (NOT `ctx.sender()`) so that when the keeper relays this as
-/// the secondary owner/executor the funds still return to the trader, never the keeper.
-public fun withdraw_quote_for_binary<Quote>(
-    proxy: &mut UserProxy,
-    key: MarketKey,
-    amount: u64,
-    ctx: &mut TxContext,
-) {
+/// Withdrawable equals the full `trading_quote_balance` — outstanding borrow is NOT
+/// subtracted (open positions are collateralised by their locked margin + redeemable value).
+/// Pays `proxy.owner` (NOT `ctx.sender()`) so keeper-relayed withdrawals return to the trader.
+public fun withdraw_quote<Quote>(proxy: &mut UserProxy, amount: u64, ctx: &mut TxContext) {
     proxy.assert_can_act(ctx);
     assert!(amount > 0, errors::zero_amount());
-    // Free equity = key balance minus outstanding borrow. Debt does not fully
-    // lock the key; the trader may withdraw anything above what backs the debt.
-    let withdrawable = proxy.binary_withdrawable_quote(key);
-    assert!(amount <= withdrawable, errors::insufficient_margin());
+    assert!(amount <= proxy.trading_quote_balance, errors::insufficient_margin());
     let recipient = proxy.owner;
-    let coin = proxy.withdraw_quote_from_binary<Quote>(key, amount, ctx);
-    transfer::public_transfer(coin, recipient);
-}
-
-/// Withdraw free quote from a range market key to the trader (primary owner).
-///
-/// Pays `proxy.owner` (NOT `ctx.sender()`) so relayed withdrawals return to the trader.
-public fun withdraw_quote_for_range<Quote>(
-    proxy: &mut UserProxy,
-    key: RangeKey,
-    amount: u64,
-    ctx: &mut TxContext,
-) {
-    proxy.assert_can_act(ctx);
-    assert!(amount > 0, errors::zero_amount());
-    // Free equity = key balance minus outstanding borrow (see binary variant).
-    let withdrawable = proxy.range_withdrawable_quote(key);
-    assert!(amount <= withdrawable, errors::insufficient_margin());
-    let recipient = proxy.owner;
-    let coin = proxy.withdraw_quote_from_range<Quote>(key, amount, ctx);
+    let coin = take_trading_quote<Quote>(proxy, amount, ctx);
     transfer::public_transfer(coin, recipient);
 }
 
 // === Quote reserve (limit orders) ===
 
-/// Lock quote margin for a resting limit order on this binary market key.
+/// Lock trading-account quote for a resting limit order (moves pool → reserved).
 public(package) fun reserve_binary_quote(
     proxy: &mut UserProxy,
-    key: MarketKey,
+    _key: MarketKey,
     amount: u64,
     _ctx: &mut TxContext,
 ) {
-    debit_binary_quote(proxy, key, amount, 0);
+    reserve_trading_quote(proxy, amount);
 }
 
-/// Lock quote margin for a resting limit order on this range market key.
+/// Lock trading-account quote for a resting limit order (moves pool → reserved).
 public(package) fun reserve_range_quote(
     proxy: &mut UserProxy,
-    key: RangeKey,
+    _key: RangeKey,
     amount: u64,
     _ctx: &mut TxContext,
 ) {
-    debit_range_quote(proxy, key, amount, 0);
+    reserve_trading_quote(proxy, amount);
 }
 
-/// Return reserved quote to the binary ledger (cancel / expire path).
+/// Return reserved quote to the spendable trading account (cancel / expire / pre-fill).
 public(package) fun release_binary_quote_reserve(
     proxy: &mut UserProxy,
-    key: MarketKey,
+    _key: MarketKey,
     amount: u64,
-    ctx: &mut TxContext,
+    _ctx: &mut TxContext,
 ) {
-    credit_binary_quote(proxy, key, amount, ctx);
+    release_trading_quote_reserve(proxy, amount);
 }
 
-/// Return reserved quote to the range ledger (cancel / expire path).
+/// Return reserved quote to the spendable trading account (cancel / expire / pre-fill).
 public(package) fun release_range_quote_reserve(
     proxy: &mut UserProxy,
-    key: RangeKey,
+    _key: RangeKey,
     amount: u64,
-    ctx: &mut TxContext,
+    _ctx: &mut TxContext,
 ) {
-    credit_range_quote(proxy, key, amount, ctx);
+    release_trading_quote_reserve(proxy, amount);
+}
+
+fun reserve_trading_quote(proxy: &mut UserProxy, amount: u64) {
+    assert!(proxy.trading_quote_balance >= amount, errors::insufficient_margin());
+    proxy.trading_quote_balance = proxy.trading_quote_balance - amount;
+    proxy.reserved_quote = proxy.reserved_quote + amount;
+}
+
+fun release_trading_quote_reserve(proxy: &mut UserProxy, amount: u64) {
+    assert!(proxy.reserved_quote >= amount, errors::insufficient_margin());
+    proxy.reserved_quote = proxy.reserved_quote - amount;
+    proxy.trading_quote_balance = proxy.trading_quote_balance + amount;
 }
 
 // === Borrow / repay accounting ===
@@ -722,32 +728,32 @@ public(package) fun reset_range_to_unleveraged(
     set_range_leverage(proxy, key, protocol_constants::bps(), ctx);
 }
 
-/// Transfer all free quote on a binary key to `recipient` when vault debt is zero.
+/// Move any residual free quote on a binary key into the trading account when vault debt is zero.
 public(package) fun sweep_binary_free_quote_to<Quote>(
     proxy: &mut UserProxy,
     key: MarketKey,
-    recipient: address,
-    ctx: &mut TxContext,
+    _recipient: address,
+    _ctx: &mut TxContext,
 ) {
     if (proxy.binary_borrowed_quote(key) > 0) return;
     let free = proxy.binary_quote_balance(key);
     if (free == 0) return;
-    let coin = withdraw_quote_from_binary<Quote>(proxy, key, free, ctx);
-    transfer::public_transfer(coin, recipient);
+    debit_binary_quote(proxy, key, free, 0);
+    proxy.trading_quote_balance = proxy.trading_quote_balance + free;
 }
 
-/// Transfer all free quote on a range key to `recipient` when vault debt is zero.
+/// Move any residual free quote on a range key into the trading account when vault debt is zero.
 public(package) fun sweep_range_free_quote_to<Quote>(
     proxy: &mut UserProxy,
     key: RangeKey,
-    recipient: address,
-    ctx: &mut TxContext,
+    _recipient: address,
+    _ctx: &mut TxContext,
 ) {
     if (proxy.range_borrowed_quote(key) > 0) return;
     let free = proxy.range_quote_balance(key);
     if (free == 0) return;
-    let coin = withdraw_quote_from_range<Quote>(proxy, key, free, ctx);
-    transfer::public_transfer(coin, recipient);
+    debit_range_quote(proxy, key, free, 0);
+    proxy.trading_quote_balance = proxy.trading_quote_balance + free;
 }
 
 // === Ledger ops (internal) ===
@@ -1298,6 +1304,8 @@ public fun create_for_testing(
         secondary_owner,
         predict_manager_id,
         borrowed_quote: 0,
+        trading_quote_balance: 0,
+        reserved_quote: 0,
         balance_manager,
         deposit_cap,
         withdraw_cap,

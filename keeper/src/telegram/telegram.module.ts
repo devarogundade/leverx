@@ -4,6 +4,7 @@ import { DatabaseModule } from '../database/database.module';
 import { IndexerModule } from '../indexer/indexer.module';
 import { SuiModule } from '../sui/sui.module';
 import { SubscriptionService } from './subscription.service';
+import { AlertCooldownService } from './alert-cooldown.service';
 import { TelegramApiService } from './telegram-api.service';
 import { TelegramBotService } from './telegram-bot.service';
 import { TelegramController } from './telegram.controller';
@@ -22,6 +23,7 @@ import { TELEGRAM_NOTIFICATIONS_QUEUE } from './telegram-notifications.constants
   controllers: [TelegramController],
   providers: [
     SubscriptionService,
+    AlertCooldownService,
     TelegramApiService,
     TelegramBotService,
     TelegramNotificationService,

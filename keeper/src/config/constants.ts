@@ -34,19 +34,19 @@ export const TESTNET_ASSETS = {
 /** Min/max leverage (basis points). */
 export const MIN_LEVERAGE_BPS = 10_000;
 
-/** Default final window at registry init (15 minutes). */
-export const DEFAULT_FINAL_WINDOW_MS = 900_000;
-/** Minimum admin-configurable final window (10 minutes). */
-export const MIN_FINAL_WINDOW_MS = 600_000;
+/** Default final window at registry init (5 minutes). */
+export const DEFAULT_FINAL_WINDOW_MS = 300_000;
+/** Minimum admin-configurable final window (1 minute). */
+export const MIN_FINAL_WINDOW_MS = 60_000;
 /** Maximum admin-configurable final window (4 hours). */
 export const MAX_FINAL_WINDOW_MS = 14_400_000;
-
-/** @deprecated Use on-chain `protocol_registry::final_window_ms`. */
-export const LEVERAGED_MINT_WINDOW_MS = DEFAULT_FINAL_WINDOW_MS;
 export const MAX_LEVERAGE_BPS = 100_000;
 
-/** Default on-chain liquidation health threshold (105%). */
-export const DEFAULT_LIQUIDATION_BPS = 10_500;
+/** Default on-chain liquidation health threshold (102%). */
+export const DEFAULT_LIQUIDATION_BPS = 10_200;
+
+/** Minimum admin-configurable liquidation threshold (100%). */
+export const MIN_LIQUIDATION_BPS = 10_000;
 
 /** Maximum admin-configurable liquidation threshold (150%). */
 export const MAX_LIQUIDATION_BPS = 15_000;

@@ -7,7 +7,7 @@ use sui::{clock, coin, test_scenario};
 // === Quote deposit (trade wrappers) ===
 
 #[test]
-fun deposit_quote_for_binary_market_credits_key() {
+fun deposit_quote_for_binary_market_credits_trading_account() {
     let owner = @0xA11CE;
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
@@ -16,19 +16,20 @@ fun deposit_quote_for_binary_market_credits_key() {
     let key = test_fixtures::sample_binary_key();
     let mut quote_treasury = test_fixtures::quote_treasury(ctx);
 
-    trade::deposit_quote_for_binary_market(
+    trade::deposit_quote(
         &mut proxy,
-        key,
         coin::mint(&mut quote_treasury, 2_500, ctx),
         ctx,
     );
 
-    assert!(user_proxy::binary_quote_balance(&proxy, key) == 2_500, 0);
+    // Deposits land in the single trading account, not per-key custody.
+    assert!(user_proxy::trading_quote_balance(&proxy) == 2_500, 0);
+    assert!(user_proxy::binary_quote_balance(&proxy, key) == 0, 0);
     scenario.end();
 }
 
 #[test]
-fun deposit_quote_for_range_market_credits_key() {
+fun deposit_quote_for_range_market_credits_trading_account() {
     let owner = @0xA11CE;
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
@@ -37,14 +38,14 @@ fun deposit_quote_for_range_market_credits_key() {
     let key = test_fixtures::sample_range_key();
     let mut quote_treasury = test_fixtures::quote_treasury(ctx);
 
-    trade::deposit_quote_for_range_market(
+    trade::deposit_quote(
         &mut proxy,
-        key,
         coin::mint(&mut quote_treasury, 900, ctx),
         ctx,
     );
 
-    assert!(user_proxy::range_quote_balance(&proxy, key) == 900, 0);
+    assert!(user_proxy::trading_quote_balance(&proxy) == 900, 0);
+    assert!(user_proxy::range_quote_balance(&proxy, key) == 0, 0);
     scenario.end();
 }
 
@@ -114,9 +115,8 @@ fun cancel_binary_limit_mint_order_releases_reserved_margin() {
     let key = test_fixtures::sample_binary_key();
     let mut quote_treasury = test_fixtures::quote_treasury(ctx);
 
-    user_proxy::deposit_quote_for_binary(
+    user_proxy::deposit_quote(
         &mut proxy,
-        key,
         coin::mint(&mut quote_treasury, 1_000, ctx),
         ctx,
     );
@@ -139,7 +139,9 @@ fun cancel_binary_limit_mint_order_releases_reserved_margin() {
     trade::cancel_binary_limit_mint_order(&mut proxy, key, ctx);
 
     assert!(trade::get_binary_limit_mint_order(&proxy, key).is_none(), 0);
-    assert!(user_proxy::binary_quote_balance(&proxy, key) == 1_000, 0);
+    // Reserved margin is returned to the spendable trading account.
+    assert!(user_proxy::trading_quote_balance(&proxy) == 1_000, 0);
+    assert!(user_proxy::reserved_quote(&proxy) == 0, 0);
 
     scenario.end();
 }
@@ -154,9 +156,8 @@ fun cancel_range_limit_mint_order_releases_reserved_margin() {
     let key = test_fixtures::sample_range_key();
     let mut quote_treasury = test_fixtures::quote_treasury(ctx);
 
-    user_proxy::deposit_quote_for_range(
+    user_proxy::deposit_quote(
         &mut proxy,
-        key,
         coin::mint(&mut quote_treasury, 800, ctx),
         ctx,
     );
@@ -179,7 +180,9 @@ fun cancel_range_limit_mint_order_releases_reserved_margin() {
     trade::cancel_range_limit_mint_order(&mut proxy, key, ctx);
 
     assert!(trade::get_range_limit_mint_order(&proxy, key).is_none(), 0);
-    assert!(user_proxy::range_quote_balance(&proxy, key) == 800, 0);
+    // Reserved margin is returned to the spendable trading account.
+    assert!(user_proxy::trading_quote_balance(&proxy) == 800, 0);
+    assert!(user_proxy::reserved_quote(&proxy) == 0, 0);
 
     scenario.end();
 }
@@ -279,7 +282,7 @@ fun deleverage_binary_partial_repay_reduces_key_debt() {
 }
 
 #[test]
-fun deleverage_binary_overpay_credits_surplus_to_key() {
+fun deleverage_binary_overpay_credits_surplus_to_trading_account() {
     let owner = @0xA11CE;
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
@@ -307,7 +310,9 @@ fun deleverage_binary_overpay_credits_surplus_to_key() {
     );
 
     assert!(user_proxy::binary_borrowed_quote(&proxy, key) == 0, 0);
-    assert!(user_proxy::binary_quote_balance(&proxy, key) == 1_100, 0);
+    // Overpayment surplus is returned to the trading account, not held on the position.
+    assert!(user_proxy::trading_quote_balance(&proxy) == 1_100, 0);
+    assert!(user_proxy::binary_quote_balance(&proxy, key) == 0, 0);
     assert!(user_proxy::binary_leverage_bps(&proxy, key) == protocol_constants::bps(), 0);
 
     clock::destroy_for_testing(clock);
@@ -351,7 +356,7 @@ fun deleverage_range_partial_repay_reduces_key_debt() {
 }
 
 #[test]
-fun repay_debt_for_binary_uses_key_quote_balance() {
+fun repay_debt_for_binary_uses_trading_account() {
     let owner = @0xA11CE;
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
@@ -363,9 +368,8 @@ fun repay_debt_for_binary_uses_key_quote_balance() {
 
     user_proxy::set_binary_leverage(&mut proxy, key, 50_000, ctx);
     user_proxy::add_binary_margin_debt(&mut proxy, key, 200, ctx);
-    user_proxy::deposit_quote_for_binary(
+    user_proxy::deposit_quote(
         &mut proxy,
-        key,
         test_fixtures::mint_quote(1_000, test_fixtures::quote_treasury_mut(&mut setup), ctx),
         ctx,
     );
@@ -385,7 +389,9 @@ fun repay_debt_for_binary_uses_key_quote_balance() {
     );
 
     assert!(user_proxy::binary_borrowed_quote(&proxy, key) == 500, 0);
-    assert!(user_proxy::binary_quote_balance(&proxy, key) == 700, 0);
+    // Repayment is funded from the trading account; the position holds no spendable quote.
+    assert!(user_proxy::trading_quote_balance(&proxy) == 700, 0);
+    assert!(user_proxy::binary_quote_balance(&proxy, key) == 0, 0);
     assert!(user_proxy::binary_leverage_bps(&proxy, key) == 35_000, 0);
 
     clock::destroy_for_testing(clock);
@@ -393,7 +399,7 @@ fun repay_debt_for_binary_uses_key_quote_balance() {
 }
 
 #[test]
-fun repay_debt_for_range_uses_key_quote_balance() {
+fun repay_debt_for_range_uses_trading_account() {
     let owner = @0xA11CE;
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
@@ -405,9 +411,8 @@ fun repay_debt_for_range_uses_key_quote_balance() {
 
     user_proxy::set_range_leverage(&mut proxy, key, 40_000, ctx);
     user_proxy::add_range_margin_debt(&mut proxy, key, 100, ctx);
-    user_proxy::deposit_quote_for_range(
+    user_proxy::deposit_quote(
         &mut proxy,
-        key,
         test_fixtures::mint_quote(600, test_fixtures::quote_treasury_mut(&mut setup), ctx),
         ctx,
     );
@@ -427,7 +432,9 @@ fun repay_debt_for_range_uses_key_quote_balance() {
     );
 
     assert!(user_proxy::range_borrowed_quote(&proxy, key) == 200, 0);
-    assert!(user_proxy::range_quote_balance(&proxy, key) == 400, 0);
+    // Repayment is funded from the trading account; the position holds no spendable quote.
+    assert!(user_proxy::trading_quote_balance(&proxy) == 400, 0);
+    assert!(user_proxy::range_quote_balance(&proxy, key) == 0, 0);
     assert!(user_proxy::range_leverage_bps(&proxy, key) == 30_000, 0);
 
     clock::destroy_for_testing(clock);

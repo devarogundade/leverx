@@ -145,9 +145,14 @@ export class LimitOrderService {
     return results;
   }
 
-  /** Skip leveraged resting fills during the final hour (on-chain mint window closed). */
+  /** Skip leveraged resting fills during the final window (on-chain mint window closed). */
   private canFillLeveragedOrder(order: LimitMintOrder, now: number): boolean {
-    return isLeveragedMintAllowed(order.expiry_ms, order.leverage_bps, now);
+    return isLeveragedMintAllowed(
+      order.expiry_ms,
+      order.leverage_bps,
+      now,
+      this.sui.getFinalWindowMs(),
+    );
   }
 
   private async isFillable(order: LimitMintOrder): Promise<boolean> {

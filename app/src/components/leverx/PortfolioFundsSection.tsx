@@ -6,13 +6,13 @@ import { PortfolioDepositDialog } from "@/components/leverx/PortfolioDepositDial
 import { PortfolioWithdrawDialog } from "@/components/leverx/PortfolioWithdrawDialog";
 import { useLeverxProtocolConfig } from "@/hooks/useLeverxTransactions";
 import { useWalletCoinBalance, walletCoinBalanceUsd } from "@/hooks/useWalletCoinBalance";
-import { useProxyKeyBalances } from "@/hooks/useProxyKeyBalances";
+import { useTradingAccountBalance } from "@/hooks/useTradingAccountBalance";
 import { computeTotalBalanceUsd } from "@/lib/leverx/account-balance";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { ui } from "@/lib/copy";
-import { scaleQuote, scaleQuoteAtoms } from "@/lib/predict/scaling";
+import { scaleQuote } from "@/lib/predict/scaling";
 import { labelCaps, tradeSurface } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
 
@@ -103,7 +103,7 @@ export function PortfolioFundsSection({
   const { cfg } = useLeverxProtocolConfig();
   const { data: walletBalance, isLoading: walletLoading } = useWalletCoinBalance(cfg?.quoteType ?? null);
   const walletUsd = walletCoinBalanceUsd(walletBalance);
-  const { rows: keyRows, isLoading: keyBalancesLoading } = useProxyKeyBalances(accountId, positions);
+  const { usd: withdrawableUsd, isLoading: balancesLoading } = useTradingAccountBalance(accountId);
 
   const [depositOpen, setDepositOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
@@ -118,11 +118,6 @@ export function PortfolioFundsSection({
   const borrowedUsd = scaleQuote(borrowedQuote);
   const walletReady = walletUsd != null && !walletLoading;
 
-  const withdrawableUsd = useMemo(
-    () => keyRows.reduce((sum, row) => sum + scaleQuoteAtoms(row.balanceAtoms), 0),
-    [keyRows],
-  );
-
   const totalBalanceUsd = walletReady
     ? computeTotalBalanceUsd({
         walletUsd: walletUsd ?? 0,
@@ -131,12 +126,6 @@ export function PortfolioFundsSection({
         borrowedUsd,
       })
     : null;
-
-  const balancesLoading = keyBalancesLoading;
-  const openPositions = useMemo(
-    () => positions.filter(isActiveOpenPosition),
-    [positions],
-  );
 
   return (
     <>
@@ -204,7 +193,6 @@ export function PortfolioFundsSection({
           <FundsActionButton
             icon={ArrowDownToLine}
             label="Deposit"
-            disabled={openPositions.length === 0}
             onClick={() => setDepositOpen(true)}
           />
           <FundsActionButton
@@ -219,14 +207,11 @@ export function PortfolioFundsSection({
         open={depositOpen}
         onOpenChange={setDepositOpen}
         accountId={accountId}
-        positions={openPositions}
       />
       <PortfolioWithdrawDialog
         open={withdrawOpen}
         onOpenChange={setWithdrawOpen}
         accountId={accountId}
-        positions={positions}
-        borrowedQuote={borrowedQuote}
       />
     </>
   );

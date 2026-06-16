@@ -19,13 +19,13 @@ fun trading_pause_flag_roundtrip() {
 }
 
 #[test]
-fun liquidation_bps_defaults_to_one_hundred_five_percent() {
+fun liquidation_bps_defaults_to_one_hundred_two_percent() {
     let owner = @0xAD;
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
 
     let (_admin, registry) = protocol_registry::create_for_testing(ctx);
-    assert!(protocol_registry::liquidation_bps(&registry) == 10_500, 0);
+    assert!(protocol_registry::liquidation_bps(&registry) == 10_200, 0);
 
     scenario.end();
 }
@@ -37,8 +37,8 @@ fun admin_can_update_liquidation_bps() {
     let ctx = scenario.ctx();
 
     let (admin, mut registry) = protocol_registry::create_for_testing(ctx);
-    protocol_registry::set_liquidation_bps(&admin, &mut registry, 8_000);
-    assert!(protocol_registry::liquidation_bps(&registry) == 8_000, 0);
+    protocol_registry::set_liquidation_bps(&admin, &mut registry, 10_000);
+    assert!(protocol_registry::liquidation_bps(&registry) == 10_000, 0);
     protocol_registry::set_liquidation_bps(&admin, &mut registry, 15_000);
     assert!(protocol_registry::liquidation_bps(&registry) == 15_000, 0);
 
@@ -100,13 +100,13 @@ fun admin_can_set_keeper_address() {
 }
 
 #[test]
-fun final_window_defaults_to_fifteen_minutes() {
+fun final_window_defaults_to_five_minutes() {
     let owner = @0xAD;
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
 
     let (_admin, registry) = protocol_registry::create_for_testing(ctx);
-    assert!(protocol_registry::final_window_ms(&registry) == 900_000, 0);
+    assert!(protocol_registry::final_window_ms(&registry) == 300_000, 0);
 
     scenario.end();
 }
@@ -118,8 +118,8 @@ fun admin_can_update_final_window_ms() {
     let ctx = scenario.ctx();
 
     let (admin, mut registry) = protocol_registry::create_for_testing(ctx);
-    protocol_registry::set_final_window_ms(&admin, &mut registry, 600_000);
-    assert!(protocol_registry::final_window_ms(&registry) == 600_000, 0);
+    protocol_registry::set_final_window_ms(&admin, &mut registry, 60_000);
+    assert!(protocol_registry::final_window_ms(&registry) == 60_000, 0);
     protocol_registry::set_final_window_ms(&admin, &mut registry, 14_400_000);
     assert!(protocol_registry::final_window_ms(&registry) == 14_400_000, 0);
 
@@ -134,7 +134,7 @@ fun invalid_final_window_below_min_rejected() {
     let ctx = scenario.ctx();
 
     let (admin, mut registry) = protocol_registry::create_for_testing(ctx);
-    protocol_registry::set_final_window_ms(&admin, &mut registry, 599_999);
+    protocol_registry::set_final_window_ms(&admin, &mut registry, 59_999);
 
     scenario.end();
 }

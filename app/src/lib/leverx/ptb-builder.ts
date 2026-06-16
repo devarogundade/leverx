@@ -41,29 +41,17 @@ function cancelFn(isRange: boolean): string {
   return isRange ? "cancel_range_limit_mint_order" : "cancel_binary_limit_mint_order";
 }
 
-function depositQuoteFn(isRange: boolean): string {
-  return isRange ? "deposit_quote_for_range_market" : "deposit_quote_for_binary_market";
-}
-
-function withdrawQuoteFn(isRange: boolean): string {
-  return isRange ? "withdraw_quote_for_range_market" : "withdraw_quote_for_binary_market";
-}
-
+/**
+ * Deposit quote into the single trading account. Custody is key-agnostic — there is
+ * one spendable trading-account balance per proxy that funds every position.
+ */
 export function buildDepositQuote(
   cfg: LeverxProtocolConfig,
   accountId: string,
-  key: MarketKeyArgs,
   quoteCoin: TransactionObjectArgument,
 ): Transaction {
   const tx = new Transaction();
-  const marketKey = addMarketKey(tx, key, cfg.predictPackageId);
-
-  tx.moveCall({
-    target: `${cfg.packageId}::trade::${depositQuoteFn(key.isRange)}`,
-    typeArguments: [cfg.quoteType],
-    arguments: [tx.object(accountId), marketKey, quoteCoin],
-  });
-
+  appendDepositQuote(tx, cfg, accountId, quoteCoin);
   return tx;
 }
 
@@ -71,14 +59,12 @@ export function appendDepositQuote(
   tx: Transaction,
   cfg: LeverxProtocolConfig,
   accountId: string,
-  key: MarketKeyArgs,
   quoteCoin: TransactionObjectArgument,
 ): void {
-  const marketKey = addMarketKey(tx, key, cfg.predictPackageId);
   tx.moveCall({
-    target: `${cfg.packageId}::trade::${depositQuoteFn(key.isRange)}`,
+    target: `${cfg.packageId}::trade::deposit_quote`,
     typeArguments: [cfg.quoteType],
-    arguments: [tx.object(accountId), marketKey, quoteCoin],
+    arguments: [tx.object(accountId), quoteCoin],
   });
 }
 
@@ -86,14 +72,12 @@ export function appendWithdrawQuote(
   tx: Transaction,
   cfg: LeverxProtocolConfig,
   accountId: string,
-  key: MarketKeyArgs,
   amountAtoms: bigint,
 ): void {
-  const marketKey = addMarketKey(tx, key, cfg.predictPackageId);
   tx.moveCall({
-    target: `${cfg.packageId}::trade::${withdrawQuoteFn(key.isRange)}`,
+    target: `${cfg.packageId}::trade::withdraw_quote`,
     typeArguments: [cfg.quoteType],
-    arguments: [tx.object(accountId), marketKey, tx.pure.u64(amountAtoms)],
+    arguments: [tx.object(accountId), tx.pure.u64(amountAtoms)],
   });
 }
 

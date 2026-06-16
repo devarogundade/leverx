@@ -9,7 +9,7 @@ import { computeTotalBalanceUsd } from "@/lib/leverx/account-balance";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
 import { resolveAccountId } from "@/lib/leverx/account-resolution";
-import { useProxyKeyBalances } from "@/hooks/useProxyKeyBalances";
+import { useTradingAccountBalance } from "@/hooks/useTradingAccountBalance";
 import { useWallet } from "@/context/WalletContext";
 import { useIndexerAccounts, useIndexerPositions } from "@/hooks/useIndexer";
 import { useWalletCoinBalance, walletCoinBalanceUsd } from "@/hooks/useWalletCoinBalance";
@@ -18,7 +18,7 @@ import { appConfig } from "@/lib/config";
 import {
   DATA_PLACEHOLDER,
 } from "@/lib/leverx/placeholders";
-import { scaleQuote, scaleQuoteAtoms } from "@/lib/predict/scaling";
+import { scaleQuote } from "@/lib/predict/scaling";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -69,14 +69,8 @@ export function BalanceBreakdown({ className }: Props) {
     () => resolveAccountId(accounts, [...positions, ...closedPositions]),
     [accounts, positions, closedPositions],
   );
-  const allPositions = useMemo(
-    () => [...positions, ...closedPositions],
-    [positions, closedPositions],
-  );
-  const { rows: keyRows, isLoading: keyBalancesLoading } = useProxyKeyBalances(
-    accountId,
-    allPositions,
-  );
+  const { usd: withdrawableUsd, isLoading: keyBalancesLoading } =
+    useTradingAccountBalance(accountId);
 
   const ready =
     isWalletConnected &&
@@ -101,10 +95,6 @@ export function BalanceBreakdown({ className }: Props) {
   const borrowed = ready ? scaleQuote(accounts[0]?.borrowed_quote ?? 0) : null;
   const positionCount = ready ? activePositions.length : null;
 
-  const withdrawableUsd = useMemo(
-    () => keyRows.reduce((sum, row) => sum + scaleQuoteAtoms(row.balanceAtoms), 0),
-    [keyRows],
-  );
   const withdrawableLoading =
     isWalletConnected && Boolean(accountId) && keyBalancesLoading;
 

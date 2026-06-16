@@ -29,7 +29,7 @@ use leverx::{
     triggers,
 };
 use std::u128;
-use sui::{clock::Clock, coin::{Self, Coin}, transfer};
+use sui::{clock::Clock, coin::{Self, Coin}};
 
 fun assert_registry_predict(registry: &LeverxRegistry, predict: &Predict) {
     protocol_registry::assert_predict(registry, predict);
@@ -83,44 +83,25 @@ public entry fun revoke_executor_entry(
     user_proxy::revoke_executor_cap(proxy, executor, ctx);
 }
 
-/// Deposit quote margin into a binary market key (no vault borrow).
-public fun deposit_quote_for_binary_market<Quote>(
+/// Deposit quote into the single trading account (the only deposit surface).
+public fun deposit_quote<Quote>(
     proxy: &mut UserProxy,
-    key: MarketKey,
     quote: Coin<Quote>,
     ctx: &mut TxContext,
 ) {
-    proxy.deposit_quote_for_binary(key, quote, ctx);
+    proxy.deposit_quote(quote, ctx);
 }
 
-/// Deposit quote margin into a range market key (no vault borrow).
-public fun deposit_quote_for_range_market<Quote>(
+/// Withdraw quote from the trading account to the trader (the only withdraw surface).
+///
+/// The full trading-account balance is withdrawable at any time; outstanding borrow is not
+/// subtracted (open positions are collateralised by their locked margin + redeemable value).
+public fun withdraw_quote<Quote>(
     proxy: &mut UserProxy,
-    key: RangeKey,
-    quote: Coin<Quote>,
-    ctx: &mut TxContext,
-) {
-    proxy.deposit_quote_for_range(key, quote, ctx);
-}
-
-/// Withdraw free quote from a binary market key to the caller's wallet.
-public fun withdraw_quote_for_binary_market<Quote>(
-    proxy: &mut UserProxy,
-    key: MarketKey,
     amount: u64,
     ctx: &mut TxContext,
 ) {
-    proxy.withdraw_quote_for_binary<Quote>(key, amount, ctx);
-}
-
-/// Withdraw free quote from a range market key to the caller's wallet.
-public fun withdraw_quote_for_range_market<Quote>(
-    proxy: &mut UserProxy,
-    key: RangeKey,
-    amount: u64,
-    ctx: &mut TxContext,
-) {
-    proxy.withdraw_quote_for_range<Quote>(key, amount, ctx);
+    proxy.withdraw_quote<Quote>(amount, ctx);
 }
 
 /// Set whether force-deleverage should remint a 1x position for a binary market key.
@@ -403,7 +384,7 @@ public fun place_binary_limit_mint_order<Quote>(
     assert_leveraged_mint_window(registry, key.expiry(), leverage_bps, clock);
     assert_leveraged_resting_order_expiry(registry, key.expiry(), expires_ms, leverage_bps);
     assert!(
-        proxy.binary_quote_balance(key) >= margin_quote,
+        proxy.trading_quote_balance() >= margin_quote,
         errors::insufficient_margin(),
     );
     let now = clock.timestamp_ms();
@@ -484,7 +465,7 @@ public fun place_range_limit_mint_order<Quote>(
     assert_leveraged_mint_window(registry, key.expiry(), leverage_bps, clock);
     assert_leveraged_resting_order_expiry(registry, key.expiry(), expires_ms, leverage_bps);
     assert!(
-        proxy.range_quote_balance(key) >= margin_quote,
+        proxy.trading_quote_balance() >= margin_quote,
         errors::insufficient_margin(),
     );
     let now = clock.timestamp_ms();
@@ -1411,7 +1392,7 @@ public fun synchronize_proxy_accounting<Quote>(
 
 // === Deleverage / Repay ===
 
-/// Repay binary key vault debt from external quote coins; surplus credited back to the key.
+/// Repay binary key vault debt from external quote coins; surplus credited to the trading account.
 public fun deleverage_binary_account_balance<Quote>(
     registry: &LeverxRegistry,
     vault: &mut LeverageVault<Quote>,
@@ -1463,7 +1444,7 @@ public fun deleverage_binary_account_balance<Quote>(
         vault_mod::current_lp_apr_bps(vault),
     );
     if (funds.value() > 0) {
-        proxy.credit_quote_for_binary(key, funds, ctx);
+        proxy.credit_trading_quote(funds, ctx);
     } else {
         coin::destroy_zero(funds);
     };
@@ -1472,7 +1453,7 @@ public fun deleverage_binary_account_balance<Quote>(
     emit_binary_key_borrow_state(proxy, key);
 }
 
-/// Repay range key vault debt from external quote coins; surplus credited back to the key.
+/// Repay range key vault debt from external quote coins; surplus credited to the trading account.
 public fun deleverage_range_account_balance<Quote>(
     registry: &LeverxRegistry,
     vault: &mut LeverageVault<Quote>,
@@ -1524,7 +1505,7 @@ public fun deleverage_range_account_balance<Quote>(
         vault_mod::current_lp_apr_bps(vault),
     );
     if (funds.value() > 0) {
-        proxy.credit_quote_for_range(key, funds, ctx);
+        proxy.credit_trading_quote(funds, ctx);
     } else {
         coin::destroy_zero(funds);
     };
@@ -1533,7 +1514,7 @@ public fun deleverage_range_account_balance<Quote>(
     emit_range_key_borrow_state(proxy, key);
 }
 
-/// Repay binary key debt using quote already held on the market key.
+/// Repay binary key debt using quote drawn from the trading account.
 public fun repay_debt_for_binary<Quote>(
     registry: &LeverxRegistry,
     proxy: &mut UserProxy,
@@ -1545,7 +1526,7 @@ public fun repay_debt_for_binary<Quote>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
-    let quote = proxy.withdraw_quote_from_binary<Quote>(key, amount, ctx);
+    let quote = proxy.take_trading_quote<Quote>(amount, ctx);
     deleverage_binary_account_balance(
         registry,
         vault,
@@ -1559,7 +1540,7 @@ public fun repay_debt_for_binary<Quote>(
     );
 }
 
-/// Repay range key debt using quote already held on the market key.
+/// Repay range key debt using quote drawn from the trading account.
 public fun repay_debt_for_range<Quote>(
     registry: &LeverxRegistry,
     proxy: &mut UserProxy,
@@ -1571,7 +1552,7 @@ public fun repay_debt_for_range<Quote>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
-    let quote = proxy.withdraw_quote_from_range<Quote>(key, amount, ctx);
+    let quote = proxy.take_trading_quote<Quote>(amount, ctx);
     deleverage_range_account_balance(
         registry,
         vault,
@@ -2089,13 +2070,12 @@ fun execute_leveraged_mint_binary<Quote>(
     );
     assert!(mint_cost <= margin_quote + borrow_quote, errors::mint_cost_exceeds_position());
 
+    // Lock the trader's margin from the trading account onto the position, then draw the vault
+    // borrow onto the same position. Funding the mint from the position leaves any surplus
+    // (margin + borrow - mint_cost) locked with the position until it is closed or liquidated.
+    proxy.allocate_binary_margin(key, margin_quote, ctx);
     execute_borrow_binary(registry, vault, proxy, key, borrow_quote, clock, ctx);
-    let funding = proxy.withdraw_quote_from_binary_with_slippage<Quote>(
-        key,
-        mint_cost,
-        slippage_bps,
-        ctx,
-    );
+    let funding = proxy.withdraw_quote_from_binary<Quote>(key, mint_cost, ctx);
     predict_client::deposit_quote(manager, funding, ctx);
     predict_client::mint_binary<Quote>(predict_global, manager, oracle, key, quantity, clock, ctx);
 
@@ -2180,13 +2160,12 @@ fun execute_leveraged_mint_range<Quote>(
     );
     assert!(mint_cost <= margin_quote + borrow_quote, errors::mint_cost_exceeds_position());
 
+    // Lock the trader's margin from the trading account onto the position, then draw the vault
+    // borrow onto the same position. Funding the mint from the position leaves any surplus
+    // (margin + borrow - mint_cost) locked with the position until it is closed or liquidated.
+    proxy.allocate_range_margin(key, margin_quote, ctx);
     execute_borrow_range(registry, vault, proxy, key, borrow_quote, clock, ctx);
-    let funding = proxy.withdraw_quote_from_range_with_slippage<Quote>(
-        key,
-        mint_cost,
-        slippage_bps,
-        ctx,
-    );
+    let funding = proxy.withdraw_quote_from_range<Quote>(key, mint_cost, ctx);
     predict_client::deposit_quote(manager, funding, ctx);
     predict_client::mint_range<Quote>(predict_global, manager, oracle, key, quantity, clock, ctx);
 
@@ -2598,6 +2577,9 @@ fun try_remint_unleveraged_binary<Quote>(
         predict_client::market_ask_binary(predict_global, oracle, key, qty, clock);
     if (mint_cost == 0 || mint_cost > margin) return 0;
     let remint_after_deleverage = proxy.binary_remint_after_deleverage(key);
+    // Move this position's held residual into the trading account; the remint sources margin from the pool.
+    let owner = proxy.owner();
+    user_proxy::sweep_binary_free_quote_to<Quote>(proxy, key, owner, ctx);
     execute_leveraged_mint_binary<Quote>(
         registry,
         vault,
@@ -2641,6 +2623,9 @@ fun try_remint_unleveraged_range<Quote>(
         predict_client::market_ask_range(predict_global, oracle, key, qty, clock);
     if (mint_cost == 0 || mint_cost > margin) return 0;
     let remint_after_deleverage = proxy.range_remint_after_deleverage(key);
+    // Move this position's held residual into the trading account; the remint sources margin from the pool.
+    let owner = proxy.owner();
+    user_proxy::sweep_range_free_quote_to<Quote>(proxy, key, owner, ctx);
     execute_leveraged_mint_range<Quote>(
         registry,
         vault,
@@ -2685,7 +2670,7 @@ fun plan_leverage_binary(
     ltv::assert_leverage_bps(leverage_bps);
     assert_leveraged_mint_window(registry, key.expiry(), leverage_bps, clock);
     assert!(
-        proxy.binary_quote_balance(key) >= margin_quote,
+        proxy.trading_quote_balance() >= margin_quote,
         errors::insufficient_margin(),
     );
     let borrow_quote = quote_borrow_for_leverage_binary(
@@ -2719,7 +2704,7 @@ fun plan_leverage_range(
     ltv::assert_leverage_bps(leverage_bps);
     assert_leveraged_mint_window(registry, key.expiry(), leverage_bps, clock);
     assert!(
-        proxy.range_quote_balance(key) >= margin_quote,
+        proxy.trading_quote_balance() >= margin_quote,
         errors::insufficient_margin(),
     );
     let borrow_quote = quote_borrow_for_leverage_range(
@@ -2819,6 +2804,34 @@ fun write_off_residual_binary_debt<Quote>(
     let mut debt = vault_mod::debt_with_accrued_interest(vault, ledger_principal);
     let mut insurance_covered = 0;
 
+    // The position's locked margin (leftover budget held on the key) absorbs the loss before
+    // the insurance fund or LP bad-debt write-off is tapped. This returns unused borrowed
+    // capital to the vault rather than leaking it back to the trader on a settled-loss close.
+    let key_margin = proxy.binary_quote_balance(key);
+    if (key_margin > 0 && debt > 0) {
+        let cover = if (key_margin >= debt) { debt } else { key_margin };
+        let coin = proxy.withdraw_quote_from_binary<Quote>(key, cover, ctx);
+        fee_collector::repay_vault_for_ledger_principal(
+            vault,
+            collector,
+            coin,
+            ledger_principal,
+            protocol_constants::fee_source_interest(),
+            clock,
+            ctx,
+        );
+        let principal_repaid = principal_repaid_for_payment(cover, debt, ledger_principal);
+        if (principal_repaid > 0) {
+            proxy.record_repay_for_binary(key, principal_repaid);
+        };
+        ledger_principal = proxy.binary_borrowed_quote(key);
+        if (ledger_principal == 0) {
+            proxy.clear_binary_margin_debt(key);
+            return
+        };
+        debt = vault_mod::debt_with_accrued_interest(vault, ledger_principal);
+    };
+
     let insurance_avail = vault_mod::insurance_fund_balance(vault);
     if (insurance_avail > 0 && debt > 0) {
         let cover = if (insurance_avail >= debt) { debt } else { insurance_avail };
@@ -2880,6 +2893,34 @@ fun write_off_residual_range_debt<Quote>(
     vault_mod::accrue_interest(vault, clock);
     let mut debt = vault_mod::debt_with_accrued_interest(vault, ledger_principal);
     let mut insurance_covered = 0;
+
+    // The position's locked margin (leftover budget held on the key) absorbs the loss before
+    // the insurance fund or LP bad-debt write-off is tapped. This returns unused borrowed
+    // capital to the vault rather than leaking it back to the trader on a settled-loss close.
+    let key_margin = proxy.range_quote_balance(key);
+    if (key_margin > 0 && debt > 0) {
+        let cover = if (key_margin >= debt) { debt } else { key_margin };
+        let coin = proxy.withdraw_quote_from_range<Quote>(key, cover, ctx);
+        fee_collector::repay_vault_for_ledger_principal(
+            vault,
+            collector,
+            coin,
+            ledger_principal,
+            protocol_constants::fee_source_interest(),
+            clock,
+            ctx,
+        );
+        let principal_repaid = principal_repaid_for_payment(cover, debt, ledger_principal);
+        if (principal_repaid > 0) {
+            proxy.record_repay_for_range(key, principal_repaid);
+        };
+        ledger_principal = proxy.range_borrowed_quote(key);
+        if (ledger_principal == 0) {
+            proxy.clear_range_margin_debt(key);
+            return
+        };
+        debt = vault_mod::debt_with_accrued_interest(vault, ledger_principal);
+    };
 
     let insurance_avail = vault_mod::insurance_fund_balance(vault);
     if (insurance_avail > 0 && debt > 0) {
@@ -3067,10 +3108,12 @@ fun repay_from_payout_binary<Quote>(
         events::emit_debt_repaid(object::id(proxy), proxy.owner(), repay_amt, proxy.borrowed_quote());
     };
     if (payout_coin.value() > 0) {
-        if (proxy.binary_borrowed_quote(key) > 0 || hold_surplus_for_remint) {
+        if (hold_surplus_for_remint) {
+            // Keep the residual on the key so the immediate 1x remint can consume it.
             proxy.credit_quote_for_binary(key, payout_coin, ctx);
         } else {
-            transfer::public_transfer(payout_coin, proxy.owner());
+            // Redeem proceeds (surplus / P&L) stay in the trading account, never sent to the owner.
+            proxy.credit_trading_quote(payout_coin, ctx);
         };
     } else {
         coin::destroy_zero(payout_coin);
@@ -3115,7 +3158,7 @@ fun finalize_binary_key_after_redeem<Quote>(
     };
 }
 
-/// After force-deleverage remint: reset leverage and return leftover key quote to the owner.
+/// After force-deleverage remint: reset leverage and sweep leftover key quote to the trading account.
 fun finalize_binary_key_after_force_deleverage_remint<Quote>(
     proxy: &mut UserProxy,
     manager: &PredictManager,
@@ -3144,7 +3187,7 @@ fun finalize_range_key_after_redeem<Quote>(
     };
 }
 
-/// After force-deleverage remint: reset leverage and return leftover key quote to the owner.
+/// After force-deleverage remint: reset leverage and sweep leftover key quote to the trading account.
 fun finalize_range_key_after_force_deleverage_remint<Quote>(
     proxy: &mut UserProxy,
     manager: &PredictManager,
@@ -3238,10 +3281,12 @@ fun repay_from_payout_range<Quote>(
         events::emit_debt_repaid(object::id(proxy), proxy.owner(), repay_amt, proxy.borrowed_quote());
     };
     if (payout_coin.value() > 0) {
-        if (proxy.range_borrowed_quote(key) > 0 || hold_surplus_for_remint) {
+        if (hold_surplus_for_remint) {
+            // Keep the residual on the key so the immediate 1x remint can consume it.
             proxy.credit_quote_for_range(key, payout_coin, ctx);
         } else {
-            transfer::public_transfer(payout_coin, proxy.owner());
+            // Redeem proceeds (surplus / P&L) stay in the trading account, never sent to the owner.
+            proxy.credit_trading_quote(payout_coin, ctx);
         };
     } else {
         coin::destroy_zero(payout_coin);

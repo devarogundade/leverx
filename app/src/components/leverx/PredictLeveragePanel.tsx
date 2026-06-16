@@ -30,7 +30,6 @@ import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
 import { predictSideLabel, coercePredictSide, TRADE_PREDICT_SIDES, type PredictSide } from "@/lib/predict/instruments";
 import {
   DEFAULT_SLIPPAGE_BPS,
-  LEVERAGED_MINT_WINDOW_MS,
   MAX_LIMIT_ORDER_SLIPPAGE_PCT,
 } from "@/lib/leverx/constants";
 import {
@@ -254,11 +253,11 @@ export function PredictLeveragePanel({
   const lev = leverage;
   const leveragedMintAllowed = isLeveragedMintAllowed(
     expiryMs ?? 0,
-    LEVERAGED_MINT_WINDOW_MS,
+    finalWindowMs,
     now,
   );
   const inFinalHour = Boolean(
-    expiryMs && isFinalHourBeforeExpiry(expiryMs, LEVERAGED_MINT_WINDOW_MS, now),
+    expiryMs && isFinalHourBeforeExpiry(expiryMs, finalWindowMs, now),
   );
   const maxLeverageForMarket = leveragedMintAllowed ? LEVERAGE_MAX : LEVERAGE_MIN;
   const restingLimitAllowed = Boolean(
@@ -636,10 +635,10 @@ export function PredictLeveragePanel({
     if (
       lev > LEVERAGE_MIN + 1e-6 &&
       expiryMs &&
-      !isLeveragedMintAllowed(expiryMs, LEVERAGED_MINT_WINDOW_MS, now)
+      !isLeveragedMintAllowed(expiryMs, finalWindowMs, now)
     ) {
       errors.push(
-        "Leverage above 1× closes one hour before this market expires.",
+        "Leverage above 1× is blocked in the final window before this market expires.",
       );
     }
     if (marginNum > 0 && marginNum < MIN_MARGIN_USD) {
@@ -693,7 +692,7 @@ export function PredictLeveragePanel({
         const restingExpiresMs = now + orderExpiresOffsetMs;
         const maxLeveragedExpiryMs = maxLeveragedRestingOrderExpiryMs(
           expiryMs,
-          LEVERAGED_MINT_WINDOW_MS,
+          finalWindowMs,
         );
         if (restingExpiresMs <= now) {
           errors.push("Order expiry must be in the future.");
@@ -705,7 +704,7 @@ export function PredictLeveragePanel({
           restingExpiresMs > maxLeveragedExpiryMs
         ) {
           errors.push(
-            "Leveraged resting orders must expire at least one hour before this market closes.",
+            "Leveraged resting orders must expire before the final window before market close.",
           );
         } else if (expiryMs <= now + 60_000) {
           errors.push("Market closes too soon for a resting limit order.");
@@ -831,6 +830,7 @@ export function PredictLeveragePanel({
     duplicateOpenPosition,
     lev,
     now,
+    finalWindowMs,
   ]);
 
   const visibleValidationErrors = useMemo(() => {

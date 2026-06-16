@@ -17,19 +17,19 @@ const QUOTE_DECIMALS: u8 = 6;
 const MAX_LEVERAGE: u64 = 10;
 /// Minimum leverage in bps (10_000 bps = 1x, no vault borrow).
 const MIN_LEVERAGE_BPS: u64 = 10_000;
-/// Default liquidation health threshold at registry init (105% = 5% buffer before underwater).
-const DEFAULT_LIQUIDATION_BPS: u64 = 10_500;
-/// Legacy alias — matches default liquidation threshold at deploy.
-const MARGIN_CALL_BPS: u64 = DEFAULT_LIQUIDATION_BPS;
+/// Default liquidation health threshold at registry init (102% = 2% buffer before underwater).
+const DEFAULT_LIQUIDATION_BPS: u64 = 10_200;
+/// Minimum admin-configurable liquidation threshold (100% health).
+const MIN_LIQUIDATION_BPS: u64 = 10_000;
 /// Maximum admin-configurable liquidation threshold (150% health).
 const MAX_LIQUIDATION_BPS: u64 = 15_000;
 /// Extra quote on vault flash loans for liquidation PTBs (covers accrued interest + fees).
 const LIQUIDATION_FLASH_BUFFER_BPS: u64 = 500;
 
 /// Leveraged mints (>1x) are blocked in the final window before oracle expiry.
-const DEFAULT_FINAL_WINDOW_MS: u64 = 900_000;
-/// Minimum admin-configurable final window (10 minutes).
-const MIN_FINAL_WINDOW_MS: u64 = 600_000;
+const DEFAULT_FINAL_WINDOW_MS: u64 = 300_000;
+/// Minimum admin-configurable final window (1 minute).
+const MIN_FINAL_WINDOW_MS: u64 = 60_000;
 /// Maximum admin-configurable final window (4 hours).
 const MAX_FINAL_WINDOW_MS: u64 = 14_400_000;
 
@@ -107,7 +107,7 @@ public fun min_leverage_bps(): u64 { MIN_LEVERAGE_BPS }
 /// Final window (ms): leveraged mints (>1x) blocked; force-deleverage allowed. Default at registry init.
 public fun default_final_window_ms(): u64 { DEFAULT_FINAL_WINDOW_MS }
 
-/// Minimum admin-configurable final window (10 minutes).
+/// Minimum admin-configurable final window (1 minute).
 public fun min_final_window_ms(): u64 { MIN_FINAL_WINDOW_MS }
 
 /// Maximum admin-configurable final window (4 hours).
@@ -133,11 +133,11 @@ public fun min_margin_quote(): u64 { MIN_MARGIN_QUOTE }
 /// Maximum dUSDC margin per trade in quote atoms (100 dUSDC).
 public fun max_margin_quote(): u64 { MAX_MARGIN_QUOTE }
 
-/// Margin-call health threshold in basis points (liquidate when health < this).
-public fun margin_call_bps(): u64 { MARGIN_CALL_BPS }
-
-/// Default liquidation threshold used when the registry is initialized (105%).
+/// Default liquidation threshold used when the registry is initialized (102%).
 public fun default_liquidation_bps(): u64 { DEFAULT_LIQUIDATION_BPS }
+
+/// Minimum liquidation threshold admins may set (100%).
+public fun min_liquidation_bps(): u64 { MIN_LIQUIDATION_BPS }
 
 /// Maximum liquidation threshold admins may set (150%).
 public fun max_liquidation_bps(): u64 { MAX_LIQUIDATION_BPS }
@@ -145,9 +145,9 @@ public fun max_liquidation_bps(): u64 { MAX_LIQUIDATION_BPS }
 /// Buffer bps added to accrued vault debt when sizing liquidation flash loans.
 public fun liquidation_flash_buffer_bps(): u64 { LIQUIDATION_FLASH_BUFFER_BPS }
 
-/// Assert liquidation threshold is in `(0, max_liquidation_bps()]`.
+/// Assert liquidation threshold is in `[min_liquidation_bps(), max_liquidation_bps()]`.
 public fun assert_liquidation_bps(liquidation_bps: u64) {
-    assert!(liquidation_bps > 0, errors::invalid_liquidation_bps());
+    assert!(liquidation_bps >= MIN_LIQUIDATION_BPS, errors::invalid_liquidation_bps());
     assert!(liquidation_bps <= MAX_LIQUIDATION_BPS, errors::invalid_liquidation_bps());
 }
 

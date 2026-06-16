@@ -155,9 +155,9 @@ Principal repayments and flash-loan principal return 100% to vault liquidity (no
 | ------ | ---------------------------------------------------------------------------------------------------------------------- |
 | ✅     | `user_proxy::create` (records primary + secondary owner), executor cap register/revoke                                 |
 | ✅     | `trade::create_user_proxy` (entry)                                                                                     |
-| ✅     | `deposit_collateral_for_binary/range`, `deposit_quote_for_binary/range_market`, `withdraw_collateral_for_binary/range` |
+| ✅     | `trade::deposit_quote` / `trade::withdraw_quote` — single key-agnostic trading account (only deposit/withdraw surface) |
 | ✅     | `repay_debt_for_binary/range`, `deleverage_*_account_balance`, `synchronize_proxy_accounting`                          |
-| ✅     | Read: per-key `binary_quote_balance`, `binary_withdrawable_quote`, `binary_borrowed_quote` (and range equivalents)     |
+| ✅     | Read: `trading_quote_balance`, `withdrawable_trading_quote`, `reserved_quote`; per-key `binary_borrowed_quote` (and range equivalents) |
 | ✅     | Per-key health: `evaluate_binary_position_health`, `is_binary_position_liquidatable`                                   |
 
 ### 3.4 Spot swap — `leverx::spot_swap`

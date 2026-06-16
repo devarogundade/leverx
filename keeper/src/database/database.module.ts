@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import type { DatabaseConfig } from '../config/database.config';
-import { TelegramAlertSentEntity } from './entities/telegram-alert-sent.entity';
 import { TelegramLinkTokenEntity } from './entities/telegram-link-token.entity';
 import { TelegramSubscriptionEntity } from './entities/telegram-subscription.entity';
 import { UserManagerEntity } from './entities/user-manager.entity';
@@ -10,7 +9,6 @@ import { UserManagerEntity } from './entities/user-manager.entity';
 export const KEEPER_ENTITIES = [
   TelegramSubscriptionEntity,
   TelegramLinkTokenEntity,
-  TelegramAlertSentEntity,
   UserManagerEntity,
 ];
 

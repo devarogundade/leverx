@@ -8,6 +8,7 @@ import type { TaskResult } from '../keeper/keeper.types';
 import { logKeeperWarn } from '../lib/keeper-log';
 import { PtbBuilderService } from '../sui/ptb-builder.service';
 import { SuiService } from '../sui/sui.service';
+import { AlertCooldownService } from './alert-cooldown.service';
 import { TelegramApiService } from './telegram-api.service';
 import { TelegramBotService } from './telegram-bot.service';
 import { SubscriptionService } from './subscription.service';
@@ -21,6 +22,7 @@ export class TelegramNotificationService {
     config: ConfigService,
     private readonly bot: TelegramBotService,
     private readonly subscriptions: SubscriptionService,
+    private readonly alertCooldown: AlertCooldownService,
     private readonly api: TelegramApiService,
     private readonly indexer: IndexerService,
     private readonly sui: SuiService,
@@ -77,7 +79,7 @@ export class TelegramNotificationService {
         if (!liquidatable) continue;
 
         const alertKey = `${position.account_id}:${position.position_key}`;
-        if (!(await this.subscriptions.shouldSendAlert(alertKey, this.cfg.alertCooldownMs))) {
+        if (!(await this.alertCooldown.shouldSendAlert(alertKey, this.cfg.alertCooldownMs))) {
           continue;
         }
 
@@ -86,7 +88,7 @@ export class TelegramNotificationService {
           formatLiquidationAlert(position),
         );
         if (sent) {
-          await this.subscriptions.markAlertSent(alertKey);
+          await this.alertCooldown.markAlertSent(alertKey);
         }
       }
     }
