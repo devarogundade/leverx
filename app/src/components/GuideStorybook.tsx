@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowRight,
+  Bell,
   BookOpen,
   Coins,
   Layers,
@@ -335,7 +336,9 @@ export function GuideStorybook() {
             </GuidePanel>
             <GuideCallout variant="tip" title="Watch health in portfolio">
               The portfolio table shows live health and P&amp;L per trade. Use Manage on any row to
-              close, repay, or settle after expiry before the protocol steps in.
+              close, repay, or settle after expiry before the protocol steps in. Connect Telegram
+              under Account for push alerts when limits fill, liquidation risk rises, or a position
+              is liquidated.
             </GuideCallout>
           </GuideChapter>
 
@@ -459,6 +462,19 @@ export function GuideStorybook() {
                   <span>Review the details and approve the trade.</span>
                 </span>
               </li>
+              <li>
+                <span className="guide-step-icon">
+                  <Bell className="h-4 w-4" />
+                </span>
+                <span className="guide-step-body">
+                  <strong>Optional: Telegram alerts</strong>
+                  <span>
+                    In Portfolio → Account, tap Connect Telegram and press Start in the bot chat.
+                    You&apos;ll get notified on limit fills, liquidation risk, and completed
+                    liquidations.
+                  </span>
+                </span>
+              </li>
             </ol>
           </GuideChapter>
 
@@ -466,7 +482,7 @@ export function GuideStorybook() {
             id="earn"
             index="08"
             title="Earn without trading"
-            subtitle="Pool liquidity, helpers, and points"
+            subtitle="Pool liquidity, helpers, points, and alerts"
           >
             <div className="guide-pillar-grid">
               <PillarCard
@@ -487,6 +503,12 @@ export function GuideStorybook() {
                 body="Sui Overflow season leaderboard ranks wallets by leveraged trading volume on testnet."
                 accent="short"
               />
+              <PillarCard
+                icon={<Bell className="h-4 w-4" />}
+                title="Telegram"
+                body="Link your trading account in portfolio to get push alerts when limit orders fill, health enters liquidation risk, or a position is liquidated."
+                accent="shield"
+              />
             </div>
             <div className="guide-cta-row">
               <Link to="/vault" className={cn(landingCtaSecondary, "text-sm")}>
@@ -494,6 +516,9 @@ export function GuideStorybook() {
               </Link>
               <Link to="/points" className={cn(landingCtaSecondary, "text-sm")}>
                 Points leaderboard
+              </Link>
+              <Link to="/portfolio" className={cn(landingCtaSecondary, "text-sm")}>
+                Connect Telegram
               </Link>
             </div>
           </GuideChapter>
@@ -577,6 +602,15 @@ export function GuideStorybook() {
               <div className="guide-faq-item">
                 <dt>How do I sign in?</dt>
                 <dd>Click Login and sign in with Google. Enoki creates a Sui testnet account for you.</dd>
+              </div>
+              <div className="guide-faq-item">
+                <dt>How do Telegram alerts work?</dt>
+                <dd>
+                  Open Portfolio → Account and tap Connect Telegram. The keeper opens a deep link to
+                  the bot; press Start to subscribe that trading account. Alerts cover limit order
+                  fills, rising liquidation risk, and completed liquidations. You can link multiple
+                  chats to the same account.
+                </dd>
               </div>
             </dl>
           </GuideChapter>
