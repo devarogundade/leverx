@@ -13,9 +13,8 @@ import { useIndexerProtocol, useIndexerAccounts } from "@/hooks/useIndexer";
 import { useLeverxMarketAsk } from "@/hooks/useLeverxMarketAsk";
 import { useLeverxMintQuote } from "@/hooks/useLeverxMintQuote";
 import { useOraclePriceLatest } from "@/hooks/useOracleSpotPriceSeries";
-import { useWalletCoinBalance } from "@/hooks/useWalletCoinBalance";
+import { useTradingAccountBalance } from "@/hooks/useTradingAccountBalance";
 import { premiumToCents } from "@/lib/leverx/indexer-markets";
-import { appConfig } from "@/lib/config";
 import {
   TradeAmountInput,
   TradeQuickAmounts,
@@ -23,7 +22,7 @@ import {
 import { WalletConnectButton } from "@/components/WalletConnectButton";
 import { useWallet } from "@/context/WalletContext";
 import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
-import { resolvePredictManagerId } from "@/lib/leverx/account-resolution";
+import { resolveAccountId, resolvePredictManagerId } from "@/lib/leverx/account-resolution";
 import { useNow } from "@/hooks/useNow";
 import { showTxError, showTxSuccess } from "@/lib/toast";
 import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
@@ -75,7 +74,7 @@ import {
 import { ui, formatAmount } from "@/lib/copy";
 import { StrikePriceSelector } from "@/components/leverx/StrikePriceSelector";
 import { RangeStrikeSelector } from "@/components/leverx/RangeStrikeSelector";
-import { ChevronDown, Loader2, Wallet } from "lucide-react";
+import { ChevronDown, CircleDollarSign, Loader2 } from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,
@@ -226,7 +225,7 @@ export function PredictLeveragePanel({
     setPlacementSlippagePct(5);
     setMarketSlippagePct(DEFAULT_MARKET_SLIPPAGE_PCT);
     setOrderExpiresOffsetMs(DEFAULT_LIMIT_ORDER_EXPIRY_MS);
-    setRemintAfterDeleverage(true);
+    setRemintAfterDeleverage(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- strike props intentionally omitted
   }, [tradeContextKey]);
 
@@ -242,11 +241,23 @@ export function PredictLeveragePanel({
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- lastAskPremium omitted to avoid refetch clobbering input
   }, [orderType, tradeContextKey]);
-  const { data: walletQuoteBalance } = useWalletCoinBalance(appConfig.quoteType, 6);
+  const accountId = useMemo(
+    () => resolveAccountId(leverxAccounts, openPositions),
+    [leverxAccounts, openPositions],
+  );
+  const {
+    usd: tradingBalanceUsd,
+    atoms: tradingBalanceAtoms,
+    isLoading: tradingBalanceLoading,
+  } = useTradingAccountBalance(accountId);
 
-  // Trades always fund from the trader's wallet into their trading account.
-  const availableQuoteBalance = walletQuoteBalance?.usd;
-  const availableQuoteAtoms = walletQuoteBalance?.atoms;
+  // Margin comes from the trading account — deposit in Portfolio before trading.
+  const availableQuoteBalance = !accountId
+    ? 0
+    : tradingBalanceLoading
+      ? null
+      : tradingBalanceUsd;
+  const availableQuoteAtoms = tradingBalanceAtoms;
 
   const now = useNow(1000);
 
@@ -483,7 +494,7 @@ export function PredictLeveragePanel({
     return availableQuoteBalance;
   }, [availableQuoteBalance]);
 
-  const depositBalanceSourceLabel = ui.balanceWallet;
+  const depositBalanceSourceLabel = ui.predictManagerBalance;
 
   const quickAmounts = useMemo(
     () =>
@@ -652,7 +663,7 @@ export function PredictLeveragePanel({
       availableQuoteBalance != null &&
       marginNum > availableQuoteBalance + 1e-6
     ) {
-      errors.push("Deposit exceeds available USDC balance.");
+      errors.push("Deposit exceeds your trading account balance. Add funds in Portfolio first.");
     }
     if (isWalletConnected && leverxAccounts.length > 0 && !hasLinkedManager) {
       errors.push(
@@ -1043,7 +1054,7 @@ export function PredictLeveragePanel({
                 info={leverxInfo.margin}
               />
               <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-                <Wallet className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                <CircleDollarSign className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 {depositBalanceSourceLabel}{" "}
                 {typeof quoteBalanceLabel === "number" ? (
                   <span className="font-mono tabular-nums text-foreground">

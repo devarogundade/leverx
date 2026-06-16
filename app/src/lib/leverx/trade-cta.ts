@@ -21,8 +21,10 @@ export function tradeCtaLabel(args: {
   orderType: TradeOrderType;
   needsDeposit: boolean;
 }): string {
-  const action = tradeActionLabel(args.side, args.orderType);
-  return args.needsDeposit ? `Deposit and ${action}` : action;
+  if (args.needsDeposit) {
+    return "Deposit funds to trade";
+  }
+  return tradeActionLabel(args.side, args.orderType);
 }
 
 /** True when the chosen source must fund the margin before the trade can open. */

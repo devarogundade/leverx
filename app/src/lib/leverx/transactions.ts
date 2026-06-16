@@ -30,7 +30,7 @@ import {
 } from "@/lib/leverx/trade-intent-auth";
 import { lxplpCoinType, type LeverxProtocolConfig } from "@/lib/leverx/protocol";
 import { hasIndexerOpenQuantity } from "@/lib/leverx/position-quantity";
-import { fetchManagerOpenQuantity, fetchMintQuote, fetchRedeemQuote } from "@/lib/leverx/quotes";
+import { fetchManagerOpenQuantity, fetchMintQuote, fetchRedeemQuote, fetchTradingQuoteBalance } from "@/lib/leverx/quotes";
 import {
   applySlippageBps,
   applySlippageFloor,
@@ -243,6 +243,17 @@ export async function executeOpenTrade(params: {
     predictManagerId: leverxAccount.predictManagerId!,
   });
 
+  const tradingBalance = await fetchTradingQuoteBalance({
+    client,
+    leverxPackageId: cfg.packageId,
+    accountId: leverxAccount.accountId,
+  });
+  if (tradingBalance < marginAtoms) {
+    throw new Error(
+      "Insufficient trading account balance. Deposit funds in Portfolio before opening a trade.",
+    );
+  }
+
   // Resting limit orders are owner-scoped: the trader deposits margin onto the
   // key and places the order in a single user-signed transaction (no manager
   // touch). The keeper executes the order later when it becomes marketable.
@@ -262,14 +273,6 @@ export async function executeOpenTrade(params: {
       wallet,
       account,
       async (tx) => {
-        const quoteCoin = await splitCoinAmount(
-          client,
-          account.address,
-          cfg.quoteType,
-          marginAtoms,
-          tx,
-        );
-        appendDepositQuote(tx, cfg, leverxAccount.accountId, quoteCoin);
         appendPlaceLimitMintOrder(tx, cfg, leverxAccount.accountId, placeParams);
         if (hasTriggers) {
           appendSetTriggers(tx, cfg, {
@@ -289,23 +292,14 @@ export async function executeOpenTrade(params: {
   }
 
   // Market / immediate-limit opens mint against the keeper-owned manager and are
-  // therefore keeper-relay only. The trader funds the key (user-signed) and sets
-  // any triggers in one transaction, then the keeper executes the mint as the
-  // manager owner / proxy secondary owner.
-  await executeWalletTransaction(
-    client,
-    wallet,
-    account,
-    async (tx) => {
-      const quoteCoin = await splitCoinAmount(
-        client,
-        account.address,
-        cfg.quoteType,
-        marginAtoms,
-        tx,
-      );
-      appendDepositQuote(tx, cfg, leverxAccount.accountId, quoteCoin);
-      if (hasTriggers) {
+  // therefore keeper-relay only. Optional user-signed trigger setup runs first;
+  // the keeper executes the mint as the manager owner / proxy secondary owner.
+  if (hasTriggers) {
+    await executeWalletTransaction(
+      client,
+      wallet,
+      account,
+      async (tx) => {
         appendSetTriggers(tx, cfg, {
           key: input.key,
           accountId: leverxAccount.accountId,
@@ -316,10 +310,10 @@ export async function executeOpenTrade(params: {
           stopLossSlippageBps:
             input.slPremium && input.slPremium > 0n ? triggerSlippageBps : 0,
         });
-      }
-    },
-    { gasBudget: TRADE_GAS_BUDGET },
-  );
+      },
+      { gasBudget: TRADE_GAS_BUDGET },
+    );
+  }
 
   const auth = await signMintTradeIntent({
     wallet,

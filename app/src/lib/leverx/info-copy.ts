@@ -5,7 +5,8 @@ export const leverxInfo = {
   marketSlippage: "How far the price can move from your target when your order fills.",
   orderExpires: "How long a waiting order stays open before it is cancelled.",
   collateral: "dUSDC margin posted for a trade.",
-  margin: "dUSDC you deposit per trade (0.1–100 dUSDC). Higher leverage borrows from the vault to increase position size.",
+  margin:
+    "dUSDC from your trading account per trade (0.1–100 dUSDC). Deposit in Portfolio first. Higher leverage borrows from the vault to increase position size.",
   quantity: "How many contracts you are opening. Each one pays out based on the final price at expiry.",
   leverage:
     "Multiplier on your deposit (1×–10×). At 1× there is no vault borrow. Leverage above 1× closes one hour before market expiry.",
