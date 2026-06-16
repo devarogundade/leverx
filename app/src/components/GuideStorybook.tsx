@@ -7,6 +7,7 @@ import {
   Coins,
   Layers,
   ListOrdered,
+  Settings,
   Shield,
   Sparkles,
   TrendingDown,
@@ -18,6 +19,8 @@ import { cn } from "@/lib/utils";
 import { ui } from "@/lib/copy";
 import {
   formatLiquidationThresholdPct,
+  formatProtocolDurationMs,
+  resolveFinalWindowMs,
   resolveHealthyBandBufferBps,
   resolveLiquidationBps,
 } from "@/lib/leverx/protocol";

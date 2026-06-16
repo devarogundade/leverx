@@ -69,6 +69,35 @@ export function formatLiquidationThresholdPct(bps: number, digits = 1): string {
   return `${(bps / 100).toFixed(digits)}%`;
 }
 
+/** Human-readable protocol duration (e.g. final window before expiry). */
+export function formatProtocolDurationMs(
+  ms: number,
+  style: "long" | "short" = "long",
+): string {
+  if (!Number.isFinite(ms) || ms <= 0) return "—";
+
+  if (ms < 3_600_000) {
+    const minutes = Math.max(1, Math.round(ms / 60_000));
+    if (style === "short") return `${minutes}m`;
+    return minutes === 1 ? "1 minute" : `${minutes} minutes`;
+  }
+
+  const hours = Math.floor(ms / 3_600_000);
+  const minutes = Math.round((ms % 3_600_000) / 60_000);
+
+  if (style === "short") {
+    if (minutes > 0) return `${hours}h ${minutes}m`;
+    return `${hours}h`;
+  }
+
+  const hourLabel = hours === 1 ? "1 hour" : `${hours} hours`;
+  if (minutes > 0) {
+    const minLabel = minutes === 1 ? "1 minute" : `${minutes} minutes`;
+    return `${hourLabel} ${minLabel}`;
+  }
+  return hourLabel;
+}
+
 export function resolveHealthLabel(
   healthBps: number | null,
   liquidationBps: number,
