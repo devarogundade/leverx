@@ -6396,6 +6396,15 @@ button:disabled {
   background: var(--color-foreground);
   opacity: 1;
 }
+@media (min-width: 1024px) {
+  .markets-promo-swiper {
+    overflow: hidden;
+    padding-bottom: 0;
+  }
+  .markets-promo-swiper .swiper-pagination {
+    display: none;
+  }
+}
 
 /* ── Promo banner polish ────────────────────────────────────────── */
 .promo-banner-glow {

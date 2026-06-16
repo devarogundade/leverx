@@ -20,6 +20,17 @@ export function MarketsPromoBanners({ className }: Props) {
         slidesPerView={1.1}
         spaceBetween={8}
         pagination={{ clickable: true }}
+        breakpoints={{
+          640: {
+            slidesPerView: 1.5,
+            spaceBetween: 8,
+          },
+          1024: {
+            slidesPerView: 2,
+            spaceBetween: 8,
+            allowTouchMove: false,
+          },
+        }}
       >
         <SwiperSlide className="markets-promo-slide">
           <PromoBanner className="h-full" />
