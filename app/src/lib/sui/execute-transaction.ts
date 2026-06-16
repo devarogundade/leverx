@@ -14,6 +14,8 @@ import {
   InsufficientGasError,
   MIN_SUI_GAS_MIST,
 } from "@/lib/sui/insufficient-gas";
+import { executeEnokiSponsoredTransaction } from "@/lib/sui/enoki-sponsored-tx";
+import { isGoogleEnokiWallet } from "@/lib/sui/wallets";
 
 const DEFAULT_GAS_BUDGET = 50_000_000;
 const SUI_COIN_TYPE = "0x2::sui::SUI";
@@ -47,9 +49,18 @@ export async function executeWalletTransaction(
   options?: { gasBudget?: number },
 ): Promise<{ digest: string }> {
   const gasBudget = options?.gasBudget ?? DEFAULT_GAS_BUDGET;
-  // Enoki (Google zkLogin) wallets are gas-sponsored: Enoki pays the gas, so the
-  // user holds 0 SUI by design. Only enforce a self-funded SUI balance for
-  // non-sponsored wallets that must pay their own gas.
+
+  if (isGoogleEnokiWallet(wallet)) {
+    return executeEnokiSponsoredTransaction(
+      client,
+      wallet,
+      account,
+      build,
+      gasBudget,
+    );
+  }
+
+  // Extension wallets pay their own gas.
   if (!isEnokiWallet(wallet)) {
     await ensureSuiGasBalance(client, account.address, gasBudget);
   }
