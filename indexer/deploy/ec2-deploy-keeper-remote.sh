@@ -9,4 +9,4 @@ echo "=== Building keeper image on EC2 ==="
 docker build -t devarogundade/leverx-keeper:latest /opt/leverx/keeper-src
 
 echo "=== Refreshing keeper stack env + compose ==="
-bash /tmp/ec2-pull-keeper-remote.sh
+SKIP_DOCKER_PULL=1 bash /tmp/ec2-pull-keeper-remote.sh

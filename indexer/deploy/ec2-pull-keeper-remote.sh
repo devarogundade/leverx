@@ -68,7 +68,11 @@ docker stop leverx-keeper 2>/dev/null || true
 docker rm leverx-keeper 2>/dev/null || true
 
 echo "=== Pulling latest keeper image ==="
-docker pull devarogundade/leverx-keeper:latest
+if [[ "${SKIP_DOCKER_PULL:-}" != "1" ]]; then
+  docker pull devarogundade/leverx-keeper:latest
+else
+  echo "Skipping docker pull (using locally built image)"
+fi
 
 echo "=== Starting keeper stack (redis + postgres + keeper) ==="
 cd /opt/leverx/keeper
