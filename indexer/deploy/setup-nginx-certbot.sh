@@ -13,6 +13,8 @@ apt-get install -y nginx certbot python3-certbot-nginx
 mkdir -p /var/www/certbot
 rm -f /etc/nginx/sites-enabled/default
 
+cp "$DEPLOY_DIR/nginx/00-ws-upgrade-map.conf" /etc/nginx/conf.d/00-ws-upgrade-map.conf
+
 cp "$DEPLOY_DIR/nginx/indexer.suileverx.xyz.http.conf" \
   /etc/nginx/sites-available/indexer.suileverx.xyz.conf
 ln -sf /etc/nginx/sites-available/indexer.suileverx.xyz.conf \

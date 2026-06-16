@@ -17,6 +17,12 @@ for domain in indexer.suileverx.xyz keeper.suileverx.xyz; do
   fi
 done
 
+map_conf="${DEPLOY_DIR}/nginx/00-ws-upgrade-map.conf"
+if [[ -f "${map_conf}" ]]; then
+  sudo cp "${map_conf}" /etc/nginx/conf.d/00-ws-upgrade-map.conf
+  echo "Updated ws-upgrade map"
+fi
+
 sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t
 sudo systemctl reload nginx
