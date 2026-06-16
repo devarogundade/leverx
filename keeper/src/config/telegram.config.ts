@@ -11,6 +11,14 @@ export type TelegramConfig = {
   linkTokenTtlMs: number;
   /** Minimum interval between liquidation-risk alerts for the same position. */
   alertCooldownMs: number;
+  /** OTP validity for Telegram trading auth (app → bot). */
+  otpTtlMs: number;
+  /** Trading session lifetime after successful OTP auth. */
+  sessionTtlMs: number;
+  /** Live oracles shown in /markets. */
+  marketsListLimit: number;
+  /** Default market slippage for bot trades (bps). */
+  defaultMarketSlippageBps: number;
 };
 
 function envBool(name: string, fallback: boolean): boolean {
@@ -37,5 +45,9 @@ export default registerAs(
     pollIntervalSec: envInt('TELEGRAM_POLL_INTERVAL_SEC', 10),
     linkTokenTtlMs: 15 * 60 * 1000,
     alertCooldownMs: envInt('TELEGRAM_ALERT_COOLDOWN_MS', 5 * 60 * 1000),
+    otpTtlMs: envInt('TELEGRAM_OTP_TTL_MS', 10 * 60 * 1000),
+    sessionTtlMs: envInt('TELEGRAM_SESSION_TTL_MS', 7 * 24 * 60 * 60 * 1000),
+    marketsListLimit: envInt('TELEGRAM_MARKETS_LIMIT', 10),
+    defaultMarketSlippageBps: envInt('TELEGRAM_MARKET_SLIPPAGE_BPS', 100),
   }),
 );

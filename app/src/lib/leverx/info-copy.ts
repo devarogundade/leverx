@@ -56,6 +56,12 @@ export const leverxInfo = {
   sessionExecutor: "A trusted address allowed to trade for you without your main wallet key.",
   telegramAlerts:
     "Telegram notifications for limit fills, liquidation risk, and completed liquidations on this trading account.",
+  telegramTrading:
+    "Link Telegram to trade from chat. Generate a one-time code here, send /auth in the bot, then use /markets and /up commands. Sessions last 7 days; disconnect anytime.",
+  jarvis:
+    "Autonomous AI agent that scans your account every 5 minutes, manages risk, seeks profitable opportunities in markets ending soon, and closes underwater positions. Register the keeper as executor in Portfolio → Account.",
+  jarvisExecutor:
+    "Jarvis executes trades through the keeper. Register the keeper as your executor in Portfolio → Account before enabling.",
   triggers: "Active profit-target and stop-loss rules. Clear them when you close the matching trade.",
   collateralBalances: "dUSDC margin allocated to each open market key.",
   marginInTrades: "dUSDC margin allocated to each open market key.",

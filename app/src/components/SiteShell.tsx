@@ -19,9 +19,11 @@ interface Props {
   children: ReactNode;
   /** Trade terminal — edge-to-edge main column (no page max-width). */
   fullWidth?: boolean;
+  /** Extra classes on `<main>` (e.g. mobile bottom nav padding). */
+  mainClassName?: string;
 }
 
-export function SiteShell({ children, fullWidth }: Props) {
+export function SiteShell({ children, fullWidth, mainClassName }: Props) {
   const [open, setOpen] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
   const closeMenu = () => setOpen(false);
@@ -117,6 +119,7 @@ export function SiteShell({ children, fullWidth }: Props) {
         className={cn(
           "site-main mx-auto flex w-full min-w-0 flex-1 flex-col px-[var(--page-px)] py-[var(--page-py)]",
           fullWidth ? "max-w-none" : "max-w-[var(--page-max)]",
+          mainClassName,
         )}
       >
         <GsapPageEnter className={pageShellContent}>

@@ -27,6 +27,8 @@ export type TelegramSubscriptionStatus = {
   subscriptions: TelegramSubscription[];
 };
 
+export type { TelegramOtpResponse, TelegramSessionStatus } from './telegram-session.types';
+
 export type TelegramUpdate = {
   update_id: number;
   message?: {

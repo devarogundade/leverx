@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import Redis from 'ioredis';
+import Redis, { type RedisOptions } from 'ioredis';
 import type { RedisConfig } from '../config/redis.config';
 
 const KEY_PREFIX = 'leverx:telegram:liquidation-alert:';
@@ -14,7 +14,7 @@ export class AlertCooldownService implements OnModuleDestroy {
 
   constructor(config: ConfigService) {
     const redisCfg = config.get<RedisConfig>('redis')!;
-    this.redis = new Redis(redisCfg.connection as Redis.RedisOptions);
+    this.redis = new Redis(redisCfg.connection as unknown as RedisOptions);
     this.redis.on('error', (err) => {
       this.logger.warn(`Redis alert cooldown error: ${err.message}`);
     });

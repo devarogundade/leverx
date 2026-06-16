@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { BookOpen, Coins, LayoutGrid, Trophy, Wallet } from "lucide-react";
+import { BookOpen, Coins, LayoutGrid, Sparkles, Trophy, Wallet } from "lucide-react";
 
 export interface SiteNavLink {
   type: "link";
@@ -45,6 +45,13 @@ export const SITE_NAV_ENTRIES: SiteNavEntry[] = [
     icon: Wallet,
     to: "/portfolio",
     isActive: (pathname) => pathname.startsWith("/portfolio"),
+  },
+  {
+    type: "link",
+    label: "Jarvis",
+    icon: Sparkles,
+    to: "/jarvis",
+    isActive: (pathname) => pathname.startsWith("/jarvis"),
   },
   {
     type: "link",

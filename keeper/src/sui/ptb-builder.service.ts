@@ -326,6 +326,16 @@ export class PtbBuilderService {
     return tx;
   }
 
+  /** Spendable trading-account quote (key-agnostic custody pool). */
+  buildReadWithdrawableTradingQuote(cfg: KeeperConfig, accountId: string): Transaction {
+    const tx = new Transaction();
+    tx.moveCall({
+      target: `${cfg.packageId}::user_proxy::withdrawable_trading_quote`,
+      arguments: [tx.object(accountId)],
+    });
+    return tx;
+  }
+
   /** Registry admin settings — read via on-chain view functions. */
   buildReadRegistryU64(
     cfg: KeeperConfig,

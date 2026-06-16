@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import type { DatabaseConfig } from '../config/database.config';
+import { JarvisEventEntity } from './entities/jarvis-event.entity';
+import { JarvisSettingsEntity } from './entities/jarvis-settings.entity';
 import { TelegramLinkTokenEntity } from './entities/telegram-link-token.entity';
 import { TelegramSubscriptionEntity } from './entities/telegram-subscription.entity';
 import { UserManagerEntity } from './entities/user-manager.entity';
@@ -10,6 +12,8 @@ export const KEEPER_ENTITIES = [
   TelegramSubscriptionEntity,
   TelegramLinkTokenEntity,
   UserManagerEntity,
+  JarvisSettingsEntity,
+  JarvisEventEntity,
 ];
 
 @Module({

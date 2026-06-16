@@ -10,10 +10,14 @@ import { ConfigService } from '@nestjs/config';
 import type { TelegramConfig } from '../config/telegram.config';
 import { IndexerService } from '../indexer/indexer.service';
 import { logKeeperError, logKeeperWarn } from '../lib/keeper-log';
+import { TelegramAuthService } from './telegram-auth.service';
 import { SubscriptionService } from './subscription.service';
 import { TelegramApiService } from './telegram-api.service';
+import { TelegramCommandService } from './telegram-command.service';
 import type {
   TelegramLinkTokenResponse,
+  TelegramOtpResponse,
+  TelegramSessionStatus,
   TelegramSubscriptionStatus,
   TelegramUpdate,
 } from './telegram.types';
@@ -30,6 +34,8 @@ export class TelegramBotService implements OnModuleInit {
     private readonly indexer: IndexerService,
     private readonly api: TelegramApiService,
     private readonly subscriptions: SubscriptionService,
+    private readonly commands: TelegramCommandService,
+    private readonly auth: TelegramAuthService,
   ) {
     this.cfg = config.get<TelegramConfig>('telegram')!;
   }
@@ -102,6 +108,41 @@ export class TelegramBotService implements OnModuleInit {
     };
   }
 
+  async createTradingOtp(owner: string, accountId: string): Promise<TelegramOtpResponse> {
+    if (!this.isOperational()) {
+      throw new ServiceUnavailableException('telegram_not_configured');
+    }
+    if (!(await this.verifyAccountOwner(owner, accountId))) {
+      throw new ForbiddenException('account_not_owned');
+    }
+    return this.auth.createOtp(accountId, owner);
+  }
+
+  async getTradingSessionStatus(
+    owner: string,
+    accountId: string,
+  ): Promise<TelegramSessionStatus> {
+    if (!(await this.verifyAccountOwner(owner, accountId))) {
+      throw new ForbiddenException('account_not_owned');
+    }
+    return this.auth.getSessionStatusForAccount(
+      accountId,
+      this.getBotUsername(),
+      this.isOperational(),
+    );
+  }
+
+  async revokeTradingSession(owner: string, accountId: string): Promise<{ revoked: number }> {
+    if (!this.isOperational()) {
+      throw new ServiceUnavailableException('telegram_not_configured');
+    }
+    if (!(await this.verifyAccountOwner(owner, accountId))) {
+      throw new ForbiddenException('account_not_owned');
+    }
+    const revoked = await this.auth.revokeSessionsForAccount(accountId);
+    return { revoked };
+  }
+
   /** Handle Telegram webhook updates when `TELEGRAM_POLLING=false`. */
   async handleWebhookUpdate(update: TelegramUpdate): Promise<void> {
     if (!this.isOperational() || this.cfg.polling) return;
@@ -167,7 +208,7 @@ export class TelegramBotService implements OnModuleInit {
         await this.api.sendMessage(
           this.cfg.botToken,
           chatId,
-          'No subscriptions yet. Connect from the LeverX portfolio page, then tap Start in this chat.',
+          'No alert subscriptions yet. Connect from the LeverX portfolio page, then tap Start in this chat.',
         );
         return;
       }
@@ -177,9 +218,15 @@ export class TelegramBotService implements OnModuleInit {
       await this.api.sendMessage(
         this.cfg.botToken,
         chatId,
-        `Active subscriptions:\n${lines.join('\n')}\n\nSend /stop to unsubscribe all.`,
+        `Alert subscriptions:\n${lines.join('\n')}\n\nSend /stop to unsubscribe all.`,
       );
       return;
+    }
+
+    try {
+      await this.commands.handleMessage(chatId, text, username);
+    } catch (err) {
+      logKeeperError(this.logger, `telegram command failed for ${chatId}`, err);
     }
   }
 
@@ -227,13 +274,14 @@ export class TelegramBotService implements OnModuleInit {
       this.cfg.botToken,
       chatId,
       [
-        'LeverX trading alerts bot.',
+        'LeverX Telegram bot',
         '',
-        'To subscribe, open your portfolio on LeverX and tap Connect Telegram.',
+        'Alerts: connect from the LeverX portfolio and tap Start.',
+        'Trading: generate a code in the app, then /auth <code> here.',
         '',
-        'Commands:',
-        '/status — list subscriptions',
-        '/stop — unsubscribe this chat',
+        'Send /help for trading commands.',
+        '/status — alert subscriptions',
+        '/stop — unsubscribe alerts',
       ].join('\n'),
     );
   }

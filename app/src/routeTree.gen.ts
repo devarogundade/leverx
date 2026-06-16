@@ -19,6 +19,7 @@ import { Route as AppPortfolioRouteImport } from './routes/_app/portfolio'
 import { Route as AppPointsRouteImport } from './routes/_app/points'
 import { Route as AppMarketsRouteImport } from './routes/_app/markets'
 import { Route as AppGuideRouteImport } from './routes/_app/guide'
+import { Route as AppJarvisRouteImport } from './routes/_app/jarvis'
 import { Route as DetailPredictionsOracleIdRouteImport } from './routes/_detail/predictions/$oracleId'
 
 const TermsRoute = TermsRouteImport.update({
@@ -69,6 +70,11 @@ const AppGuideRoute = AppGuideRouteImport.update({
   path: '/guide',
   getParentRoute: () => AppRoute,
 } as any)
+const AppJarvisRoute = AppJarvisRouteImport.update({
+  id: '/jarvis',
+  path: '/jarvis',
+  getParentRoute: () => AppRoute,
+} as any)
 const DetailPredictionsOracleIdRoute =
   DetailPredictionsOracleIdRouteImport.update({
     id: '/predictions/$oracleId',
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/guide': typeof AppGuideRoute
+  '/jarvis': typeof AppJarvisRoute
   '/markets': typeof AppMarketsRoute
   '/points': typeof AppPointsRoute
   '/portfolio': typeof AppPortfolioRoute
@@ -92,6 +99,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/guide': typeof AppGuideRoute
+  '/jarvis': typeof AppJarvisRoute
   '/markets': typeof AppMarketsRoute
   '/points': typeof AppPointsRoute
   '/portfolio': typeof AppPortfolioRoute
@@ -106,6 +114,7 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/_app/guide': typeof AppGuideRoute
+  '/_app/jarvis': typeof AppJarvisRoute
   '/_app/markets': typeof AppMarketsRoute
   '/_app/points': typeof AppPointsRoute
   '/_app/portfolio': typeof AppPortfolioRoute
@@ -119,6 +128,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/terms'
     | '/guide'
+    | '/jarvis'
     | '/markets'
     | '/points'
     | '/portfolio'
@@ -130,6 +140,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/terms'
     | '/guide'
+    | '/jarvis'
     | '/markets'
     | '/points'
     | '/portfolio'
@@ -143,6 +154,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/terms'
     | '/_app/guide'
+    | '/_app/jarvis'
     | '/_app/markets'
     | '/_app/points'
     | '/_app/portfolio'
@@ -230,6 +242,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppGuideRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/jarvis': {
+      id: '/_app/jarvis'
+      path: '/jarvis'
+      fullPath: '/jarvis'
+      preLoaderRoute: typeof AppJarvisRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_detail/predictions/$oracleId': {
       id: '/_detail/predictions/$oracleId'
       path: '/predictions/$oracleId'
@@ -242,6 +261,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppGuideRoute: typeof AppGuideRoute
+  AppJarvisRoute: typeof AppJarvisRoute
   AppMarketsRoute: typeof AppMarketsRoute
   AppPointsRoute: typeof AppPointsRoute
   AppPortfolioRoute: typeof AppPortfolioRoute
@@ -250,6 +270,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppGuideRoute: AppGuideRoute,
+  AppJarvisRoute: AppJarvisRoute,
   AppMarketsRoute: AppMarketsRoute,
   AppPointsRoute: AppPointsRoute,
   AppPortfolioRoute: AppPortfolioRoute,

@@ -31,6 +31,43 @@ export function isLeveragedMintAllowed(
   return now < expiryMs - windowMs;
 }
 
+/** True when any leverage above 1× is blocked for new mints (final window or past expiry). */
+export function isLeveragedMintBlocked(
+  expiryMs: number,
+  now: number,
+  windowMs: number,
+): boolean {
+  return !isLeveragedMintAllowed(expiryMs, MIN_LEVERAGE_BPS + 1, now, windowMs);
+}
+
+/** Runtime final-window fields aligned with on-chain `[expiry - window, expiry)`. */
+export function computeFinalWindowContext(
+  expiryMs: number,
+  now: number,
+  windowMs: number,
+): {
+  final_window_ms: number;
+  in_final_window: boolean;
+  time_to_expiry_ms: number;
+  time_to_expiry_hours: number;
+  hours_until_final_window: number;
+  leveraged_mint_blocked: boolean;
+} {
+  const timeToExpiryMs = expiryMs > now ? expiryMs - now : 0;
+  const inFinalWindow = isFinalHourBeforeExpiry(expiryMs, now, windowMs);
+  const finalWindowStartMs = expiryMs - windowMs;
+  const msUntilFinalWindow = inFinalWindow ? 0 : Math.max(0, finalWindowStartMs - now);
+
+  return {
+    final_window_ms: windowMs,
+    in_final_window: inFinalWindow,
+    time_to_expiry_ms: timeToExpiryMs,
+    time_to_expiry_hours: timeToExpiryMs / (60 * 60 * 1000),
+    hours_until_final_window: msUntilFinalWindow / (60 * 60 * 1000),
+    leveraged_mint_blocked: isLeveragedMintBlocked(expiryMs, now, windowMs),
+  };
+}
+
 /**
  * Vault flash principal for liquidation PTBs.
  * Uses vault debt when present; otherwise falls back to posted margin debt.

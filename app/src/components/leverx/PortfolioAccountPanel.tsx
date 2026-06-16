@@ -3,12 +3,13 @@ import type { LucideIcon } from "lucide-react";
 import {
   Plus,
   Shield,
+  Wallet,
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/leverx/ConfirmDialog";
 import { CopyField, shortAddress } from "@/components/leverx/CopyField";
 import { PortfolioTelegramPanel } from "@/components/leverx/PortfolioTelegramPanel";
 import { ResponsiveModal } from "@/components/leverx/ResponsiveModal";
-import { LabelWithInfo } from "@/components/leverx/InfoPopover";
+import { LabelWithInfo, InfoPopover } from "@/components/leverx/InfoPopover";
 import { PortfolioFundsSection } from "@/components/leverx/PortfolioFundsSection";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -55,6 +56,7 @@ function SettingsCard({
   action,
   children,
   className,
+  accentClass = "from-accent/8 to-transparent",
 }: {
   title: string;
   info: string;
@@ -62,17 +64,30 @@ function SettingsCard({
   action?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
+  accentClass?: string;
 }) {
   return (
     <section className={cn(tradeSurface, "flex h-full flex-col overflow-hidden", className)}>
-      <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
-        <div className="flex min-w-0 items-center gap-2">
-          {Icon ? <Icon className="h-4 w-4 shrink-0 text-muted-foreground" /> : null}
-          <LabelWithInfo label={title} labelClassName={labelCaps} info={info} />
+      <div className="relative overflow-hidden border-b border-border px-4 py-3 sm:px-5">
+        <div
+          className={cn(
+            "pointer-events-none absolute inset-0 bg-gradient-to-br opacity-90",
+            accentClass,
+          )}
+        />
+        <div className="relative flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2.5">
+            {Icon ? (
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-card/80">
+                <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </span>
+            ) : null}
+            <LabelWithInfo label={title} labelClassName={labelCaps} info={info} />
+          </div>
+          {action}
         </div>
-        {action}
       </div>
-      <div className="flex-1 px-4 py-3">{children}</div>
+      <div className="flex-1 px-4 py-3 sm:px-5">{children}</div>
     </section>
   );
 }
@@ -115,57 +130,75 @@ export function PortfolioAccountPanel({
 
   return (
     <div className={cn("space-y-4", className)}>
-      <section className={tradeSurface}>
-        <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0 space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <LabelWithInfo
-                label="Trading account"
-                labelClassName={labelCaps}
-                info={leverxInfo.accountSettings}
-                infoTitle="Trading account"
-              />
-              <Badge
-                variant="outline"
-                className={cn(
-                  "gap-1.5 border px-2 py-0 text-[10px] font-medium",
-                  managerLinked
-                    ? "border-success/30 bg-success/10 text-success"
-                    : "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400",
-                )}
-              >
-                <span
-                  className={cn(
-                    "h-1.5 w-1.5 rounded-full",
-                    managerLinked ? "bg-success" : "bg-amber-500",
-                  )}
-                />
-                {managerLinked ? "Manager ready" : "Opens on first trade"}
-              </Badge>
+      <section className={cn(tradeSurface, "overflow-hidden")}>
+        <div className="relative overflow-hidden border-b border-border px-4 py-4 sm:px-5 sm:py-5">
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-accent/5" />
+          <div className="pointer-events-none absolute -right-6 -top-6 h-28 w-28 rounded-full bg-accent/10 blur-2xl" />
+          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex min-w-0 items-start gap-3.5">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-gradient-to-br from-[color-mix(in_oklab,var(--color-card)_88%,white_12%)] to-card shadow-sm">
+                <Wallet className="h-5 w-5 text-muted-foreground" aria-hidden />
+              </span>
+              <div className="min-w-0 space-y-1">
+                <p className={labelCaps}>Account</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-base font-semibold tracking-tight text-foreground sm:text-lg">
+                    Trading account
+                  </h3>
+                  <InfoPopover title="Trading account">{leverxInfo.accountSettings}</InfoPopover>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "gap-1.5 border px-2 py-0 text-[10px] font-medium",
+                      managerLinked
+                        ? "border-success/30 bg-success/10 text-success"
+                        : "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "h-1.5 w-1.5 rounded-full",
+                        managerLinked ? "bg-success" : "bg-amber-500",
+                      )}
+                    />
+                    {managerLinked ? "Manager ready" : "Opens on first trade"}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Wallet, on-chain IDs, and integrations for this proxy account.
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="space-y-2 border-t border-border px-4 py-3">
+        <div className="space-y-3 px-4 py-4 sm:px-5">
           <CopyField
             label="Wallet address"
             value={owner}
             hint="Send dUSDC to this address, then deposit into your trading account."
+            className="border-border/70 bg-gradient-to-r from-muted/25 to-muted/10"
           />
-          <div className="grid gap-2 sm:grid-cols-2">
-            <CopyField label="Account ID" value={account.account_id} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <CopyField
+              label="Account ID"
+              value={account.account_id}
+              className="border-border/70 bg-muted/15"
+            />
             {managerLinked && account.predict_manager_id ? (
-              <CopyField label="Predict manager" value={account.predict_manager_id} />
+              <CopyField
+                label="Predict manager"
+                value={account.predict_manager_id}
+                className="border-border/70 bg-muted/15"
+              />
             ) : (
-              <div className="flex min-w-0 items-center rounded-md border border-dashed border-border/80 bg-muted/20 px-3 py-2">
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Predict manager
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Provisioned by LeverX when you open your first trade
-                  </p>
-                </div>
+              <div className="flex min-h-[4.25rem] min-w-0 flex-col justify-center rounded-md border border-dashed border-border/80 bg-gradient-to-br from-muted/20 to-transparent px-3 py-2.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Predict manager
+                </p>
+                <p className="mt-1 text-sm leading-snug text-muted-foreground">
+                  Provisioned by LeverX when you open your first trade
+                </p>
               </div>
             )}
           </div>
@@ -184,6 +217,7 @@ export function PortfolioAccountPanel({
         title="Bot & Trusted traders"
         info={leverxInfo.sessionExecutor}
         icon={Shield}
+        accentClass="from-violet-500/8 to-transparent"
         action={
           <button
             type="button"
@@ -224,7 +258,11 @@ export function PortfolioAccountPanel({
                   {ex.active ? (
                     <button
                       type="button"
-                      className={cn(pillToggleBtn, pillToggleIdle, "text-sm")}
+                      className={cn(
+                        pillToggleBtn,
+                        "text-sm text-destructive",
+                        "border-destructive/30 bg-destructive/8 hover:border-destructive/45 hover:bg-destructive/12",
+                      )}
                       disabled={revokeExecutor.isPending}
                       onClick={() => setRevokeTarget(ex.executor)}
                     >
