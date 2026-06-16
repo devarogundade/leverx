@@ -48,7 +48,7 @@ function JarvisPage() {
 
   return (
     <section className={cn(pageSimple, "mx-auto max-w-[var(--page-max)]")}>
-      <div className="mb-4">
+      <div className="shrink-0">
         <h1 className={pageSimpleTitle}>Jarvis</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Watches your account, finds trades, and manages risk. Updates appear below.
@@ -65,7 +65,7 @@ function JarvisPage() {
           No trading account found. Deposit funds in Portfolio to get started.
         </p>
       ) : (
-        <JarvisWorkspace owner={address} accountId={account.account_id} />
+        <JarvisWorkspace owner={address} accountId={account.account_id} className="min-h-0 flex-1" />
       )}
     </section>
   );

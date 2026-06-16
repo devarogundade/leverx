@@ -47,6 +47,7 @@ const TRADE_EVENT_TYPES = new Set<JarvisEventType>([
 type Props = {
   owner: string;
   accountId: string;
+  className?: string;
 };
 
 type EventVisual = {
@@ -352,7 +353,7 @@ function countRecentTrades(events: JarvisEventRecord[]): number {
   ).length;
 }
 
-export function JarvisWorkspace({ owner, accountId }: Props) {
+export function JarvisWorkspace({ owner, accountId, className }: Props) {
   const feedRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
   const initialScrollRef = useRef(true);
@@ -456,7 +457,7 @@ export function JarvisWorkspace({ owner, accountId }: Props) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className={cn("flex min-h-0 flex-1 flex-col gap-4", className)}>
       <JarvisSettingsDialog
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
@@ -464,7 +465,7 @@ export function JarvisWorkspace({ owner, accountId }: Props) {
         accountId={accountId}
       />
 
-      <div className={cn(tradeSurface, "overflow-hidden")}>
+      <div className={cn(tradeSurface, "shrink-0 overflow-hidden")}>
         <div className="flex flex-col gap-4 p-4 sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-start gap-3">
@@ -564,8 +565,8 @@ export function JarvisWorkspace({ owner, accountId }: Props) {
         </div>
       </div>
 
-      <section className={cn(tradeSurface, "flex max-h-[min(640px,calc(100dvh-12rem))] min-h-[320px] flex-col")}>
-        <header className="flex items-center justify-between border-b border-border px-4 py-3">
+      <section className={cn(tradeSurface, "flex min-h-[280px] flex-1 flex-col overflow-hidden sm:min-h-[320px]")}>
+        <header className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
           <h2 className={labelCaps}>Recent activity</h2>
           {(status?.unread_count ?? 0) > 0 ? (
             <Badge variant="secondary">{status!.unread_count} unread</Badge>
@@ -575,7 +576,7 @@ export function JarvisWorkspace({ owner, accountId }: Props) {
         <div
           ref={feedRef}
           onScroll={handleFeedScroll}
-          className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-4"
+          className="jarvis-activity-feed flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-4 touch-pan-y"
         >
           {isFetchingNextPage ? (
             <div className="flex justify-center py-1">
@@ -626,7 +627,7 @@ function WelcomeCard() {
 
 function EmptyFeed({ enabled }: { enabled: boolean }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-2 py-12 text-center">
+    <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
       <Bot className="h-8 w-8 text-muted-foreground/50" aria-hidden />
       <p className="text-sm text-muted-foreground">
         {enabled

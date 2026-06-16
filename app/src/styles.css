@@ -6360,6 +6360,11 @@ button:disabled {
   }
 }
 
+/* ── Jarvis activity feed ───────────────────────────────────────── */
+.jarvis-activity-feed {
+  -webkit-overflow-scrolling: touch;
+}
+
 /* ── Markets promo carousel ─────────────────────────────────────── */
 .markets-promo-banners {
   margin-bottom: 0.25rem;
