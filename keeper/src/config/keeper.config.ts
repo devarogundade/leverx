@@ -14,6 +14,8 @@ import {
 
 export type KeeperConfig = {
   enabled: boolean;
+  /** Optional shared secret for ops/admin HTTP routes (`x-keeper-api-key`). */
+  apiKey: string;
   privateKey: string;
   suiNetwork: string;
   suiRpcUrl: string;
@@ -26,6 +28,10 @@ export type KeeperConfig = {
   predictServerUrl: string;
   quoteType: string;
   indexerUrl: string;
+  /** Enoki private (secret) API key. When set, keeper gas is sponsored via Enoki. */
+  enokiSecretKey: string;
+  /** Enoki sponsorship network (defaults to `suiNetwork`). */
+  enokiNetwork: string;
   cron: {
     limitOrder: string;
     liquidation: string;
@@ -51,6 +57,7 @@ export default registerAs(
   'keeper',
   (): KeeperConfig => ({
     enabled: KEEPER_ENABLED,
+    apiKey: (process.env.KEEPER_API_KEY ?? '').trim(),
     privateKey: (process.env.KEEPER_PRIVATE_KEY ?? '').trim(),
     suiNetwork: DEFAULT_SUI_NETWORK,
     suiRpcUrl: envOrDefault('SUI_RPC_URL', SUI_RPC_URLS[DEFAULT_SUI_NETWORK]),
@@ -69,6 +76,8 @@ export default registerAs(
     predictServerUrl: envOrDefault('PREDICT_SERVER_URL', TESTNET_PREDICT.serverUrl),
     quoteType: envOrDefault('QUOTE_TYPE', TESTNET_ASSETS.quoteType),
     indexerUrl: envOrDefault('INDEXER_URL', INDEXER_URL),
+    enokiSecretKey: (process.env.ENOKI_SECRET_KEY ?? '').trim(),
+    enokiNetwork: envOrDefault('ENOKI_NETWORK', DEFAULT_SUI_NETWORK),
     cron: { ...KEEPER_CRON_DEFAULTS },
     limits: { ...KEEPER_LIMIT_DEFAULTS },
   }),

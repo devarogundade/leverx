@@ -34,6 +34,16 @@ public struct RegistryInitialized has copy, drop {
     predict_id: ID,
     /// Initial liquidation health threshold in basis points.
     liquidation_bps: u64,
+    /// Initial final window before expiry in milliseconds.
+    final_window_ms: u64,
+}
+
+/// Emitted when admin updates the final window before expiry.
+public struct FinalWindowUpdated has copy, drop {
+    /// `LeverxRegistry` object ID.
+    registry_id: ID,
+    /// New final window in milliseconds.
+    final_window_ms: u64,
 }
 
 /// Emitted when admin updates the liquidation health threshold.
@@ -50,6 +60,14 @@ public struct TradingPausedChanged has copy, drop {
     registry_id: ID,
     /// `true` when new trades are blocked.
     paused: bool,
+}
+
+/// Emitted when admin sets the protocol keeper relayer address.
+public struct KeeperAddressUpdated has copy, drop {
+    /// `LeverxRegistry` object ID.
+    registry_id: ID,
+    /// Address allowed to operate keeper Predict managers and permissionless maintenance.
+    keeper_address: address,
 }
 
 /// Emitted when vault borrow-rate curve parameters change.
@@ -247,16 +265,6 @@ public struct AccountCreated has copy, drop {
     /// Proxy owner address.
     owner: address,
     /// Linked DeepBook Predict `PredictManager` object ID.
-    predict_manager_id: ID,
-}
-
-/// Emitted when a proxy is linked to a different Predict manager.
-public struct PredictManagerLinked has copy, drop {
-    /// `UserProxy` object ID.
-    account_id: ID,
-    /// Proxy owner address.
-    owner: address,
-    /// New `PredictManager` object ID.
     predict_manager_id: ID,
 }
 
@@ -641,6 +649,7 @@ public(package) fun emit_registry_initialized(
     fee_collector_id: ID,
     predict_id: ID,
     liquidation_bps: u64,
+    final_window_ms: u64,
 ) {
     event::emit(RegistryInitialized {
         registry_id,
@@ -648,6 +657,7 @@ public(package) fun emit_registry_initialized(
         fee_collector_id,
         predict_id,
         liquidation_bps,
+        final_window_ms,
     });
 }
 
@@ -659,9 +669,19 @@ public(package) fun emit_liquidation_bps_updated(registry_id: ID, liquidation_bp
     });
 }
 
+/// Emit `FinalWindowUpdated`.
+public(package) fun emit_final_window_updated(registry_id: ID, final_window_ms: u64) {
+    event::emit(FinalWindowUpdated { registry_id, final_window_ms });
+}
+
 /// Emit `TradingPausedChanged`.
 public(package) fun emit_trading_paused_changed(registry_id: ID, paused: bool) {
     event::emit(TradingPausedChanged { registry_id, paused });
+}
+
+/// Emit `KeeperAddressUpdated`.
+public(package) fun emit_keeper_address_updated(registry_id: ID, keeper_address: address) {
+    event::emit(KeeperAddressUpdated { registry_id, keeper_address });
 }
 
 /// Emit `BorrowRateParamsUpdated`.
@@ -782,15 +802,6 @@ public(package) fun emit_vault_repaid(
 /// Emit `AccountCreated`.
 public(package) fun emit_account_created(account_id: ID, owner: address, predict_manager_id: ID) {
     event::emit(AccountCreated { account_id, owner, predict_manager_id });
-}
-
-/// Emit `PredictManagerLinked`.
-public(package) fun emit_predict_manager_linked(
-    account_id: ID,
-    owner: address,
-    predict_manager_id: ID,
-) {
-    event::emit(PredictManagerLinked { account_id, owner, predict_manager_id });
 }
 
 /// Emit `DebtBorrowed`.

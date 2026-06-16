@@ -47,23 +47,11 @@ export const SITE_NAV_ENTRIES: SiteNavEntry[] = [
     isActive: (pathname) => pathname.startsWith("/portfolio"),
   },
   {
-    type: "dropdown",
-    label: "Earn",
+    type: "link",
+    label: "Pool",
     icon: Coins,
-    isActive: (pathname) =>
-      pathname.startsWith("/vault") || pathname.startsWith("/keeper"),
-    items: [
-      {
-        label: "Pool",
-        to: "/vault",
-        hint: "Deposit dUSDC and earn from trading",
-      },
-      {
-        label: "Helper",
-        to: "/keeper",
-        hint: "Run a small app that supports the network",
-      },
-    ],
+    to: "/vault",
+    isActive: (pathname) => pathname.startsWith("/vault"),
   },
   {
     type: "link",

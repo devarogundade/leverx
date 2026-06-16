@@ -8,25 +8,26 @@ import {
   SUI_CLOCK_OBJECT_ID,
   TRADE_GAS_BUDGET,
 } from "@/lib/leverx/constants";
-import { addMarketKey, type MarketKeyArgs } from "@/lib/leverx/market-keys";
+import type { MarketKeyArgs } from "@/lib/leverx/market-keys";
 import { ensureLeverxAccount, type LeverxAccount } from "@/lib/leverx/onboarding";
+import { relayTradeMint, relayTradeRedeem, relayTradeSettle } from "@/lib/leverx/keeper-client";
 import {
   appendCancelLimit,
   appendClearTriggers,
   appendDepositQuote,
-  appendFundKeyFromManager,
-  appendLeveragedMint,
-  appendLinkManager,
-  appendRedeem,
+  appendPlaceLimitMintOrder,
   appendRegisterExecutor,
   appendDeleverageDebt,
   appendRevokeExecutor,
-  appendSettleExpired,
+  appendSetTriggers,
   appendWithdrawQuote,
-  appendWithdrawManagerQuote,
-  appendDepositManagerQuote,
-  type MintOrderParams,
+  type PlaceLimitMintParams,
 } from "@/lib/leverx/ptb-builder";
+import {
+  signMintTradeIntent,
+  signRedeemTradeIntent,
+  signSettleTradeIntent,
+} from "@/lib/leverx/trade-intent-auth";
 import { lxplpCoinType, type LeverxProtocolConfig } from "@/lib/leverx/protocol";
 import { hasIndexerOpenQuantity } from "@/lib/leverx/position-quantity";
 import { fetchManagerOpenQuantity, fetchMintQuote, fetchRedeemQuote } from "@/lib/leverx/quotes";
@@ -59,8 +60,6 @@ export type OpenTradeInput = {
   remintAfterDeleverage?: boolean;
   tpPremium?: bigint;
   slPremium?: bigint;
-  /** Where margin is funded from before mint (default wallet). */
-  depositSource?: "wallet" | "manager";
 };
 
 export type ClosePositionInput = {
@@ -77,19 +76,9 @@ export type WithdrawQuoteInput = {
   amountAtoms: bigint;
 };
 
-export type WithdrawManagerQuoteInput = {
-  predictManagerId: string;
-  amountAtoms: bigint;
-};
-
 export type DepositQuoteInput = {
   accountId: string;
   key: MarketKeyArgs;
-  amountAtoms: bigint;
-};
-
-export type DepositManagerQuoteInput = {
-  predictManagerId: string;
   amountAtoms: bigint;
 };
 
@@ -184,7 +173,7 @@ export async function executeCreateMarginAccount(params: {
   });
 
   if (!leverxAccount.predictManagerId) {
-    throw new Error("Predict manager is not linked to your trading account.");
+    throw new Error("Your trading account is still being set up. Refresh your portfolio and try again.");
   }
 
   return {
@@ -210,7 +199,7 @@ export async function executeOpenTrade(params: {
   });
 
   if (!leverxAccount.predictManagerId) {
-    throw new Error("Predict manager is not linked to your trading account.");
+    throw new Error("Your trading account is still being set up. Refresh your portfolio and try again.");
   }
 
   const marginAtoms = marginUsdToQuoteAtoms(input.marginUsd);
@@ -244,19 +233,9 @@ export async function executeOpenTrade(params: {
 
   const marketSlippageBps = input.marketSlippageBps ?? DEFAULT_SLIPPAGE_BPS;
   const placementSlippageBps = input.placementSlippageBps ?? DEFAULT_PLACEMENT_SLIPPAGE_BPS;
-
-  const mintParams: MintOrderParams = {
-    key: input.key,
-    marginQuoteAtoms: marginAtoms,
-    leverageBps,
-    quantity,
-    limitPremiumPerUnit: limitPremiumRaw,
-    placementSlippageBps,
-    marketSlippageBps: marketSlippageBps,
-    maxMintCost: applySlippageBps(positionAtoms, marketSlippageBps),
-    orderExpiresMs: input.orderExpiresMs ?? input.key.expiryMs,
-    remintAfterDeleverage: input.remintAfterDeleverage ?? true,
-  };
+  const triggerSlippageBps =
+    input.marketSlippageBps ?? input.placementSlippageBps ?? DEFAULT_SLIPPAGE_BPS;
+  const hasTriggers = Boolean(input.tpPremium || input.slPremium);
 
   await assertLeverxTradeCompatibility({
     client,
@@ -266,22 +245,25 @@ export async function executeOpenTrade(params: {
     predictManagerId: leverxAccount.predictManagerId!,
   });
 
-  return executeWalletTransaction(
-    client,
-    wallet,
-    account,
-    async (tx) => {
-      const depositSource = input.depositSource ?? "wallet";
-      if (depositSource === "manager") {
-        appendFundKeyFromManager(
-          tx,
-          cfg,
-          leverxAccount.predictManagerId!,
-          leverxAccount.accountId,
-          input.key,
-          marginAtoms,
-        );
-      } else {
+  // Resting limit orders are owner-scoped: the trader deposits margin onto the
+  // key and places the order in a single user-signed transaction (no manager
+  // touch). The keeper executes the order later when it becomes marketable.
+  if (orderKind === "place") {
+    const placeParams: PlaceLimitMintParams = {
+      key: input.key,
+      marginQuoteAtoms: marginAtoms,
+      leverageBps,
+      quantity,
+      limitPremiumPerUnit: limitPremiumRaw,
+      placementSlippageBps,
+      orderExpiresMs: input.orderExpiresMs ?? input.key.expiryMs,
+      remintAfterDeleverage: input.remintAfterDeleverage ?? true,
+    };
+    return executeWalletTransaction(
+      client,
+      wallet,
+      account,
+      async (tx) => {
         const quoteCoin = await splitCoinAmount(
           client,
           account.address,
@@ -290,40 +272,83 @@ export async function executeOpenTrade(params: {
           tx,
         );
         appendDepositQuote(tx, cfg, leverxAccount.accountId, input.key, quoteCoin);
-      }
+        appendPlaceLimitMintOrder(tx, cfg, leverxAccount.accountId, placeParams);
+        if (hasTriggers) {
+          appendSetTriggers(tx, cfg, {
+            key: input.key,
+            accountId: leverxAccount.accountId,
+            takeProfitPremium: input.tpPremium ?? 0n,
+            stopLossPremium: input.slPremium ?? 0n,
+            takeProfitSlippageBps:
+              input.tpPremium && input.tpPremium > 0n ? triggerSlippageBps : 0,
+            stopLossSlippageBps:
+              input.slPremium && input.slPremium > 0n ? triggerSlippageBps : 0,
+          });
+        }
+      },
+      { gasBudget: TRADE_GAS_BUDGET },
+    );
+  }
 
-      appendLeveragedMint(
+  // Market / immediate-limit opens mint against the keeper-owned manager and are
+  // therefore keeper-relay only. The trader funds the key (user-signed) and sets
+  // any triggers in one transaction, then the keeper executes the mint as the
+  // manager owner / proxy secondary owner.
+  await executeWalletTransaction(
+    client,
+    wallet,
+    account,
+    async (tx) => {
+      const quoteCoin = await splitCoinAmount(
+        client,
+        account.address,
+        cfg.quoteType,
+        marginAtoms,
         tx,
-        cfg,
-        leverxAccount.accountId,
-        leverxAccount.predictManagerId!,
-        mintParams,
-        orderKind,
       );
-
-      if (input.tpPremium || input.slPremium) {
-        const triggerSlippageBps =
-          input.marketSlippageBps ??
-          input.placementSlippageBps ??
-          DEFAULT_SLIPPAGE_BPS;
-        const marketKey = addMarketKey(tx, input.key, cfg.predictPackageId);
-        tx.moveCall({
-          target: `${cfg.packageId}::triggers::${
-            input.key.isRange ? "set_range_triggers" : "set_automated_triggers_entry"
-          }`,
-          arguments: [
-            tx.object(leverxAccount.accountId),
-            marketKey,
-            tx.pure.u64(input.tpPremium ?? 0n),
-            tx.pure.u64(input.slPremium ?? 0n),
-            tx.pure.u64(input.tpPremium && input.tpPremium > 0n ? triggerSlippageBps : 0),
-            tx.pure.u64(input.slPremium && input.slPremium > 0n ? triggerSlippageBps : 0),
-          ],
+      appendDepositQuote(tx, cfg, leverxAccount.accountId, input.key, quoteCoin);
+      if (hasTriggers) {
+        appendSetTriggers(tx, cfg, {
+          key: input.key,
+          accountId: leverxAccount.accountId,
+          takeProfitPremium: input.tpPremium ?? 0n,
+          stopLossPremium: input.slPremium ?? 0n,
+          takeProfitSlippageBps:
+            input.tpPremium && input.tpPremium > 0n ? triggerSlippageBps : 0,
+          stopLossSlippageBps:
+            input.slPremium && input.slPremium > 0n ? triggerSlippageBps : 0,
         });
       }
     },
     { gasBudget: TRADE_GAS_BUDGET },
   );
+
+  const auth = await signMintTradeIntent({
+    wallet,
+    account,
+    intent: {
+      address: account.address,
+      accountId: leverxAccount.accountId,
+      predictManagerId: leverxAccount.predictManagerId!,
+      oracleId: input.key.oracleId,
+      expiryMs: input.key.expiryMs,
+      strike: input.key.strike,
+      higherStrike: input.key.higherStrike ?? 0,
+      isUp: input.key.isUp,
+      isRange: input.key.isRange,
+      marginQuoteAtoms: marginAtoms,
+      leverageBps,
+      quantity,
+      maxMintCost: applySlippageBps(positionAtoms, marketSlippageBps),
+      marketSlippageBps,
+      remintAfterDeleverage: input.remintAfterDeleverage ?? true,
+      orderKind: orderKind === "limit" ? "limit" : "market",
+      limitPremiumPerUnit: limitPremiumRaw ?? 0n,
+      placementSlippageBps,
+    },
+  });
+
+  return relayTradeMint(auth);
 }
 
 export async function executeClosePosition(params: {
@@ -359,23 +384,27 @@ export async function executeClosePosition(params: {
 
   const key = positionToKey(position);
 
-  return executeWalletTransaction(
-    params.client,
-    params.wallet,
-    params.account,
-    (tx) => {
-      appendRedeem(tx, params.cfg, {
-        key,
-        accountId: position.account_id,
-        predictManagerId,
-        quantity,
-        redeemMode,
-        minPayout: minPayout ?? 0n,
-        minPremiumPerUnit: params.input.minPremiumPerUnit,
-      });
+  // Redeem mints/burns against the keeper-owned manager → keeper-relay only.
+  const auth = await signRedeemTradeIntent({
+    wallet: params.wallet,
+    account: params.account,
+    intent: {
+      address: params.account.address,
+      accountId: position.account_id,
+      predictManagerId,
+      oracleId: key.oracleId,
+      expiryMs: key.expiryMs,
+      strike: key.strike,
+      higherStrike: key.higherStrike ?? 0,
+      isUp: key.isUp,
+      isRange: key.isRange,
+      quantity,
+      minPayout: minPayout ?? 0n,
+      redeemMode,
+      minPremiumPerUnit: params.input.minPremiumPerUnit ?? 0n,
     },
-    { gasBudget: TRADE_GAS_BUDGET },
-  );
+  });
+  return relayTradeRedeem(auth);
 }
 
 export async function executeWithdrawQuote(params: {
@@ -400,34 +429,6 @@ export async function executeWithdrawQuote(params: {
         params.input.accountId,
         params.input.key,
         params.input.amountAtoms,
-      );
-    },
-    { gasBudget: TRADE_GAS_BUDGET },
-  );
-}
-
-export async function executeWithdrawManagerQuote(params: {
-  client: SuiJsonRpcClient;
-  wallet: WalletWithRequiredFeatures;
-  account: WalletAccount;
-  cfg: LeverxProtocolConfig;
-  input: WithdrawManagerQuoteInput;
-}): Promise<{ digest: string }> {
-  if (params.input.amountAtoms <= 0n) {
-    throw new Error("Withdraw amount must be greater than zero.");
-  }
-
-  return executeWalletTransaction(
-    params.client,
-    params.wallet,
-    params.account,
-    (tx) => {
-      appendWithdrawManagerQuote(
-        tx,
-        params.cfg,
-        params.input.predictManagerId,
-        params.input.amountAtoms,
-        params.account.address,
       );
     },
     { gasBudget: TRADE_GAS_BUDGET },
@@ -469,40 +470,6 @@ export async function executeDepositQuote(params: {
   );
 }
 
-export async function executeDepositManagerQuote(params: {
-  client: SuiJsonRpcClient;
-  wallet: WalletWithRequiredFeatures;
-  account: WalletAccount;
-  cfg: LeverxProtocolConfig;
-  input: DepositManagerQuoteInput;
-}): Promise<{ digest: string }> {
-  if (params.input.amountAtoms <= 0n) {
-    throw new Error("Deposit amount must be greater than zero.");
-  }
-
-  return executeWalletTransaction(
-    params.client,
-    params.wallet,
-    params.account,
-    async (tx) => {
-      const quoteCoin = await splitCoinAmount(
-        params.client,
-        params.account.address,
-        params.cfg.quoteType,
-        params.input.amountAtoms,
-        tx,
-      );
-      appendDepositManagerQuote(
-        tx,
-        params.cfg,
-        params.input.predictManagerId,
-        quoteCoin,
-      );
-    },
-    { gasBudget: TRADE_GAS_BUDGET },
-  );
-}
-
 export async function executeSettleExpired(params: {
   client: SuiJsonRpcClient;
   wallet: WalletWithRequiredFeatures;
@@ -522,20 +489,24 @@ export async function executeSettleExpired(params: {
 
   const key = positionToKey(params.position);
 
-  return executeWalletTransaction(
-    params.client,
-    params.wallet,
-    params.account,
-    (tx) => {
-      appendSettleExpired(tx, params.cfg, {
-        key,
-        accountId: params.position.account_id,
-        predictManagerId,
-        quantity,
-      });
+  // Settling an expired position touches the keeper-owned manager → keeper-relay only.
+  const auth = await signSettleTradeIntent({
+    wallet: params.wallet,
+    account: params.account,
+    intent: {
+      address: params.account.address,
+      accountId: params.position.account_id,
+      predictManagerId,
+      oracleId: key.oracleId,
+      expiryMs: key.expiryMs,
+      strike: key.strike,
+      higherStrike: key.higherStrike ?? 0,
+      isUp: key.isUp,
+      isRange: key.isRange,
+      quantity,
     },
-    { gasBudget: TRADE_GAS_BUDGET },
-  );
+  });
+  return relayTradeSettle(auth);
 }
 
 export async function executeRepayDebt(params: {
@@ -621,25 +592,6 @@ export async function executeRevokeExecutor(params: {
     params.account,
     (tx) => {
       appendRevokeExecutor(tx, params.cfg, params.accountId, params.executor);
-    },
-    { gasBudget: TRADE_GAS_BUDGET },
-  );
-}
-
-export async function executeLinkManager(params: {
-  client: SuiJsonRpcClient;
-  wallet: WalletWithRequiredFeatures;
-  account: WalletAccount;
-  cfg: LeverxProtocolConfig;
-  accountId: string;
-  managerId: string;
-}): Promise<{ digest: string }> {
-  return executeWalletTransaction(
-    params.client,
-    params.wallet,
-    params.account,
-    (tx) => {
-      appendLinkManager(tx, params.cfg, params.accountId, params.managerId);
     },
     { gasBudget: TRADE_GAS_BUDGET },
   );

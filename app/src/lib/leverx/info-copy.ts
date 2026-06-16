@@ -13,7 +13,7 @@ export const leverxInfo = {
     "New leveraged positions cannot be opened in the final hour before expiry. Existing borrowed positions in that window are force-deleveraged to 1× (or liquidated if underwater).",
   leverageCountdown:
     "Countdown until new trades are limited to 1× margin (no vault borrow). In the final hour, only the market settlement timer remains.",
-  preTradeQuote: "Estimated cost before you confirm. Connect your wallet for the most accurate number.",
+  preTradeQuote: "Estimated cost before you confirm. Log in for the most accurate number.",
   askPerUnit: "Best available price per contract right now.",
   mintCost: "Total cost to open, including your deposit and any fees.",
   vaultBorrow: "Amount borrowed from the vault to reach your target leverage.",
@@ -54,6 +54,8 @@ export const leverxInfo = {
     "Link your trading account and allow trusted addresses to trade on your behalf.",
   predictManager: "Your on-chain trading account that holds positions.",
   sessionExecutor: "A trusted address allowed to trade for you without your main wallet key.",
+  telegramAlerts:
+    "Telegram notifications for limit fills, liquidation risk, and completed liquidations on this trading account.",
   triggers: "Active profit-target and stop-loss rules. Clear them when you close the matching trade.",
   collateralBalances: "dUSDC margin allocated to each open market key.",
   marginInTrades: "dUSDC margin allocated to each open market key.",
@@ -61,27 +63,23 @@ export const leverxInfo = {
     "Liquidations, force-deleverages, and bad-debt write-offs when health falls below the protocol threshold.",
   withdrawTradingBalance: "Move surplus to your wallet.",
   withdrawDialogDescription:
-    "Withdraw free surplus to your wallet. Borrowed vault debt is not withdrawable and is not manager balance minus borrow — repay debt to unlock manager surplus.",
+    "Withdraw free surplus from your trading account to your wallet. Outstanding vault borrow reduces what you can pull out (withdrawable = key balance − borrow).",
   withdrawDialogWithdrawableHint:
-    "Market-key surplus (no borrow on that key) plus unlocked Predict manager balance.",
+    "Free surplus on each market key — not vault borrow (debt), and not margin locked in open trades.",
   withdrawTradingBalanceDetail:
-    "dUSDC credited after closing a trade. Withdraw once that market key’s vault borrow is repaid. If a third party redeemed your contracts, the payout may sit in your Predict manager balance instead of the market key.",
+    "dUSDC credited after closing a trade or adding margin. You can withdraw up to the free balance on each key after subtracting any outstanding borrow on that key.",
   depositTradingBalance: "Move dUSDC from your wallet to trade.",
   depositTradingBalanceDetail:
-    "Market-key deposits credit a specific market ledger. Predict manager deposits fund the shared pool used for minting.",
+    "Deposits credit a specific market key on your trading account. The keeper uses that balance when executing your trades.",
   funds:
-    "Move dUSDC between wallet and trading account. Withdrawable is surplus you can pull out now; manager funds may stay locked until vault borrow is repaid.",
+    "Move dUSDC between wallet and trading account. Withdrawable is free surplus you can pull out now (key balance minus borrow).",
   portfolioOverviewDetail:
     "Net equity, unrealized P&L, margin posted, and vault borrow across open positions. Live marks refresh about every 12 seconds.",
   withdrawEmpty: "Nothing to withdraw right now.",
   withdrawEmptyDetail:
-    "Withdrawable is free surplus — not borrowed vault debt. Surplus appears on market keys after you close a trade (once that key’s borrow is repaid), or in your Predict manager after an external redeem. Manager surplus stays locked while vault borrow is outstanding.",
-  managerWithdrawLocked: "Manager surplus locked until vault borrow is repaid.",
+    "Withdrawable is free surplus on your trading account — not borrowed vault debt. Surplus appears on a market key after you close a trade and that key’s payout lands.",
   managerWithdrawLockedDetail:
-    "Borrowed is debt on your trading account, not cash you can pull out. While any vault borrow is outstanding, free dUSDC in your Predict manager cannot be withdrawn. Close positions or repay debt first.",
-  depositSourceWallet: "Fund the trade from dUSDC in your connected wallet.",
-  depositSourceManager:
-    "Fund the trade from dUSDC already in your Predict manager balance (moved to this market key when you open).",
+    "Borrowed is debt on your trading account, not cash you can pull out. Outstanding vault borrow reduces what you can withdraw (withdrawable = trading-account balance − borrow). Close positions or repay debt to free more.",
   estimatedHealth:
     "Estimated collateral ratio (mark value ÷ borrow). Liquidation can trigger above 100% when the protocol buffer requires extra collateral. On-chain health also considers accrued interest.",
 
@@ -104,17 +102,13 @@ export const leverxInfo = {
   spread: "Gap between the best limit bid and the live LP mint price.",
 
   balanceTotal:
-    "Wallet dUSDC plus margin and Predict manager balance, minus vault borrow across your account.",
+    "Wallet dUSDC plus margin and free trading-account surplus, minus vault borrow across your account.",
   balanceWithdrawable: "Surplus you can withdraw to your wallet now.",
   balanceWithdrawableHint:
     "Free surplus only — not vault borrow (debt), and not margin in open trades.",
   balanceWithdrawableDetail:
-    "Counts dUSDC already sitting as surplus on market keys (with no borrow on that key) and unlocked Predict manager balance. Borrowed is debt you repay — it is not subtracted from manager balance to compute this. Manager surplus stays locked while any vault borrow is outstanding.",
-  balanceWithdrawableLockedManagerHint:
-    "Predict manager holds surplus that is locked until vault borrow is fully repaid.",
-  balanceWallet: "dUSDC available in your connected wallet (not yet in open trades).",
-  balanceManager:
-    "dUSDC in your Predict manager balance — shared pool for minting and redeems, separate from per-market key ledgers.",
+    "Counts dUSDC sitting as free surplus on your trading-account market keys. Outstanding vault borrow reduces it (withdrawable = trading-account balance − borrow); borrowed debt itself is not withdrawable.",
+  balanceWallet: "dUSDC available in your account (not yet in open trades).",
   balanceMargin: "Your own funds posted in open trades.",
   balanceBorrowed:
     "Vault debt from leveraged trades. Not withdrawable — repay by closing positions or repaying debt.",

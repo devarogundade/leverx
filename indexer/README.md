@@ -51,7 +51,7 @@ Production checkpoint sources: [Sui custom indexer build guide](https://docs.sui
 | `GET /v1/global-markets/{oracle_id}/trades` | Merged tape: `global_market_trades` + LeverX `market_trades` (deduped per tx) |
 | `markets` | Canonical market dimension (`market_key` = `position_key`) |
 | `predict_managers` | Predict manager registry (`manager_id` → optional LeverX `account_id`) |
-| `user_proxies` | `AccountCreated`, `PredictManagerLinked`, debt sync |
+| `user_proxies` | `AccountCreated`, debt sync |
 | `account_timeline` | Account-scoped activity |
 | `vault_snapshots` | Vault / flash / insurance events (+ borrow/LP APR) |
 | `protocol_settings` | `ProtocolDeployed`, `RegistryInitialized`, `LiquidationBpsUpdated`, pause/rate updates |

@@ -31,12 +31,17 @@ Pinned to testnet (`predict-testnet-4-16`).
 
 ## Transaction model
 
-Typical leveraged open (single PTB):
+Typical leveraged open (two steps — app + keeper):
 
-1. `predict_client::create_manager` (if needed)
-2. `trade::create_user_proxy` — link `PredictManager`
-3. `trade::deposit_quote_for_binary` / `deposit_quote_for_range` — post margin
-4. `trade::leveraged_mint_*` — vault borrow + `predict::mint`
+1. Keeper creates `PredictManager` (keeper-owned) when the user onboards
+2. User calls `trade::create_user_proxy` — links manager; keeper is seeded as `secondary_owner`
+3. User deposits via `trade::deposit_quote_for_*` — posts margin on a market key
+4. User signs a trade intent; keeper relays `trade::leveraged_mint_*` — vault borrow + Predict mint
+
+Closes and settlement are keeper-relayed (`leveraged_redeem_*`, `settle_expired_proxy_*_permissionless`).
+Resting limit placement is user-signed; fills are keeper-executed.
+
+Withdrawals: `trade::withdraw_quote_for_*` — free amount is `key balance − borrow`; payout goes to the trader (`proxy.owner`), not the keeper.
 
 LP flows use `leverage_vault::supply` / `withdraw` directly.
 

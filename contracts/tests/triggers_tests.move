@@ -10,7 +10,7 @@ fun set_and_read_binary_triggers() {
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
 
-    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_binary_key();
 
     triggers::set_automated_triggers(&mut proxy, key, 900_000_000, 400_000_000, 500, 300, ctx);
@@ -35,7 +35,7 @@ fun keeper_trigger_threshold_binary() {
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
 
-    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_binary_key();
 
     triggers::set_automated_triggers(&mut proxy, key, 900_000_000, 400_000_000, 500, 500, ctx);
@@ -56,7 +56,7 @@ fun set_and_read_range_triggers() {
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
 
-    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_range_key();
 
     triggers::set_range_triggers(&mut proxy, key, 800_000_000, 300_000_000, 500, 500, ctx);

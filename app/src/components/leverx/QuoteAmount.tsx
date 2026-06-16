@@ -28,7 +28,7 @@ type QuoteAmountProps = {
   iconSize?: AssetBadgeSize;
   iconClassName?: string;
   align?: "start" | "end";
-  /** Show a lock before the quote icon (e.g. manager balance locked by vault borrow). */
+  /** Show a lock before the quote icon (e.g. amount not withdrawable). */
   locked?: boolean;
   lockedTitle?: string;
 };

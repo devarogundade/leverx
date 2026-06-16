@@ -12,7 +12,7 @@ fun deposit_quote_for_binary_market_credits_key() {
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
 
-    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_binary_key();
     let mut quote_treasury = test_fixtures::quote_treasury(ctx);
 
@@ -33,7 +33,7 @@ fun deposit_quote_for_range_market_credits_key() {
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
 
-    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_range_key();
     let mut quote_treasury = test_fixtures::quote_treasury(ctx);
 
@@ -56,7 +56,7 @@ fun get_binary_limit_mint_order_delegates_to_proxy() {
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
 
-    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_binary_key();
     let order = user_proxy::new_pending_limit_mint_order(
         400_000_000,
@@ -84,7 +84,7 @@ fun get_range_limit_mint_order_delegates_to_proxy() {
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
 
-    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_range_key();
     let order = user_proxy::new_pending_limit_mint_order(
         300_000_000,
@@ -110,7 +110,7 @@ fun cancel_binary_limit_mint_order_releases_reserved_margin() {
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
 
-    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_binary_key();
     let mut quote_treasury = test_fixtures::quote_treasury(ctx);
 
@@ -150,7 +150,7 @@ fun cancel_range_limit_mint_order_releases_reserved_margin() {
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
 
-    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_range_key();
     let mut quote_treasury = test_fixtures::quote_treasury(ctx);
 
@@ -193,7 +193,7 @@ fun register_and_revoke_executor_entry() {
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
 
-    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
     trade::register_executor_entry(&mut proxy, executor, ctx);
 
     test_scenario::next_tx(&mut scenario, executor);
@@ -206,16 +206,35 @@ fun register_and_revoke_executor_entry() {
 }
 
 #[test]
-fun link_predict_manager_entry_updates_proxy() {
+fun secondary_owner_can_act() {
     let owner = @0xA11CE;
+    let keeper = @0xCAFE;
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
 
-    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
-    let new_manager = object::id_from_address(@0xDEAD);
+    let proxy = user_proxy::create_for_testing(owner, keeper, object::id_from_address(@0xBEEF), ctx);
+    assert!(user_proxy::secondary_owner(&proxy) == keeper, 0);
 
-    trade::link_predict_manager_entry(&mut proxy, new_manager, ctx);
-    assert!(user_proxy::predict_manager_id(&proxy) == new_manager, 0);
+    // The keeper (secondary owner) is authorized by `can_act` without executor registration.
+    test_scenario::next_tx(&mut scenario, keeper);
+    user_proxy::assert_can_act(&proxy, scenario.ctx());
+
+    scenario.end();
+}
+
+#[test]
+#[expected_failure(abort_code = errors::E_NOT_OWNER)]
+fun secondary_owner_cannot_use_owner_only_gate() {
+    let owner = @0xA11CE;
+    let keeper = @0xCAFE;
+    let mut scenario = test_scenario::begin(owner);
+    let ctx = scenario.ctx();
+
+    let mut proxy = user_proxy::create_for_testing(owner, keeper, object::id_from_address(@0xBEEF), ctx);
+
+    // Owner-only gate: keeper (secondary owner) must NOT be able to register executors.
+    test_scenario::next_tx(&mut scenario, keeper);
+    trade::register_executor_entry(&mut proxy, @0xECEC, scenario.ctx());
 
     scenario.end();
 }
@@ -229,7 +248,7 @@ fun deleverage_binary_partial_repay_reduces_key_debt() {
     let ctx = scenario.ctx();
 
     let mut setup = test_fixtures::setup_protocol<test_fixtures::TestQuote>(&mut scenario);
-    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_binary_key();
     let clock = test_fixtures::test_clock(ctx);
 
@@ -266,7 +285,7 @@ fun deleverage_binary_overpay_credits_surplus_to_key() {
     let ctx = scenario.ctx();
 
     let mut setup = test_fixtures::setup_protocol<test_fixtures::TestQuote>(&mut scenario);
-    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_binary_key();
     let clock = test_fixtures::test_clock(ctx);
 
@@ -302,7 +321,7 @@ fun deleverage_range_partial_repay_reduces_key_debt() {
     let ctx = scenario.ctx();
 
     let mut setup = test_fixtures::setup_protocol<test_fixtures::TestQuote>(&mut scenario);
-    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_range_key();
     let clock = test_fixtures::test_clock(ctx);
 
@@ -338,7 +357,7 @@ fun repay_debt_for_binary_uses_key_quote_balance() {
     let ctx = scenario.ctx();
 
     let mut setup = test_fixtures::setup_protocol<test_fixtures::TestQuote>(&mut scenario);
-    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_binary_key();
     let clock = test_fixtures::test_clock(ctx);
 
@@ -380,7 +399,7 @@ fun repay_debt_for_range_uses_key_quote_balance() {
     let ctx = scenario.ctx();
 
     let mut setup = test_fixtures::setup_protocol<test_fixtures::TestQuote>(&mut scenario);
-    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_range_key();
     let clock = test_fixtures::test_clock(ctx);
 
@@ -423,7 +442,7 @@ fun deleverage_binary_rejects_zero_repayment() {
     let ctx = scenario.ctx();
 
     let mut setup = test_fixtures::setup_protocol<test_fixtures::TestQuote>(&mut scenario);
-    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_binary_key();
     let clock = test_fixtures::test_clock(ctx);
 
@@ -452,7 +471,7 @@ fun synchronize_proxy_accounting_accrues_vault_interest() {
     let ctx = scenario.ctx();
 
     let mut setup = test_fixtures::setup_protocol<test_fixtures::TestQuote>(&mut scenario);
-    let proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
+    let proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
     let mut clock = test_fixtures::test_clock(ctx);
 
     leverage_vault::set_debt_for_testing(test_fixtures::vault_mut(&mut setup), 100, 100);
@@ -557,7 +576,7 @@ fun cancel_binary_limit_requires_owner_or_executor() {
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
 
-    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_binary_key();
     let order = user_proxy::new_pending_limit_mint_order(
         500_000_000, 100, 500_000_000, 400, 20_000, 5, 9_999_999_999, 1, owner, true,

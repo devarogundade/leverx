@@ -26,8 +26,12 @@ const MAX_LIQUIDATION_BPS: u64 = 15_000;
 /// Extra quote on vault flash loans for liquidation PTBs (covers accrued interest + fees).
 const LIQUIDATION_FLASH_BUFFER_BPS: u64 = 500;
 
-/// Leveraged mints (>1x) are blocked in the final hour before oracle expiry.
-const LEVERAGED_MINT_WINDOW_MS: u64 = 3_600_000;
+/// Leveraged mints (>1x) are blocked in the final window before oracle expiry.
+const DEFAULT_FINAL_WINDOW_MS: u64 = 900_000;
+/// Minimum admin-configurable final window (10 minutes).
+const MIN_FINAL_WINDOW_MS: u64 = 600_000;
+/// Maximum admin-configurable final window (4 hours).
+const MAX_FINAL_WINDOW_MS: u64 = 14_400_000;
 
 // --- Margin bounds (dUSDC, 6 decimals) ---
 
@@ -100,8 +104,23 @@ public fun max_leverage(): u64 { MAX_LEVERAGE }
 /// Minimum allowed leverage in basis points (10_000 = 1x).
 public fun min_leverage_bps(): u64 { MIN_LEVERAGE_BPS }
 
-/// Final-hour window (ms): leveraged mints (>1x) blocked; force-deleverage allowed.
-public fun leveraged_mint_window_ms(): u64 { LEVERAGED_MINT_WINDOW_MS }
+/// Final window (ms): leveraged mints (>1x) blocked; force-deleverage allowed. Default at registry init.
+public fun default_final_window_ms(): u64 { DEFAULT_FINAL_WINDOW_MS }
+
+/// Minimum admin-configurable final window (10 minutes).
+public fun min_final_window_ms(): u64 { MIN_FINAL_WINDOW_MS }
+
+/// Maximum admin-configurable final window (4 hours).
+public fun max_final_window_ms(): u64 { MAX_FINAL_WINDOW_MS }
+
+/// Assert admin final-window value is within `[min, max]`.
+public fun assert_final_window_ms(final_window_ms: u64) {
+    assert!(final_window_ms >= MIN_FINAL_WINDOW_MS, errors::invalid_final_window_ms());
+    assert!(final_window_ms <= MAX_FINAL_WINDOW_MS, errors::invalid_final_window_ms());
+}
+
+/// @deprecated Use `protocol_registry::final_window_ms` — default only.
+public fun leveraged_mint_window_ms(): u64 { DEFAULT_FINAL_WINDOW_MS }
 
 /// `max_leverage()` expressed in basis points (10_000 bps = 1x).
 public fun max_leverage_bps(): u64 {

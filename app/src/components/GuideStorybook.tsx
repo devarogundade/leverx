@@ -404,9 +404,8 @@ export function GuideStorybook() {
               </dl>
             </GuidePanel>
             <GuideCallout variant="note" title="Who runs auto-closes?">
-              Anyone can run a helper that watches for liquidations, force deleverages, limit fills,
-              and expiry settlement. The first successful transaction earns a keeper fee. See the
-              Helper page to run your own.
+              LeverX operates the keeper that watches for liquidations, force deleverages, limit
+              fills, and related maintenance. Successful runs earn a share of protocol fees.
             </GuideCallout>
           </GuideChapter>
 
@@ -422,8 +421,8 @@ export function GuideStorybook() {
                   <Wallet className="h-4 w-4" />
                 </span>
                 <span className="guide-step-body">
-                  <strong>Connect wallet</strong>
-                  <span>Use any Sui testnet wallet (Slush, Sui Wallet, etc.).</span>
+                  <strong>Log in</strong>
+                  <span>Sign in with Google via Enoki (zkLogin on Sui testnet).</span>
                 </span>
               </li>
               <li>
@@ -492,9 +491,6 @@ export function GuideStorybook() {
             <div className="guide-cta-row">
               <Link to="/vault" className={cn(landingCtaSecondary, "text-sm")}>
                 View pool
-              </Link>
-              <Link to="/keeper" className={cn(landingCtaSecondary, "text-sm")}>
-                Set up helper
               </Link>
               <Link to="/points" className={cn(landingCtaSecondary, "text-sm")}>
                 Points leaderboard
@@ -579,8 +575,8 @@ export function GuideStorybook() {
                 </dd>
               </div>
               <div className="guide-faq-item">
-                <dt>What wallet do I need?</dt>
-                <dd>Any Sui testnet wallet — Slush, Sui Wallet, or similar.</dd>
+                <dt>How do I sign in?</dt>
+                <dd>Click Login and sign in with Google. Enoki creates a Sui testnet account for you.</dd>
               </div>
             </dl>
           </GuideChapter>

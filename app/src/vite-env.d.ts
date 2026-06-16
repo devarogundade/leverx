@@ -13,6 +13,11 @@ interface ImportMetaEnv {
   readonly VITE_PREDICT_ID?: string;
   readonly VITE_PREDICT_PACKAGE_ID?: string;
   readonly VITE_DEEPBOOK_INDEXER_URL?: string;
+  readonly VITE_KEEPER_ADDRESS?: string;
+  readonly VITE_KEEPER_API_KEY?: string;
+  readonly VITE_TELEGRAM_BOT_USERNAME?: string;
+  readonly VITE_ENOKI_API_KEY?: string;
+  readonly VITE_ENOKI_GOOGLE_CLIENT_ID?: string;
 }
 
 interface ImportMeta {

@@ -3,9 +3,9 @@
 Single container runs:
 
 - **leverx-indexer** — Sui checkpoint ingestion, Postgres migrations, Prometheus on `:9186`
-- **keeper** — HTTP API (`:3001`) and maintenance crons (liquidation, force-close, limits, triggers)
+- **keeper** — LeverX-operated HTTP API (`:3001`), manager relay, and BullMQ-scheduled maintenance tasks (Redis-backed)
 
-Postgres runs as a separate compose service.
+Postgres and Redis run as separate compose services.
 
 ## Quick start
 
@@ -25,6 +25,8 @@ VITE_LEVERX_INDEXER_WS_URL=ws://localhost:3100/v1/ws
 
 Keeper proxies REST `/v1/*` only — WebSocket live streams must point at leverx-server (`:3100`).
 
+After contract deploy, admin must set `keeper_address` on the Leverx registry to the keeper signer.
+
 ## Ports
 
 | Port | Service                                            |
@@ -32,6 +34,7 @@ Keeper proxies REST `/v1/*` only — WebSocket live streams must point at leverx
 | 3001 | Keeper HTTP (`/health`, indexer routes, `/settle`) |
 | 9186 | Indexer Prometheus metrics                         |
 | 5432 | Postgres (optional host access)                    |
+| 6379 | Redis (BullMQ job queue; optional host access)     |
 
 ## Build only
 

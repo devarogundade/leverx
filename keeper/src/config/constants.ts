@@ -17,12 +17,12 @@ export const TESTNET_PREDICT = {
 /** Published LeverX package + shared objects (testnet). Mirrors `contracts/deploy-testnet.env`. */
 export const TESTNET_LEVERX = {
   packageId:
-    '0xe960e158acfea28447f0b9945d452ad59f8222e7a72139c1e876e26816064cc9',
+    '0x972b59d3ee7c74a01d88d0b2d895d0f6ce58fc68fdead02c974ad824bfd6b790',
   registryId:
-    '0x4d23bb5f39a62e2b0fa73c568c8288a9770ce4ba5eb50519c188fa313a905f7f',
-  vaultId: '0xe798095691416b8fc44ebeab1e5feefdf89cc8b342d48f373c861fac65c14743',
+    '0xe7a1cc48e4073557ed6819a313ff1bbee4cafe50929712500782b1046660bbc0',
+  vaultId: '0xed3e5aa7b6a148720ad4b9813eb621c6d2c14c45616b1fe11b88ee1cb057f907',
   feeCollectorId:
-    '0x8dd3376f772e6a98bd74e98c2e21fb1f0dfd6779ffc388da0ad4de1c6b50b145',
+    '0x91fccb2929c76addfb958930901a81e59f6eff8309d6afe6c507261bbbd49468',
 } as const;
 
 /** dUSDC quote type on testnet. */
@@ -34,8 +34,15 @@ export const TESTNET_ASSETS = {
 /** Min/max leverage (basis points). */
 export const MIN_LEVERAGE_BPS = 10_000;
 
-/** Leveraged mints (>1x) blocked in the final hour before expiry. */
-export const LEVERAGED_MINT_WINDOW_MS = 3_600_000;
+/** Default final window at registry init (15 minutes). */
+export const DEFAULT_FINAL_WINDOW_MS = 900_000;
+/** Minimum admin-configurable final window (10 minutes). */
+export const MIN_FINAL_WINDOW_MS = 600_000;
+/** Maximum admin-configurable final window (4 hours). */
+export const MAX_FINAL_WINDOW_MS = 14_400_000;
+
+/** @deprecated Use on-chain `protocol_registry::final_window_ms`. */
+export const LEVERAGED_MINT_WINDOW_MS = DEFAULT_FINAL_WINDOW_MS;
 export const MAX_LEVERAGE_BPS = 100_000;
 
 /** Default on-chain liquidation health threshold (105%). */
@@ -59,6 +66,12 @@ export const TRIGGER_REDEEM_SLIPPAGE_BPS = DEFAULT_TRIGGER_SLIPPAGE_BPS;
 /** Predict per-contract premium scale (1e9). */
 export const PREDICT_PRICE_SCALE = 1_000_000_000n;
 
+/**
+ * Quantity for dev-inspect per-contract ask/bid reads.
+ * qty=1 often rounds mint/redeem totals to 0 on Predict.
+ */
+export const PREDICT_QUOTE_REFERENCE_QUANTITY = 1_000_000n;
+
 export const KEEPER_ENABLED = true;
 
 export const DEFAULT_SUI_NETWORK = 'testnet' as const;
@@ -70,9 +83,13 @@ export const SUI_RPC_URLS: Record<string, string> = {
 /** Public leverx-server (standalone keeper / Docker). Override for local stack. */
 export const INDEXER_URL = 'https://indexer.suileverx.xyz';
 
+/** Sender for read-only dev-inspect when the keeper signer is not configured. */
+export const READONLY_DEVINSPECT_SENDER =
+  '0x0000000000000000000000000000000000000000000000000000000000000001';
+
 export const DEFAULT_PORT = 3001;
 
-/** Every 20s, staggered by 2s so concurrent crons do not pile up on the same tick. */
+/** Every 20s, staggered by 2s so concurrent jobs do not pile up on the same tick. */
 export const KEEPER_CRON_DEFAULTS = {
   limitOrder: '2,22,42 * * * * *',
   liquidation: '4,24,44 * * * * *',

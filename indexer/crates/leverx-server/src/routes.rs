@@ -15,8 +15,9 @@ use leverx_schema::models::{
     ProxyExecutorRow, UserProxyRow, VaultSnapshotRow,
 };
 use leverx_schema::protocol::{
-    effective_liquidation_bps, DEFAULT_LIQUIDATION_BPS, HEALTHY_BAND_BUFFER_BPS,
-    MAX_LIQUIDATION_BPS,
+    effective_final_window_ms, effective_liquidation_bps, DEFAULT_FINAL_WINDOW_MS,
+    DEFAULT_LIQUIDATION_BPS, HEALTHY_BAND_BUFFER_BPS, MAX_FINAL_WINDOW_MS,
+    MAX_LIQUIDATION_BPS, MIN_FINAL_WINDOW_MS,
 };
 use leverx_schema::schema::{
     account_timeline, leveraged_positions, leverx_events, limit_mint_orders,
@@ -524,6 +525,11 @@ async fn protocol_settings_handler(
             "healthy_band_buffer_bps".into(),
             json!(HEALTHY_BAND_BUFFER_BPS),
         );
+        let effective_window = effective_final_window_ms(row.final_window_ms);
+        obj.insert("effective_final_window_ms".into(), json!(effective_window));
+        obj.insert("default_final_window_ms".into(), json!(DEFAULT_FINAL_WINDOW_MS));
+        obj.insert("min_final_window_ms".into(), json!(MIN_FINAL_WINDOW_MS));
+        obj.insert("max_final_window_ms".into(), json!(MAX_FINAL_WINDOW_MS));
         if let Ok(package_id) = std::env::var("LEVERX_PACKAGE_ID") {
             let package_id = package_id.trim();
             if !package_id.is_empty() {

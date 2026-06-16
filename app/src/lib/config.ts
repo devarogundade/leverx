@@ -22,13 +22,13 @@ const TESTNET_PREDICT = {
 /** Published LeverX package (testnet). Shared objects filled via indexer or .env. */
 const TESTNET_LEVERX = {
   packageId:
-    "0xe960e158acfea28447f0b9945d452ad59f8222e7a72139c1e876e26816064cc9",
+    "0x972b59d3ee7c74a01d88d0b2d895d0f6ce58fc68fdead02c974ad824bfd6b790",
   registryId:
-    "0x4d23bb5f39a62e2b0fa73c568c8288a9770ce4ba5eb50519c188fa313a905f7f",
+    "0xe7a1cc48e4073557ed6819a313ff1bbee4cafe50929712500782b1046660bbc0",
   vaultId:
-    "0xe798095691416b8fc44ebeab1e5feefdf89cc8b342d48f373c861fac65c14743",
+    "0xed3e5aa7b6a148720ad4b9813eb621c6d2c14c45616b1fe11b88ee1cb057f907",
   feeCollectorId:
-    "0x8dd3376f772e6a98bd74e98c2e21fb1f0dfd6779ffc388da0ad4de1c6b50b145",
+    "0x91fccb2929c76addfb958930901a81e59f6eff8309d6afe6c507261bbbd49468",
 } as const;
 
 function viteEnv(name: string): string {
@@ -84,6 +84,13 @@ function resolveLeverxWsUrl(apiUrl: string): string | null {
 const leverxApiUrl = resolveLeverxApiUrl();
 const leverxIndexerWsUrl = resolveLeverxWsUrl(leverxApiUrl);
 
+function envBool(name: string, defaultValue: boolean): boolean {
+  const raw = viteEnv(name).toLowerCase();
+  if (raw === "true" || raw === "1") return true;
+  if (raw === "false" || raw === "0") return false;
+  return defaultValue;
+}
+
 export const appConfig = {
   suiNetwork: "testnet" as const,
 
@@ -98,6 +105,19 @@ export const appConfig = {
   leverxVaultId: viteEnv("VITE_LEVERX_VAULT_ID") || TESTNET_LEVERX.vaultId,
   feeCollectorId:
     viteEnv("VITE_LEVERX_FEE_COLLECTOR_ID") || TESTNET_LEVERX.feeCollectorId,
+
+  /** Optional fallback when indexer has not indexed keeper_address yet. */
+  keeperAddress: viteEnv("VITE_KEEPER_ADDRESS"),
+
+  /** Optional shared secret for keeper ops routes (not required for user-signed relay). */
+  keeperApiKey: viteEnv("VITE_KEEPER_API_KEY"),
+
+  /** Telegram bot username for portfolio alert subscriptions (without @). */
+  telegramBotUsername: viteEnv("VITE_TELEGRAM_BOT_USERNAME"),
+
+  /** Enoki public API key — when set, zkLogin wallets are registered at startup. */
+  enokiApiKey: viteEnv("VITE_ENOKI_API_KEY"),
+  enokiGoogleClientId: viteEnv("VITE_ENOKI_GOOGLE_CLIENT_ID"),
 
   /** Vault/manager legacy paths; oracle catalog always uses predictServerUrl. */
   usePredictServer: false,
@@ -122,3 +142,8 @@ export const appConfig = {
   /** Vertical RANGE instruments in trade UI and market actions. */
   rangeEnabled: true,
 } as const;
+
+/** True when Google zkLogin can be registered via Enoki at startup. */
+export function isEnokiGoogleLoginEnabled(): boolean {
+  return Boolean(appConfig.enokiApiKey && appConfig.enokiGoogleClientId);
+}

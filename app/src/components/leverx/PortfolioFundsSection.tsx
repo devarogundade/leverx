@@ -7,8 +7,6 @@ import { PortfolioWithdrawDialog } from "@/components/leverx/PortfolioWithdrawDi
 import { useLeverxProtocolConfig } from "@/hooks/useLeverxTransactions";
 import { useWalletCoinBalance, walletCoinBalanceUsd } from "@/hooks/useWalletCoinBalance";
 import { useProxyKeyBalances } from "@/hooks/useProxyKeyBalances";
-import { useManagerQuoteBalances } from "@/hooks/useManagerQuoteBalances";
-import { useManagerQuoteBalance } from "@/hooks/useManagerQuoteBalance";
 import { computeTotalBalanceUsd } from "@/lib/leverx/account-balance";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
@@ -20,7 +18,6 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   accountId: string;
-  predictManagerId?: string | null;
   borrowedQuote: number;
   positions: readonly LeveragedPosition[];
   className?: string;
@@ -99,7 +96,6 @@ function FundsActionButton({
 
 export function PortfolioFundsSection({
   accountId,
-  predictManagerId,
   borrowedQuote,
   positions,
   className,
@@ -108,16 +104,6 @@ export function PortfolioFundsSection({
   const { data: walletBalance, isLoading: walletLoading } = useWalletCoinBalance(cfg?.quoteType ?? null);
   const walletUsd = walletCoinBalanceUsd(walletBalance);
   const { rows: keyRows, isLoading: keyBalancesLoading } = useProxyKeyBalances(accountId, positions);
-  const { rows: managerRows, isLoading: managerBalancesLoading } = useManagerQuoteBalances(
-    accountId,
-    positions,
-    borrowedQuote,
-  );
-
-  const managerQueryEnabled = Boolean(predictManagerId && cfg?.packageId && cfg?.quoteType);
-  const { data: managerBalanceAtoms, isLoading: managerBalanceLoading } = useManagerQuoteBalance(
-    managerQueryEnabled ? predictManagerId ?? undefined : undefined,
-  );
 
   const [depositOpen, setDepositOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
@@ -130,41 +116,23 @@ export function PortfolioFundsSection({
     [positions],
   );
   const borrowedUsd = scaleQuote(borrowedQuote);
-  const managerUsd =
-    managerBalanceAtoms != null ? scaleQuoteAtoms(managerBalanceAtoms) : managerQueryEnabled ? null : 0;
   const walletReady = walletUsd != null && !walletLoading;
-  const managerReady = !managerQueryEnabled || (managerBalanceAtoms != null && !managerBalanceLoading);
 
-  const totalBalanceUsd =
-    walletReady && managerReady
-      ? computeTotalBalanceUsd({
-          walletUsd: walletUsd ?? 0,
-          marginUsd,
-          managerUsd: managerUsd ?? 0,
-          borrowedUsd,
-        })
-      : null;
-
-  const withdrawableUsd = useMemo(() => {
-    const keyTotal = keyRows.reduce((sum, row) => sum + scaleQuoteAtoms(row.balanceAtoms), 0);
-    const managerTotal = managerRows.reduce(
-      (sum, row) => sum + scaleQuoteAtoms(row.balanceAtoms),
-      0,
-    );
-    return keyTotal + managerTotal;
-  }, [keyRows, managerRows]);
-
-  const accountHasDebt = useMemo(
-    () => borrowedQuote > 0 || positions.some((position) => position.borrow_quote > 0),
-    [borrowedQuote, positions],
+  const withdrawableUsd = useMemo(
+    () => keyRows.reduce((sum, row) => sum + scaleQuoteAtoms(row.balanceAtoms), 0),
+    [keyRows],
   );
-  const lockedManagerUsd =
-    accountHasDebt && managerUsd != null && managerUsd > 0 ? managerUsd : 0;
-  const withdrawableHint = lockedManagerUsd > 0
-    ? leverxInfo.balanceWithdrawableLockedManagerHint
-    : leverxInfo.balanceWithdrawableHint;
 
-  const balancesLoading = keyBalancesLoading || managerBalancesLoading;
+  const totalBalanceUsd = walletReady
+    ? computeTotalBalanceUsd({
+        walletUsd: walletUsd ?? 0,
+        marginUsd,
+        tradingAccountUsd: withdrawableUsd,
+        borrowedUsd,
+      })
+    : null;
+
+  const balancesLoading = keyBalancesLoading;
   const openPositions = useMemo(
     () => positions.filter(isActiveOpenPosition),
     [positions],
@@ -198,7 +166,7 @@ export function PortfolioFundsSection({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 divide-y divide-border border-b border-border md:grid-cols-5 md:divide-x md:divide-y-0">
+        <div className="grid grid-cols-2 divide-y divide-border border-b border-border md:grid-cols-4 md:divide-x md:divide-y-0">
           <FundsMetric
             label={ui.balanceWallet}
             info={leverxInfo.balanceWallet}
@@ -210,24 +178,6 @@ export function PortfolioFundsSection({
                 digits={2}
                 hideZero={false}
               />
-            }
-          />
-          <FundsMetric
-            label={ui.balanceManager}
-            info={leverxInfo.balanceManager}
-            loading={managerQueryEnabled && managerBalanceLoading && managerUsd == null}
-            value={
-              managerQueryEnabled ? (
-                <QuoteAmount
-                  amount={managerUsd ?? 0}
-                  quoteAtoms={managerBalanceAtoms}
-                  hideZero={false}
-                  locked={accountHasDebt && (managerUsd ?? 0) > 0}
-                  lockedTitle={leverxInfo.managerWithdrawLocked}
-                />
-              ) : (
-                "—"
-              )
             }
           />
           <FundsMetric
@@ -245,7 +195,7 @@ export function PortfolioFundsSection({
             info={leverxInfo.balanceWithdrawableDetail}
             infoTitle={ui.balanceWithdrawable}
             loading={balancesLoading && withdrawableUsd === 0}
-            hint={withdrawableHint}
+            hint={leverxInfo.balanceWithdrawableHint}
             value={<QuoteAmount amount={withdrawableUsd} digits={2} hideZero={false} />}
           />
         </div>
@@ -254,7 +204,7 @@ export function PortfolioFundsSection({
           <FundsActionButton
             icon={ArrowDownToLine}
             label="Deposit"
-            disabled={!predictManagerId && openPositions.length === 0}
+            disabled={openPositions.length === 0}
             onClick={() => setDepositOpen(true)}
           />
           <FundsActionButton
@@ -269,7 +219,6 @@ export function PortfolioFundsSection({
         open={depositOpen}
         onOpenChange={setDepositOpen}
         accountId={accountId}
-        predictManagerId={predictManagerId}
         positions={openPositions}
       />
       <PortfolioWithdrawDialog

@@ -9,7 +9,7 @@ leverx/
 ├── app/           # TanStack Start UI — markets, trading, portfolio, pool, points
 ├── contracts/     # Move smart contracts (leverage vault, proxy PredictManager)
 ├── indexer/       # On-chain indexer (order book, positions, limits, leaderboard)
-└── keeper/        # Optional helper bot (liquidations, limit fills, force-close)
+└── keeper/        # LeverX-operated API — trade relay, manager relay, BullMQ maintenance
 ```
 
 ## App
@@ -25,7 +25,6 @@ The UI uses a dark trading palette (neutrals, violet brand accent, green/red pos
 | `/predictions/:oracleId` | Trading terminal (chart, order book, leverage panel) |
 | `/portfolio` | Wallet portfolio — balances, open trades, limit orders |
 | `/vault` | Shared dUSDC pool — deposit, withdraw, APR |
-| `/keeper` | Helper setup (Docker) |
 | `/points` | Genesis volume leaderboard |
 | `/guide` | How it works |
 | `/terms` | Terms of service |
@@ -39,6 +38,11 @@ The UI uses a dark trading palette (neutrals, violet brand accent, green/red pos
 ### Run locally
 
 No `.env` file is required — testnet Predict server URLs and contract IDs are built into `app/src/lib/config.ts`.
+
+Optional env (see `app/.env.example`):
+
+- **Keeper trade relay** — market mint/redeem via signed intents to `POST /trade/mint` and `/trade/redeem` (`VITE_TRADE_RELAY_ENABLED`, `VITE_LEVERX_KEEPER_URL`)
+- **Enoki Google login** — `VITE_ENOKI_API_KEY` and `VITE_ENOKI_GOOGLE_CLIENT_ID` (see `app/.env.example`)
 
 ```bash
 cd app
@@ -67,7 +71,17 @@ Resync the indexer after republishing contracts (`bash indexer/scripts/reset-fro
 | `vault_snapshots.insurance_fund_delta` | Vault history API includes insurance skim deltas (chart-ready) |
 | Range permissionless settle | Binary settle works; range settle may fail until Predict adds permissionless range redeem |
 
-PTB builders (`ptb-builder.ts`, `transactions.ts`) do not call `vault_flash::repay_flash_liquidity` — that change is keeper-only.
+PTB builders (`ptb-builder.ts`, `transactions.ts`) do not call `vault_flash::repay_flash_liquidity` — that change is keeper-only. Market mint/redeem with `VITE_TRADE_RELAY_ENABLED` route through keeper `POST /trade/*` instead of wallet-signed Predict legs.
+
+## Keeper
+
+HTTP API on `:3001` — manager relay (`POST /create-manager`), trade relay (`POST /trade/mint`, `/trade/redeem`), and maintenance tasks.
+
+- **Scheduling:** BullMQ repeatable jobs on Redis (`REDIS_HOST` / `REDIS_URL`); not in-process cron
+- **Docker stack:** `docker compose up` starts Postgres + Redis + indexer/keeper image — see [`docker/leverx-stack/README.md`](docker/leverx-stack/README.md)
+- **Standalone:** `keeper/docker-compose.yml` includes its own Redis service
+
+See [`keeper/README.md`](keeper/README.md) for env vars and task kinds.
 
 ## Contracts
 

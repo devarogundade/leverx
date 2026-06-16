@@ -161,6 +161,7 @@ diesel::table! {
         slope2_bps -> Nullable<Int8>,
         flash_fee_bps -> Nullable<Int8>,
         liquidation_bps -> Nullable<Int8>,
+        final_window_ms -> Nullable<Int8>,
         updated_at_ms -> Int8,
     }
 }

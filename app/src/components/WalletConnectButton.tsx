@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, Loader2, LogOut } from "lucide-react";
+import { ChevronDown, Copy, Loader2, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,8 +11,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useWallet } from "@/context/WalletContext";
-import { formatSuiAddress } from "@/lib/sui/wallets";
-import type { WalletWithRequiredFeatures } from "@mysten/wallet-standard";
+import { formatSuiAddress, getGoogleEnokiWallet } from "@/lib/sui/wallets";
+import { isEnokiGoogleLoginEnabled } from "@/lib/config";
+import { showError, showTxSuccess } from "@/lib/toast";
 
 interface Props {
   className?: string;
@@ -23,6 +24,29 @@ interface Props {
   onMenuClose?: () => void;
 }
 
+function GoogleIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className={className}>
+      <path
+        fill="currentColor"
+        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
+      />
+      <path
+        fill="currentColor"
+        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+      />
+      <path
+        fill="currentColor"
+        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+      />
+      <path
+        fill="currentColor"
+        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+      />
+    </svg>
+  );
+}
+
 export function WalletConnectButton({
   className,
   fullWidth,
@@ -30,19 +54,28 @@ export function WalletConnectButton({
   compact,
   onMenuClose,
 }: Props) {
-  const { wallets, wallet, address, connecting, connect, disconnect, refreshWallets } =
-    useWallet();
+  const { wallet, address, connecting, connect, disconnect, refreshWallets } = useWallet();
   const [open, setOpen] = useState(false);
+  const loginEnabled = isEnokiGoogleLoginEnabled();
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next);
     if (next) refreshWallets();
   };
 
-  const handlePick = async (w: WalletWithRequiredFeatures) => {
-    setOpen(false);
+  const handleLogin = async () => {
     onMenuClose?.();
-    await connect(w);
+    refreshWallets();
+    const googleWallet = getGoogleEnokiWallet();
+    if (!googleWallet) {
+      showError(
+        loginEnabled
+          ? "Google sign-in is not ready yet. Try again in a moment."
+          : "Google sign-in is not configured.",
+      );
+      return;
+    }
+    await connect(googleWallet);
   };
 
   if (address && wallet) {
@@ -61,8 +94,10 @@ export function WalletConnectButton({
             )}
           >
             <span className="flex min-w-0 items-center gap-2">
-              {wallet.icon && (
+              {wallet.icon ? (
                 <img src={wallet.icon} alt="" className="h-4 w-4 shrink-0 rounded-full" />
+              ) : (
+                <GoogleIcon className="h-4 w-4 shrink-0 opacity-80" />
               )}
               <span className={cn("truncate", compact && "max-w-[4.25rem] sm:max-w-none")}>
                 {formatSuiAddress(address)}
@@ -82,8 +117,22 @@ export function WalletConnectButton({
           className={cn("min-w-[12rem]", fullWidth && "w-[var(--radix-dropdown-menu-trigger-width)]")}
         >
           <DropdownMenuLabel className="text-sm font-normal text-muted-foreground">
-            {wallet.name}
+            Signed in with Google
           </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(address);
+                showTxSuccess("Wallet address copied");
+              } catch {
+                showError("Could not copy address");
+              }
+            }}
+          >
+            <Copy className="h-3.5 w-3.5" />
+            Copy wallet address
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={() => {
@@ -92,75 +141,59 @@ export function WalletConnectButton({
             }}
           >
             <LogOut className="h-3.5 w-3.5" />
-            Disconnect
+            Log out
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     );
   }
 
+  const loginLabel = compact ? (
+    <>
+      <span className="sm:hidden">Login</span>
+      <span className="hidden sm:inline">Sign in with Google</span>
+    </>
+  ) : (
+    "Sign in with Google"
+  );
+
+  const loginUnavailableHint = import.meta.env.DEV
+    ? "Set VITE_ENOKI_API_KEY and VITE_ENOKI_GOOGLE_CLIENT_ID in .env"
+    : "Sign-in is temporarily unavailable.";
+
   return (
-    <DropdownMenu open={open} onOpenChange={handleOpenChange}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          disabled={connecting}
-          className={cn(
-            "btn-connect",
-            compact && "btn-connect--compact",
-            fullWidth && "w-full",
-            large && "btn-connect-lg",
-            className,
-          )}
-        >
-          {connecting ? (
-            <>
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              <span className={cn(compact && "hidden sm:inline")}>Connecting…</span>
-            </>
-          ) : compact ? (
-            <>
-              <span className="sm:hidden">Connect</span>
-              <span className="hidden sm:inline">Connect Wallet</span>
-            </>
-          ) : (
-            "Connect Wallet"
-          )}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="end"
-        className={cn("w-56", fullWidth && "w-[var(--radix-dropdown-menu-trigger-width)]")}
-      >
-        {wallets.length === 0 ? (
-          <p className="px-2 py-3 text-center text-sm leading-relaxed text-muted-foreground">
-            No Sui wallet detected. Install{" "}
-            <a
-              href="https://suiwallet.com/"
-              target="_blank"
-              rel="noreferrer"
-              className="text-accent underline-offset-2 hover:underline"
-            >
-              Sui Wallet
-            </a>{" "}
-            or another Wallet Standard extension, then refresh.
-          </p>
-        ) : (
-          wallets.map((w) => (
-            <DropdownMenuItem key={w.name} onClick={() => void handlePick(w)}>
-              {w.icon ? (
-                <img src={w.icon} alt="" className="h-6 w-6 rounded-md" />
-              ) : (
-                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-secondary text-[10px] font-semibold">
-                  {w.name.slice(0, 1)}
-                </span>
-              )}
-              <span className="font-medium">{w.name}</span>
-            </DropdownMenuItem>
-          ))
+    <div className={cn("flex flex-col gap-1", fullWidth && "w-full")}>
+      <Button
+        type="button"
+        variant="ghost"
+        disabled={connecting || !loginEnabled}
+        title={!loginEnabled ? loginUnavailableHint : undefined}
+        onClick={() => void handleLogin()}
+        className={cn(
+          "btn-connect gap-2",
+          compact && "btn-connect--compact",
+          fullWidth && "w-full",
+          large && "btn-connect-lg",
+          className,
         )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      >
+        {connecting ? (
+          <>
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <span className={cn(compact && "hidden sm:inline")}>Signing in…</span>
+          </>
+        ) : (
+          <>
+            <GoogleIcon className="h-4 w-4 shrink-0 opacity-90" />
+            {loginLabel}
+          </>
+        )}
+      </Button>
+      {fullWidth && !loginEnabled ? (
+        <p className="text-center text-xs leading-snug text-muted-foreground">
+          {loginUnavailableHint}
+        </p>
+      ) : null}
+    </div>
   );
 }

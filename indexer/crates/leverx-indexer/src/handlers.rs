@@ -57,6 +57,7 @@ pub struct LeverxBatch {
     pub borrow_rate_patches: Vec<BorrowRatePatch>,
     pub trading_paused_patches: Vec<TradingPausedPatch>,
     pub liquidation_bps_patches: Vec<LiquidationBpsPatch>,
+    pub final_window_patches: Vec<FinalWindowPatch>,
     pub points_patches: Vec<UserPointsPatch>,
 }
 
@@ -165,6 +166,12 @@ pub struct TradingPausedPatch {
 pub struct LiquidationBpsPatch {
     pub registry_id: String,
     pub liquidation_bps: i64,
+    pub updated_at_ms: i64,
+}
+
+pub struct FinalWindowPatch {
+    pub registry_id: String,
+    pub final_window_ms: i64,
     pub updated_at_ms: i64,
 }
 
@@ -343,6 +350,7 @@ impl Handler for LeverxEventsHandler {
             batch.borrow_rate_patches.extend(v.borrow_rate_patches);
             batch.trading_paused_patches.extend(v.trading_paused_patches);
             batch.liquidation_bps_patches.extend(v.liquidation_bps_patches);
+            batch.final_window_patches.extend(v.final_window_patches);
             batch.points_patches.extend(v.points_patches);
         }
     }
@@ -695,6 +703,9 @@ impl Handler for LeverxEventsHandler {
                     protocol_settings::liquidation_bps.eq(diesel::dsl::sql(
                         "COALESCE(EXCLUDED.liquidation_bps, protocol_settings.liquidation_bps)",
                     )),
+                    protocol_settings::final_window_ms.eq(diesel::dsl::sql(
+                        "COALESCE(EXCLUDED.final_window_ms, protocol_settings.final_window_ms)",
+                    )),
                     protocol_settings::updated_at_ms.eq(excluded(protocol_settings::updated_at_ms)),
                 ))
                 .execute(conn)
@@ -715,6 +726,7 @@ impl Handler for LeverxEventsHandler {
                     slope2_bps: None,
                     flash_fee_bps: None,
                     liquidation_bps: None,
+                    final_window_ms: None,
                     updated_at_ms: patch.updated_at_ms,
                 })
                 .on_conflict(protocol_settings::registry_id)
@@ -741,12 +753,40 @@ impl Handler for LeverxEventsHandler {
                     slope2_bps: None,
                     flash_fee_bps: None,
                     liquidation_bps: Some(patch.liquidation_bps),
+                    final_window_ms: None,
                     updated_at_ms: patch.updated_at_ms,
                 })
                 .on_conflict(protocol_settings::registry_id)
                 .do_update()
                 .set((
                     protocol_settings::liquidation_bps.eq(excluded(protocol_settings::liquidation_bps)),
+                    protocol_settings::updated_at_ms.eq(excluded(protocol_settings::updated_at_ms)),
+                ))
+                .execute(conn)
+                .await?;
+        }
+
+        for patch in &batch.final_window_patches {
+            rows += diesel::insert_into(protocol_settings::table)
+                .values(NewProtocolSettings {
+                    registry_id: patch.registry_id.clone(),
+                    vault_id: None,
+                    predict_id: None,
+                    fee_collector_id: None,
+                    trading_paused: false,
+                    base_rate_bps: None,
+                    kink_utilization_bps: None,
+                    slope1_bps: None,
+                    slope2_bps: None,
+                    flash_fee_bps: None,
+                    liquidation_bps: None,
+                    final_window_ms: Some(patch.final_window_ms),
+                    updated_at_ms: patch.updated_at_ms,
+                })
+                .on_conflict(protocol_settings::registry_id)
+                .do_update()
+                .set((
+                    protocol_settings::final_window_ms.eq(excluded(protocol_settings::final_window_ms)),
                     protocol_settings::updated_at_ms.eq(excluded(protocol_settings::updated_at_ms)),
                 ))
                 .execute(conn)

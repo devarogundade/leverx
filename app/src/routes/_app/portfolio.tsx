@@ -95,8 +95,8 @@ function PortfolioPage() {
 
       {!isWalletConnected ? (
         <WalletConnectPrompt
-          title="Connect for portfolio"
-          description="Connect your wallet to see your trades, orders, and account settings."
+          title="Log in for portfolio"
+          description="Log in to see your trades, orders, and account settings."
         />
       ) : isLoading && !account && activeOpenPositions.length === 0 ? (
         <PortfolioPageSkeleton />

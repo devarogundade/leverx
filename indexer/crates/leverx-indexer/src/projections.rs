@@ -10,7 +10,7 @@ use sui_types::event::Event;
 
 use crate::handlers::{
     BorrowRatePatch, DebtRepaidPatch, KeyBorrowPatch, LeverxBatch, LimitCancelPatch,
-    LimitExecutePatch, LiquidationBpsPatch, LiquidationPositionPatch, PositionClosePatch,
+    LimitExecutePatch, LiquidationBpsPatch, FinalWindowPatch, LiquidationPositionPatch, PositionClosePatch,
     PositionOpenPatch, TradingPausedPatch,
 };
 use crate::keys::{limit_order_key, normalize_type_name, position_key};
@@ -27,9 +27,9 @@ use crate::move_events::{
     FlashLoanRepaid, InsuranceFundSkimmed, InterestAccrued, ProtocolFeeDistributed,
     BadDebtWrittenOff, LeveragedPositionClosed, LeveragedPositionOpened,
     LimitMintOrderCancelled, LimitMintOrderExecuted, LimitMintOrderPlaced, LiquidationBpsUpdated,
+    FinalWindowUpdated,
     PositionForceDeleveraged,
     PositionLiquidated,
-    PredictManagerLinked,
     ProtocolDeployed, ProxyAccountingSynced,
     TradingPausedChanged, TriggersCleared, VaultBorrowed, VaultRepaid,
     VaultSupplied, VaultWithdrawn,
@@ -136,18 +136,6 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
     match ctx.event_name {
         "AccountCreated" => {
             if let Some(ev) = try_parse::<AccountCreated>(ctx.event.contents.as_slice()) {
-                upsert_proxy(
-                    batch,
-                    &ev.account_id.to_string(),
-                    &ev.owner.to_string(),
-                    Some(ev.predict_manager_id.to_string()),
-                    ctx.timestamp_ms,
-                );
-                timeline(batch, ctx, ev.account_id.to_string(), Some(ev.owner.to_string()));
-            }
-        }
-        "PredictManagerLinked" => {
-            if let Some(ev) = try_parse::<PredictManagerLinked>(ctx.event.contents.as_slice()) {
                 upsert_proxy(
                     batch,
                     &ev.account_id.to_string(),
@@ -426,6 +414,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     slope2_bps: None,
                     flash_fee_bps: None,
                     liquidation_bps: None,
+                    final_window_ms: None,
                     updated_at_ms: ctx.timestamp_ms,
                 });
                 batch.vaults.push(NewVaultSnapshot {
@@ -448,20 +437,30 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
         }
         "RegistryInitialized" => {
             if let Some(parsed) = parse_registry_initialized(ctx.event.contents.as_slice()) {
-                let (registry_id, vault_id, fee_collector_id, predict_id, liquidation_bps) =
+                let (registry_id, vault_id, fee_collector_id, predict_id, liquidation_bps, final_window_ms) =
                     match parsed {
-                        ParsedRegistryInitialized::Full(ev) => (
+                        ParsedRegistryInitialized::Current(ev) => (
                             ev.registry_id.to_string(),
                             ev.vault_id.to_string(),
                             ev.fee_collector_id.to_string(),
                             ev.predict_id.to_string(),
                             Some(ev.liquidation_bps as i64),
+                            Some(ev.final_window_ms as i64),
+                        ),
+                        ParsedRegistryInitialized::WithLiquidation(ev) => (
+                            ev.registry_id.to_string(),
+                            ev.vault_id.to_string(),
+                            ev.fee_collector_id.to_string(),
+                            ev.predict_id.to_string(),
+                            Some(ev.liquidation_bps as i64),
+                            None,
                         ),
                         ParsedRegistryInitialized::Legacy(ev) => (
                             ev.registry_id.to_string(),
                             ev.vault_id.to_string(),
                             ev.fee_collector_id.to_string(),
                             ev.predict_id.to_string(),
+                            None,
                             None,
                         ),
                     };
@@ -477,6 +476,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     slope2_bps: None,
                     flash_fee_bps: None,
                     liquidation_bps,
+                    final_window_ms,
                     updated_at_ms: ctx.timestamp_ms,
                 });
                 batch.vaults.push(NewVaultSnapshot {
@@ -511,6 +511,15 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                 batch.liquidation_bps_patches.push(LiquidationBpsPatch {
                     registry_id: ev.registry_id.to_string(),
                     liquidation_bps: ev.liquidation_bps as i64,
+                    updated_at_ms: ctx.timestamp_ms,
+                });
+            }
+        }
+        "FinalWindowUpdated" => {
+            if let Some(ev) = try_parse::<FinalWindowUpdated>(ctx.event.contents.as_slice()) {
+                batch.final_window_patches.push(FinalWindowPatch {
+                    registry_id: ev.registry_id.to_string(),
+                    final_window_ms: ev.final_window_ms as i64,
                     updated_at_ms: ctx.timestamp_ms,
                 });
             }

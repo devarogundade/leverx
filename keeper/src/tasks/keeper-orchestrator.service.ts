@@ -9,6 +9,7 @@ import { LimitOrderService } from './limit-order.service';
 import { LiquidationService } from './liquidation.service';
 import { ForceCloseService } from './force-close.service';
 import { TriggerService } from './trigger.service';
+import { TelegramNotificationQueueService } from '../telegram/telegram-notification.queue.service';
 
 export type KeeperTaskKind =
   | 'limit_order'
@@ -21,7 +22,7 @@ export type KeeperTaskKind =
 export class KeeperOrchestratorService {
   private readonly logger = new Logger(KeeperOrchestratorService.name);
   private readonly cfg: KeeperConfig;
-  /** Per-kind locks so staggered crons do not starve each other. */
+  /** Per-kind locks so staggered jobs do not starve each other. */
   private readonly runningKinds = new Set<KeeperTaskKind>();
 
   constructor(
@@ -31,6 +32,7 @@ export class KeeperOrchestratorService {
     private readonly liquidation: LiquidationService,
     private readonly triggers: TriggerService,
     private readonly forceClose: ForceCloseService,
+    private readonly telegram: TelegramNotificationQueueService,
   ) {
     this.cfg = config.get<KeeperConfig>('keeper')!;
   }
@@ -113,6 +115,17 @@ export class KeeperOrchestratorService {
         result.target,
         result.error ?? 'unknown',
       );
+    }
+
+    if (this.telegram.isEnabled()) {
+      try {
+        await this.telegram.enqueueTaskResults(results);
+        if (kind === 'all' || kind === 'liquidation') {
+          await this.telegram.enqueueLiquidationScan();
+        }
+      } catch (err) {
+        logKeeperError(this.logger, 'telegram notification enqueue failed', err);
+      }
     }
 
     const summary: KeeperRunSummary = {

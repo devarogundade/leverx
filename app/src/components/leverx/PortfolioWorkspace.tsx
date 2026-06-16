@@ -197,7 +197,7 @@ export function PortfolioWorkspace({
           <EmptyState
             icon={TrendingUp}
             title="No trading account yet"
-            description="Your LeverX account is created when you open your first trade. Link a Predict manager here afterward to trade on-chain."
+            description="Your LeverX trading account and Predict manager are created automatically when you open your first trade."
             action={
               <Link
                 to="/markets"

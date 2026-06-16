@@ -7,6 +7,13 @@ export const DEFAULT_LIQUIDATION_BPS = 10_500;
 /** Maximum admin-configurable liquidation threshold (150%). */
 export const MAX_LIQUIDATION_BPS = 15_000;
 
+/** Default final window before expiry (15 minutes). */
+export const DEFAULT_FINAL_WINDOW_MS = 900_000;
+/** Minimum admin-configurable final window (10 minutes). */
+export const MIN_FINAL_WINDOW_MS = 600_000;
+/** Maximum admin-configurable final window (4 hours). */
+export const MAX_FINAL_WINDOW_MS = 14_400_000;
+
 /** UI healthy band sits this many bps above the liquidation threshold. */
 export const HEALTHY_BAND_BUFFER_BPS = 500;
 
@@ -28,6 +35,23 @@ export function resolveLiquidationBps(
     return Math.min(bps, MAX_LIQUIDATION_BPS);
   }
   return DEFAULT_LIQUIDATION_BPS;
+}
+
+export function resolveFinalWindowMs(
+  settings?: Pick<
+    ProtocolSettings,
+    "final_window_ms" | "effective_final_window_ms" | "max_final_window_ms"
+  > | null,
+): number {
+  const effective = settings?.effective_final_window_ms;
+  if (typeof effective === "number" && effective > 0) {
+    return Math.min(effective, MAX_FINAL_WINDOW_MS);
+  }
+  const ms = settings?.final_window_ms;
+  if (typeof ms === "number" && ms > 0) {
+    return Math.min(ms, MAX_FINAL_WINDOW_MS);
+  }
+  return DEFAULT_FINAL_WINDOW_MS;
 }
 
 export function resolveHealthyBandBufferBps(
@@ -74,10 +98,10 @@ export type LeverxProtocolConfig = {
   quoteType: string;
 };
 
-/** Fields required for onboarding PTBs (`create_user_proxy`, `link_predict_manager`). */
+/** Fields required for onboarding PTBs (`create_user_proxy` with keeper-provisioned manager). */
 export type LeverxOnboardingConfig = Pick<
   LeverxProtocolConfig,
-  "packageId" | "predictPackageId"
+  "packageId" | "predictPackageId" | "registryId"
 >;
 
 function nonEmpty(value: string | null | undefined): string {
@@ -92,7 +116,9 @@ export type LeverxPackageOverrides = {
 };
 
 export function resolveLeverxOnboardingConfig(
-  overrides?: Pick<LeverxPackageOverrides, "packageId" | "predictPackageId" | "allowEnvPackageFallback">,
+  overrides?: Pick<LeverxPackageOverrides, "packageId" | "predictPackageId" | "allowEnvPackageFallback"> & {
+    registryId?: string | null;
+  },
 ): LeverxOnboardingConfig {
   const allowEnv = overrides?.allowEnvPackageFallback !== false;
   const packageId =
@@ -100,8 +126,10 @@ export function resolveLeverxOnboardingConfig(
   const predictPackageId =
     nonEmpty(overrides?.predictPackageId) ||
     (allowEnv ? appConfig.predictPackageId : "");
+  const registryId =
+    nonEmpty(overrides?.registryId) || (allowEnv ? appConfig.leverxRegistryId : "");
 
-  return { packageId, predictPackageId };
+  return { packageId, predictPackageId, registryId };
 }
 
 export function resolveLeverxProtocol(

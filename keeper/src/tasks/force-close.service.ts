@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { LEVERAGED_MINT_WINDOW_MS } from '../config/constants';
 import { isFinalHourBeforeExpiry } from '../config/trade-math';
 import { logKeeperError, logKeeperWarn } from '../lib/keeper-log';
 import { IndexerService } from '../indexer/indexer.service';
@@ -43,6 +42,7 @@ export class ForceCloseService {
     }
 
     const cfg = this.sui.getConfig();
+    const finalWindowMs = this.sui.getFinalWindowMs();
     const now = Date.now();
     const results: TaskResult[] = [];
     let remaining = limit;
@@ -51,7 +51,7 @@ export class ForceCloseService {
       this.indexer.fetchPositions({
         status: 'open',
         minBorrowQuote: 1,
-        maxExpiryMs: now + LEVERAGED_MINT_WINDOW_MS,
+        maxExpiryMs: now + finalWindowMs,
         minOpenQuantity: 1,
         hasPredictManager: true,
         limit: pageSize,
@@ -59,7 +59,7 @@ export class ForceCloseService {
       }),
     );
     const inForceWindow = preExpiryCandidates.filter((position) =>
-      isFinalHourBeforeExpiry(position.expiry_ms, now),
+      isFinalHourBeforeExpiry(position.expiry_ms, now, finalWindowMs),
     );
 
     for (const position of inForceWindow) {
@@ -101,7 +101,7 @@ export class ForceCloseService {
     const cfg = this.sui.getConfig();
 
     try {
-      if (!isFinalHourBeforeExpiry(position.expiry_ms, now)) {
+      if (!isFinalHourBeforeExpiry(position.expiry_ms, now, this.sui.getFinalWindowMs())) {
         return { kind: 'force_close', target, success: false, error: 'outside_force_window' };
       }
 

@@ -31,16 +31,31 @@ pub struct RegistryInitialized {
     pub fee_collector_id: ObjectID,
     pub predict_id: ObjectID,
     pub liquidation_bps: u64,
+    pub final_window_ms: u64,
+}
+
+/// `RegistryInitialized` before `final_window_ms` was added.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct RegistryInitializedWithLiquidation {
+    pub registry_id: ObjectID,
+    pub vault_id: ObjectID,
+    pub fee_collector_id: ObjectID,
+    pub predict_id: ObjectID,
+    pub liquidation_bps: u64,
 }
 
 pub enum ParsedRegistryInitialized {
-    Full(RegistryInitialized),
+    Current(RegistryInitialized),
+    WithLiquidation(RegistryInitializedWithLiquidation),
     Legacy(RegistryInitializedLegacy),
 }
 
 pub fn parse_registry_initialized(bytes: &[u8]) -> Option<ParsedRegistryInitialized> {
     if let Some(v) = try_parse::<RegistryInitialized>(bytes) {
-        return Some(ParsedRegistryInitialized::Full(v));
+        return Some(ParsedRegistryInitialized::Current(v));
+    }
+    if let Some(v) = try_parse::<RegistryInitializedWithLiquidation>(bytes) {
+        return Some(ParsedRegistryInitialized::WithLiquidation(v));
     }
     try_parse::<RegistryInitializedLegacy>(bytes).map(ParsedRegistryInitialized::Legacy)
 }
@@ -49,6 +64,12 @@ pub fn parse_registry_initialized(bytes: &[u8]) -> Option<ParsedRegistryInitiali
 pub struct LiquidationBpsUpdated {
     pub registry_id: ObjectID,
     pub liquidation_bps: u64,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct FinalWindowUpdated {
+    pub registry_id: ObjectID,
+    pub final_window_ms: u64,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -177,13 +198,6 @@ pub struct FeeCollectorWithdrawn {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct AccountCreated {
-    pub account_id: ObjectID,
-    pub owner: SuiAddress,
-    pub predict_manager_id: ObjectID,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct PredictManagerLinked {
     pub account_id: ObjectID,
     pub owner: SuiAddress,
     pub predict_manager_id: ObjectID,
@@ -493,12 +507,14 @@ pub fn parse_event_json(event_name: &str, bytes: &[u8]) -> serde_json::Value {
         "RegistryInitialized" => {
             if let Some(parsed) = parse_registry_initialized(bytes) {
                 return match parsed {
-                    ParsedRegistryInitialized::Full(v) => serde_json::to_value(v).unwrap_or(json!({})),
+                    ParsedRegistryInitialized::Current(v) => serde_json::to_value(v).unwrap_or(json!({})),
+                    ParsedRegistryInitialized::WithLiquidation(v) => serde_json::to_value(v).unwrap_or(json!({})),
                     ParsedRegistryInitialized::Legacy(v) => serde_json::to_value(v).unwrap_or(json!({})),
                 };
             }
         }
         "LiquidationBpsUpdated" => parse_as!(LiquidationBpsUpdated),
+        "FinalWindowUpdated" => parse_as!(FinalWindowUpdated),
         "TradingPausedChanged" => parse_as!(TradingPausedChanged),
         "BorrowRateParamsUpdated" => parse_as!(BorrowRateParamsUpdated),
         "VaultSupplied" => parse_as!(VaultSupplied),
@@ -512,7 +528,6 @@ pub fn parse_event_json(event_name: &str, bytes: &[u8]) -> serde_json::Value {
         "FeeCollectorWithdrawn" => parse_as!(FeeCollectorWithdrawn),
         "InsuranceFundSkimmed" => parse_as!(InsuranceFundSkimmed),
         "AccountCreated" => parse_as!(AccountCreated),
-        "PredictManagerLinked" => parse_as!(PredictManagerLinked),
         "DebtBorrowed" => parse_as!(DebtBorrowed),
         "DebtRepaid" => parse_as!(DebtRepaid),
         "ProxyAccountingSynced" => parse_as!(ProxyAccountingSynced),

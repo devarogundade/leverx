@@ -10,7 +10,7 @@ fun binary_quote_ledger_deposit() {
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
 
-    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_binary_key();
     let mut quote_treasury = test_fixtures::quote_treasury(ctx);
 
@@ -33,7 +33,7 @@ fun binary_borrow_and_repay_accounting() {
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
 
-    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_binary_key();
 
     user_proxy::record_borrow_for_binary(&mut proxy, key, 300, ctx);
@@ -53,7 +53,7 @@ fun range_ledgers_mirror_binary_behavior() {
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
 
-    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_range_key();
     let mut quote_treasury = test_fixtures::quote_treasury(ctx);
 
@@ -79,7 +79,7 @@ fun margin_debt_clear() {
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
 
-    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_binary_key();
 
     user_proxy::set_binary_margin_debt(&mut proxy, key, 1_000, ctx);
@@ -96,7 +96,7 @@ fun limit_order_reserve_release_and_cancel() {
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
 
-    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_binary_key();
     let mut quote_treasury = test_fixtures::quote_treasury(ctx);
 
@@ -139,7 +139,7 @@ fun duplicate_limit_order_aborts() {
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
 
-    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_binary_key();
     let order = user_proxy::new_pending_limit_mint_order(
         1, 0, 1, 1, 10_000, 1, 9, 1, owner, true,
@@ -157,7 +157,7 @@ fun limit_order_getters_expose_fields() {
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
 
-    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_binary_key();
     let order = user_proxy::new_pending_limit_mint_order(
         500_000_000,
@@ -193,7 +193,7 @@ fun non_owner_cannot_set_triggers_via_module() {
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
 
-    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
     let key = test_fixtures::sample_binary_key();
 
     test_scenario::next_tx(&mut scenario, stranger);
@@ -211,11 +211,74 @@ fun admin_executor_registration_via_registry() {
     let ctx = scenario.ctx();
 
     let setup = test_fixtures::setup_protocol<test_fixtures::TestQuote>(&mut scenario);
-    let mut proxy = user_proxy::create_for_testing(owner, object::id_from_address(@0xBEEF), ctx);
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
 
     protocol_registry::register_executor_cap(test_fixtures::admin(&setup), &mut proxy, executor);
     test_scenario::next_tx(&mut scenario, executor);
     user_proxy::assert_can_act(&proxy, scenario.ctx());
+
+    scenario.end();
+}
+
+#[test]
+fun binary_partial_withdraw_while_borrow_outstanding() {
+    let owner = @0xA11CE;
+    let mut scenario = test_scenario::begin(owner);
+    let ctx = scenario.ctx();
+
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
+    let key = test_fixtures::sample_binary_key();
+    let mut quote_treasury = test_fixtures::quote_treasury(ctx);
+
+    user_proxy::deposit_quote_for_binary(
+        &mut proxy,
+        key,
+        coin::mint(&mut quote_treasury, 1_000, ctx),
+        ctx,
+    );
+    user_proxy::record_borrow_for_binary(&mut proxy, key, 300, ctx);
+
+    assert!(user_proxy::binary_withdrawable_quote(&proxy, key) == 700, 0);
+
+    user_proxy::withdraw_quote_for_binary<test_fixtures::TestQuote>(
+        &mut proxy,
+        key,
+        400,
+        ctx,
+    );
+
+    assert!(user_proxy::binary_quote_balance(&proxy, key) == 600, 0);
+    assert!(user_proxy::binary_borrowed_quote(&proxy, key) == 300, 0);
+    assert!(user_proxy::binary_withdrawable_quote(&proxy, key) == 300, 0);
+
+    scenario.end();
+}
+
+#[test]
+#[expected_failure(abort_code = errors::E_INSUFFICIENT_MARGIN)]
+fun binary_withdraw_over_withdrawable_aborts() {
+    let owner = @0xA11CE;
+    let mut scenario = test_scenario::begin(owner);
+    let ctx = scenario.ctx();
+
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, object::id_from_address(@0xBEEF), ctx);
+    let key = test_fixtures::sample_binary_key();
+    let mut quote_treasury = test_fixtures::quote_treasury(ctx);
+
+    user_proxy::deposit_quote_for_binary(
+        &mut proxy,
+        key,
+        coin::mint(&mut quote_treasury, 1_000, ctx),
+        ctx,
+    );
+    user_proxy::record_borrow_for_binary(&mut proxy, key, 300, ctx);
+
+    user_proxy::withdraw_quote_for_binary<test_fixtures::TestQuote>(
+        &mut proxy,
+        key,
+        800,
+        ctx,
+    );
 
     scenario.end();
 }

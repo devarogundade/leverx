@@ -46,18 +46,23 @@ fun assert_registry_vault_collector<Quote>(
 
 // === Factory ===
 
-/// Create a new `UserProxy` owned by the sender and linked to a DeepBook Predict manager.
-public entry fun create_user_proxy(predict_manager_id: ID, ctx: &mut TxContext) {
-    user_proxy::create(predict_manager_id, ctx);
-}
-
-/// Re-link the proxy to a different DeepBook Predict `PredictManager` (owner or executor).
-public entry fun link_predict_manager_entry(
-    proxy: &mut UserProxy,
-    manager_id: ID,
-    ctx: &TxContext,
+/// Create a new `UserProxy` linked to a keeper-owned DeepBook Predict manager.
+///
+/// The trader (`ctx.sender()`) becomes the primary owner. The protocol keeper
+/// (`registry.keeper_address`, which also owns the linked Predict manager) is
+/// recorded as the secondary owner so it can relay trades as an authorized actor
+/// without a separate executor-registration transaction.
+public entry fun create_user_proxy(
+    registry: &LeverxRegistry,
+    manager: &PredictManager,
+    ctx: &mut TxContext,
 ) {
-    user_proxy::link_predict_manager(proxy, manager_id, ctx);
+    protocol_registry::assert_keeper_managed_manager(registry, manager);
+    user_proxy::create(
+        object::id(manager),
+        protocol_registry::keeper_address(registry),
+        ctx,
+    );
 }
 
 /// Grant a session executor (e.g. bot key) permission to act on behalf of the proxy owner.
@@ -395,8 +400,8 @@ public fun place_binary_limit_mint_order<Quote>(
     assert!(quantity > 0, errors::zero_quantity());
     assert!(margin_quote > 0, errors::zero_amount());
     ltv::assert_leverage_bps(leverage_bps);
-    assert_leveraged_mint_window(key.expiry(), leverage_bps, clock);
-    assert_leveraged_resting_order_expiry(key.expiry(), expires_ms, leverage_bps);
+    assert_leveraged_mint_window(registry, key.expiry(), leverage_bps, clock);
+    assert_leveraged_resting_order_expiry(registry, key.expiry(), expires_ms, leverage_bps);
     assert!(
         proxy.binary_quote_balance(key) >= margin_quote,
         errors::insufficient_margin(),
@@ -476,8 +481,8 @@ public fun place_range_limit_mint_order<Quote>(
     assert!(quantity > 0, errors::zero_quantity());
     assert!(margin_quote > 0, errors::zero_amount());
     ltv::assert_leverage_bps(leverage_bps);
-    assert_leveraged_mint_window(key.expiry(), leverage_bps, clock);
-    assert_leveraged_resting_order_expiry(key.expiry(), expires_ms, leverage_bps);
+    assert_leveraged_mint_window(registry, key.expiry(), leverage_bps, clock);
+    assert_leveraged_resting_order_expiry(registry, key.expiry(), expires_ms, leverage_bps);
     assert!(
         proxy.range_quote_balance(key) >= margin_quote,
         errors::insufficient_margin(),
@@ -547,11 +552,12 @@ public fun execute_binary_limit_mint_order<Quote>(
     ctx: &mut TxContext,
 ) {
     assert!(!registry.trading_paused(), errors::trading_paused());
+    protocol_registry::assert_keeper(registry, ctx);
     assert_registry_predict(registry, predict_global);
     protocol_registry::assert_vault(registry, vault);
     user_proxy::assert_binary_limit_mint_not_expired(proxy, key, clock);
     let order = proxy.take_binary_limit_mint(key);
-    assert_leveraged_mint_window(key.expiry(), user_proxy::leverage_bps(&order), clock);
+    assert_leveraged_mint_window(registry, key.expiry(), user_proxy::leverage_bps(&order), clock);
     user_proxy::release_binary_quote_reserve(
         proxy,
         key,
@@ -607,11 +613,12 @@ public fun execute_range_limit_mint_order<Quote>(
     ctx: &mut TxContext,
 ) {
     assert!(!registry.trading_paused(), errors::trading_paused());
+    protocol_registry::assert_keeper(registry, ctx);
     assert_registry_predict(registry, predict_global);
     protocol_registry::assert_vault(registry, vault);
     user_proxy::assert_range_limit_mint_not_expired(proxy, key, clock);
     let order = proxy.take_range_limit_mint(key);
-    assert_leveraged_mint_window(key.expiry(), user_proxy::leverage_bps(&order), clock);
+    assert_leveraged_mint_window(registry, key.expiry(), user_proxy::leverage_bps(&order), clock);
     user_proxy::release_range_quote_reserve(
         proxy,
         key,
@@ -900,6 +907,7 @@ public fun settle_expired_proxy_position_permissionless<Quote>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
+    protocol_registry::assert_keeper(registry, ctx);
     settle_expired_proxy_position_inner<Quote>(
         registry,
         vault,
@@ -998,6 +1006,7 @@ public fun settle_expired_proxy_range_permissionless<Quote>(
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
+    protocol_registry::assert_keeper(registry, ctx);
     settle_expired_proxy_range_inner<Quote>(
         registry,
         vault,
@@ -1070,8 +1079,9 @@ public fun force_deleverage_binary_at_expiry<Quote>(
 ) {
     assert_registry_predict(registry, predict_global);
     assert_registry_vault_collector(registry, vault, collector);
+    protocol_registry::assert_keeper(registry, ctx);
     assert!(object::id(manager) == proxy.predict_manager_id(), errors::invalid_manager());
-    assert_force_deleverage_window(key.expiry(), clock);
+    assert_force_deleverage_window(registry, key.expiry(), clock);
     assert!(!oracle.is_settled(), errors::oracle_already_settled());
     assert!(proxy.binary_borrowed_quote(key) > 0, errors::no_leveraged_exposure());
     assert!(quantity > 0, errors::zero_quantity());
@@ -1169,8 +1179,9 @@ public fun force_deleverage_range_at_expiry<Quote>(
 ) {
     assert_registry_predict(registry, predict_global);
     assert_registry_vault_collector(registry, vault, collector);
+    protocol_registry::assert_keeper(registry, ctx);
     assert!(object::id(manager) == proxy.predict_manager_id(), errors::invalid_manager());
-    assert_force_deleverage_window(key.expiry(), clock);
+    assert_force_deleverage_window(registry, key.expiry(), clock);
     assert!(!oracle.is_settled(), errors::oracle_already_settled());
     assert!(proxy.range_borrowed_quote(key) > 0, errors::no_leveraged_exposure());
     assert!(quantity > 0, errors::zero_quantity());
@@ -1270,6 +1281,7 @@ public fun force_repay_binary_post_expiry<Quote>(
 ) {
     assert_registry_predict(registry, predict_global);
     assert_registry_vault_collector(registry, vault, collector);
+    protocol_registry::assert_keeper(registry, ctx);
     assert!(object::id(manager) == proxy.predict_manager_id(), errors::invalid_manager());
     assert!(clock.timestamp_ms() >= key.expiry(), errors::market_still_open());
     assert!(!oracle.is_settled(), errors::oracle_already_settled());
@@ -1335,6 +1347,7 @@ public fun force_repay_range_post_expiry<Quote>(
 ) {
     assert_registry_predict(registry, predict_global);
     assert_registry_vault_collector(registry, vault, collector);
+    protocol_registry::assert_keeper(registry, ctx);
     assert!(object::id(manager) == proxy.predict_manager_id(), errors::invalid_manager());
     assert!(clock.timestamp_ms() >= key.expiry(), errors::market_still_open());
     assert!(!oracle.is_settled(), errors::oracle_already_settled());
@@ -1587,7 +1600,7 @@ public fun quote_leveraged_mint_binary<Quote>(
     clock: &Clock,
 ): (u64, u64, u64) {
     assert_registry_predict(registry, predict_global);
-    assert_leveraged_mint_window(key.expiry(), leverage_bps, clock);
+    assert_leveraged_mint_window(registry, key.expiry(), leverage_bps, clock);
     let (market_ask, mint_cost) =
         predict_client::market_ask_binary(predict_global, oracle, key, quantity, clock);
     let borrow_quote = quote_borrow_for_leverage_binary(
@@ -1613,7 +1626,7 @@ public fun quote_leveraged_mint_range<Quote>(
     clock: &Clock,
 ): (u64, u64, u64) {
     assert_registry_predict(registry, predict_global);
-    assert_leveraged_mint_window(key.expiry(), leverage_bps, clock);
+    assert_leveraged_mint_window(registry, key.expiry(), leverage_bps, clock);
     let (market_ask, mint_cost) =
         predict_client::market_ask_range(predict_global, oracle, key, quantity, clock);
     let borrow_quote = quote_borrow_for_leverage_range(
@@ -1874,6 +1887,7 @@ public fun write_off_flat_binary_borrow_permissionless<Quote>(
 ) {
     assert_registry_predict(registry, predict_global);
     assert_registry_vault_collector(registry, vault, collector);
+    protocol_registry::assert_keeper(registry, ctx);
     assert!(object::id(manager) == proxy.predict_manager_id(), errors::invalid_manager());
     assert!(proxy.binary_borrowed_quote(key) > 0, errors::no_leveraged_exposure());
     assert!(predict_client::manager_binary_position(manager, key) == 0, errors::zero_quantity());
@@ -1899,6 +1913,7 @@ public fun write_off_flat_range_borrow_permissionless<Quote>(
 ) {
     assert_registry_predict(registry, predict_global);
     assert_registry_vault_collector(registry, vault, collector);
+    protocol_registry::assert_keeper(registry, ctx);
     assert!(object::id(manager) == proxy.predict_manager_id(), errors::invalid_manager());
     assert!(proxy.range_borrowed_quote(key) > 0, errors::no_leveraged_exposure());
     assert!(predict_client::manager_range_position(manager, key) == 0, errors::zero_quantity());
@@ -2367,39 +2382,45 @@ fun validate_redeem_order(
     };
 }
 
-/// Shared final-hour gate: `[expiry - window, expiry)`.
-fun assert_final_hour_before_expiry(expiry_ms: u64, clock: &Clock, outside_window: u64) {
+/// Shared final-window gate: `[expiry - window, expiry)`.
+fun assert_final_hour_before_expiry(expiry_ms: u64, window_ms: u64, clock: &Clock, outside_window: u64) {
     let now = clock.timestamp_ms();
-    let window = protocol_constants::leveraged_mint_window_ms();
-    assert!(now >= expiry_ms - window, outside_window);
+    assert!(now >= expiry_ms - window_ms, outside_window);
     assert!(now < expiry_ms, outside_window);
 }
 
-/// Leverage above 1x is blocked in the final hour before market expiry.
-fun assert_leveraged_mint_window(expiry_ms: u64, leverage_bps: u64, clock: &Clock) {
+/// Leverage above 1x is blocked in the final window before market expiry.
+fun assert_leveraged_mint_window(
+    registry: &LeverxRegistry,
+    expiry_ms: u64,
+    leverage_bps: u64,
+    clock: &Clock,
+) {
     if (leverage_bps <= protocol_constants::bps()) return;
+    let window = protocol_registry::final_window_ms(registry);
     let now = clock.timestamp_ms();
-    let window = protocol_constants::leveraged_mint_window_ms();
     assert!(now < expiry_ms - window, errors::leveraged_mint_outside_window());
 }
 
-/// Resting leveraged orders must expire before the final-hour window opens.
+/// Resting leveraged orders must expire before the final window opens.
 fun assert_leveraged_resting_order_expiry(
+    registry: &LeverxRegistry,
     market_expiry_ms: u64,
     order_expires_ms: u64,
     leverage_bps: u64,
 ) {
     if (leverage_bps <= protocol_constants::bps()) return;
-    let window = protocol_constants::leveraged_mint_window_ms();
+    let window = protocol_registry::final_window_ms(registry);
     assert!(
         order_expires_ms < market_expiry_ms - window,
         errors::leveraged_mint_outside_window(),
     );
 }
 
-/// Force-deleverage may only run in the same final-hour window (before expiry).
-fun assert_force_deleverage_window(expiry_ms: u64, clock: &Clock) {
-    assert_final_hour_before_expiry(expiry_ms, clock, errors::force_deleverage_outside_window());
+/// Force-deleverage may only run in the final window (before expiry).
+fun assert_force_deleverage_window(registry: &LeverxRegistry, expiry_ms: u64, clock: &Clock) {
+    let window = protocol_registry::final_window_ms(registry);
+    assert_final_hour_before_expiry(expiry_ms, window, clock, errors::force_deleverage_outside_window());
 }
 
 /// After a leveraged mint, open health must meet the registry liquidation threshold.
@@ -2662,7 +2683,7 @@ fun plan_leverage_binary(
     assert!(margin_quote > 0, errors::zero_amount());
     ltv::assert_margin_quote(margin_quote);
     ltv::assert_leverage_bps(leverage_bps);
-    assert_leveraged_mint_window(key.expiry(), leverage_bps, clock);
+    assert_leveraged_mint_window(registry, key.expiry(), leverage_bps, clock);
     assert!(
         proxy.binary_quote_balance(key) >= margin_quote,
         errors::insufficient_margin(),
@@ -2696,7 +2717,7 @@ fun plan_leverage_range(
     assert!(margin_quote > 0, errors::zero_amount());
     ltv::assert_margin_quote(margin_quote);
     ltv::assert_leverage_bps(leverage_bps);
-    assert_leveraged_mint_window(key.expiry(), leverage_bps, clock);
+    assert_leveraged_mint_window(registry, key.expiry(), leverage_bps, clock);
     assert!(
         proxy.range_quote_balance(key) >= margin_quote,
         errors::insufficient_margin(),

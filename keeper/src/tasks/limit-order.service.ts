@@ -4,6 +4,7 @@ import { IndexerService } from '../indexer/indexer.service';
 import type { LimitMintOrder } from '../indexer/indexer.types';
 import type { TaskResult } from '../keeper/keeper.types';
 import { logKeeperError } from '../lib/keeper-log';
+import { PredictQuoteService } from '../sui/predict-quote.service';
 import { PtbBuilderService } from '../sui/ptb-builder.service';
 import { SuiService } from '../sui/sui.service';
 
@@ -15,6 +16,7 @@ export class LimitOrderService {
     private readonly indexer: IndexerService,
     private readonly sui: SuiService,
     private readonly ptb: PtbBuilderService,
+    private readonly quotes: PredictQuoteService,
   ) {}
 
   async run(
@@ -64,8 +66,10 @@ export class LimitOrderService {
             continue;
           }
 
-          const account = await this.indexer.fetchAccount(order.account_id);
-          const managerId = account.account?.predict_manager_id;
+          const managerId =
+            (await this.quotes.fetchPredictManagerId(order.account_id)) ??
+            (await this.indexer.fetchAccount(order.account_id)).account
+              ?.predict_manager_id;
           if (!managerId) {
             results.push({
               kind: 'limit_order',
@@ -147,21 +151,18 @@ export class LimitOrderService {
   }
 
   private async isFillable(order: LimitMintOrder): Promise<boolean> {
-    const book = await this.indexer.fetchOrderBook({
-      oracleId: order.oracle_id,
-      expiryMs: order.expiry_ms,
-      strike: order.strike,
-      higherStrike: order.higher_strike,
-      isUp: order.is_up,
-      isRange: order.is_range,
-    });
-
-    const bestAsk = book.asks[0]?.price;
-    if (bestAsk === undefined) return false;
+    const key = this.ptb.keyFromLimitOrder(order);
+    const quantity = BigInt(order.quantity || 0);
+    const bestAsk = await this.quotes.fetchMarketAskPerUnit(
+      key,
+      quantity > 0n ? quantity : undefined,
+    );
+    if (bestAsk === null) return false;
 
     const maxPremium =
-      order.limit_premium_per_unit +
-      Math.floor((order.limit_premium_per_unit * order.slippage_bps) / 10_000);
+      BigInt(order.limit_premium_per_unit) +
+      (BigInt(order.limit_premium_per_unit) * BigInt(order.slippage_bps)) /
+        10_000n;
     return bestAsk <= maxPremium;
   }
 }

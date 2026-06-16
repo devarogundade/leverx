@@ -4,7 +4,7 @@
 /// Global LeverX configuration: Predict link, vault, fee collector, trading pause.
 module leverx::protocol_registry;
 
-use deepbook_predict::predict::Predict;
+use deepbook_predict::{predict::Predict, predict_manager::PredictManager};
 use leverx::{
     protocol_constants,
     errors,
@@ -34,6 +34,10 @@ public struct LeverxRegistry has key {
     trading_paused: bool,
     /// Liquidate when position health (bps) falls below this threshold (default 9_500 = 95%).
     liquidation_bps: u64,
+    /// Final window before expiry (ms): block >1x mints; allow force-deleverage.
+    final_window_ms: u64,
+    /// Protocol keeper relayer; owns per-user Predict managers and signs maintenance PTBs.
+    keeper_address: address,
 }
 
 // === Init ===
@@ -60,6 +64,8 @@ public fun initialize(
         fee_collector_id: fee_collector,
         trading_paused: false,
         liquidation_bps: protocol_constants::default_liquidation_bps(),
+        final_window_ms: protocol_constants::default_final_window_ms(),
+        keeper_address: @0x0,
     };
     let registry_id = object::id(&registry);
     events::emit_registry_initialized(
@@ -68,6 +74,7 @@ public fun initialize(
         fee_collector,
         predict_id,
         registry.liquidation_bps,
+        registry.final_window_ms,
     );
     registry
 }
@@ -94,6 +101,26 @@ public fun set_liquidation_bps(
     events::emit_liquidation_bps_updated(object::id(registry), liquidation_bps);
 }
 
+/// Update the final window before expiry (block >1x mints; force-deleverage window).
+public fun set_final_window_ms(
+    _admin: &AdminCap,
+    registry: &mut LeverxRegistry,
+    final_window_ms: u64,
+) {
+    protocol_constants::assert_final_window_ms(final_window_ms);
+    registry.final_window_ms = final_window_ms;
+    events::emit_final_window_updated(object::id(registry), final_window_ms);
+}
+
+/// Transaction entry: update final window before expiry.
+public entry fun set_final_window_ms_entry(
+    admin: &AdminCap,
+    registry: &mut LeverxRegistry,
+    final_window_ms: u64,
+) {
+    set_final_window_ms(admin, registry, final_window_ms);
+}
+
 /// Transaction entry: update liquidation health threshold.
 public entry fun set_liquidation_bps_entry(
     admin: &AdminCap,
@@ -110,6 +137,26 @@ public entry fun set_trading_paused_entry(
     paused: bool,
 ) {
     set_trading_paused(admin, registry, paused);
+}
+
+/// Set the protocol keeper relayer address (owns Predict managers for leveraged users).
+public fun set_keeper_address(
+    _admin: &AdminCap,
+    registry: &mut LeverxRegistry,
+    keeper_address: address,
+) {
+    assert!(keeper_address != @0x0, errors::keeper_not_configured());
+    registry.keeper_address = keeper_address;
+    events::emit_keeper_address_updated(object::id(registry), keeper_address);
+}
+
+/// Transaction entry: set the protocol keeper relayer address.
+public entry fun set_keeper_address_entry(
+    admin: &AdminCap,
+    registry: &mut LeverxRegistry,
+    keeper_address: address,
+) {
+    set_keeper_address(admin, registry, keeper_address);
 }
 
 /// Transaction entry: withdraw accumulated protocol fees from `FeeCollector`.
@@ -201,6 +248,30 @@ public fun liquidation_bps(registry: &LeverxRegistry): u64 {
     registry.liquidation_bps
 }
 
+/// Final window before expiry in milliseconds.
+public fun final_window_ms(registry: &LeverxRegistry): u64 {
+    registry.final_window_ms
+}
+
+/// Protocol keeper relayer address (`@0x0` when unset).
+public fun keeper_address(registry: &LeverxRegistry): address {
+    registry.keeper_address
+}
+
+/// Abort unless `manager` is owned by the configured protocol keeper.
+public fun assert_keeper_managed_manager(registry: &LeverxRegistry, manager: &PredictManager) {
+    let keeper = registry.keeper_address;
+    assert!(keeper != @0x0, errors::keeper_not_configured());
+    assert!(manager.owner() == keeper, errors::invalid_manager());
+}
+
+/// Abort unless `ctx.sender()` is the configured protocol keeper.
+public fun assert_keeper(registry: &LeverxRegistry, ctx: &TxContext) {
+    let keeper = registry.keeper_address;
+    assert!(keeper != @0x0, errors::keeper_not_configured());
+    assert!(ctx.sender() == keeper, errors::not_keeper());
+}
+
 /// Assert the vault object matches the registry deployment link.
 public fun assert_vault<Quote>(registry: &LeverxRegistry, vault: &LeverageVault<Quote>) {
     assert!(object::id(vault) == registry.vault_id, errors::invalid_protocol_vault());
@@ -226,8 +297,15 @@ public fun create_for_testing(ctx: &mut TxContext): (AdminCap, LeverxRegistry) {
         fee_collector_id: object::id_from_address(@0x3),
         trading_paused: false,
         liquidation_bps: protocol_constants::default_liquidation_bps(),
+        final_window_ms: protocol_constants::default_final_window_ms(),
+        keeper_address: @0x0,
     };
     (admin, registry)
+}
+
+#[test_only]
+public fun set_keeper_address_for_testing(registry: &mut LeverxRegistry, keeper_address: address) {
+    registry.keeper_address = keeper_address;
 }
 
 #[test_only]

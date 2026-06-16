@@ -24,8 +24,6 @@ import { WalletConnectButton } from "@/components/WalletConnectButton";
 import { useWallet } from "@/context/WalletContext";
 import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
 import { resolvePredictManagerId } from "@/lib/leverx/account-resolution";
-import { useManagerQuoteBalance } from "@/hooks/useManagerQuoteBalance";
-import { scaleQuoteAtoms } from "@/lib/predict/scaling";
 import { useNow } from "@/hooks/useNow";
 import { showTxError, showTxSuccess } from "@/lib/toast";
 import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
@@ -54,7 +52,11 @@ import {
 import { marketKeyMatchesPosition, type MarketKeyArgs } from "@/lib/leverx/market-keys";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
-import { formatLiquidationThresholdPct, resolveLiquidationBps } from "@/lib/leverx/protocol";
+import {
+  formatLiquidationThresholdPct,
+  resolveFinalWindowMs,
+  resolveLiquidationBps,
+} from "@/lib/leverx/protocol";
 import { buildQuickAmounts } from "@/lib/leverx/form-helpers";
 import { tradeCtaLabel, tradeNeedsDeposit } from "@/lib/leverx/trade-cta";
 import {
@@ -74,7 +76,7 @@ import {
 import { ui, formatAmount } from "@/lib/copy";
 import { StrikePriceSelector } from "@/components/leverx/StrikePriceSelector";
 import { RangeStrikeSelector } from "@/components/leverx/RangeStrikeSelector";
-import { ChevronDown, ArrowLeftRight, Loader2, UserCog, Wallet } from "lucide-react";
+import { ChevronDown, Loader2, Wallet } from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,
@@ -111,7 +113,6 @@ import {
 } from "@/lib/leverx/tw";
 
 type OrderType = "market" | "limit";
-type DepositSource = "wallet" | "manager";
 
 const DEFAULT_MARKET_SLIPPAGE_PCT = DEFAULT_SLIPPAGE_BPS / 100;
 
@@ -164,7 +165,6 @@ export function PredictLeveragePanel({
   const { isWalletConnected, address, client } = useWallet();
   const { openTrade, createMarginAccount, isProtocolReady, cfg } = useLeverxTransactions();
   const [marginAccountReady, setMarginAccountReady] = useState(false);
-  const [depositSource, setDepositSource] = useState<DepositSource>("wallet");
   const [orderType, setOrderType] = useState<OrderType>("market");
   const [limitPrice, setLimitPrice] = useState("");
   const [margin, setMargin] = useState("");
@@ -185,6 +185,7 @@ export function PredictLeveragePanel({
   const [customUpperUsd, setCustomUpperUsd] = useState("");
   const { data: protocol } = useIndexerProtocol();
   const liquidationBps = resolveLiquidationBps(protocol);
+  const finalWindowMs = resolveFinalWindowMs(protocol);
   const { data: leverxAccounts = [] } = useIndexerAccounts(address ?? undefined);
   const hasMarginAccount = leverxAccounts.length > 0 || marginAccountReady;
   const needsMarginAccountSetup = isWalletConnected && !hasMarginAccount;
@@ -227,7 +228,6 @@ export function PredictLeveragePanel({
     setMarketSlippagePct(DEFAULT_MARKET_SLIPPAGE_PCT);
     setOrderExpiresOffsetMs(DEFAULT_LIMIT_ORDER_EXPIRY_MS);
     setRemintAfterDeleverage(true);
-    setDepositSource("wallet");
     // eslint-disable-next-line react-hooks/exhaustive-deps -- strike props intentionally omitted
   }, [tradeContextKey]);
 
@@ -244,24 +244,10 @@ export function PredictLeveragePanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- lastAskPremium omitted to avoid refetch clobbering input
   }, [orderType, tradeContextKey]);
   const { data: walletQuoteBalance } = useWalletCoinBalance(appConfig.quoteType, 6);
-  const { data: managerBalanceAtoms, isLoading: managerBalanceLoading } = useManagerQuoteBalance(
-    hasLinkedManager && predictManagerId ? predictManagerId : undefined,
-  );
-  const managerQuoteBalance =
-    managerBalanceAtoms != null ? scaleQuoteAtoms(managerBalanceAtoms) : null;
 
-  useEffect(() => {
-    if (!hasLinkedManager && depositSource === "manager") {
-      setDepositSource("wallet");
-    }
-  }, [hasLinkedManager, depositSource]);
-
-  const availableQuoteBalance =
-    depositSource === "manager" ? managerQuoteBalance : walletQuoteBalance?.usd;
-  const availableQuoteAtoms =
-    depositSource === "manager" ? managerBalanceAtoms : walletQuoteBalance?.atoms;
-  const availableBalanceLoading =
-    depositSource === "manager" ? managerBalanceLoading : false;
+  // Trades always fund from the trader's wallet into their trading account.
+  const availableQuoteBalance = walletQuoteBalance?.usd;
+  const availableQuoteAtoms = walletQuoteBalance?.atoms;
 
   const now = useNow(1000);
 
@@ -494,27 +480,11 @@ export function PredictLeveragePanel({
   );
 
   const quoteBalanceLabel = useMemo(() => {
-    if (availableBalanceLoading) return "…";
     if (availableQuoteBalance == null) return "—";
     return availableQuoteBalance;
-  }, [availableBalanceLoading, availableQuoteBalance]);
+  }, [availableQuoteBalance]);
 
-  const toggleDepositSource = useCallback(() => {
-    setDepositSource((source) => (source === "wallet" ? "manager" : "wallet"));
-  }, []);
-
-  const depositSourceHint =
-    depositSource === "manager"
-      ? leverxInfo.depositSourceManager
-      : leverxInfo.depositSourceWallet;
-
-  const depositSourceAriaLabel =
-    depositSource === "manager"
-      ? "Deposit source: trading account. Switch to wallet."
-      : "Deposit source: wallet. Switch to trading account.";
-
-  const depositBalanceSourceLabel =
-    depositSource === "manager" ? ui.balanceManager : ui.balanceWallet;
+  const depositBalanceSourceLabel = ui.balanceWallet;
 
   const quickAmounts = useMemo(
     () =>
@@ -683,15 +653,11 @@ export function PredictLeveragePanel({
       availableQuoteBalance != null &&
       marginNum > availableQuoteBalance + 1e-6
     ) {
-      errors.push(
-        depositSource === "manager"
-          ? "Deposit exceeds available Predict manager balance."
-          : "Deposit exceeds available USDC balance.",
-      );
+      errors.push("Deposit exceeds available USDC balance.");
     }
     if (isWalletConnected && leverxAccounts.length > 0 && !hasLinkedManager) {
       errors.push(
-        "Predict manager is not linked. Open Portfolio → Account to link your manager before trading.",
+        "Your trading account is still being set up. Refresh your portfolio in a moment before trading.",
       );
     }
     if (orderType === "limit" && marginNum > 0) {
@@ -832,7 +798,6 @@ export function PredictLeveragePanel({
   }, [
     marginNum,
     availableQuoteBalance,
-    depositSource,
     orderType,
     limitPrice,
     placementSlippagePct,
@@ -928,7 +893,6 @@ export function PredictLeveragePanel({
             ? Math.min(Date.now() + orderExpiresOffsetMs, expiryMs)
             : undefined,
         remintAfterDeleverage: lev > 1 ? remintAfterDeleverage : false,
-        depositSource: hasLinkedManager ? depositSource : "wallet",
         tpPremium: tpPremium > 0n ? tpPremium : undefined,
         slPremium: slPremium > 0n ? slPremium : undefined,
       },
@@ -1078,44 +1042,18 @@ export function PredictLeveragePanel({
                 labelClassName={labelCaps}
                 info={leverxInfo.margin}
               />
-              {hasLinkedManager ? (
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1 rounded-md px-0.5 py-0.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                  title={depositSourceHint}
-                  aria-label={depositSourceAriaLabel}
-                  onClick={toggleDepositSource}
-                >
-                  {depositSource === "manager" ? (
-                    <UserCog className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                  ) : (
-                    <Wallet className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                  )}
-                  {depositBalanceSourceLabel}{" "}
-                  {typeof quoteBalanceLabel === "number" ? (
-                    <span className="font-mono tabular-nums text-foreground">
-                      {formatAmount(quoteBalanceLabel)}
-                    </span>
-                  ) : (
-                    <span className="font-mono text-foreground">{quoteBalanceLabel}</span>
-                  )}
-                  <QuoteIcon className="h-3.5 w-3.5 shrink-0" />
-                  <ArrowLeftRight className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                </button>
-              ) : (
-                <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
-                  <Wallet className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                  {depositBalanceSourceLabel}{" "}
-                  {typeof quoteBalanceLabel === "number" ? (
-                    <span className="font-mono tabular-nums text-foreground">
-                      {formatAmount(quoteBalanceLabel)}
-                    </span>
-                  ) : (
-                    <span className="font-mono text-foreground">{quoteBalanceLabel}</span>
-                  )}
-                  <QuoteIcon className="h-3.5 w-3.5 shrink-0" />
-                </span>
-              )}
+              <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
+                <Wallet className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                {depositBalanceSourceLabel}{" "}
+                {typeof quoteBalanceLabel === "number" ? (
+                  <span className="font-mono tabular-nums text-foreground">
+                    {formatAmount(quoteBalanceLabel)}
+                  </span>
+                ) : (
+                  <span className="font-mono text-foreground">{quoteBalanceLabel}</span>
+                )}
+                <QuoteIcon className="h-3.5 w-3.5 shrink-0" />
+              </span>
             </div>
             <TradeAmountInput
               prefix={<span className="font-mono text-sm">$</span>}

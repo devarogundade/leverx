@@ -306,36 +306,6 @@ export async function fetchManagerOpenQuantity(params: {
   }
 }
 
-/** Quote balance held in a linked DeepBook Predict manager (not on a market key ledger). */
-export async function fetchManagerQuoteBalance(params: {
-  client: SuiJsonRpcClient;
-  packageId: string;
-  predictManagerId: string;
-  quoteType: string;
-}): Promise<bigint | null> {
-  const tx = new Transaction();
-  tx.setSender(READONLY_SENDER);
-
-  tx.moveCall({
-    target: `${params.packageId}::predict_client::manager_balance`,
-    typeArguments: [params.quoteType],
-    arguments: [tx.object(params.predictManagerId)],
-  });
-
-  try {
-    const inspect = await params.client.devInspectTransactionBlock({
-      transactionBlock: tx,
-      sender: READONLY_SENDER,
-    });
-    if (inspect.effects?.status?.status !== "success") return null;
-    const tuple = findReturnTuple(inspect.results, 1);
-    if (!tuple) return null;
-    return coerceQuoteAtomsToBigInt(tuple[0]);
-  } catch {
-    return null;
-  }
-}
-
 /** On-chain quote balance held on a market key ledger (not in wallet). */
 export async function fetchKeyQuoteBalance(params: {
   client: SuiJsonRpcClient;
@@ -348,6 +318,37 @@ export async function fetchKeyQuoteBalance(params: {
   tx.setSender(READONLY_SENDER);
   const marketKey = addLeverxMarketKey(tx, params.key, params.predictPackageId);
   const fn = params.key.isRange ? "range_quote_balance" : "binary_quote_balance";
+
+  tx.moveCall({
+    target: `${params.leverxPackageId}::user_proxy::${fn}`,
+    arguments: [tx.object(params.accountId), marketKey],
+  });
+
+  try {
+    const inspect = await params.client.devInspectTransactionBlock({
+      transactionBlock: tx,
+      sender: READONLY_SENDER,
+    });
+    if (inspect.effects?.status?.status !== "success") return 0n;
+    const tuple = findReturnTuple(inspect.results, 1);
+    return tuple?.[0] ?? 0n;
+  } catch {
+    return 0n;
+  }
+}
+
+/** Free withdrawable quote on a key = ledger balance minus outstanding borrow. */
+export async function fetchKeyWithdrawableQuote(params: {
+  client: SuiJsonRpcClient;
+  leverxPackageId: string;
+  predictPackageId: string;
+  accountId: string;
+  key: MarketKeyArgs;
+}): Promise<bigint> {
+  const tx = new Transaction();
+  tx.setSender(READONLY_SENDER);
+  const marketKey = addLeverxMarketKey(tx, params.key, params.predictPackageId);
+  const fn = params.key.isRange ? "range_withdrawable_quote" : "binary_withdrawable_quote";
 
   tx.moveCall({
     target: `${params.leverxPackageId}::user_proxy::${fn}`,

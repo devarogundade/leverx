@@ -1,4 +1,14 @@
 services:
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    ports:
+      - "6379:6379"
+
   postgres:
     image: postgres:16-alpine
     environment:
@@ -28,13 +38,29 @@ services:
       - path: contracts/deploy-testnet.env
         required: true
     environment:
+      PORT: "3001"
       DATABASE_URL: postgres://leverx:leverx@postgres:5432/leverx_indexer
       INDEXER_DATABASE_URL: postgres://leverx:leverx@postgres:5432/leverx_indexer
-      REMOTE_STORE_URL: "https://checkpoints.testnet.sui.io"
-      STREAMING_URL: "https://fullnode.testnet.sui.io:443"
+      DATABASE_SYNCHRONIZE: "true"
+      DATABASE_LOGGING: "false"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
       PGHOST: postgres
+      PGPORT: "5432"
       PGUSER: leverx
+      INDEXER_URL: http://127.0.0.1:3100
+      LEVERX_API_PORT: "3100"
+      METRICS_PORT: "9186"
+      REMOTE_STORE_URL: https://checkpoints.testnet.sui.io
+      STREAMING_URL: https://fullnode.testnet.sui.io:443
+      CORS_ORIGIN: https://*.suileverx.xyz,http://localhost:8080
+      SUI_RPC_URL: https://fullnode.testnet.sui.io:443
+      PREDICT_SERVER_URL: https://predict-server.testnet.mystenlabs.com
+      TELEGRAM_ENABLED: "false"
+      TELEGRAM_POLLING: "true"
     depends_on:
+      redis:
+        condition: service_healthy
       postgres:
         condition: service_healthy
     healthcheck:

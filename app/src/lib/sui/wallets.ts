@@ -1,3 +1,4 @@
+import { isEnokiWallet, isGoogleWallet } from "@mysten/enoki";
 import {
   getWallets,
   isWalletWithRequiredFeatureSet,
@@ -10,6 +11,15 @@ export function listSuiWallets(): WalletWithRequiredFeatures[] {
   return getWallets()
     .get()
     .filter((wallet) => isWalletWithRequiredFeatureSet(wallet));
+}
+
+/** Enoki Google wallets registered for zkLogin (primary login path). */
+export function listGoogleEnokiWallets(): WalletWithRequiredFeatures[] {
+  return listSuiWallets().filter((wallet) => isEnokiWallet(wallet) && isGoogleWallet(wallet));
+}
+
+export function getGoogleEnokiWallet(): WalletWithRequiredFeatures | null {
+  return listGoogleEnokiWallets()[0] ?? null;
 }
 
 export function getWalletAccount(wallet: WalletWithRequiredFeatures): WalletAccount | null {

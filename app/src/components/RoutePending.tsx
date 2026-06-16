@@ -39,7 +39,6 @@ const SIMPLE_PAGE_HEADERS: Record<string, { title: string; hint?: string }> = {
     title: "Points",
     hint: "Leaderboard ranked by LeverX leveraged trading volume (LVX points = quote notional).",
   },
-  "/keeper": { title: ui.keeperPageTitle, hint: ui.keeperPageHint },
   "/guide": { title: "How LeverX works" },
 };
 

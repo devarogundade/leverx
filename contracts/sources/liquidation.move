@@ -41,6 +41,7 @@ public fun flash_liquidate_with_redeem_permissionless<Quote>(
     ctx: &mut TxContext,
 ): Coin<Quote> {
     protocol_registry::assert_predict(registry, predict);
+    protocol_registry::assert_keeper(registry, ctx);
     assert!(object::id(manager) == proxy.predict_manager_id(), errors::invalid_manager());
 
     let had_redeem = position_qty > 0;
@@ -90,6 +91,7 @@ public fun flash_liquidate_range_with_redeem_permissionless<Quote>(
     ctx: &mut TxContext,
 ): Coin<Quote> {
     protocol_registry::assert_predict(registry, predict);
+    protocol_registry::assert_keeper(registry, ctx);
     assert!(object::id(manager) == proxy.predict_manager_id(), errors::invalid_manager());
 
     let had_redeem = position_qty > 0;

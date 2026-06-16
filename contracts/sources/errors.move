@@ -78,6 +78,10 @@ const E_MARKET_STILL_OPEN: u64 = 48;
 const E_INVALID_LIQUIDATION_BPS: u64 = 49;
 const E_TRIGGER_THRESHOLD_NOT_MET: u64 = 50;
 const E_OPEN_HEALTH_BELOW_LIQUIDATION: u64 = 51;
+const E_KEEPER_NOT_CONFIGURED: u64 = 52;
+const E_NOT_KEEPER: u64 = 53;
+// 54 retired (was E_MANAGER_LINK_IMMUTABLE — manager link is now immutable by construction).
+const E_INVALID_FINAL_WINDOW_MS: u64 = 55;
 
 // --- Auth & access control ---
 
@@ -224,3 +228,12 @@ public fun invalid_liquidation_bps(): u64 { E_INVALID_LIQUIDATION_BPS }
 
 /// Leveraged open would leave health below the registry liquidation threshold.
 public fun open_health_below_liquidation(): u64 { E_OPEN_HEALTH_BELOW_LIQUIDATION }
+
+/// Registry `keeper_address` has not been set by admin.
+public fun keeper_not_configured(): u64 { E_KEEPER_NOT_CONFIGURED }
+
+/// Caller is not the on-chain keeper address registered in the protocol registry.
+public fun not_keeper(): u64 { E_NOT_KEEPER }
+
+/// Final window must be within admin bounds (10 minutes – 4 hours).
+public fun invalid_final_window_ms(): u64 { E_INVALID_FINAL_WINDOW_MS }

@@ -29,8 +29,9 @@ function PrivacyPage() {
         />
         <article className="space-y-6 text-sm leading-relaxed text-muted-foreground">
           <Clause n="1" title="What we collect">
-            We don&apos;t ask for your name or email. When you connect a wallet, we only use your
-            address to show your trades and prepare transactions you approve yourself.
+            We don&apos;t ask for your name or email directly. When you log in with Google via
+            Enoki, we only use your on-chain address to show your trades and prepare transactions
+            you approve yourself.
           </Clause>
           <Clause n="2" title="Analytics">
             Anonymous, aggregated usage metrics (page views, transaction success rate) may be
@@ -41,12 +42,12 @@ function PrivacyPage() {
             but does not store this data off-chain beyond ephemeral caching.
           </Clause>
           <Clause n="4" title="Cookies & local storage">
-            Local storage is used only to remember UI preferences and the last-connected wallet
-            session. No third-party tracking cookies are set.
+            Local storage is used only to remember UI preferences and your last login session. No
+            third-party tracking cookies are set.
           </Clause>
           <Clause n="5" title="Your rights">
             Because we do not collect personal data, no deletion or data-export request is required.
-            Disconnect your wallet at any time to end the session.
+            Log out at any time to end the session.
           </Clause>
           <Clause n="6" title="Contact">
             Questions about this policy can be raised in the public GitHub repository.

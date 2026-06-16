@@ -17,7 +17,6 @@ import {
   executeClearTriggers,
   executeClosePosition,
   executeCreateMarginAccount,
-  executeLinkManager,
   executeOpenTrade,
   executeRegisterExecutor,
   executeRepayDebt,
@@ -26,15 +25,11 @@ import {
   executeVaultSupply,
   executeVaultWithdraw,
   executeWithdrawQuote,
-  executeWithdrawManagerQuote,
   executeDepositQuote,
-  executeDepositManagerQuote,
   type ClosePositionInput,
   type OpenTradeInput,
   type WithdrawQuoteInput,
-  type WithdrawManagerQuoteInput,
   type DepositQuoteInput,
-  type DepositManagerQuoteInput,
 } from "@/lib/leverx/transactions";
 import { formatTxError } from "@/lib/leverx/tx-errors";
 import { suiClient } from "@/lib/sui/client";
@@ -112,7 +107,7 @@ export function useLeverxTransactions() {
 
   const requireReady = () => {
     if (!wallet || !account) {
-      throw new Error("Connect your wallet to continue.");
+      throw new Error("Log in to continue.");
     }
     if (!cfg) {
       throw new Error(
@@ -256,21 +251,6 @@ export function useLeverxTransactions() {
     onSuccess: () => invalidate(),
   });
 
-  const linkManager = useMutation({
-    mutationFn: async (args: { accountId: string; managerId: string }) => {
-      const ready = requireReady();
-      return executeLinkManager({
-        client,
-        wallet: ready.wallet,
-        account: ready.account,
-        cfg: ready.cfg,
-        accountId: args.accountId,
-        managerId: args.managerId,
-      });
-    },
-    onSuccess: () => invalidate(),
-  });
-
   const cancelLimitOrder = useMutation({
     mutationFn: async (order: LimitMintOrder) => {
       const ready = requireReady();
@@ -339,47 +319,11 @@ export function useLeverxTransactions() {
     },
   });
 
-  const withdrawManagerQuote = useMutation({
-    mutationFn: async (input: WithdrawManagerQuoteInput) => {
-      primeSuccessSound();
-      const ready = requireReady();
-      return executeWithdrawManagerQuote({
-        client,
-        wallet: ready.wallet,
-        account: ready.account,
-        cfg: ready.cfg,
-        input,
-      });
-    },
-    onSuccess: () => {
-      playSuccessSound();
-      invalidate();
-    },
-  });
-
   const depositQuote = useMutation({
     mutationFn: async (input: DepositQuoteInput) => {
       primeSuccessSound();
       const ready = requireReady();
       return executeDepositQuote({
-        client,
-        wallet: ready.wallet,
-        account: ready.account,
-        cfg: ready.cfg,
-        input,
-      });
-    },
-    onSuccess: () => {
-      playSuccessSound();
-      invalidate();
-    },
-  });
-
-  const depositManagerQuote = useMutation({
-    mutationFn: async (input: DepositManagerQuoteInput) => {
-      primeSuccessSound();
-      const ready = requireReady();
-      return executeDepositManagerQuote({
         client,
         wallet: ready.wallet,
         account: ready.account,
@@ -404,14 +348,11 @@ export function useLeverxTransactions() {
     clearTriggers,
     registerExecutor,
     revokeExecutor,
-    linkManager,
     cancelLimitOrder,
     vaultSupply,
     vaultWithdraw,
     withdrawQuote,
-    withdrawManagerQuote,
     depositQuote,
-    depositManagerQuote,
     formatTxError,
   };
 }

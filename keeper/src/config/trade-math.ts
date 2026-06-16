@@ -1,4 +1,5 @@
 import {
+  DEFAULT_FINAL_WINDOW_MS,
   LEVERAGED_MINT_WINDOW_MS,
   MIN_LEVERAGE_BPS,
   PREDICT_PRICE_SCALE,
@@ -13,13 +14,14 @@ export function minPayoutAfterSlippage(expectedPayout: bigint, slippageBps: numb
   return (expectedPayout * floor) / 10_000n;
 }
 
-/** Matches on-chain `assert_final_hour_before_expiry`: [expiry - window, expiry). */
+/** Matches on-chain final-window gate: [expiry - window, expiry). */
 export function isFinalHourBeforeExpiry(
   expiryMs: number,
   now = Date.now(),
+  windowMs = DEFAULT_FINAL_WINDOW_MS,
 ): boolean {
   if (!expiryMs || expiryMs <= 0) return false;
-  return expiryMs > now && expiryMs - LEVERAGED_MINT_WINDOW_MS <= now;
+  return expiryMs > now && expiryMs - windowMs <= now;
 }
 
 /** Matches on-chain `assert_leveraged_mint_window` for leverage above 1x. */
@@ -27,10 +29,11 @@ export function isLeveragedMintAllowed(
   expiryMs: number,
   leverageBps: number,
   now = Date.now(),
+  windowMs = DEFAULT_FINAL_WINDOW_MS,
 ): boolean {
   if (leverageBps <= MIN_LEVERAGE_BPS) return true;
   if (!expiryMs || expiryMs <= 0) return false;
-  return now < expiryMs - LEVERAGED_MINT_WINDOW_MS;
+  return now < expiryMs - windowMs;
 }
 
 /**

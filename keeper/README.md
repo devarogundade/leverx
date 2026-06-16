@@ -11,12 +11,15 @@ Expired position settlement is **user-initiated** in the app (`settle_expired_pr
 
 Also proxies `/v1/*` to `leverx-server` so the frontend can use a single URL (port `3001` in docker stack).
 
+**Trade relay:** Users sign personal-message intents (`leverx:trade:mint:v1` / `leverx:trade:redeem:v1`); the keeper verifies the signature, confirms it is a registered executor on the user's `UserProxy`, builds the PTB, and executes with `KEEPER_PRIVATE_KEY`. Onboarding registers the keeper as executor via `register_executor_entry` (user-signed).
+
 ## Setup
 
 ```bash
 cd keeper
 cp .env.example .env
 # Set KEEPER_PRIVATE_KEY in .env
+# Start Redis (or use docker compose — includes redis)
 # Edit src/config/constants.ts for deploy IDs, indexer URL, etc.
 pnpm install
 pnpm run start:dev
@@ -26,8 +29,20 @@ pnpm run start:dev
 
 | File                      | Purpose                                                                 |
 | ------------------------- | ----------------------------------------------------------------------- |
-| `keeper/.env`             | `KEEPER_PRIVATE_KEY` and optional deploy/indexer env overrides          |
-| `src/config/constants.ts` | Default package IDs, cron, indexer URL (overridden by env when set)     |
+| `keeper/.env`             | `KEEPER_PRIVATE_KEY`, Redis connection, optional deploy/indexer overrides |
+| `src/config/constants.ts` | Default package IDs, cron schedules, indexer URL (overridden by env when set) |
+
+### Redis (BullMQ)
+
+Repeatable keeper jobs run through BullMQ and require Redis. Set either:
+
+| Variable     | Default       | Description                          |
+| ------------ | ------------- | ------------------------------------ |
+| `REDIS_URL`  | —             | Full Redis URL (overrides host/port) |
+| `REDIS_HOST` | `127.0.0.1`   | Redis host when `REDIS_URL` is unset |
+| `REDIS_PORT` | `6379`        | Redis port when `REDIS_URL` is unset |
+
+`keeper/docker-compose.yml` starts a `redis` service and points the keeper at `redis:6379`.
 
 Optional env vars (same names as `contracts/deploy-testnet.env` and docker-compose): `LEVERX_PACKAGE_ID`, `LEVERX_REGISTRY_ID`, `LEVERX_VAULT_ID`, `LEVERX_FEE_COLLECTOR_ID`, `PREDICT_PACKAGE_ID`, `PREDICT_ID`, `QUOTE_TYPE`, `INDEXER_URL`.
 
@@ -58,6 +73,10 @@ Republish LeverX and resync the indexer before running an updated keeper against
 
 | Endpoint                    | Description                                                                     |
 | --------------------------- | ------------------------------------------------------------------------------- |
+| `POST /create-manager`      | Create or return keeper-owned Predict manager for `{ "address": "0x..." }` |
+| `POST /trade/mint`          | Relay market mint PTB (wallet-signed `leverx:trade:mint:v1` intent; keeper = executor) |
+| `POST /trade/redeem`        | Relay market redeem PTB (wallet-signed `leverx:trade:redeem:v1` intent)                 |
+| `GET /manager/:address`     | Lookup manager id for a user wallet (local store, then indexer)                       |
 | `GET /health`               | Process liveness (always 200 when running)                                      |
 | `GET /health/ready`         | Readiness — 503 if signer/RPC/indexer/config not ready                          |
 | `GET /health/status`        | Full readiness report (always 200, `ok` in body)                                |
@@ -65,11 +84,15 @@ Republish LeverX and resync the indexer before running an updated keeper against
 | `POST /keeper/run?task=all` | Run one task kind: `limit_order`, `liquidation`, `trigger`, `force_close`, `all` |
 | `GET /v1/*`                 | Proxied to leverx-server (`INDEXER_URL` in constants or `.env`)                 |
 
-## Docker
+## Docker (LeverX admin)
+
+The keeper runs as part of the leverx docker stack — not as a public self-serve helper page in the app.
 
 ```bash
 cp keeper/.env.example keeper/.env   # KEEPER_PRIVATE_KEY only
 docker compose up --build            # from repo root (leverx stack)
 ```
+
+After deploy, contract admin must call `protocol_registry::set_keeper_address_entry` with the keeper signer address so onboarding and liquidations validate manager ownership.
 
 Tasks simulate every PTB with `devInspect` before signing.

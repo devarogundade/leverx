@@ -1,9 +1,9 @@
-/** Net account value: wallet + margin + manager pool, minus vault borrow. */
+/** Net account value: wallet + position margin + free trading-account surplus, minus vault borrow. */
 export function computeTotalBalanceUsd(params: {
   walletUsd: number;
   marginUsd: number;
-  managerUsd: number;
+  tradingAccountUsd: number;
   borrowedUsd: number;
 }): number {
-  return params.walletUsd + params.marginUsd + params.managerUsd - params.borrowedUsd;
+  return params.walletUsd + params.marginUsd + params.tradingAccountUsd - params.borrowedUsd;
 }

@@ -235,6 +235,7 @@ pub struct ProtocolSettingsRow {
     pub slope2_bps: Option<i64>,
     pub flash_fee_bps: Option<i64>,
     pub liquidation_bps: Option<i64>,
+    pub final_window_ms: Option<i64>,
     pub updated_at_ms: i64,
 }
 
@@ -443,6 +444,7 @@ pub struct NewProtocolSettings {
     pub slope2_bps: Option<i64>,
     pub flash_fee_bps: Option<i64>,
     pub liquidation_bps: Option<i64>,
+    pub final_window_ms: Option<i64>,
     pub updated_at_ms: i64,
 }
 

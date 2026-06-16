@@ -84,3 +84,57 @@ fun registry_links_predict_vault_and_collector() {
 
     scenario.end();
 }
+
+#[test]
+fun admin_can_set_keeper_address() {
+    let owner = @0xAD;
+    let keeper = @0xKEEP;
+    let mut scenario = test_scenario::begin(owner);
+    let ctx = scenario.ctx();
+
+    let (admin, mut registry) = protocol_registry::create_for_testing(ctx);
+    protocol_registry::set_keeper_address(&admin, &mut registry, keeper);
+    assert!(protocol_registry::keeper_address(&registry) == keeper, 0);
+
+    scenario.end();
+}
+
+#[test]
+fun final_window_defaults_to_fifteen_minutes() {
+    let owner = @0xAD;
+    let mut scenario = test_scenario::begin(owner);
+    let ctx = scenario.ctx();
+
+    let (_admin, registry) = protocol_registry::create_for_testing(ctx);
+    assert!(protocol_registry::final_window_ms(&registry) == 900_000, 0);
+
+    scenario.end();
+}
+
+#[test]
+fun admin_can_update_final_window_ms() {
+    let owner = @0xAD;
+    let mut scenario = test_scenario::begin(owner);
+    let ctx = scenario.ctx();
+
+    let (admin, mut registry) = protocol_registry::create_for_testing(ctx);
+    protocol_registry::set_final_window_ms(&admin, &mut registry, 600_000);
+    assert!(protocol_registry::final_window_ms(&registry) == 600_000, 0);
+    protocol_registry::set_final_window_ms(&admin, &mut registry, 14_400_000);
+    assert!(protocol_registry::final_window_ms(&registry) == 14_400_000, 0);
+
+    scenario.end();
+}
+
+#[test]
+#[expected_failure(abort_code = errors::E_INVALID_FINAL_WINDOW_MS)]
+fun invalid_final_window_below_min_rejected() {
+    let owner = @0xAD;
+    let mut scenario = test_scenario::begin(owner);
+    let ctx = scenario.ctx();
+
+    let (admin, mut registry) = protocol_registry::create_for_testing(ctx);
+    protocol_registry::set_final_window_ms(&admin, &mut registry, 599_999);
+
+    scenario.end();
+}

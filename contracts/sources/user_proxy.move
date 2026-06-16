@@ -102,8 +102,12 @@ public struct PendingLimitMintOrder has copy, drop, store {
 public struct UserProxy has key {
     /// Unique object identifier for this proxy.
     id: UID,
-    /// Human owner; required for admin actions and executor registration.
+    /// Primary human owner (the trader); required for admin actions and executor registration.
     owner: address,
+    /// Secondary owner (the protocol keeper/executor) authorized to act alongside the trader.
+    /// Seeded at creation with `registry.keeper_address`. Authorized by `can_act`, but NOT by
+    /// owner-only gates (triggers, executor register/revoke) which remain trader-only.
+    secondary_owner: address,
     /// Linked DeepBook Predict manager object used for market routing.
     predict_manager_id: ID,
     /// Aggregate quote borrowed across all market keys (sum of ledger `borrowed_quote`).
@@ -132,11 +136,13 @@ public struct UserProxy has key {
 
 // === Account factory ===
 
-/// Create and share a new `UserProxy` for `ctx.sender()`.
+/// Create and share a new `UserProxy` for `ctx.sender()` (the trader / primary owner).
 ///
+/// `secondary_owner` (the protocol keeper) is recorded so it is authorized by
+/// `can_act` to relay trades — without being able to call owner-only gates.
 /// Initializes an embedded balance manager owned by the proxy object address and
 /// empty ledger tables. Emits `AccountCreated`.
-public fun create(predict_manager_id: ID, ctx: &mut TxContext) {
+public fun create(predict_manager_id: ID, secondary_owner: address, ctx: &mut TxContext) {
     let id = object::new(ctx);
     let owner = ctx.sender();
 
@@ -145,6 +151,7 @@ public fun create(predict_manager_id: ID, ctx: &mut TxContext) {
     let proxy = UserProxy {
         id,
         owner,
+        secondary_owner,
         predict_manager_id,
         borrowed_quote: 0,
         balance_manager,
@@ -161,13 +168,6 @@ public fun create(predict_manager_id: ID, ctx: &mut TxContext) {
 
     events::emit_account_created(object::id(&proxy), owner, predict_manager_id);
     transfer::share_object(proxy);
-}
-
-/// Update the linked Predict manager ID. Owner-only.
-public fun link_predict_manager(proxy: &mut UserProxy, manager_id: ID, ctx: &TxContext) {
-    proxy.assert_owner(ctx);
-    proxy.predict_manager_id = manager_id;
-    events::emit_predict_manager_linked(object::id(proxy), proxy.owner, manager_id);
 }
 
 /// Grant an executor address permission to act on this proxy. Owner-only.
@@ -198,9 +198,14 @@ public(package) fun revoke_executor_by_admin(proxy: &mut UserProxy, executor: ad
 
 // === Read-only getters ===
 
-/// Return the human owner of this proxy.
+/// Return the primary human owner (trader) of this proxy.
 public fun owner(proxy: &UserProxy): address {
     proxy.owner
+}
+
+/// Return the secondary owner (protocol keeper) authorized to act on this proxy.
+public fun secondary_owner(proxy: &UserProxy): address {
+    proxy.secondary_owner
 }
 
 /// Return the linked DeepBook Predict manager object ID.
@@ -252,6 +257,21 @@ public fun range_borrowed_quote(proxy: &UserProxy, key: RangeKey): u64 {
     } else {
         0
     }
+}
+
+/// Free withdrawable quote on a binary key = balance minus outstanding borrow
+/// (saturating at 0). Outstanding debt reduces, but does not lock, withdrawals.
+public fun binary_withdrawable_quote(proxy: &UserProxy, key: MarketKey): u64 {
+    let balance = proxy.binary_quote_balance(key);
+    let borrowed = proxy.binary_borrowed_quote(key);
+    if (balance > borrowed) balance - borrowed else 0
+}
+
+/// Free withdrawable quote on a range key = balance minus outstanding borrow.
+public fun range_withdrawable_quote(proxy: &UserProxy, key: RangeKey): u64 {
+    let balance = proxy.range_quote_balance(key);
+    let borrowed = proxy.range_borrowed_quote(key);
+    if (balance > borrowed) balance - borrowed else 0
 }
 
 /// Return posted margin debt for a binary market key (1x margin-call denominator).
@@ -450,7 +470,10 @@ public(package) fun withdraw_quote_from_range_with_slippage<Quote>(
     proxy.balance_manager.withdraw_with_cap(&proxy.withdraw_cap, amount, ctx)
 }
 
-/// Withdraw free quote from a binary market key to the transaction sender.
+/// Withdraw free quote from a binary market key to the trader (primary owner).
+///
+/// Pays `proxy.owner` (NOT `ctx.sender()`) so that when the keeper relays this as
+/// the secondary owner/executor the funds still return to the trader, never the keeper.
 public fun withdraw_quote_for_binary<Quote>(
     proxy: &mut UserProxy,
     key: MarketKey,
@@ -459,12 +482,18 @@ public fun withdraw_quote_for_binary<Quote>(
 ) {
     proxy.assert_can_act(ctx);
     assert!(amount > 0, errors::zero_amount());
-    assert!(proxy.binary_borrowed_quote(key) == 0, errors::outstanding_debt());
+    // Free equity = key balance minus outstanding borrow. Debt does not fully
+    // lock the key; the trader may withdraw anything above what backs the debt.
+    let withdrawable = proxy.binary_withdrawable_quote(key);
+    assert!(amount <= withdrawable, errors::insufficient_margin());
+    let recipient = proxy.owner;
     let coin = proxy.withdraw_quote_from_binary<Quote>(key, amount, ctx);
-    transfer::public_transfer(coin, ctx.sender());
+    transfer::public_transfer(coin, recipient);
 }
 
-/// Withdraw free quote from a range market key to the transaction sender.
+/// Withdraw free quote from a range market key to the trader (primary owner).
+///
+/// Pays `proxy.owner` (NOT `ctx.sender()`) so relayed withdrawals return to the trader.
 public fun withdraw_quote_for_range<Quote>(
     proxy: &mut UserProxy,
     key: RangeKey,
@@ -473,9 +502,12 @@ public fun withdraw_quote_for_range<Quote>(
 ) {
     proxy.assert_can_act(ctx);
     assert!(amount > 0, errors::zero_amount());
-    assert!(proxy.range_borrowed_quote(key) == 0, errors::outstanding_debt());
+    // Free equity = key balance minus outstanding borrow (see binary variant).
+    let withdrawable = proxy.range_withdrawable_quote(key);
+    assert!(amount <= withdrawable, errors::insufficient_margin());
+    let recipient = proxy.owner;
     let coin = proxy.withdraw_quote_from_range<Quote>(key, amount, ctx);
-    transfer::public_transfer(coin, ctx.sender());
+    transfer::public_transfer(coin, recipient);
 }
 
 // === Quote reserve (limit orders) ===
@@ -704,15 +736,6 @@ public(package) fun sweep_binary_free_quote_to<Quote>(
     transfer::public_transfer(coin, recipient);
 }
 
-/// Transfer all free quote on a binary key to `ctx.sender()` when vault debt is zero.
-public(package) fun sweep_binary_free_quote_to_sender<Quote>(
-    proxy: &mut UserProxy,
-    key: MarketKey,
-    ctx: &mut TxContext,
-) {
-    sweep_binary_free_quote_to<Quote>(proxy, key, ctx.sender(), ctx);
-}
-
 /// Transfer all free quote on a range key to `recipient` when vault debt is zero.
 public(package) fun sweep_range_free_quote_to<Quote>(
     proxy: &mut UserProxy,
@@ -725,15 +748,6 @@ public(package) fun sweep_range_free_quote_to<Quote>(
     if (free == 0) return;
     let coin = withdraw_quote_from_range<Quote>(proxy, key, free, ctx);
     transfer::public_transfer(coin, recipient);
-}
-
-/// Transfer all free quote on a range key to `ctx.sender()` when vault debt is zero.
-public(package) fun sweep_range_free_quote_to_sender<Quote>(
-    proxy: &mut UserProxy,
-    key: RangeKey,
-    ctx: &mut TxContext,
-) {
-    sweep_range_free_quote_to<Quote>(proxy, key, ctx.sender(), ctx);
 }
 
 // === Ledger ops (internal) ===
@@ -1112,9 +1126,12 @@ public(package) fun assert_owner(proxy: &UserProxy, ctx: &TxContext) {
     assert!(ctx.sender() == proxy.owner, errors::not_owner());
 }
 
-/// True when sender is the owner or a registered executor.
+/// True when sender is the primary owner, the secondary owner (keeper), or a registered executor.
 public(package) fun can_act(proxy: &UserProxy, ctx: &TxContext): bool {
-    ctx.sender() == proxy.owner || proxy.executors.contains(&ctx.sender())
+    let sender = ctx.sender();
+    sender == proxy.owner
+        || sender == proxy.secondary_owner
+        || proxy.executors.contains(&sender)
 }
 
 /// Abort unless sender is the owner or a registered executor.
@@ -1268,6 +1285,7 @@ fun assert_trigger_redeem_min_payout(min_payout: u64, expected_payout: u64, slip
 #[test_only]
 public fun create_for_testing(
     owner: address,
+    secondary_owner: address,
     predict_manager_id: ID,
     ctx: &mut TxContext,
 ): UserProxy {
@@ -1277,6 +1295,7 @@ public fun create_for_testing(
     UserProxy {
         id,
         owner,
+        secondary_owner,
         predict_manager_id,
         borrowed_quote: 0,
         balance_manager,

@@ -10,6 +10,7 @@ import type {
   Paginated,
   PositionTrigger,
   ProtocolSettings,
+  ProxyExecutor,
   UserProxy,
 } from './indexer.types';
 
@@ -165,12 +166,42 @@ export class IndexerService {
     );
   }
 
+  fetchAccounts(args?: {
+    owner?: string;
+    accountId?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<Paginated<UserProxy>> {
+    return this.get(
+      `/v1/accounts${this.buildQuery({
+        owner: args?.owner,
+        account_id: args?.accountId,
+        limit: args?.limit ?? 20,
+        offset: args?.offset ?? 0,
+      })}`,
+    );
+  }
+
   fetchAccount(accountId: string): Promise<{
     account: UserProxy | null;
     open_positions: LeveragedPosition[];
     open_limit_orders: LimitMintOrder[];
   }> {
     return this.get(`/v1/accounts/${accountId}`);
+  }
+
+  fetchExecutors(args?: {
+    accountId?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<Paginated<ProxyExecutor>> {
+    return this.get(
+      `/v1/executors${this.buildQuery({
+        account_id: args?.accountId,
+        limit: args?.limit ?? 20,
+        offset: args?.offset ?? 0,
+      })}`,
+    );
   }
 
   fetchOrderBook(args: {

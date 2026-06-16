@@ -1,15 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ResponsiveModal } from "@/components/leverx/ResponsiveModal";
-import {
-  FundsDestinationTabs,
-  type FundsDestinationTab,
-} from "@/components/leverx/FundsDestinationTabs";
+import { CopyField } from "@/components/leverx/CopyField";
 import { TradeAmountInput } from "@/components/leverx/TradeFormControls";
 import { QuoteAmount, QuoteAmountInline } from "@/components/leverx/QuoteAmount";
 import { useDepositKeyTargets } from "@/hooks/useDepositKeyTargets";
 import { useLeverxProtocolConfig, useLeverxTransactions } from "@/hooks/useLeverxTransactions";
 import { useWalletCoinBalance, walletCoinBalanceUsd } from "@/hooks/useWalletCoinBalance";
+import { useWallet } from "@/context/WalletContext";
 import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { assetLabelForOracleId } from "@/lib/predict/oracles";
@@ -28,15 +26,10 @@ import { showTxError, showTxSuccess } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import type { DepositKeyTarget } from "@/hooks/useDepositKeyTargets";
 
-type DepositTarget =
-  | { kind: "manager"; predictManagerId: string }
-  | { kind: "key"; row: DepositKeyTarget };
-
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   accountId: string;
-  predictManagerId?: string | null;
   positions: readonly LeveragedPosition[];
 }
 
@@ -45,51 +38,34 @@ function marketLabel(row: DepositKeyTarget, asset: string): string {
   return row.position.is_range ? `${asset} range` : `${asset} ${side}`;
 }
 
-export function PortfolioDepositDialog({
-  open,
-  onOpenChange,
-  accountId,
-  predictManagerId,
-  positions,
-}: Props) {
+export function PortfolioDepositDialog({ open, onOpenChange, accountId, positions }: Props) {
+  const { address } = useWallet();
   const { data: oracles = [] } = usePredictOracleRows();
   const { cfg } = useLeverxProtocolConfig();
-  const openPositions = useMemo(
-    () => positions.filter(isActiveOpenPosition),
-    [positions],
-  );
+  const openPositions = useMemo(() => positions.filter(isActiveOpenPosition), [positions]);
   const keyTargets = useDepositKeyTargets(openPositions);
-  const { depositQuote, depositManagerQuote, isProtocolReady } = useLeverxTransactions();
+  const { depositQuote, isProtocolReady } = useLeverxTransactions();
   const { data: walletBalance, isLoading: walletLoading } = useWalletCoinBalance(
     open ? (cfg?.quoteType ?? null) : null,
   );
 
   const walletAtoms = walletBalance?.atoms ?? 0n;
   const walletUsd = walletCoinBalanceUsd(walletBalance);
-
-  const managerAvailable = Boolean(predictManagerId);
   const positionsAvailable = keyTargets.length > 0;
 
-  const [tab, setTab] = useState<FundsDestinationTab>("manager");
   const [selectedPositionIndex, setSelectedPositionIndex] = useState(0);
   const [amountUsd, setAmountUsd] = useState("");
 
   useEffect(() => {
     if (!open) {
       setAmountUsd("");
-      setTab("manager");
       setSelectedPositionIndex(0);
       return;
-    }
-    if (managerAvailable) {
-      setTab("manager");
-    } else if (positionsAvailable) {
-      setTab("positions");
     }
     if (walletAtoms > 0n) {
       setAmountUsd(formatMaxWithdrawUsd(walletAtoms));
     }
-  }, [open, walletAtoms, managerAvailable, positionsAvailable]);
+  }, [open, walletAtoms]);
 
   useEffect(() => {
     if (selectedPositionIndex >= keyTargets.length) {
@@ -97,26 +73,14 @@ export function PortfolioDepositDialog({
     }
   }, [selectedPositionIndex, keyTargets.length]);
 
-  const selected = useMemo((): DepositTarget | null => {
-    if (tab === "manager" && predictManagerId) {
-      return { kind: "manager", predictManagerId };
-    }
-    if (tab === "positions") {
-      const row = keyTargets[selectedPositionIndex];
-      if (row) return { kind: "key", row };
-    }
-    return null;
-  }, [tab, predictManagerId, keyTargets, selectedPositionIndex]);
+  const selected = positionsAvailable ? keyTargets[selectedPositionIndex] : null;
 
   const maxAtoms = walletAtoms;
   const maxUsd = withdrawUsdDisplayAmount(maxAtoms);
   const maxDigits = withdrawUsdDecimals(maxAtoms);
   const amountInvalid =
-    maxAtoms <= 0n ||
-    !amountUsd.trim() ||
-    usdInputExceedsQuoteAtoms(amountUsd, maxAtoms);
-  const pending = depositQuote.isPending || depositManagerQuote.isPending;
-  const hasAnyDestination = managerAvailable || positionsAvailable;
+    maxAtoms <= 0n || !amountUsd.trim() || usdInputExceedsQuoteAtoms(amountUsd, maxAtoms);
+  const pending = depositQuote.isPending;
 
   const close = () => onOpenChange(false);
 
@@ -125,25 +89,11 @@ export function PortfolioDepositDialog({
     const amountAtoms = clampUsdInputToQuoteAtoms(amountUsd, walletAtoms);
     if (amountAtoms <= 0n) return;
 
-    if (selected.kind === "manager") {
-      depositManagerQuote.mutate(
-        { predictManagerId: selected.predictManagerId, amountAtoms },
-        {
-          onSuccess: () => {
-            showTxSuccess("dUSDC deposited to Predict manager");
-            close();
-          },
-          onError: showTxError,
-        },
-      );
-      return;
-    }
-
     depositQuote.mutate(
-      { accountId, key: selected.row.key, amountAtoms },
+      { accountId, key: selected.key, amountAtoms },
       {
         onSuccess: () => {
-          showTxSuccess("dUSDC deposited to market key");
+          showTxSuccess("dUSDC deposited to trading account");
           close();
         },
         onError: showTxError,
@@ -152,12 +102,16 @@ export function PortfolioDepositDialog({
   };
 
   return (
-    <ResponsiveModal
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Deposit to trading account"
-    >
+    <ResponsiveModal open={open} onOpenChange={onOpenChange} title="Deposit to trading account">
       <div className="space-y-4">
+        {address ? (
+          <CopyField
+            label="Your wallet address"
+            value={address}
+            hint="Copy and send dUSDC here before depositing into your trading account."
+          />
+        ) : null}
+
         <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
             Wallet balance
@@ -173,9 +127,9 @@ export function PortfolioDepositDialog({
 
         {walletLoading && walletUsd == null ? (
           <p className="text-sm text-muted-foreground">Loading wallet balance…</p>
-        ) : !hasAnyDestination ? (
+        ) : !positionsAvailable ? (
           <p className="text-sm leading-relaxed text-muted-foreground">
-            Open a trade or link a Predict manager before depositing.
+            Open a trade first to add margin to a position key.
           </p>
         ) : walletAtoms <= 0n ? (
           <p className="text-sm leading-relaxed text-muted-foreground">
@@ -183,74 +137,42 @@ export function PortfolioDepositDialog({
           </p>
         ) : (
           <>
-            <FundsDestinationTabs
-              value={tab}
-              onChange={(next) => {
-                setTab(next);
-                setSelectedPositionIndex(0);
-              }}
-            />
+            <div className="space-y-1.5">
+              {keyTargets.map((row, index) => {
+                const isSelected = index === selectedPositionIndex;
+                const label = marketLabel(
+                  row,
+                  assetLabelForOracleId(row.position.oracle_id, oracles),
+                );
 
-            {tab === "manager" ? (
-              managerAvailable ? (
-                <div className="rounded-lg border border-accent/30 bg-accent/10 px-3 py-2.5">
-                  <p className="flex items-center gap-2 text-sm font-medium text-foreground">
-                    Predict manager
-                    <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                      Recommended
-                    </span>
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Shared pool for minting and redeems
-                  </p>
-                </div>
-              ) : (
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  Link a Predict manager in Account settings to deposit here.
-                </p>
-              )
-            ) : positionsAvailable ? (
-              <div className="space-y-1.5">
-                {keyTargets.map((row, index) => {
-                  const isSelected = index === selectedPositionIndex;
-                  const label = marketLabel(
-                    row,
-                    assetLabelForOracleId(row.position.oracle_id, oracles),
-                  );
-
-                  return (
-                    <button
-                      key={row.position.position_key}
-                      type="button"
-                      className={cn(
-                        "flex w-full items-start justify-between gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors",
-                        isSelected
-                          ? "border-accent bg-accent/10"
-                          : "border-border bg-card/50 hover:bg-hover/50",
-                      )}
-                      onClick={() => setSelectedPositionIndex(index)}
-                    >
-                      <span className="min-w-0">
-                        <span className="text-sm font-medium text-foreground">{label}</span>
-                        <span className="mt-0.5 block text-xs text-muted-foreground">
-                          Market key margin ledger
-                        </span>
+                return (
+                  <button
+                    key={row.position.position_key}
+                    type="button"
+                    className={cn(
+                      "flex w-full items-start justify-between gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors",
+                      isSelected
+                        ? "border-accent bg-accent/10"
+                        : "border-border bg-card/50 hover:bg-hover/50",
+                    )}
+                    onClick={() => setSelectedPositionIndex(index)}
+                  >
+                    <span className="min-w-0">
+                      <span className="text-sm font-medium text-foreground">{label}</span>
+                      <span className="mt-0.5 block text-xs text-muted-foreground">
+                        Market key margin ledger
                       </span>
-                      <span
-                        className={cn(
-                          "mt-0.5 h-4 w-4 shrink-0 rounded-full border-2",
-                          isSelected ? "border-accent bg-accent" : "border-muted-foreground/40",
-                        )}
-                      />
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                Open a trade first to deposit to a position key.
-              </p>
-            )}
+                    </span>
+                    <span
+                      className={cn(
+                        "mt-0.5 h-4 w-4 shrink-0 rounded-full border-2",
+                        isSelected ? "border-accent bg-accent" : "border-muted-foreground/40",
+                      )}
+                    />
+                  </button>
+                );
+              })}
+            </div>
 
             <div className="space-y-2">
               <p className="text-sm font-medium text-foreground">Amount</p>

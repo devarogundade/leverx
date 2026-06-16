@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Query } from '@nestjs/common';
+import { Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { KeeperAdminGuard } from '../auth/keeper-api-key.guard';
 import {
   KeeperOrchestratorService,
   type KeeperTaskKind,
@@ -22,6 +23,7 @@ export class KeeperController {
   }
 
   @Post('run')
+  @UseGuards(KeeperAdminGuard)
   run(@Query('task') task?: string) {
     const kind = (task ?? 'all') as KeeperTaskKind;
     return this.orchestrator.run(kind);

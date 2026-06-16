@@ -46,6 +46,9 @@ lerna-debug.log*
 .temp
 .tmp
 
+# Per-user Predict manager mapping (keeper relayer)
+/data
+
 # Runtime data
 pids
 *.pid

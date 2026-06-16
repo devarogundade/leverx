@@ -8,13 +8,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { computeTotalBalanceUsd } from "@/lib/leverx/account-balance";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
-import { resolveAccountId, resolvePredictManagerId } from "@/lib/leverx/account-resolution";
-import { useManagerQuoteBalance } from "@/hooks/useManagerQuoteBalance";
-import { useManagerQuoteBalances } from "@/hooks/useManagerQuoteBalances";
+import { resolveAccountId } from "@/lib/leverx/account-resolution";
 import { useProxyKeyBalances } from "@/hooks/useProxyKeyBalances";
 import { useWallet } from "@/context/WalletContext";
 import { useIndexerAccounts, useIndexerPositions } from "@/hooks/useIndexer";
-import { useLeverxProtocolConfig } from "@/hooks/useLeverxTransactions";
 import { useWalletCoinBalance, walletCoinBalanceUsd } from "@/hooks/useWalletCoinBalance";
 import { ui } from "@/lib/copy";
 import { appConfig } from "@/lib/config";
@@ -47,7 +44,6 @@ function BalanceRow({
 
 export function BalanceBreakdown({ className }: Props) {
   const { address, isWalletConnected } = useWallet();
-  const { cfg } = useLeverxProtocolConfig();
   const {
     data: accounts = [],
     isLoading: accountsLoading,
@@ -69,15 +65,10 @@ export function BalanceBreakdown({ className }: Props) {
     isFetched: walletBalanceFetched,
   } = useWalletCoinBalance(isWalletConnected ? appConfig.quoteType : null, 6);
 
-  const predictManagerId = useMemo(
-    () => resolvePredictManagerId(accounts, [...positions, ...closedPositions]),
-    [accounts, positions, closedPositions],
-  );
   const accountId = useMemo(
     () => resolveAccountId(accounts, [...positions, ...closedPositions]),
     [accounts, positions, closedPositions],
   );
-  const borrowedQuote = accounts[0]?.borrowed_quote ?? 0;
   const allPositions = useMemo(
     () => [...positions, ...closedPositions],
     [positions, closedPositions],
@@ -86,20 +77,6 @@ export function BalanceBreakdown({ className }: Props) {
     accountId,
     allPositions,
   );
-  const { rows: managerRows, isLoading: managerBalancesLoading } = useManagerQuoteBalances(
-    accountId,
-    allPositions,
-    borrowedQuote,
-  );
-  const managerQueryEnabled = Boolean(
-    isWalletConnected && predictManagerId && cfg?.packageId && cfg?.quoteType,
-  );
-  const {
-    data: managerBalanceAtoms,
-    isLoading: managerBalanceLoading,
-    isFetched: managerBalanceFetched,
-    isError: managerBalanceError,
-  } = useManagerQuoteBalance(managerQueryEnabled ? predictManagerId : undefined);
 
   const ready =
     isWalletConnected &&
@@ -112,8 +89,6 @@ export function BalanceBreakdown({ className }: Props) {
   const walletUsd = walletCoinBalanceUsd(walletBalance);
   const walletReady =
     isWalletConnected && walletBalanceFetched && !walletBalanceLoading && walletUsd != null;
-  const managerReady =
-    !managerQueryEnabled || (managerBalanceFetched && !managerBalanceLoading);
 
   const activePositions = useMemo(
     () => positions.filter(isActiveOpenPosition),
@@ -124,39 +99,21 @@ export function BalanceBreakdown({ className }: Props) {
     ? activePositions.reduce((sum, p) => sum + scaleQuote(p.margin_quote), 0)
     : null;
   const borrowed = ready ? scaleQuote(accounts[0]?.borrowed_quote ?? 0) : null;
-  const accountHasDebt = useMemo(
-    () =>
-      (accounts[0]?.borrowed_quote ?? 0) > 0 ||
-      activePositions.some((position) => position.borrow_quote > 0),
-    [accounts, activePositions],
-  );
-  const managerBalance =
-    !managerQueryEnabled
-      ? null
-      : !managerReady
-        ? null
-        : managerBalanceAtoms == null
-          ? null
-          : scaleQuoteAtoms(managerBalanceAtoms);
   const positionCount = ready ? activePositions.length : null;
 
-  const withdrawableUsd = useMemo(() => {
-    const keyTotal = keyRows.reduce((sum, row) => sum + scaleQuoteAtoms(row.balanceAtoms), 0);
-    const managerTotal = managerRows.reduce(
-      (sum, row) => sum + scaleQuoteAtoms(row.balanceAtoms),
-      0,
-    );
-    return keyTotal + managerTotal;
-  }, [keyRows, managerRows]);
+  const withdrawableUsd = useMemo(
+    () => keyRows.reduce((sum, row) => sum + scaleQuoteAtoms(row.balanceAtoms), 0),
+    [keyRows],
+  );
   const withdrawableLoading =
-    isWalletConnected && Boolean(accountId) && (keyBalancesLoading || managerBalancesLoading);
+    isWalletConnected && Boolean(accountId) && keyBalancesLoading;
 
   const total =
-    ready && walletReady && managerReady && margin != null
+    ready && walletReady && margin != null
       ? computeTotalBalanceUsd({
           walletUsd: walletUsd ?? 0,
           marginUsd: margin,
-          managerUsd: managerBalance ?? 0,
+          tradingAccountUsd: withdrawableUsd,
           borrowedUsd: borrowed ?? 0,
         })
       : null;
@@ -216,26 +173,6 @@ export function BalanceBreakdown({ className }: Props) {
                   />
                 }
               />
-              {managerQueryEnabled ? (
-                <BalanceRow
-                  label={ui.balanceManager}
-                  info={leverxInfo.balanceManager}
-                  value={
-                    managerBalanceError ? (
-                      "…"
-                    ) : (
-                      <QuoteAmount
-                        amount={managerBalance}
-                        quoteAtoms={managerBalanceAtoms}
-                        loading={isWalletConnected && !managerReady}
-                        hideZero={false}
-                        locked={accountHasDebt && (managerBalance ?? 0) > 0}
-                        lockedTitle={leverxInfo.managerWithdrawLocked}
-                      />
-                    )
-                  }
-                />
-              ) : null}
               <BalanceRow
                 label="Margin"
                 info={leverxInfo.balanceMargin}

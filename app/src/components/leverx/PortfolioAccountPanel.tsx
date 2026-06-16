@@ -1,13 +1,12 @@
 import { useState, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
-  Check,
-  Copy,
-  Link2,
   Plus,
   Shield,
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/leverx/ConfirmDialog";
+import { CopyField, shortAddress } from "@/components/leverx/CopyField";
+import { PortfolioTelegramPanel } from "@/components/leverx/PortfolioTelegramPanel";
 import { ResponsiveModal } from "@/components/leverx/ResponsiveModal";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { PortfolioFundsSection } from "@/components/leverx/PortfolioFundsSection";
@@ -41,55 +40,12 @@ interface Props {
   className?: string;
 }
 
-function shortAddress(value: string, head = 8, tail = 6): string {
-  if (value.length <= head + tail + 1) return value;
-  return `${value.slice(0, head)}…${value.slice(-tail)}`;
-}
-
 function formatShortDate(ms: number): string {
   return new Date(ms).toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
     year: "numeric",
   });
-}
-
-function CopyField({ label, value }: { label: string; value: string; }) {
-  const [copied, setCopied] = useState(false);
-
-  return (
-    <div className="flex min-w-0 items-center justify-between gap-3 rounded-md border border-border/80 bg-muted/30 px-3 py-2">
-      <div className="min-w-0">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          {label}
-        </p>
-        <p className="truncate font-mono text-sm text-foreground" title={value}>
-          {shortAddress(value, 12, 8)}
-        </p>
-      </div>
-      <button
-        type="button"
-        className={cn(
-          pillIconBtn,
-          pillToggleIdle,
-          "shrink-0 px-2 py-1.5 text-[11px]",
-        )}
-        onClick={async () => {
-          try {
-            await navigator.clipboard.writeText(value);
-            setCopied(true);
-            window.setTimeout(() => setCopied(false), 2000);
-          } catch {
-            /* clipboard unavailable */
-          }
-        }}
-        aria-label={`Copy ${label}`}
-      >
-        {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
-        {copied ? "Copied" : "Copy"}
-      </button>
-    </div>
-  );
 }
 
 function SettingsCard({
@@ -131,6 +87,7 @@ function EmptyHint({ children }: { children: React.ReactNode; }) {
 
 export function PortfolioAccountPanel({
   account,
+  owner,
   positions = [],
   allPositions,
   className,
@@ -145,18 +102,14 @@ export function PortfolioAccountPanel({
   const {
     registerExecutor,
     revokeExecutor,
-    linkManager,
     isProtocolReady,
   } = useLeverxTransactions();
 
-  const [managerOpen, setManagerOpen] = useState(false);
   const [executorOpen, setExecutorOpen] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState<string | null>(null);
 
-  const [managerId, setManagerId] = useState(account.predict_manager_id ?? "");
   const [executorAddress, setExecutorAddress] = useState("");
 
-  const managerValid = !managerId || isValidSuiAddress(managerId);
   const executorValid = !executorAddress || isValidSuiAddress(executorAddress);
   const managerLinked = Boolean(account.predict_manager_id);
 
@@ -187,48 +140,45 @@ export function PortfolioAccountPanel({
                     managerLinked ? "bg-success" : "bg-amber-500",
                   )}
                 />
-                {managerLinked ? "Manager linked" : "Manager not linked"}
+                {managerLinked ? "Manager ready" : "Opens on first trade"}
               </Badge>
             </div>
           </div>
-          {!managerLinked ? (
-            <button
-              type="button"
-              className={cn(pillIconBtn, pillToggleIdle, "self-start px-3 py-1.5 text-sm")}
-              onClick={() => {
-                setManagerId("");
-                setManagerOpen(true);
-              }}
-            >
-              <Link2 className="h-3.5 w-3.5" />
-              Link manager
-            </button>
-          ) : null}
         </div>
 
-        <div className="grid gap-2 border-t border-border px-4 py-3 sm:grid-cols-2">
-          <CopyField label="Account ID" value={account.account_id} />
-          {managerLinked && account.predict_manager_id ? (
-            <CopyField label="Predict manager" value={account.predict_manager_id} />
-          ) : (
-            <div className="flex min-w-0 items-center rounded-md border border-dashed border-border/80 bg-muted/20 px-3 py-2">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Predict manager
-                </p>
-                <p className="text-sm text-muted-foreground">Link a manager to trade on-chain</p>
+        <div className="space-y-2 border-t border-border px-4 py-3">
+          <CopyField
+            label="Wallet address"
+            value={owner}
+            hint="Send dUSDC to this address, then deposit into your trading account."
+          />
+          <div className="grid gap-2 sm:grid-cols-2">
+            <CopyField label="Account ID" value={account.account_id} />
+            {managerLinked && account.predict_manager_id ? (
+              <CopyField label="Predict manager" value={account.predict_manager_id} />
+            ) : (
+              <div className="flex min-w-0 items-center rounded-md border border-dashed border-border/80 bg-muted/20 px-3 py-2">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Predict manager
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Provisioned by LeverX when you open your first trade
+                  </p>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </section>
 
       <PortfolioFundsSection
         accountId={accountId}
-        predictManagerId={account.predict_manager_id}
         borrowedQuote={account.borrowed_quote}
         positions={history}
       />
+
+      <PortfolioTelegramPanel owner={owner} accountId={accountId} />
 
       <SettingsCard
         title="Bot & Trusted traders"
@@ -291,44 +241,6 @@ export function PortfolioAccountPanel({
           </ul>
         )}
       </SettingsCard>
-
-      <ResponsiveModal
-        open={managerOpen}
-        onOpenChange={setManagerOpen}
-        title="Link Predict manager"
-        description={leverxInfo.predictManager}
-      >
-        <div className="space-y-3">
-          <Input
-            value={managerId}
-            onChange={(e) => setManagerId(e.target.value)}
-            placeholder="0x… predict manager object ID"
-            className={cn(inputInField, "h-9 rounded-md border border-border px-3 font-mono text-sm")}
-          />
-          {!managerValid ? (
-            <p className="text-sm text-destructive">Enter a valid Sui address.</p>
-          ) : null}
-          <button
-            type="button"
-            className={cn(pillToggleBtn, pillToggleIdle, "w-full")}
-            disabled={!isProtocolReady || !managerId || !managerValid || linkManager.isPending}
-            onClick={() =>
-              linkManager.mutate(
-                { accountId, managerId },
-                {
-                  onSuccess: () => {
-                    showTxSuccess("Predict manager linked");
-                    setManagerOpen(false);
-                  },
-                  onError: showTxError,
-                },
-              )
-            }
-          >
-            {linkManager.isPending ? "Linking…" : "Confirm link"}
-          </button>
-        </div>
-      </ResponsiveModal>
 
       <ResponsiveModal
         open={executorOpen}

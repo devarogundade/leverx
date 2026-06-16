@@ -41,6 +41,29 @@ const TRADING_PAUSED_MESSAGE =
 const OPEN_HEALTH_BELOW_LIQUIDATION_MESSAGE =
   "Projected position health is below the protocol liquidation threshold. Lower leverage, add margin, or wait for a better contract price.";
 
+const NOT_OWNER_MESSAGE =
+  "This action can only be performed by the wallet that owns this trading account. Reconnect with the original wallet and try again.";
+
+const NOT_AUTHORIZED_MESSAGE =
+  "Your wallet isn't authorized to act on this trading account. If you just created it, refresh your portfolio and try again.";
+
+const INVALID_MANAGER_MESSAGE =
+  "This trading account is linked to a different Predict manager. Refresh your portfolio — the index may be stale.";
+
+const NOT_KEEPER_MESSAGE =
+  "The keeper isn't authorized for this protocol action right now. Try again shortly; if it persists, the keeper may be misconfigured.";
+
+const MANAGER_OWNER_MESSAGE =
+  "The keeper could not execute this trade against your Predict manager. Refresh your portfolio and try again in a moment.";
+
+const RELAY_FAILED_MESSAGE =
+  "The keeper couldn't execute your trade. Please try again in a moment — if it persists, the relay may be temporarily unavailable.";
+
+/** A relayed trade op (mint/redeem/settle) bounced back from the keeper API. */
+function isRelayFailure(raw: string): boolean {
+  return /\/trade\/(mint|redeem|settle)_failed/.test(raw);
+}
+
 export function formatTxError(error: unknown): string {
   const raw =
     error instanceof Error
@@ -118,14 +141,49 @@ export function formatTxError(error: unknown): string {
   ) {
     return OPEN_HEALTH_BELOW_LIQUIDATION_MESSAGE;
   }
-  if (raw.includes("Predict manager is not linked")) {
-    return "Predict manager is not linked. Open Portfolio → Account to link your manager.";
+  // Authorization aborts (errors.move): not_owner=1, invalid_manager=9,
+  // not_authorized=17, not_keeper=53. Match the owning module to avoid clashing
+  // with predict_manager(", 1)") which means insufficient contracts.
+  if (
+    raw.includes("not_keeper") ||
+    ((raw.includes("trade") || raw.includes("protocol_registry") || raw.includes("liquidation")) &&
+      raw.includes(", 53)"))
+  ) {
+    return NOT_KEEPER_MESSAGE;
+  }
+  if (
+    raw.includes("not_authorized") ||
+    ((raw.includes("user_proxy") || raw.includes("trade") || raw.includes("triggers")) &&
+      raw.includes(", 17)"))
+  ) {
+    return NOT_AUTHORIZED_MESSAGE;
+  }
+  if (
+    raw.includes("invalid_manager") ||
+    ((raw.includes("user_proxy") || raw.includes("trade")) && raw.includes(", 9)"))
+  ) {
+    return INVALID_MANAGER_MESSAGE;
+  }
+  if (
+    raw.includes("not_owner") ||
+    ((raw.includes("user_proxy") || raw.includes("trade") || raw.includes("triggers")) &&
+      raw.includes(", 1)"))
+  ) {
+    return NOT_OWNER_MESSAGE;
+  }
+  // DeepBook Predict owner gate (EInvalidOwner) when the keeper executes against
+  // the manager — surfaces via the relayed op's error detail.
+  if (
+    (raw.includes("predict") || isRelayFailure(raw)) &&
+    (raw.includes("EInvalidOwner") || raw.includes("invalid_owner"))
+  ) {
+    return MANAGER_OWNER_MESSAGE;
   }
   if (
     raw.includes("LeverxOnboardingError") ||
-    raw.includes("Predict manager is not linked to your trading account")
+    raw.includes("trading account is still being set up")
   ) {
-    return "Trading account setup is incomplete. Open Portfolio → Account to link your Predict manager.";
+    return "Your trading account is still being set up. Refresh your portfolio in a moment and try again.";
   }
   if (raw.includes("FunctionNotFound")) {
     return "This app build is out of sync with the on-chain LeverX package. Refresh the page; if it persists, open Portfolio → Account to set up a new trading account.";
@@ -152,6 +210,9 @@ export function formatTxError(error: unknown): string {
     !raw.includes("sui::SUI")
   ) {
     return "Insufficient dUSDC in your wallet for this transaction.";
+  }
+  if (isRelayFailure(raw)) {
+    return RELAY_FAILED_MESSAGE;
   }
   return raw;
 }

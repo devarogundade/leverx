@@ -6,6 +6,14 @@ import { SUI_CLOCK_OBJECT_ID, type PositionKeyArgs } from '../keeper/keeper.type
 
 @Injectable()
 export class PtbBuilderService {
+  /** Keeper-owned Predict manager (ctx.sender becomes manager.owner). */
+  buildCreatePredictManager(tx: Transaction, cfg: KeeperConfig): void {
+    tx.moveCall({
+      target: `${cfg.packageId}::predict_client::create_manager`,
+      arguments: [],
+    });
+  }
+
   addMarketKey(
     tx: Transaction,
     cfg: KeeperConfig,
@@ -262,6 +270,93 @@ export class PtbBuilderService {
     return tx;
   }
 
+  /** Live per-contract ask from DeepBook Predict (via `predict_client`). */
+  buildMarketAsk(
+    cfg: KeeperConfig,
+    keyArgs: PositionKeyArgs,
+    quantity: bigint,
+  ): Transaction {
+    const tx = new Transaction();
+    const key = this.addMarketKey(tx, cfg, keyArgs);
+    const fn = keyArgs.isRange ? 'market_ask_range' : 'market_ask_binary';
+
+    tx.moveCall({
+      target: `${cfg.packageId}::predict_client::${fn}`,
+      arguments: [
+        tx.object(cfg.predictId),
+        tx.object(keyArgs.oracleId),
+        key,
+        tx.pure.u64(quantity),
+        tx.object(SUI_CLOCK_OBJECT_ID),
+      ],
+    });
+    return tx;
+  }
+
+  /** Live per-contract bid from DeepBook Predict (via `predict_client`). */
+  buildMarketBid(
+    cfg: KeeperConfig,
+    keyArgs: PositionKeyArgs,
+    quantity: bigint,
+  ): Transaction {
+    const tx = new Transaction();
+    const key = this.addMarketKey(tx, cfg, keyArgs);
+    const fn = keyArgs.isRange ? 'market_bid_range' : 'market_bid_binary';
+
+    tx.moveCall({
+      target: `${cfg.packageId}::predict_client::${fn}`,
+      arguments: [
+        tx.object(cfg.predictId),
+        tx.object(keyArgs.oracleId),
+        key,
+        tx.pure.u64(quantity),
+        tx.object(SUI_CLOCK_OBJECT_ID),
+      ],
+    });
+    return tx;
+  }
+
+  /** Linked Predict manager on a user proxy (for keeper fills without indexer). */
+  buildReadPredictManagerId(cfg: KeeperConfig, accountId: string): Transaction {
+    const tx = new Transaction();
+    tx.moveCall({
+      target: `${cfg.packageId}::user_proxy::predict_manager_id`,
+      arguments: [tx.object(accountId)],
+    });
+    return tx;
+  }
+
+  /** Registry admin settings — read via on-chain view functions. */
+  buildReadRegistryU64(
+    cfg: KeeperConfig,
+    fn: 'liquidation_bps' | 'final_window_ms',
+  ): Transaction {
+    const tx = new Transaction();
+    tx.moveCall({
+      target: `${cfg.packageId}::protocol_registry::${fn}`,
+      arguments: [tx.object(cfg.registryId)],
+    });
+    return tx;
+  }
+
+  buildReadRegistryBool(cfg: KeeperConfig, fn: 'trading_paused'): Transaction {
+    const tx = new Transaction();
+    tx.moveCall({
+      target: `${cfg.packageId}::protocol_registry::${fn}`,
+      arguments: [tx.object(cfg.registryId)],
+    });
+    return tx;
+  }
+
+  buildReadKeeperAddress(cfg: KeeperConfig): Transaction {
+    const tx = new Transaction();
+    tx.moveCall({
+      target: `${cfg.packageId}::protocol_registry::keeper_address`,
+      arguments: [tx.object(cfg.registryId)],
+    });
+    return tx;
+  }
+
   /** Read on-chain TP/SL premiums for a position's market key. */
   buildGetTriggers(cfg: KeeperConfig, position: LeveragedPosition): Transaction {
     const tx = new Transaction();
@@ -384,6 +479,158 @@ export class PtbBuilderService {
         tx.object(position.predict_manager_id!),
         tx.object(position.oracle_id),
         key,
+        tx.object(SUI_CLOCK_OBJECT_ID),
+      ],
+    });
+    return tx;
+  }
+
+  /**
+   * User-initiated mint relay. The keeper is the proxy's secondary owner and the
+   * keeper-owned manager owner, so it executes the open against quote the trader
+   * already deposited onto the proxy key ledger. Supports both `market` and
+   * immediate `limit` order kinds.
+   */
+  buildLeveragedMint(
+    cfg: KeeperConfig,
+    accountId: string,
+    predictManagerId: string,
+    params: {
+      key: PositionKeyArgs;
+      marginQuoteAtoms: bigint;
+      leverageBps: bigint;
+      quantity: bigint;
+      maxMintCost: bigint;
+      marketSlippageBps: number;
+      remintAfterDeleverage: boolean;
+      orderKind: 'market' | 'limit';
+      limitPremiumPerUnit: bigint;
+      placementSlippageBps: number;
+    },
+  ): Transaction {
+    const tx = new Transaction();
+
+    const key = this.addMarketKey(tx, cfg, params.key);
+    const limit = params.orderKind === 'limit';
+    const fn = params.key.isRange
+      ? limit
+        ? 'leveraged_mint_range_limit'
+        : 'leveraged_mint_range_market'
+      : limit
+        ? 'leveraged_mint_binary_limit'
+        : 'leveraged_mint_binary_market';
+
+    const args = [
+      tx.object(cfg.registryId),
+      tx.object(cfg.vaultId),
+      tx.object(accountId),
+      tx.object(cfg.predictId),
+      tx.object(predictManagerId),
+      tx.object(params.key.oracleId),
+      key,
+      tx.pure.u64(params.marginQuoteAtoms),
+      tx.pure.u64(params.leverageBps),
+      tx.pure.u64(params.quantity),
+    ];
+
+    if (limit) {
+      args.push(
+        tx.pure.u64(params.limitPremiumPerUnit),
+        tx.pure.u64(params.placementSlippageBps),
+      );
+    } else {
+      args.push(
+        tx.pure.u64(params.maxMintCost),
+        tx.pure.u64(params.marketSlippageBps),
+      );
+    }
+
+    args.push(
+      tx.pure.bool(params.remintAfterDeleverage),
+      tx.object(SUI_CLOCK_OBJECT_ID),
+    );
+
+    tx.moveCall({
+      target: `${cfg.packageId}::trade::${fn}`,
+      typeArguments: [cfg.quoteType],
+      arguments: args,
+    });
+    return tx;
+  }
+
+  /** User-initiated redeem relay (keeper acts as registered executor). */
+  buildLeveragedRedeem(
+    cfg: KeeperConfig,
+    params: {
+      key: PositionKeyArgs;
+      accountId: string;
+      predictManagerId: string;
+      quantity: bigint;
+      minPayout: bigint;
+      redeemMode: 'market' | 'limit';
+      minPremiumPerUnit: bigint;
+    },
+  ): Transaction {
+    const tx = new Transaction();
+    const key = this.addMarketKey(tx, cfg, params.key);
+    const limit = params.redeemMode === 'limit';
+    const fn = params.key.isRange
+      ? limit
+        ? 'leveraged_redeem_range_limit'
+        : 'leveraged_redeem_range_market'
+      : limit
+        ? 'leveraged_redeem_binary_limit'
+        : 'leveraged_redeem_binary_market';
+
+    tx.moveCall({
+      target: `${cfg.packageId}::trade::${fn}`,
+      typeArguments: [cfg.quoteType],
+      arguments: [
+        tx.object(cfg.registryId),
+        tx.object(cfg.vaultId),
+        tx.object(cfg.feeCollectorId),
+        tx.object(params.accountId),
+        tx.object(cfg.predictId),
+        tx.object(params.predictManagerId),
+        tx.object(params.key.oracleId),
+        key,
+        tx.pure.u64(params.quantity),
+        tx.pure.u64(limit ? params.minPremiumPerUnit : params.minPayout),
+        tx.object(SUI_CLOCK_OBJECT_ID),
+      ],
+    });
+    return tx;
+  }
+
+  /** User-initiated settle of an expired position (keeper-gated permissionless variant). */
+  buildSettleExpiredPermissionless(
+    cfg: KeeperConfig,
+    params: {
+      key: PositionKeyArgs;
+      accountId: string;
+      predictManagerId: string;
+      quantity: bigint;
+    },
+  ): Transaction {
+    const tx = new Transaction();
+    const key = this.addMarketKey(tx, cfg, params.key);
+    const fn = params.key.isRange
+      ? 'settle_expired_proxy_range_permissionless'
+      : 'settle_expired_proxy_position_permissionless';
+
+    tx.moveCall({
+      target: `${cfg.packageId}::trade::${fn}`,
+      typeArguments: [cfg.quoteType],
+      arguments: [
+        tx.object(cfg.registryId),
+        tx.object(cfg.vaultId),
+        tx.object(cfg.feeCollectorId),
+        tx.object(params.accountId),
+        tx.object(cfg.predictId),
+        tx.object(params.predictManagerId),
+        tx.object(params.key.oracleId),
+        key,
+        tx.pure.u64(params.quantity),
         tx.object(SUI_CLOCK_OBJECT_ID),
       ],
     });

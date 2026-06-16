@@ -12,7 +12,7 @@ interface Props {
 }
 
 export function WalletConnectPrompt({
-  title = "Connect your wallet",
+  title = "Log in to continue",
   description = ui.connectForTrades,
   className,
 }: Props) {

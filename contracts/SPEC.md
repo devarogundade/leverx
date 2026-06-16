@@ -153,11 +153,11 @@ Principal repayments and flash-loan principal return 100% to vault liquidity (no
 
 | Status | Signature                                                                                                              |
 | ------ | ---------------------------------------------------------------------------------------------------------------------- |
-| ✅     | `user_proxy::create`, `link_predict_manager`, executor cap register/revoke                                             |
+| ✅     | `user_proxy::create` (records primary + secondary owner), executor cap register/revoke                                 |
 | ✅     | `trade::create_user_proxy` (entry)                                                                                     |
 | ✅     | `deposit_collateral_for_binary/range`, `deposit_quote_for_binary/range_market`, `withdraw_collateral_for_binary/range` |
 | ✅     | `repay_debt_for_binary/range`, `deleverage_*_account_balance`, `synchronize_proxy_accounting`                          |
-| ✅     | Read: per-key `binary_quote_balance`, `binary_collateral_balance`, `binary_borrowed_quote` (and range equivalents)     |
+| ✅     | Read: per-key `binary_quote_balance`, `binary_withdrawable_quote`, `binary_borrowed_quote` (and range equivalents)     |
 | ✅     | Per-key health: `evaluate_binary_position_health`, `is_binary_position_liquidatable`                                   |
 
 ### 3.4 Spot swap — `leverx::spot_swap`
@@ -312,7 +312,6 @@ All events live in `leverx::events`. Index by `account_id`, `vault_id`, `registr
 | Event                   | Key fields                                                                                                            | Emitted when         |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------- |
 | `AccountCreated`        | `account_id`, `owner`, `predict_manager_id`                                                                           | Proxy created        |
-| `PredictManagerLinked`  | `account_id`, `owner`, `predict_manager_id`                                                                           | Manager linked       |
 | `CollateralDeposited`   | `account_id`, `owner`, `asset`, `amount`, `collateral_value_quote`, `balance_after`                                   | Collateral in        |
 | `CollateralWithdrawn`   | `account_id`, `owner`, `asset`, `amount`, `balance_after`                                                             | Collateral out       |
 | `CollateralSwapped`     | `account_id`, `owner`, `base_asset`, `quote_asset`, `base_amount`, `quote_received`, `pool_id`, `quote_balance_after` | Spot swap            |

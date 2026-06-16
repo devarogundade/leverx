@@ -11,7 +11,7 @@ fun create_for_testing_sets_owner_and_manager() {
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
 
-    let proxy = user_proxy::create_for_testing(owner, manager_id, ctx);
+    let proxy = user_proxy::create_for_testing(owner, @0xCAFE, manager_id, ctx);
     assert!(user_proxy::owner(&proxy) == owner, 0);
     assert!(user_proxy::predict_manager_id(&proxy) == manager_id, 0);
     assert!(user_proxy::borrowed_quote(&proxy) == 0, 0);
@@ -27,7 +27,7 @@ fun executor_registration_allows_session_actor() {
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
 
-    let mut proxy = user_proxy::create_for_testing(owner, manager_id, ctx);
+    let mut proxy = user_proxy::create_for_testing(owner, @0xCAFE, manager_id, ctx);
     user_proxy::register_executor_cap(&mut proxy, executor, ctx);
     user_proxy::assert_can_act(&proxy, ctx);
 

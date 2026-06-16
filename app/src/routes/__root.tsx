@@ -14,6 +14,7 @@ import { MarketFavoritesProvider } from "../context/MarketFavoritesContext";
 import { PredictOracleProvider } from "../context/PredictOracleContext";
 import { TradeNavigationProvider } from "../context/TradeNavigationContext";
 import { Toaster } from "@/components/ui/sonner";
+import { EnokiWalletsRegistrar } from "@/components/EnokiWalletsRegistrar";
 import { GsapMotionProvider } from "@/components/motion/GsapMotionProvider";
 import { WalletProvider } from "../context/WalletContext";
 
@@ -114,6 +115,7 @@ function RootComponent() {
         <TradeNavigationProvider>
           <IndexerStreamProvider>
             <MarketFavoritesProvider>
+              <EnokiWalletsRegistrar />
               <WalletProvider>
                 <GsapMotionProvider>
                   <div className="app-outlet flex min-h-dvh flex-col">

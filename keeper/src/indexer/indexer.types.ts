@@ -109,6 +109,14 @@ export type PositionTrigger = {
   updated_at_ms: number;
 };
 
+export type ProxyExecutor = {
+  account_id: string;
+  executor: string;
+  active: boolean;
+  registered_at_ms: number;
+  revoked_at_ms: number | null;
+};
+
 /** @deprecated Use `PositionTrigger` */
 export type TriggerState = PositionTrigger;
 
@@ -129,7 +137,13 @@ export type ProtocolSettings = {
   effective_liquidation_bps?: number | null;
   default_liquidation_bps?: number | null;
   max_liquidation_bps?: number | null;
+  final_window_ms?: number | null;
+  effective_final_window_ms?: number | null;
+  default_final_window_ms?: number | null;
+  min_final_window_ms?: number | null;
+  max_final_window_ms?: number | null;
   healthy_band_buffer_bps?: number | null;
+  keeper_address?: string | null;
   updated_at_ms: number;
 };
 

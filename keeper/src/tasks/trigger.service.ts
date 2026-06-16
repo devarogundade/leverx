@@ -11,6 +11,7 @@ import { IndexerService } from '../indexer/indexer.service';
 import type { LeveragedPosition } from '../indexer/indexer.types';
 import type { TaskResult } from '../keeper/keeper.types';
 import { logKeeperError } from '../lib/keeper-log';
+import { PredictQuoteService } from '../sui/predict-quote.service';
 import { PtbBuilderService } from '../sui/ptb-builder.service';
 import { SuiService } from '../sui/sui.service';
 
@@ -29,6 +30,7 @@ export class TriggerService {
     private readonly indexer: IndexerService,
     private readonly sui: SuiService,
     private readonly ptb: PtbBuilderService,
+    private readonly quotes: PredictQuoteService,
   ) {}
 
   async run(limit: number): Promise<TaskResult[]> {
@@ -154,17 +156,14 @@ export class TriggerService {
     position: LeveragedPosition,
     trigger: OnChainTriggers,
   ): Promise<{ kind: 'take_profit' | 'stop_loss'; bid: number } | null> {
-    const book = await this.indexer.fetchOrderBook({
-      oracleId: position.oracle_id,
-      expiryMs: position.expiry_ms,
-      strike: position.strike,
-      higherStrike: position.higher_strike,
-      isUp: position.is_up,
-      isRange: position.is_range,
-    });
-
-    const bid = book.bids[0]?.price;
-    if (bid === undefined) return null;
+    const key = this.ptb.keyFromPosition(position);
+    const quantity = BigInt(position.open_quantity || 0);
+    const bidRaw = await this.quotes.fetchMarketBidPerUnit(
+      key,
+      quantity > 0n ? quantity : undefined,
+    );
+    if (bidRaw === null) return null;
+    const bid = Number(bidRaw);
 
     const takeProfitPremium = Number(trigger.takeProfitPremium);
     const stopLossPremium = Number(trigger.stopLossPremium);

@@ -4,7 +4,7 @@ import { useWallet } from "@/context/WalletContext";
 import { useLeverxProtocolConfig } from "@/hooks/useLeverxTransactions";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import type { MarketKeyArgs } from "@/lib/leverx/market-keys";
-import { fetchKeyQuoteBalance } from "@/lib/leverx/quotes";
+import { fetchKeyWithdrawableQuote } from "@/lib/leverx/quotes";
 import { MAX_MARGIN_USD } from "@/lib/leverx/trade-limits";
 import { QUOTE_UNIT } from "@/lib/predict/constants";
 
@@ -28,7 +28,7 @@ function positionToKey(position: LeveragedPosition): MarketKeyArgs {
   };
 }
 
-/** Unique market keys from position history with on-chain quote ledger balances. */
+/** Unique market keys from position history with on-chain withdrawable balances. */
 export function useProxyKeyBalances(
   accountId: string | undefined,
   positions: readonly LeveragedPosition[],
@@ -62,7 +62,7 @@ export function useProxyKeyBalances(
       ],
       queryFn: async (): Promise<ProxyKeyBalanceRow> => {
         const key = positionToKey(position);
-        let balanceAtoms = await fetchKeyQuoteBalance({
+        let balanceAtoms = await fetchKeyWithdrawableQuote({
           client,
           leverxPackageId: cfg!.packageId,
           predictPackageId: cfg!.predictPackageId,
@@ -86,7 +86,7 @@ export function useProxyKeyBalances(
       queries
         .map((q) => q.data)
         .filter((row): row is ProxyKeyBalanceRow => row != null)
-        .filter((row) => row.balanceAtoms > 0n && row.position.borrow_quote <= 0),
+        .filter((row) => row.balanceAtoms > 0n),
     [queries],
   );
 

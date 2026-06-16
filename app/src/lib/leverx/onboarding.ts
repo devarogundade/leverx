@@ -2,6 +2,8 @@ import type { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
 import type { WalletWithRequiredFeatures } from "@mysten/wallet-standard";
 import type { WalletAccount } from "@wallet-standard/core";
 import { fetchAccounts } from "@/lib/leverx/indexer-client";
+import { ensureUserPredictManager } from "@/lib/leverx/keeper-client";
+import { signManagerCreateIntent } from "@/lib/leverx/manager-intent-auth";
 import { ONBOARD_GAS_BUDGET } from "@/lib/leverx/constants";
 import {
   objectMatchesStructType,
@@ -88,19 +90,9 @@ export async function resolveLeverxAccount(
   if (!proxyId) return null;
 
   const linkedManagerId = await readProxyPredictManagerId(client, proxyId);
-  if (linkedManagerId) {
-    return { accountId: proxyId, predictManagerId: linkedManagerId };
-  }
-
-  const managerId = await findOwnedObjectId(
-    client,
-    owner,
-    `${cfg.predictPackageId}::predict_manager::PredictManager`,
-  );
-
   return {
     accountId: proxyId,
-    predictManagerId: managerId,
+    predictManagerId: linkedManagerId,
   };
 }
 
@@ -117,59 +109,38 @@ export async function ensureLeverxAccount(params: {
   );
 
   if (existing?.accountId && existing.predictManagerId) {
+    // The keeper is seeded as the proxy's secondary owner at creation
+    // (trade::create_user_proxy), so no executor registration is needed.
     return {
       accountId: existing.accountId,
       predictManagerId: existing.predictManagerId,
     };
   }
 
-  const ownedManager = await findOwnedObjectId(
-    params.client,
-    params.account.address,
-    `${params.cfg.predictPackageId}::predict_manager::PredictManager`,
-  );
-
-  if (existing?.accountId && !existing.predictManagerId && ownedManager) {
-    const { digest } = await executeWalletTransaction(
-      params.client,
-      params.wallet,
-      params.account,
-      (tx) => {
-        tx.moveCall({
-          target: `${params.cfg.packageId}::trade::link_predict_manager_entry`,
-          arguments: [tx.object(existing.accountId), tx.pure.id(ownedManager)],
-        });
-      },
-      { gasBudget: ONBOARD_GAS_BUDGET },
+  if (existing?.accountId && !existing.predictManagerId) {
+    throw new LeverxOnboardingError(
+      "Trading account exists without a Predict manager. Contact support.",
     );
-    void digest;
-    return { accountId: existing.accountId, predictManagerId: ownedManager };
   }
 
-  if (existing?.accountId) {
-    if (!existing.predictManagerId) {
-      throw new LeverxOnboardingError(
-        "Trading account exists but Predict manager is not linked. Link your manager from Portfolio settings.",
-      );
-    }
-    return existing;
-  }
+  const managerAuth = await signManagerCreateIntent({
+    wallet: params.wallet,
+    account: params.account,
+    address: params.account.address,
+  });
+  const predictManagerId = await ensureUserPredictManager(managerAuth);
 
   const { digest } = await executeWalletTransaction(
     params.client,
     params.wallet,
     params.account,
     (tx) => {
-      const managerIdArg = ownedManager
-        ? tx.pure.id(ownedManager)
-        : tx.moveCall({
-            target: `${params.cfg.packageId}::predict_client::create_manager`,
-            arguments: [],
-          })[0]!;
-
       tx.moveCall({
         target: `${params.cfg.packageId}::trade::create_user_proxy`,
-        arguments: [managerIdArg],
+        arguments: [
+          tx.object(params.cfg.registryId),
+          tx.object(predictManagerId),
+        ],
       });
     },
     { gasBudget: ONBOARD_GAS_BUDGET },
@@ -181,15 +152,12 @@ export async function ensureLeverxAccount(params: {
   });
 
   const accountId = extractCreatedId(tx.objectChanges, "user_proxy::UserProxy");
-  const managerId =
-    ownedManager ?? extractCreatedId(tx.objectChanges, "predict_manager::PredictManager");
-
   if (!accountId) {
     throw new LeverxOnboardingError("UserProxy was not created.");
   }
 
   return {
     accountId,
-    predictManagerId: managerId,
+    predictManagerId,
   };
 }

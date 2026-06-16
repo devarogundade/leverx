@@ -210,7 +210,14 @@ export type ProtocolSettings = {
   effective_liquidation_bps?: number | null;
   default_liquidation_bps?: number | null;
   max_liquidation_bps?: number | null;
+  final_window_ms?: number | null;
+  effective_final_window_ms?: number | null;
+  default_final_window_ms?: number | null;
+  min_final_window_ms?: number | null;
+  max_final_window_ms?: number | null;
   healthy_band_buffer_bps?: number | null;
+  /** On-chain keeper signer (PredictManager owner + UserProxy executor). */
+  keeper_address?: string | null;
   updated_at_ms: number;
 };
 
