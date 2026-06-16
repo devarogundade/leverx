@@ -38,7 +38,7 @@ services:
       PORT: "3001"
       REDIS_HOST: redis
       REDIS_PORT: "6379"
-      DATABASE_URL: postgres://leverx:leverx@postgres:5433/leverx_indexer
+      DATABASE_URL: postgres://leverx:leverx@postgres:5432/leverx_indexer
       DATABASE_SYNCHRONIZE: "true"
       DATABASE_LOGGING: "false"
       INDEXER_URL: https://indexer.suileverx.xyz

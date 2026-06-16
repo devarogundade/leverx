@@ -20,33 +20,16 @@ echo
 curl -sf http://127.0.0.1:3100/v1/protocol | python3 -m json.tool | head -15
 
 echo "=== Restarting keeper ==="
-docker pull devarogundade/leverx-keeper:latest
-KEEPER_KEY="$(docker inspect leverx-keeper --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep '^KEEPER_PRIVATE_KEY=' || true)"
-if [[ -z "${KEEPER_KEY}" ]]; then
-  echo "ERROR: leverx-keeper not found or missing KEEPER_PRIVATE_KEY" >&2
+cd /opt/leverx/keeper
+if [[ -f docker-compose.ec2.yml ]]; then
+  docker pull devarogundade/leverx-keeper:latest
+  docker compose -f docker-compose.ec2.yml up -d
+else
+  echo "WARN: /opt/leverx/keeper/docker-compose.ec2.yml missing — run indexer/deploy/ec2-pull-keeper.sh from your machine" >&2
   exit 1
 fi
 
-ENV_FILE="$(mktemp)"
-{
-  echo "${KEEPER_KEY}"
-  echo "INDEXER_URL=http://host.docker.internal:3100"
-  grep -E '^(LEVERX_PACKAGE_ID|LEVERX_REGISTRY_ID|LEVERX_VAULT_ID|LEVERX_FEE_COLLECTOR_ID|PREDICT_PACKAGE_ID|PREDICT_ID|QUOTE_TYPE)=' \
-    /opt/leverx/contracts/deploy-testnet.env
-} > "${ENV_FILE}"
-
-docker stop leverx-keeper 2>/dev/null || true
-docker rm leverx-keeper 2>/dev/null || true
-docker run -d \
-  --name leverx-keeper \
-  --restart unless-stopped \
-  -p 3001:3001 \
-  --add-host=host.docker.internal:host-gateway \
-  --env-file "${ENV_FILE}" \
-  devarogundade/leverx-keeper:latest
-rm -f "${ENV_FILE}"
-
-for _ in $(seq 1 30); do
+for _ in $(seq 1 45); do
   if curl -sf http://127.0.0.1:3001/health >/dev/null; then
     echo "Keeper healthy"
     break

@@ -1,56 +1,35 @@
 #!/usr/bin/env bash
+# Pull latest keeper image on EC2 and run with Redis + Postgres (docker-compose.ec2.yml).
 set -euo pipefail
 
 HOST="${EC2_HOST:-100.26.3.7}"
 USER="${EC2_USER:-ubuntu}"
-KEY="${HOME}/.ssh/leverx-indexer-key.pem"
+KEY="${EC2_KEY:-$HOME/.ssh/leverx-indexer-key.pem}"
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+COMPOSE_SRC="${ROOT}/keeper/docker-compose.ec2.yml"
 
 if [[ -f /mnt/c/Users/devar/.ssh/leverx-indexer-key.pem ]]; then
   mkdir -p "${HOME}/.ssh"
+  KEY="${HOME}/.ssh/leverx-indexer-key.pem"
   cp /mnt/c/Users/devar/.ssh/leverx-indexer-key.pem "${KEY}"
 fi
 chmod 600 "${KEY}" 2>/dev/null || true
 
-ssh -i "${KEY}" -o StrictHostKeyChecking=no "${USER}@${HOST}" bash -s <<'REMOTE'
-set -euo pipefail
-cd /opt/leverx
-
-echo "=== Pulling latest keeper image ==="
-docker pull devarogundade/leverx-keeper:latest
-
-KEEPER_KEY="$(docker inspect leverx-keeper --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep '^KEEPER_PRIVATE_KEY=' || true)"
-if [[ -z "${KEEPER_KEY}" ]]; then
-  echo "ERROR: leverx-keeper not found or missing KEEPER_PRIVATE_KEY" >&2
+if [[ ! -f "${COMPOSE_SRC}" ]]; then
+  echo "missing ${COMPOSE_SRC}" >&2
   exit 1
 fi
 
-ENV_FILE="$(mktemp)"
-{
-  echo "${KEEPER_KEY}"
-  echo "INDEXER_URL=http://host.docker.internal:3100"
-  grep -E '^(LEVERX_PACKAGE_ID|LEVERX_REGISTRY_ID|LEVERX_VAULT_ID|LEVERX_FEE_COLLECTOR_ID|PREDICT_PACKAGE_ID|PREDICT_ID|QUOTE_TYPE)=' \
-    /opt/leverx/contracts/deploy-testnet.env
-} > "${ENV_FILE}"
+echo "Uploading keeper/docker-compose.ec2.yml..."
+scp -i "${KEY}" -o StrictHostKeyChecking=no "${COMPOSE_SRC}" "${USER}@${HOST}:/tmp/docker-compose.ec2.yml"
+scp -i "${KEY}" -o StrictHostKeyChecking=no "$(dirname "$0")/ec2-pull-keeper-remote.sh" "${USER}@${HOST}:/tmp/ec2-pull-keeper-remote.sh"
 
-docker stop leverx-keeper 2>/dev/null || true
-docker rm leverx-keeper 2>/dev/null || true
-docker run -d \
-  --name leverx-keeper \
-  --restart unless-stopped \
-  -p 3001:3001 \
-  --add-host=host.docker.internal:host-gateway \
-  --env-file "${ENV_FILE}" \
-  devarogundade/leverx-keeper:latest
-rm -f "${ENV_FILE}"
+LOCAL_ENV="${ROOT}/keeper/.env"
+if [[ -f "${LOCAL_ENV}" ]]; then
+  echo "Uploading local keeper/.env for secret merge (ENOKI, Telegram, …)..."
+  scp -i "${KEY}" -o StrictHostKeyChecking=no "${LOCAL_ENV}" "${USER}@${HOST}:/tmp/keeper-env.local"
+fi
 
-for _ in $(seq 1 30); do
-  if curl -sf http://127.0.0.1:3001/health >/dev/null; then
-    echo "Keeper healthy"
-    break
-  fi
-  sleep 2
-done
+ssh -i "${KEY}" -o StrictHostKeyChecking=no "${USER}@${HOST}" "chmod +x /tmp/ec2-pull-keeper-remote.sh && bash /tmp/ec2-pull-keeper-remote.sh"
 
-docker images devarogundade/leverx-keeper:latest --format 'image={{.Repository}}:{{.Tag}} id={{.ID}} created={{.CreatedSince}}'
-curl -sf http://127.0.0.1:3001/health/status | python3 -m json.tool | head -20
-REMOTE
+echo "Done."
