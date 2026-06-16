@@ -645,10 +645,8 @@ export function PredictTradeTerminal({ oracleId }: Props) {
     isLoading: closedPositionsLoading,
     refetch: refetchClosedPositions,
   } = useIndexerPositions(address ?? undefined, { status: "closed", oracleId });
-  const { data: limitOrders = [], isLoading: ordersLoading } = useIndexerLimitOrders(
-    address ?? undefined,
-    oracleId,
-  );
+  const { data: limitOrders = [], isLoading: ordersLoading, refetch: refetchLimitOrders } =
+    useIndexerLimitOrders(address ?? undefined, oracleId);
 
   const openOraclePositions = useMemo(
     () => openPositions.filter(isActiveOpenPosition),
@@ -667,11 +665,14 @@ export function PredictTradeTerminal({ oracleId }: Props) {
     ({ orderType }: { orderType: "market" | "limit" }) => {
       if (orderType === "limit") {
         setActiveTab("Open Orders");
+        void refetchLimitOrders();
       } else {
         setActiveTab("Positions");
+        void refetchOpenPositions();
       }
+      void refetchClosedPositions();
     },
-    [setActiveTab],
+    [setActiveTab, refetchOpenPositions, refetchClosedPositions, refetchLimitOrders],
   );
 
   const asset = chartAsset || market?.asset || oracleId.slice(2, 6).toUpperCase();

@@ -103,7 +103,7 @@ export function useLeverxTransactions() {
   const { cfg, isResolving } = useLeverxProtocolConfig();
   const { data: protocol } = useIndexerProtocol();
 
-  const invalidate = () => invalidateLeverxQueries(queryClient);
+  const invalidate = () => void invalidateLeverxQueries(queryClient);
 
   const requireReady = () => {
     if (!wallet || !account) {
