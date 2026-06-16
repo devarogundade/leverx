@@ -17,13 +17,13 @@ export function MarketsPromoBanners({ className }: Props) {
       <Swiper
         className="markets-promo-swiper"
         modules={[Pagination]}
-        slidesPerView={1.2}
-        spaceBetween={12}
+        slidesPerView={1.1}
+        spaceBetween={8}
         pagination={{ clickable: true }}
         breakpoints={{
           768: {
             slidesPerView: 2,
-            spaceBetween: 12,
+            spaceBetween: 8,
             allowTouchMove: false,
           },
         }}
