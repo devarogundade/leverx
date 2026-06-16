@@ -174,7 +174,7 @@ export function PortfolioFundsSection({
             label={ui.predictManagerBalance}
             info={leverxInfo.balanceTradingAccount}
             infoTitle={ui.predictManagerBalance}
-            loading={tradingBalanceLoading && tradingBalanceUsd === 0}
+            loading={tradingBalanceLoading}
             value={<QuoteAmount amount={tradingBalanceUsd} digits={2} hideZero={false} />}
           />
           <FundsMetric

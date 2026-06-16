@@ -363,8 +363,8 @@ export async function fetchTradingQuoteBalance(params: {
       sender: READONLY_SENDER,
     });
     if (inspect.effects?.status?.status !== "success") return 0n;
-    const tuple = findReturnTuple(inspect.results, 0);
-    return tuple?.[0] ?? 0n;
+    const scalars = parseScalarResults(inspect.results);
+    return scalars.at(-1) ?? 0n;
   } catch {
     return 0n;
   }
