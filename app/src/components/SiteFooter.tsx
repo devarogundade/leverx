@@ -22,7 +22,7 @@ export function SiteFooter() {
   const { data: keeperHealth } = useKeeperHealth();
 
   return (
-    <footer className="site-footer">
+    <footer className="site-footer pb-[calc(50px+env(safe-area-inset-bottom,0px))] md:pb-0">
       <div className="site-footer-inner">
         <div className="site-footer-statuses" aria-label="Service status">
           <ServiceStatus label="Market data" online={indexerHealth?.ok === true} />

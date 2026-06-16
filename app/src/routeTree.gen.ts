@@ -18,8 +18,8 @@ import { Route as AppVaultRouteImport } from './routes/_app/vault'
 import { Route as AppPortfolioRouteImport } from './routes/_app/portfolio'
 import { Route as AppPointsRouteImport } from './routes/_app/points'
 import { Route as AppMarketsRouteImport } from './routes/_app/markets'
-import { Route as AppGuideRouteImport } from './routes/_app/guide'
 import { Route as AppJarvisRouteImport } from './routes/_app/jarvis'
+import { Route as AppGuideRouteImport } from './routes/_app/guide'
 import { Route as DetailPredictionsOracleIdRouteImport } from './routes/_detail/predictions/$oracleId'
 
 const TermsRoute = TermsRouteImport.update({
@@ -65,14 +65,14 @@ const AppMarketsRoute = AppMarketsRouteImport.update({
   path: '/markets',
   getParentRoute: () => AppRoute,
 } as any)
-const AppGuideRoute = AppGuideRouteImport.update({
-  id: '/guide',
-  path: '/guide',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppJarvisRoute = AppJarvisRouteImport.update({
   id: '/jarvis',
   path: '/jarvis',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGuideRoute = AppGuideRouteImport.update({
+  id: '/guide',
+  path: '/guide',
   getParentRoute: () => AppRoute,
 } as any)
 const DetailPredictionsOracleIdRoute =
@@ -235,18 +235,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMarketsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/guide': {
-      id: '/_app/guide'
-      path: '/guide'
-      fullPath: '/guide'
-      preLoaderRoute: typeof AppGuideRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/jarvis': {
       id: '/_app/jarvis'
       path: '/jarvis'
       fullPath: '/jarvis'
       preLoaderRoute: typeof AppJarvisRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/guide': {
+      id: '/_app/guide'
+      path: '/guide'
+      fullPath: '/guide'
+      preLoaderRoute: typeof AppGuideRouteImport
       parentRoute: typeof AppRoute
     }
     '/_detail/predictions/$oracleId': {

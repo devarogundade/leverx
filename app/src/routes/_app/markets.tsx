@@ -8,7 +8,7 @@ import { UnderlineTabs } from "@/components/leverx/UnderlineTabs";
 import { MarketsSortPopover } from "@/components/leverx/MarketsSortPopover";
 import { PredictMarketsGrid } from "@/components/leverx/PredictMarketsGrid";
 import { PredictMarketsTable } from "@/components/leverx/PredictMarketsTable";
-import { PromoBanner } from "@/components/leverx/PromoBanner";
+import { MarketsPromoBanners } from "@/components/leverx/MarketsPromoBanners";
 import { useMarketFavorites } from "@/context/MarketFavoritesContext";
 import { useMergedMarkets } from "@/hooks/useMergedMarkets";
 import { useMarketsUpDisplay } from "@/hooks/useMarketsUpDisplay";
@@ -123,7 +123,7 @@ function MarketsPage() {
 
   return (
     <section className={pageSimple}>
-      <PromoBanner />
+      <MarketsPromoBanners />
 
       <div className={pageSimpleToolbar}>
         <h1 className={pageSimpleTitle}>Markets</h1>

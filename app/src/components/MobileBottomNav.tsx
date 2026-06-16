@@ -29,7 +29,7 @@ export function MobileBottomNav() {
       className="mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur-md pb-[env(safe-area-inset-bottom,0px)] md:hidden"
       aria-label="Main navigation"
     >
-      <ul className="mx-auto flex h-[45px] max-w-lg items-center justify-between px-1">
+      <ul className="mx-auto flex h-[50px] max-w-lg items-center justify-between px-1">
         {MOBILE_BOTTOM_NAV.map((item) => {
           const active = item.isActive(pathname);
           const Icon = item.icon;

@@ -44,16 +44,10 @@ export function SiteShell({ children, fullWidth, mainClassName }: Props) {
 
           <SiteHeaderNav className="site-header-nav hidden min-w-0 flex-1 md:flex" />
 
-          <Link to="/guide" className="btn-how-it-works btn-how-it-works--compact shrink-0 md:hidden">
-            Guide
-          </Link>
-
-          <Link
-            to="/guide"
-            className="btn-how-it-works hidden shrink-0 xl:inline-flex"
-          >
-            <HelpCircle className="h-3.5 w-3.5" />
-            How it works?
+          <Link to="/guide" className="btn-how-it-works btn-how-it-works--compact shrink-0 xl:h-[34px] xl:px-3 xl:text-[0.8125rem]">
+            <HelpCircle className="hidden h-3.5 w-3.5 xl:block" aria-hidden />
+            <span className="xl:hidden">Guide</span>
+            <span className="hidden xl:inline">How it works?</span>
           </Link>
 
           <div className="site-header-actions ml-auto flex shrink-0 items-center gap-1 min-[400px]:gap-1.5 sm:gap-2 md:ml-0">
