@@ -189,6 +189,10 @@ export class SuiService implements OnModuleInit {
     return { ...this.cfg, ...this.runtimeOverrides };
   }
 
+  getSuiNetwork(): string {
+    return this.getConfig().suiNetwork || 'testnet';
+  }
+
   isReadyForTx(): boolean {
     return this.getTaskReadiness().txReady;
   }

@@ -1,6 +1,6 @@
 import { UnauthorizedException } from '@nestjs/common';
-import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
 import { fromBase64 } from '@mysten/sui/utils';
+import { verifyIntentPersonalMessageSignature } from '../sui/verify-intent-signature';
 import {
   assertTradeIntentExpiry,
   parseMintIntentMessage,
@@ -25,6 +25,7 @@ type AnyIntentFields = MintIntentFields | RedeemIntentFields | SettleIntentField
 async function verifySignedIntent(
   payload: SignedTradeIntentPayload,
   parseMessage: (bytes: Uint8Array) => AnyIntentFields,
+  network = 'testnet',
 ): Promise<AnyIntentFields> {
   const claimedAddress = payload.address?.trim().toLowerCase();
   if (!claimedAddress || !ADDRESS_RE.test(claimedAddress)) {
@@ -61,9 +62,12 @@ async function verifySignedIntent(
   assertTradeIntentExpiry(parsed.expiresAtMs);
 
   try {
-    await verifyPersonalMessageSignature(messageBytes, payload.signature, {
-      address: claimedAddress,
-    });
+    await verifyIntentPersonalMessageSignature(
+      messageBytes,
+      payload.signature,
+      claimedAddress,
+      network,
+    );
   } catch {
     throw new UnauthorizedException('invalid_signature');
   }
@@ -73,24 +77,29 @@ async function verifySignedIntent(
 
 export async function verifyMintIntentAuth(
   payload: SignedTradeIntentPayload,
+  network = 'testnet',
 ): Promise<MintIntentFields> {
-  return (await verifySignedIntent(payload, parseMintIntentMessage)) as MintIntentFields;
+  return (await verifySignedIntent(payload, parseMintIntentMessage, network)) as MintIntentFields;
 }
 
 export async function verifyRedeemIntentAuth(
   payload: SignedTradeIntentPayload,
+  network = 'testnet',
 ): Promise<RedeemIntentFields> {
   return (await verifySignedIntent(
     payload,
     parseRedeemIntentMessage,
+    network,
   )) as RedeemIntentFields;
 }
 
 export async function verifySettleIntentAuth(
   payload: SignedTradeIntentPayload,
+  network = 'testnet',
 ): Promise<SettleIntentFields> {
   return (await verifySignedIntent(
     payload,
     parseSettleIntentMessage,
+    network,
   )) as SettleIntentFields;
 }

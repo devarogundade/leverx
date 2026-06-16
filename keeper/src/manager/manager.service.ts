@@ -42,7 +42,7 @@ export class ManagerService {
     }
 
     try {
-      await verifyManagerCreateAuth(body);
+      await verifyManagerCreateAuth(body, this.sui.getSuiNetwork());
     } catch (err) {
       if (err instanceof UnauthorizedException) throw err;
       const code = err instanceof Error ? err.message : 'invalid_auth';

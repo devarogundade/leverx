@@ -35,6 +35,11 @@ done
 curl -sf http://127.0.0.1:3100/health
 echo
 
+echo "Applying schema patches (EC2 image may lag latest migrations)..."
+if [[ -f /tmp/ec2-apply-indexer-migrations.sh ]]; then
+  bash /tmp/ec2-apply-indexer-migrations.sh
+fi
+
 if [[ -z "${EXPECTED_REGISTRY}" ]]; then
   echo "LEVERX_REGISTRY_ID not set - skipping protocol poll."
   exit 0

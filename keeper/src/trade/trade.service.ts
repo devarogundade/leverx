@@ -27,6 +27,7 @@ import type {
   SettleTradeBody,
   TradeRelayResponse,
 } from './trade.types';
+import { Transaction } from '@mysten/sui/transactions';
 
 @Injectable()
 export class TradeService {
@@ -126,10 +127,12 @@ export class TradeService {
     return this.simulateAndExecute(tx, `settle ${intent.accountId}`);
   }
 
-  private async verifyMintRequest(body: MintTradeBody): Promise<MintIntentFields> {
+  private async verifyMintRequest(
+    body: MintTradeBody,
+  ): Promise<MintIntentFields> {
     try {
       this.assertIntentNotReplayed(body);
-      const intent = await verifyMintIntentAuth(body);
+      const intent = await verifyMintIntentAuth(body, this.sui.getSuiNetwork());
       this.replayStore.markUsed(body.signature, intent.expiresAtMs);
       return intent;
     } catch (err) {
@@ -139,10 +142,15 @@ export class TradeService {
     }
   }
 
-  private async verifyRedeemRequest(body: RedeemTradeBody): Promise<RedeemIntentFields> {
+  private async verifyRedeemRequest(
+    body: RedeemTradeBody,
+  ): Promise<RedeemIntentFields> {
     try {
       this.assertIntentNotReplayed(body);
-      const intent = await verifyRedeemIntentAuth(body);
+      const intent = await verifyRedeemIntentAuth(
+        body,
+        this.sui.getSuiNetwork(),
+      );
       this.replayStore.markUsed(body.signature, intent.expiresAtMs);
       return intent;
     } catch (err) {
@@ -157,7 +165,10 @@ export class TradeService {
   ): Promise<SettleIntentFields> {
     try {
       this.assertIntentNotReplayed(body);
-      const intent = await verifySettleIntentAuth(body);
+      const intent = await verifySettleIntentAuth(
+        body,
+        this.sui.getSuiNetwork(),
+      );
       this.replayStore.markUsed(body.signature, intent.expiresAtMs);
       return intent;
     } catch (err) {
@@ -184,7 +195,11 @@ export class TradeService {
 
     const signer = this.sui.getKeypair()?.getPublicKey().toSuiAddress();
     const onChainKeeper = this.sui.getKeeperAddress();
-    if (onChainKeeper && signer && onChainKeeper.toLowerCase() !== signer.toLowerCase()) {
+    if (
+      onChainKeeper &&
+      signer &&
+      onChainKeeper.toLowerCase() !== signer.toLowerCase()
+    ) {
       throw new ServiceUnavailableException('keeper_signer_mismatch');
     }
   }
@@ -211,7 +226,7 @@ export class TradeService {
   }
 
   private async simulateAndExecute(
-    tx: import('@mysten/sui/transactions').Transaction,
+    tx: Transaction,
     label: string,
   ): Promise<TradeRelayResponse> {
     if (!(await this.sui.devInspect(tx))) {

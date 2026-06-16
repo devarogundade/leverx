@@ -1,6 +1,6 @@
 import { UnauthorizedException } from '@nestjs/common';
-import { verifyPersonalMessageSignature } from '@mysten/sui/verify';
 import { fromBase64 } from '@mysten/sui/utils';
+import { verifyIntentPersonalMessageSignature } from '../sui/verify-intent-signature';
 import {
   assertManagerIntentExpiry,
   parseManagerCreateMessage,
@@ -18,6 +18,7 @@ const ADDRESS_RE = /^0x[a-f0-9]{64}$/;
 
 export async function verifyManagerCreateAuth(
   payload: SignedManagerCreatePayload,
+  network = 'testnet',
 ): Promise<ManagerCreateIntentFields> {
   const claimedAddress = payload.address?.trim().toLowerCase();
   if (!claimedAddress || !ADDRESS_RE.test(claimedAddress)) {
@@ -54,9 +55,12 @@ export async function verifyManagerCreateAuth(
   assertManagerIntentExpiry(parsed.expiresAtMs);
 
   try {
-    await verifyPersonalMessageSignature(messageBytes, payload.signature, {
-      address: claimedAddress,
-    });
+    await verifyIntentPersonalMessageSignature(
+      messageBytes,
+      payload.signature,
+      claimedAddress,
+      network,
+    );
   } catch {
     throw new UnauthorizedException('invalid_signature');
   }

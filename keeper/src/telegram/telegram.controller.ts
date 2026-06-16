@@ -30,7 +30,7 @@ export class TelegramController {
     return this.bot.getSubscriptionStatus(owner, accountId);
   }
 
-  /** Optional webhook endpoint when polling is disabled. */
+  /** Telegram webhook — register `https://keeper.suileverx.xyz/telegram/webhook` with BotFather/setWebhook. */
   @Post('webhook')
   @RateLimit({ keyPrefix: 'telegram-webhook', limit: 500, windowMs: 60_000 })
   async webhook(@Body() update: TelegramUpdate) {

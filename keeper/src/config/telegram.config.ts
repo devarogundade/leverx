@@ -4,7 +4,6 @@ export type TelegramConfig = {
   enabled: boolean;
   botToken: string;
   botUsername: string;
-  polling: boolean;
   linkTokenTtlMs: number;
   /** Minimum interval between liquidation-risk alerts for the same position. */
   alertCooldownMs: number;
@@ -23,7 +22,6 @@ export default registerAs(
     enabled: envBool('TELEGRAM_ENABLED', false),
     botToken: (process.env.TELEGRAM_BOT_TOKEN ?? '').trim(),
     botUsername: (process.env.TELEGRAM_BOT_USERNAME ?? '').trim().replace(/^@/, ''),
-    polling: envBool('TELEGRAM_POLLING', true),
     linkTokenTtlMs: 15 * 60 * 1000,
     alertCooldownMs: 60 * 60 * 1000,
   }),

@@ -52,7 +52,7 @@ ENV_FILE="/opt/leverx/keeper/.env"
 {
   echo "KEEPER_PRIVATE_KEY=${KEEPER_PRIVATE_KEY}"
   for key in KEEPER_API_KEY ENOKI_SECRET_KEY ENOKI_NETWORK \
-    TELEGRAM_ENABLED TELEGRAM_BOT_TOKEN TELEGRAM_BOT_USERNAME TELEGRAM_POLLING; do
+    TELEGRAM_ENABLED TELEGRAM_BOT_TOKEN TELEGRAM_BOT_USERNAME; do
     value="$(pick_env "${key}")"
     [[ -n "${value}" ]] && echo "${key}=${value}"
   done
