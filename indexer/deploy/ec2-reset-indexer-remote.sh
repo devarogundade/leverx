@@ -23,7 +23,8 @@ echo "Stopping stack and removing Postgres volume..."
 "${DC[@]}" down -v
 
 echo "Building and starting indexer from checkpoint ${CHECKPOINT}..."
-FIRST_CHECKPOINT="${CHECKPOINT}" "${DC[@]}" up -d --build
+"${DC[@]}" build --no-cache
+FIRST_CHECKPOINT="${CHECKPOINT}" "${DC[@]}" up -d
 
 echo "Waiting for API health..."
 for _ in $(seq 1 120); do
@@ -42,21 +43,29 @@ fi
 
 if [[ -z "${EXPECTED_REGISTRY}" ]]; then
   echo "LEVERX_REGISTRY_ID not set - skipping protocol poll."
-  exit 0
+else
+  echo "Polling /v1/protocol until fresh deploy is indexed..."
+  for _ in $(seq 1 120); do
+    if body="$(curl -sf http://127.0.0.1:3100/v1/protocol 2>/dev/null)"; then
+      if echo "${body}" | grep -q "${EXPECTED_REGISTRY}"; then
+        echo "${body}" | python3 -m json.tool
+        echo "Indexer protocol_settings matches fresh deploy."
+        break
+      fi
+    fi
+    sleep 5
+  done
 fi
 
-echo "Polling /v1/protocol until fresh deploy is indexed..."
-for _ in $(seq 1 120); do
-  if body="$(curl -sf http://127.0.0.1:3100/v1/protocol 2>/dev/null)"; then
-    if echo "${body}" | grep -q "${EXPECTED_REGISTRY}"; then
-      echo "${body}" | python3 -m json.tool
-      echo "Indexer protocol_settings matches fresh deploy."
-      exit 0
-    fi
-  fi
-  sleep 5
-done
+if [[ -f /tmp/ec2-reload-nginx-remote.sh ]]; then
+  chmod +x /tmp/ec2-reload-nginx-remote.sh
+  bash /tmp/ec2-reload-nginx-remote.sh
+fi
 
-echo "Timed out waiting for protocol_settings." >&2
-"${DC[@]}" logs --tail=80 indexer
-exit 1
+if [[ -n "${EXPECTED_REGISTRY}" ]] && ! curl -sf http://127.0.0.1:3100/v1/protocol | grep -q "${EXPECTED_REGISTRY}"; then
+  echo "Timed out waiting for protocol_settings." >&2
+  "${DC[@]}" logs --tail=80 indexer
+  exit 1
+fi
+
+exit 0

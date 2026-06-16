@@ -1,4 +1,6 @@
 import {
+  forwardRef,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -55,6 +57,7 @@ export class JarvisService implements OnModuleInit {
     private readonly data: JarvisDataService,
     private readonly trade: JarvisTradeService,
     private readonly indexer: IndexerService,
+    @Inject(forwardRef(() => JarvisScheduler))
     private readonly scheduler: JarvisScheduler,
     private readonly gateway: JarvisGateway,
   ) {

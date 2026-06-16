@@ -183,7 +183,7 @@ export function PortfolioTelegramPanel({ owner, accountId, className }: Props) {
                   Telegram
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  Liquidation alerts and chat trading on this account
+                  Alerts and trading from Telegram on this account
                 </p>
               </div>
             </div>
@@ -209,7 +209,7 @@ export function PortfolioTelegramPanel({ owner, accountId, className }: Props) {
         <div className="space-y-4 p-4 sm:p-5">
           {!configured && !isLoading ? (
             <p className="rounded-xl border border-dashed border-border/80 bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
-              Telegram is not configured on this keeper yet.
+              Telegram isn&apos;t set up on this server yet.
             </p>
           ) : (
             <div className="grid gap-4 lg:grid-cols-2">
@@ -236,7 +236,7 @@ export function PortfolioTelegramPanel({ owner, accountId, className }: Props) {
                     {connect.isPending
                       ? "Opening…"
                       : subscribed
-                        ? "Add chat"
+                        ? "Link another chat"
                         : "Subscribe"}
                   </button>
                 }
@@ -339,7 +339,7 @@ export function PortfolioTelegramPanel({ owner, accountId, className }: Props) {
                             : session.chat_id
                               ? `Chat …${session.chat_id.slice(-4)}`
                               : "Telegram chat"}{" "}
-                          can trade via the keeper executor.
+                          can place trades on this account.
                         </p>
                       </div>
                     </div>
@@ -427,8 +427,8 @@ export function PortfolioTelegramPanel({ owner, accountId, className }: Props) {
         ) : (
           <div className="space-y-4">
             <p className="text-sm leading-relaxed text-muted-foreground">
-              The keeper executes trades as your registered executor. Make sure you have dUSDC in
-              your trading account and the keeper is registered under trusted traders.
+              Trades run through your trusted trading bot. Deposit dUSDC to your account and add
+              the bot under Bot & trusted traders first.
             </p>
             <button
               type="button"

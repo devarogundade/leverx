@@ -72,7 +72,7 @@ const EVENT_STYLES: Record<JarvisEventType, JarvisEventStyle> = {
   },
   repaying_debt: {
     icon: Wallet,
-    label: "De-risk",
+    label: "Paying down borrow",
     bubble: "border-amber-500/35 bg-amber-500/10 text-foreground",
   },
   analyzing_markets: {
@@ -113,7 +113,7 @@ const EVENT_STYLES: Record<JarvisEventType, JarvisEventStyle> = {
   },
   executor_required: {
     icon: ShieldAlert,
-    label: "Executor needed",
+    label: "Setup needed",
     bubble: WARNING_BUBBLE,
   },
   skipped: {
@@ -221,12 +221,12 @@ export function JarvisEmptyState({ enabled }: { enabled: boolean }) {
       </div>
       <div className="space-y-1">
         <p className="text-sm font-medium">
-          {enabled ? "Jarvis is on standby" : "Jarvis is offline"}
+          {enabled ? "Waiting for the next scan" : "Jarvis is paused"}
         </p>
         <p className="max-w-xs text-xs text-muted-foreground">
           {enabled
-            ? "Activity will appear here as Jarvis scans your account every 5 minutes."
-            : "Activate Jarvis to autonomously manage positions and hunt ending-soon markets."}
+            ? "Updates appear here as Jarvis checks your account every 5 minutes."
+            : "Turn on Jarvis to manage positions and look for markets closing soon."}
         </p>
       </div>
     </div>

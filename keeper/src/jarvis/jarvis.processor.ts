@@ -1,5 +1,5 @@
 import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Job, Queue } from 'bullmq';
@@ -22,7 +22,10 @@ import type { JarvisJobData } from './jarvis.schemas';
 export class JarvisProcessor extends WorkerHost {
   private readonly logger = new Logger(JarvisProcessor.name);
 
-  constructor(private readonly jarvis: JarvisService) {
+  constructor(
+    @Inject(forwardRef(() => JarvisService))
+    private readonly jarvis: JarvisService,
+  ) {
     super();
   }
 

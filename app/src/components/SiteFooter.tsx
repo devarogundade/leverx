@@ -25,8 +25,8 @@ export function SiteFooter() {
     <footer className="site-footer">
       <div className="site-footer-inner">
         <div className="site-footer-statuses" aria-label="Service status">
-          <ServiceStatus label="Indexer" online={indexerHealth?.ok === true} />
-          <ServiceStatus label="Keeper" online={keeperHealth?.ok === true} />
+          <ServiceStatus label="Market data" online={indexerHealth?.ok === true} />
+          <ServiceStatus label="Trading service" online={keeperHealth?.ok === true} />
         </div>
         <nav className="site-footer-links" aria-label="Legal">
           <Link to="/terms">Terms</Link>

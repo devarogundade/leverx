@@ -107,11 +107,11 @@ export function useLeverxTransactions() {
 
   const requireReady = () => {
     if (!wallet || !account) {
-      throw new Error("Log in to continue.");
+      throw new Error("Sign in to continue.");
     }
     if (!cfg) {
       throw new Error(
-        "LeverX protocol is not fully configured. Wait for deploy_and_share to be indexed, or set VITE_LEVERX_REGISTRY_ID / VAULT_ID / FEE_COLLECTOR_ID.",
+        "Trading isn't fully set up yet. Check back once markets are live.",
       );
     }
     return { wallet, account, cfg };

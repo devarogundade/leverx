@@ -13,7 +13,7 @@ export const leverxInfo = {
     "New leveraged positions cannot be opened in the final hour before expiry. Existing borrowed positions in that window are force-deleveraged to 1× (or liquidated if underwater).",
   leverageCountdown:
     "Countdown until new trades are limited to 1× margin (no vault borrow). In the final hour, only the market settlement timer remains.",
-  preTradeQuote: "Estimated cost before you confirm. Log in for the most accurate number.",
+  preTradeQuote: "Estimated cost before you confirm. Sign in for the most accurate number.",
   askPerUnit: "Best available price per contract right now.",
   mintCost: "Total cost to open, including your deposit and any fees.",
   vaultBorrow: "Amount borrowed from the vault to reach your target leverage.",
@@ -23,7 +23,7 @@ export const leverxInfo = {
   tpSlTakeProfit: "Close when the contract premium rises to this price (above entry).",
   tpSlStopLoss: "Close when the contract premium falls to this price (below entry).",
   tpSlExitSlippage:
-    "Maximum payout slippage when the keeper auto-closes at your take-profit or stop-loss (same as market slippage on market orders, placement slippage on limit orders).",
+    "Maximum price movement allowed when your take-profit or stop-loss closes automatically (same limits as market orders for market exits, limit orders for limit exits).",
   remintAfterDeleverage:
     "If the pool force-deleverages your position, automatically reopen at 1× with any leftover margin. Turn off to stay in cash after deleverage.",
   strikePrice:
@@ -39,7 +39,7 @@ export const leverxInfo = {
   borrowedQuote: "Amount borrowed from the pool across your account.",
   openPositions: "Number of trades still open.",
   openPositionsTable:
-    "Live unrealized P&L and health update from on-chain redeem quotes. Use Manage to close, repay debt, or settle after expiry.",
+    "Live profit and loss and health update as prices move. Use Manage to close, repay debt, or settle after expiry.",
   positionAvgFill:
     "Average price you paid per contract when you opened (total mint cost ÷ contracts). Repaying borrow or lowering leverage does not change this.",
   positionNow:
@@ -51,17 +51,18 @@ export const leverxInfo = {
   closedPnlBreakdown:
     "Cash you received after close, minus margin posted and any wallet repayments made before close (deleverage/repay debt). Borrow repaid at close comes from the redeem payout, not your wallet.",
   accountSettings:
-    "Link your trading account and allow trusted addresses to trade on your behalf.",
-  predictManager: "Your on-chain trading account that holds positions.",
-  sessionExecutor: "A trusted address allowed to trade for you without your main wallet key.",
+    "Link your trading account and allow trusted apps to trade on your behalf.",
+  predictManager: "Your trading account that holds positions and balances.",
+  sessionExecutor:
+    "A trusted wallet or bot that can place trades for you without your main wallet key.",
   telegramAlerts:
     "Telegram notifications for limit fills, liquidation risk, and completed liquidations on this trading account.",
   telegramTrading:
-    "Link Telegram to trade from chat. Generate a one-time code here, send /auth in the bot, then use /markets and /up commands. Sessions last 7 days; disconnect anytime.",
+    "Trade from Telegram. Generate a one-time code here, send /auth in the bot, then use /markets and /up. Sessions last 7 days; disconnect anytime.",
   jarvis:
-    "Autonomous AI agent that scans your account every 5 minutes, manages risk, seeks profitable opportunities in markets ending soon, and closes underwater positions. Register the keeper as executor in Portfolio → Account.",
+    "AI assistant that checks your account every 5 minutes, manages risk, finds opportunities in markets closing soon, and closes losing positions. Add the trading bot under Bot & trusted traders before turning Jarvis on.",
   jarvisExecutor:
-    "Jarvis executes trades through the keeper. Register the keeper as your executor in Portfolio → Account before enabling.",
+    "Jarvis places trades through your trusted trading bot. Add the bot under Portfolio → Bot & trusted traders before you turn Jarvis on.",
   triggers: "Active profit-target and stop-loss rules. Clear them when you close the matching trade.",
   collateralBalances: "dUSDC margin allocated to each open market key.",
   marginInTrades: "dUSDC margin allocated to each open market key.",
@@ -76,7 +77,7 @@ export const leverxInfo = {
     "dUSDC credited after closing a trade or adding margin. You can withdraw up to the free balance on each key after subtracting any outstanding borrow on that key.",
   depositTradingBalance: "Move dUSDC from your wallet to trade.",
   depositTradingBalanceDetail:
-    "Deposits credit a specific market key on your trading account. The keeper uses that balance when executing your trades.",
+    "Deposits go to a specific market on your trading account. Your trusted trading bot uses that balance when placing trades.",
   funds:
     "Move dUSDC between wallet and trading account. Withdrawable is free surplus you can pull out now (key balance minus borrow).",
   portfolioOverviewDetail:
@@ -87,7 +88,7 @@ export const leverxInfo = {
   managerWithdrawLockedDetail:
     "Borrowed is debt on your trading account, not cash you can pull out. Outstanding vault borrow reduces what you can withdraw (withdrawable = trading-account balance − borrow). Close positions or repay debt to free more.",
   estimatedHealth:
-    "Estimated collateral ratio (mark value ÷ borrow). Liquidation can trigger above 100% when the protocol buffer requires extra collateral. On-chain health also considers accrued interest.",
+    "Estimated collateral ratio (mark value ÷ borrow). Liquidation can trigger above 100% when extra buffer is required. Health also includes accrued interest.",
 
   vaultSupply: "Add dUSDC to the pool and receive shares that earn from trading fees.",
   vaultWithdraw: "Cash out your shares back to dUSDC, including any earnings.",
@@ -126,8 +127,9 @@ export const leverxInfo = {
 
   closeMarket: "Close now at the best available price.",
   closeLimit: "Close only if the price meets your minimum.",
-  repayDebt: "Pay back borrowed dUSDC without closing contracts. Leverage and borrow update on-chain after repay.",
-  settleExpired: "Finalize redemption after the oracle has settled. Uses on-chain contract quantity, not the portfolio index.",
+  repayDebt: "Pay back borrowed dUSDC without closing contracts. Leverage and borrow update after repay.",
+  settleExpired:
+    "Finalize redemption after the market settles. Uses your actual contract count, not the portfolio summary.",
   tradingPaused:
     "New opens, limit fills, and triggers are paused. You can still close, repay debt, and settle expired positions.",
   quotePaused:

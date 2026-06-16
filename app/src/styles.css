@@ -4571,6 +4571,12 @@ button:disabled {
   background: var(--color-hover);
 }
 
+.btn-how-it-works--compact {
+  height: 2.25rem;
+  padding-inline: 0.625rem;
+  font-size: 0.75rem;
+}
+
 /* Header avatar / icon buttons */
 .header-avatar {
   display: inline-flex;

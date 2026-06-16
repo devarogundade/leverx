@@ -424,7 +424,7 @@ export function GuideStorybook() {
                   <Wallet className="h-4 w-4" />
                 </span>
                 <span className="guide-step-body">
-                  <strong>Log in</strong>
+                  <strong>Sign in</strong>
                   <span>Sign in with Google via Enoki (zkLogin on Sui testnet).</span>
                 </span>
               </li>
@@ -601,7 +601,7 @@ export function GuideStorybook() {
               </div>
               <div className="guide-faq-item">
                 <dt>How do I sign in?</dt>
-                <dd>Click Login and sign in with Google. Enoki creates a Sui testnet account for you.</dd>
+                <dd>Click Sign in and authenticate with Google. Enoki creates a Sui testnet account for you.</dd>
               </div>
               <div className="guide-faq-item">
                 <dt>How do Telegram alerts work?</dt>

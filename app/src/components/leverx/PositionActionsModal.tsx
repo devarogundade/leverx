@@ -104,10 +104,10 @@ function getPositionActionAvailability(params: {
       onChainQuantity === 0n && hasIndexerOpenQuantity(position);
     if (indexStale && expired && oracleSettled) {
       emptyMessage =
-        "Contracts are already redeemed on-chain. The portfolio index is stale — this row should clear after refresh.";
+        "These contracts are already settled. Refresh your portfolio — this row should disappear shortly.";
     } else if (indexStale) {
       emptyMessage =
-        "Contracts are already redeemed on-chain. The portfolio index is stale — this row should clear after refresh.";
+        "These contracts are already settled. Refresh your portfolio — this row should disappear shortly.";
     } else if (settleQty === 0n && !hasIndexerOpenQuantity(position)) {
       emptyMessage = "Contracts fully redeemed.";
     } else if (expired && !oracleSettled && hasIndexerOpenQuantity(position)) {

@@ -91,7 +91,7 @@ const STEPS: readonly WelcomeStep[] = [
   {
     title: "Trade or earn",
     description:
-      "Log in with Google to open positions, or deposit dUSDC to the pool and earn from trading fees.",
+      "Sign in with Google to open positions, or deposit dUSDC to the pool and earn from trading fees.",
     icon: <Coins className="h-5 w-5" aria-hidden />,
     bullets: [
       "Browse live markets and open your first trade",

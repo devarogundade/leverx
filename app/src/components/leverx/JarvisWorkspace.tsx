@@ -6,7 +6,6 @@ import {
   Loader2,
   Moon,
   PauseCircle,
-  PlayCircle,
   Search,
   Settings,
   ShieldAlert,
@@ -20,6 +19,7 @@ import {
 import { JarvisSettingsDialog } from "@/components/leverx/JarvisSettingsDialog";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { LoadingState } from "@/components/ui/loading-state";
 import {
   isJarvisConfigured,
@@ -33,7 +33,7 @@ import {
 import type { JarvisConnectionState } from "@/hooks/useJarvisWebSocket";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import type { JarvisEventRecord, JarvisEventType, JarvisGuardrails } from "@/lib/leverx/keeper-client";
-import { labelCaps, pillToggleBtn, tradeSurface } from "@/lib/leverx/tw";
+import { labelCaps, tradeSurface } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
 
 const WELCOME_KEY = "leverx-jarvis-welcome-seen";
@@ -278,7 +278,7 @@ function StatusPill({
   configured: boolean;
 }) {
   if (!configured) {
-    return <Badge variant="secondary">Keeper offline</Badge>;
+    return <Badge variant="secondary">Unavailable</Badge>;
   }
   return (
     <Badge variant={enabled ? "default" : "secondary"}>
@@ -292,7 +292,7 @@ function ConnectionIndicator({ state }: { state: JarvisConnectionState }) {
     return (
       <span
         className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground"
-        title="Live feed connected"
+        title="Connected — live updates"
       >
         <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
         Live
@@ -332,7 +332,7 @@ function GuardrailsSummary({ guardrails }: { guardrails: JarvisGuardrails }) {
       </Badge>
       {guardrails.dry_run ? (
         <Badge variant="outline" className="border-dashed text-[10px] uppercase">
-          Dry run
+          Practice mode
         </Badge>
       ) : null}
     </div>
@@ -417,13 +417,12 @@ export function JarvisWorkspace({ owner, accountId }: Props) {
         accountId={accountId}
       />
 
-      <div className={cn(tradeSurface, "relative overflow-hidden")}>
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-accent/15 to-transparent" />
-        <div className="relative flex flex-col gap-4 p-4 sm:p-5">
+      <div className={cn(tradeSurface, "overflow-hidden")}>
+        <div className="flex flex-col gap-4 p-4 sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-start gap-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-card shadow-sm">
-                <Sparkles className="h-5 w-5 text-accent" aria-hidden />
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/30">
+                <Sparkles className="h-4 w-4 text-muted-foreground" aria-hidden />
               </span>
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
@@ -431,7 +430,7 @@ export function JarvisWorkspace({ owner, accountId }: Props) {
                     label="Jarvis"
                     labelClassName={labelCaps}
                     info={leverxInfo.jarvis}
-                    infoTitle="Autonomous AI agent"
+                    infoTitle="AI trading assistant"
                   />
                   <StatusPill
                     enabled={status?.enabled ?? false}
@@ -440,48 +439,41 @@ export function JarvisWorkspace({ owner, accountId }: Props) {
                   {status?.enabled ? <ConnectionIndicator state={connectionState} /> : null}
                 </div>
                 <p className="max-w-xl text-sm text-muted-foreground">
-                  Autonomous trading agent — scans every 5 minutes, manages risk, and hunts
-                  markets ending soon.
+                  Checks your account every 5 minutes, manages risk, and looks for opportunities
+                  in markets closing soon.
                 </p>
               </div>
             </div>
 
             <div className="flex shrink-0 items-center gap-2 self-start">
-              <button
+              <Button
                 type="button"
-                className={cn(
-                  pillToggleBtn,
-                  "inline-flex h-10 w-10 items-center justify-center p-0",
-                  !configured && "pointer-events-none opacity-60",
-                )}
+                variant="outline"
+                size="icon"
                 disabled={!configured}
-                aria-label="Jarvis settings"
+                aria-label="Settings"
                 onClick={() => setSettingsOpen(true)}
               >
                 <Settings className="h-4 w-4" aria-hidden />
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
-                className={cn(
-                  pillToggleBtn,
-                  "inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold",
-                  status?.enabled
-                    ? "border-destructive/40 text-destructive hover:bg-destructive/10"
-                    : "border-accent/40 text-accent hover:bg-accent/10",
-                  (!configured || toggleBusy) && "pointer-events-none opacity-60",
-                )}
+                variant={status?.enabled ? "outline" : "default"}
+                size="sm"
                 disabled={!configured || toggleBusy}
                 onClick={handleToggle}
               >
                 {toggleBusy ? (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                    …
+                  </>
                 ) : status?.enabled ? (
-                  <PauseCircle className="h-4 w-4" aria-hidden />
+                  "Turn off"
                 ) : (
-                  <PlayCircle className="h-4 w-4" aria-hidden />
+                  "Turn on"
                 )}
-                {status?.enabled ? "Stop Jarvis" : "Activate Jarvis"}
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -517,7 +509,7 @@ export function JarvisWorkspace({ owner, accountId }: Props) {
 
           {!configured ? (
             <p className="rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
-              Connect to a keeper with Jarvis enabled to use this feature.
+              Jarvis isn&apos;t available on this server yet. Please try again later.
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">{leverxInfo.jarvisExecutor}</p>
@@ -527,7 +519,7 @@ export function JarvisWorkspace({ owner, accountId }: Props) {
 
       <section className={cn(tradeSurface, "flex min-h-[420px] flex-col")}>
         <header className="flex items-center justify-between border-b border-border px-4 py-3">
-          <h2 className={labelCaps}>Activity feed</h2>
+          <h2 className={labelCaps}>Recent activity</h2>
           {(status?.unread_count ?? 0) > 0 ? (
             <Badge variant="secondary">{status!.unread_count} unread</Badge>
           ) : null}
@@ -562,8 +554,8 @@ function WelcomeCard() {
       <Sparkles className="mx-auto mb-2 h-6 w-6 text-accent" aria-hidden />
       <p className="text-sm font-medium text-foreground">Welcome to Jarvis</p>
       <p className="mt-1 text-sm text-muted-foreground">
-        Your read-only activity feed. Activate Jarvis to start autonomous account management —
-        no chat input needed.
+        Turn on Jarvis to start managing your account. Trades, scans, and decisions will show up
+        here as they happen.
       </p>
     </div>
   );
@@ -575,8 +567,8 @@ function EmptyFeed({ enabled }: { enabled: boolean }) {
       <Bot className="h-8 w-8 text-muted-foreground/50" aria-hidden />
       <p className="text-sm text-muted-foreground">
         {enabled
-          ? "Jarvis is active — activity will appear here after the first scan."
-          : "Activate Jarvis to see autonomous trading activity here."}
+          ? "Jarvis is running — updates will appear here after the first scan."
+          : "Turn on Jarvis to see trades and decisions here."}
       </p>
     </div>
   );

@@ -24,7 +24,7 @@ const PLACEMENT_PRICE_NOT_ALIGNED_MESSAGE =
   "Live contract price is outside your limit ± placement slippage. Adjust the limit or widen placement slippage.";
 
 const SLIPPAGE_TOO_HIGH_MESSAGE =
-  "Slippage exceeds the on-chain maximum (50%). Lower slippage and try again.";
+  "Slippage exceeds the maximum allowed (50%). Lower slippage and try again.";
 
 const LEVERAGED_MINT_OUTSIDE_WINDOW_MESSAGE =
   "Leverage above 1× closes one hour before this market expires.";
@@ -33,7 +33,7 @@ const FORCE_DELEVERAGE_OUTSIDE_WINDOW_MESSAGE =
   "Force deleverage is only available in the final hour before this market expires.";
 
 const INSUFFICIENT_POSITION_MESSAGE =
-  "Your Predict manager does not hold enough contracts for this market. Refresh your portfolio — the position may already be settled or the index may be stale.";
+  "Your account does not hold enough contracts for this market. Refresh your portfolio — the position may already be settled.";
 
 const TRADING_PAUSED_MESSAGE =
   "Trading is paused for new opens and limit fills. You can still close, repay debt, and settle expired positions.";
@@ -48,16 +48,16 @@ const NOT_AUTHORIZED_MESSAGE =
   "Your wallet isn't authorized to act on this trading account. If you just created it, refresh your portfolio and try again.";
 
 const INVALID_MANAGER_MESSAGE =
-  "This trading account is linked to a different Predict manager. Refresh your portfolio — the index may be stale.";
+  "This trading account is linked to a different settlement account. Refresh your portfolio and try again.";
 
 const NOT_KEEPER_MESSAGE =
-  "The keeper isn't authorized for this protocol action right now. Try again shortly; if it persists, the keeper may be misconfigured.";
+  "The trading service isn't authorized for this action right now. Try again shortly.";
 
 const MANAGER_OWNER_MESSAGE =
-  "The keeper could not execute this trade against your Predict manager. Refresh your portfolio and try again in a moment.";
+  "The trade could not be completed on your account. Refresh your portfolio and try again in a moment.";
 
 const RELAY_FAILED_MESSAGE =
-  "The keeper couldn't execute your trade. Please try again in a moment — if it persists, the relay may be temporarily unavailable.";
+  "Your trade could not be completed. Please try again in a moment.";
 
 /** A relayed trade op (mint/redeem/settle) bounced back from the keeper API. */
 function isRelayFailure(raw: string): boolean {

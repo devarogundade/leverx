@@ -161,11 +161,11 @@ export function PortfolioAccountPanel({
                         managerLinked ? "bg-success" : "bg-amber-500",
                       )}
                     />
-                    {managerLinked ? "Manager ready" : "Opens on first trade"}
+                    {managerLinked ? "Ready to trade" : "Opens on first trade"}
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Wallet, on-chain IDs, and integrations for this proxy account.
+                  Your wallet, account details, and connected apps.
                 </p>
               </div>
             </div>
@@ -187,17 +187,17 @@ export function PortfolioAccountPanel({
             />
             {managerLinked && account.predict_manager_id ? (
               <CopyField
-                label="Predict manager"
+                label="Settlement account"
                 value={account.predict_manager_id}
                 className="border-border/70 bg-muted/15"
               />
             ) : (
               <div className="flex min-h-[4.25rem] min-w-0 flex-col justify-center rounded-md border border-dashed border-border/80 bg-gradient-to-br from-muted/20 to-transparent px-3 py-2.5">
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Predict manager
+                  Settlement account
                 </p>
                 <p className="mt-1 text-sm leading-snug text-muted-foreground">
-                  Provisioned by LeverX when you open your first trade
+                  Created automatically when you place your first trade
                 </p>
               </div>
             )}
@@ -236,7 +236,7 @@ export function PortfolioAccountPanel({
           <LoadingState label="Loading trusted traders…" compact />
         ) : executors.length === 0 ? (
           <EmptyHint>
-            Register a separate wallet that can place trades for you without your main key.
+            Add a separate wallet or bot that can trade for you without your main wallet key.
           </EmptyHint>
         ) : (
           <ul className={settingsList}>
@@ -319,7 +319,7 @@ export function PortfolioAccountPanel({
               )
             }
           >
-            {registerExecutor.isPending ? "Registering…" : "Confirm registration"}
+            {registerExecutor.isPending ? "Adding…" : "Add trusted trader"}
           </button>
         </div>
       </ResponsiveModal>

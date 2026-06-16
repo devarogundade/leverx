@@ -21,6 +21,7 @@ Write-Host "Syncing deploy-testnet.env..."
 & scp @ssh $RemoteScript "${target}:/tmp/ec2-reset-indexer-remote.sh"
 $migrations = Join-Path $PSScriptRoot "ec2-apply-indexer-migrations.sh"
 & scp @ssh $migrations "${target}:/tmp/ec2-apply-indexer-migrations.sh"
+& scp @ssh (Join-Path $PSScriptRoot "ec2-reload-nginx-remote.sh") "${target}:/tmp/ec2-reload-nginx-remote.sh"
 
 Write-Host "Resetting indexer on EC2 (wipe DB, rebuild, sync from publish checkpoint)..."
 & ssh @ssh $target "chmod +x /tmp/ec2-reset-indexer-remote.sh && bash /tmp/ec2-reset-indexer-remote.sh"

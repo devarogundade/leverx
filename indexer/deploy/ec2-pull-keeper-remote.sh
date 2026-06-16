@@ -33,12 +33,12 @@ pick_env() {
   from_container="$(env_val "${key}")"
   from_file="$(file_val "${key}" /opt/leverx/keeper/.env)"
   from_local="$(file_val "${key}" /tmp/keeper-env.local)"
-  if [[ -n "${from_file}" ]]; then
+  if [[ -n "${from_local}" ]]; then
+    printf '%s' "${from_local}"
+  elif [[ -n "${from_file}" ]]; then
     printf '%s' "${from_file}"
   elif [[ -n "${from_container}" ]]; then
     printf '%s' "${from_container}"
-  elif [[ -n "${from_local}" ]]; then
-    printf '%s' "${from_local}"
   fi
 }
 
@@ -60,12 +60,26 @@ ENV_FILE="/opt/leverx/keeper/.env"
   echo "PREDICT_SERVER_URL=https://predict-server.testnet.mystenlabs.com"
   grep -E '^(LEVERX_PACKAGE_ID|LEVERX_REGISTRY_ID|LEVERX_VAULT_ID|LEVERX_FEE_COLLECTOR_ID|PREDICT_PACKAGE_ID|PREDICT_ID|QUOTE_TYPE)=' \
     "${DEPLOY_ENV}"
+  for key in JARVIS_ENABLED ANTHROPIC_API_KEY JARVIS_ANTHROPIC_MODEL JARVIS_INTERVAL_MS \
+    JARVIS_MARKETS_LIMIT JARVIS_MARKET_SLIPPAGE_BPS DEEPBOOK_INDEXER_URL; do
+    value="$(pick_env "${key}")"
+    [[ -n "${value}" ]] && echo "${key}=${value}"
+  done
 } > "${ENV_FILE}"
 chmod 600 "${ENV_FILE}"
 rm -f /tmp/keeper-env.local
 
 docker stop leverx-keeper 2>/dev/null || true
 docker rm leverx-keeper 2>/dev/null || true
+
+if [[ "${RESET_KEEPER:-}" == "1" ]]; then
+  echo "=== Wiping keeper Postgres + Redis volumes ==="
+  cd /opt/leverx/keeper
+  if [[ -f docker-compose.ec2.yml ]]; then
+    docker compose -f docker-compose.ec2.yml down -v 2>/dev/null || true
+  fi
+  docker volume rm leverx-keeper_keeper_pg_data 2>/dev/null || true
+fi
 
 echo "=== Pulling latest keeper image ==="
 if [[ "${SKIP_DOCKER_PULL:-}" != "1" ]]; then

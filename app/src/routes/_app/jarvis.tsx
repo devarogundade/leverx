@@ -19,7 +19,7 @@ export const Route = createFileRoute("/_app/jarvis")({
       { title: pageTitle("Jarvis") },
       {
         name: "description",
-        content: "Autonomous AI trading agent for your LeverX account.",
+        content: "AI assistant that trades on your behalf within limits you set.",
       },
     ],
   }),
@@ -51,14 +51,14 @@ function JarvisPage() {
       <div className="mb-4">
         <h1 className={pageSimpleTitle}>Jarvis</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Your autonomous AI trading agent — activity feed only, no chat input.
+          Watches your account, finds trades, and manages risk. Updates appear below.
         </p>
       </div>
 
       {!isWalletConnected || !address ? (
         <WalletConnectPrompt
-          title="Connect wallet for Jarvis"
-          description="Jarvis manages one trading account tied to your connected wallet."
+          title="Sign in to use Jarvis"
+          description="Sign in so Jarvis can manage the trading account linked to your wallet."
         />
       ) : !account?.account_id ? (
         <p className="text-sm text-muted-foreground">

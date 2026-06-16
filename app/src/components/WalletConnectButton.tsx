@@ -201,7 +201,7 @@ export function WalletConnectButton({
 
   const loginLabel = compact ? (
     <>
-      <span className="sm:hidden">Login</span>
+      <span className="sm:hidden">Sign in</span>
       <span className="hidden sm:inline">Sign in with Google</span>
     </>
   ) : (
@@ -210,11 +210,11 @@ export function WalletConnectButton({
 
   const connectLabel = compact ? (
     <>
-      <span className="sm:hidden">Connect</span>
-      <span className="hidden sm:inline">Connect wallet</span>
+      <span className="sm:hidden">Sign in</span>
+      <span className="hidden sm:inline">Sign in</span>
     </>
   ) : (
-    "Connect wallet"
+    "Sign in"
   );
 
   const buttonClasses = cn(

@@ -389,7 +389,7 @@ export const tradeMobileDockTab = cn(
 
 export const tradeMobileDockTabActive = "bg-hover font-semibold text-foreground";
 
-export const tradeTerminalMobileBody = "max-md:pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))]";
+export const tradeTerminalMobileBody = "max-md:pb-[calc(45px+env(safe-area-inset-bottom,0px))]";
 
 export const tradeTerminalMobileChartPanel = "trade-terminal-mobile-chart flex flex-col";
 

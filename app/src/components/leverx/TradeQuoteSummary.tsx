@@ -69,7 +69,7 @@ export function TradeQuoteSummary({ quote, isLoading, isRefreshing, className }:
       </div>
       {outOfBounds ? (
         <p className="text-sm text-amber-200">
-          This price cannot be traded on-chain right now (Predict allows 1¢–99¢ per contract).
+          This price isn&apos;t tradable right now (must be between 1¢ and 99¢ per contract).
         </p>
       ) : null}
     </div>

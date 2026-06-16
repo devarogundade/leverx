@@ -40,7 +40,7 @@ export const ui = {
   vaultSupplyCta: "Deposit dUSDC",
   vaultWithdrawCta: "Withdraw dUSDC",
   vaultActionHint:
-    "Deposit dUSDC to earn from trading activity, or withdraw your balance anytime. Log in first.",
+    "Deposit dUSDC to earn from trading activity, or withdraw your balance anytime. Sign in first.",
   vaultPoolDetails: "Pool details",
   vaultPoolDetailsHint: "Live stats updated as trading activity changes.",
   vaultChartTitle: "Performance",
@@ -52,7 +52,7 @@ export const ui = {
   keeperPageHint:
     "Helpers keep markets running — closing expired trades, matching orders, and stepping in on risky positions. You can earn a share of fees when yours runs successfully.",
   keeperStepPull: "Download the app",
-  keeperStepKey: "Log in with Google",
+  keeperStepKey: "Sign in with Google",
   keeperStepRun: "Start the helper",
   keeperHealthLabel: "Make sure it is running",
   keeperIndexerHint:
@@ -66,7 +66,7 @@ export const ui = {
   balanceAvailable: "Avail",
   balanceInPositions: "In open trades",
   balanceRealizedPnl: "Realized profit & loss",
-  balanceConnectHint: "Log in to see your balance.",
+  balanceConnectHint: "Sign in to see your balance.",
   balanceWallet: "Wallet",
   predictManagerTitle: "Your trading account",
   predictManagerHint: "Balance and open trades for your wallet",
@@ -78,8 +78,8 @@ export const ui = {
   predictManagerEmpty: "No trading account yet — one is created when you place your first trade.",
   predictOracleSpot: "Price",
   backToMarkets: "Back to markets",
-  connectForTrades: "Log in to trade and view your positions.",
-  connectToTrade: "Log in to open a trade.",
+  connectForTrades: "Sign in to trade and view your positions.",
+  connectToTrade: "Sign in to open a trade.",
   tradeUp: "UP",
   tradeDown: "DOWN",
   tradeRange: "RANGE",
@@ -97,7 +97,7 @@ export const ui = {
   emptyPositions: "No open trades",
   emptyPositionsHint: "Your open trades will appear here after your first position.",
   predictServerDisabled: "Live data unavailable",
-  predictServerDisabledHint: "Some numbers may show placeholders until the connection is restored.",
+  predictServerDisabledHint: "Some numbers may be unavailable until the connection is restored.",
 } as const;
 
 const MAX_DISPLAY_FRACTION_DIGITS = 6;

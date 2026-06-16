@@ -59,8 +59,8 @@ export function JarvisSettingsDialog({ open, onOpenChange, owner, accountId }: P
     <ResponsiveModal
       open={open}
       onOpenChange={onOpenChange}
-      title="Jarvis guardrails"
-      description="Set hard limits Jarvis must respect when trading on your behalf."
+      title="Trading limits"
+      description="Set how much risk Jarvis can take when trading on your behalf."
       className="max-w-lg"
     >
       {isLoading ? (
@@ -141,12 +141,12 @@ export function JarvisSettingsDialog({ open, onOpenChange, owner, accountId }: P
           <div className="flex items-start justify-between gap-4 rounded-lg border border-border/80 bg-muted/20 px-3 py-3">
             <div className="space-y-1">
               <LabelWithInfo
-                label="Dry run"
+                label="Practice mode"
                 labelClassName="text-sm font-medium text-foreground"
-                info="Jarvis analyzes and logs decisions but does not execute trades on-chain."
+                info="Jarvis analyzes markets and logs what it would do, without placing real trades."
               />
               <p className="text-xs text-muted-foreground">
-                Simulated mode — useful for testing guardrails without risk.
+                Try Jarvis safely before turning on live trading.
               </p>
             </div>
             <Switch
@@ -171,7 +171,7 @@ export function JarvisSettingsDialog({ open, onOpenChange, owner, accountId }: P
                 Saving…
               </span>
             ) : (
-              "Save guardrails"
+              "Save limits"
             )}
           </button>
         </div>

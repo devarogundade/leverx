@@ -388,8 +388,8 @@ function TradePositionsPanel({
           !address ? (
             <EmptyState
               icon={Inbox}
-              title="Log in"
-              description="Log in to see your open trades."
+              title="Sign in"
+              description="Sign in to see your open trades."
               compact
             />
           ) : positionsLoading ? (
@@ -417,8 +417,8 @@ function TradePositionsPanel({
           !address ? (
             <EmptyState
               icon={Inbox}
-              title="Log in"
-              description="Log in to see your waiting orders."
+              title="Sign in"
+              description="Sign in to see your waiting orders."
               compact
             />
           ) : ordersLoading ? (
