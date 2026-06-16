@@ -3,12 +3,13 @@ import {
   ForbiddenException,
   Injectable,
   Logger,
+  OnModuleInit,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { TelegramConfig } from '../config/telegram.config';
 import { IndexerService } from '../indexer/indexer.service';
-import { logKeeperError } from '../lib/keeper-log';
+import { logKeeperError, logKeeperWarn } from '../lib/keeper-log';
 import { SubscriptionService } from './subscription.service';
 import { TelegramApiService } from './telegram-api.service';
 import type {
@@ -18,9 +19,11 @@ import type {
 } from './telegram.types';
 
 @Injectable()
-export class TelegramBotService {
+export class TelegramBotService implements OnModuleInit {
   private readonly logger = new Logger(TelegramBotService.name);
   private readonly cfg: TelegramConfig;
+  private polling = false;
+  private pollOffset = 0;
 
   constructor(
     config: ConfigService,
@@ -29,6 +32,17 @@ export class TelegramBotService {
     private readonly subscriptions: SubscriptionService,
   ) {
     this.cfg = config.get<TelegramConfig>('telegram')!;
+  }
+
+  async onModuleInit(): Promise<void> {
+    if (!this.isOperational() || !this.cfg.polling) return;
+
+    await this.api.deleteWebhook(this.cfg.botToken);
+    this.polling = true;
+    void this.pollLoop();
+    this.logger.log(
+      `Telegram bot polling started (interval=${this.cfg.pollIntervalSec}s)`,
+    );
   }
 
   isEnabled(): boolean {
@@ -88,10 +102,32 @@ export class TelegramBotService {
     };
   }
 
-  /** Handle Telegram webhook updates (`POST /telegram/webhook`). */
+  /** Handle Telegram webhook updates when `TELEGRAM_POLLING=false`. */
   async handleWebhookUpdate(update: TelegramUpdate): Promise<void> {
-    if (!this.isOperational()) return;
+    if (!this.isOperational() || this.cfg.polling) return;
     await this.processUpdate(update);
+  }
+
+  private async pollLoop(): Promise<void> {
+    const timeoutSec = this.cfg.pollIntervalSec;
+    const retryMs = timeoutSec * 1_000;
+
+    while (this.polling) {
+      try {
+        const { updates, nextOffset } = await this.api.getUpdates(
+          this.cfg.botToken,
+          this.pollOffset,
+          timeoutSec,
+        );
+        this.pollOffset = nextOffset;
+        for (const raw of updates) {
+          await this.processUpdate(raw as TelegramUpdate);
+        }
+      } catch (err) {
+        logKeeperWarn(this.logger, 'telegram poll failed', err);
+        await sleep(retryMs);
+      }
+    }
   }
 
   private async processUpdate(update: TelegramUpdate): Promise<void> {
@@ -239,4 +275,8 @@ function shortId(id: string): string {
 
 function formatDate(ms: number): string {
   return new Date(ms).toISOString().slice(0, 10);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

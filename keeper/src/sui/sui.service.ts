@@ -390,7 +390,10 @@ export class SuiService implements OnModuleInit {
     return [a, b, c, d];
   }
 
-  async devInspect(tx: Transaction, sender?: string): Promise<boolean> {
+  async tryDevInspect(
+    tx: Transaction,
+    sender?: string,
+  ): Promise<{ ok: true } | { ok: false; error: string }> {
     const address = this.devInspectSender(sender);
 
     const result = await this.client.devInspectTransactionBlock({
@@ -404,9 +407,13 @@ export class SuiService implements OnModuleInit {
         result.effects?.status?.error ??
         JSON.stringify(result.effects?.status);
       logKeeperWarn(this.logger, `devInspect failed: ${err}`);
-      return false;
+      return { ok: false, error: String(err) };
     }
-    return true;
+    return { ok: true };
+  }
+
+  async devInspect(tx: Transaction, sender?: string): Promise<boolean> {
+    return (await this.tryDevInspect(tx, sender)).ok;
   }
 
   async execute(tx: Transaction, options?: ExecuteOptions): Promise<string> {

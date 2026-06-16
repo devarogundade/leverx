@@ -62,7 +62,7 @@ export class TelegramNotificationQueueService {
         {} satisfies TelegramLiquidationScanJobData,
         {
           ...NOTIFIER_JOB_OPTS,
-          jobId: `liquidation_scan:${Math.floor(Date.now() / 60_000)}`,
+          jobId: `liquidation_scan-${Math.floor(Date.now() / 60_000)}`,
         },
       );
     } catch (err) {

@@ -9,6 +9,7 @@ import { IndexerService } from '../indexer/indexer.service';
 import type { LeveragedPosition } from '../indexer/indexer.types';
 import type { TaskResult } from '../keeper/keeper.types';
 import { logKeeperError, logKeeperWarn } from '../lib/keeper-log';
+import { describeMoveAbort } from '../lib/move-abort';
 import { PtbBuilderService } from '../sui/ptb-builder.service';
 import { SuiService } from '../sui/sui.service';
 
@@ -75,10 +76,14 @@ export class LiquidationService {
         const borrowAmount = await this.resolveFlashBorrowAmount(position);
         const tx = new Transaction();
         this.ptb.buildLiquidation(tx, cfg, position, borrowAmount);
-        if (!(await this.sui.devInspect(tx))) {
+        const simulation = await this.sui.tryDevInspect(tx);
+        if (!simulation.ok) {
+          const hint =
+            describeMoveAbort(simulation.error) ??
+            'liquidation PTB simulation failed';
           logKeeperWarn(
             this.logger,
-            `liquidation simulation failed ${target} (flash_liquidate abort — redeem may not cover vault debt)`,
+            `liquidation simulation failed ${target} (${hint})`,
           );
           const writeOff = await this.tryWriteOffFlat(position);
           if (writeOff?.success) {
@@ -89,7 +94,10 @@ export class LiquidationService {
             kind: 'liquidation',
             target,
             success: false,
-            error: 'simulation_failed',
+            error:
+              hint === 'vault idle liquidity too low for flash loan'
+                ? 'insufficient_vault_liquidity'
+                : 'simulation_failed',
           });
           continue;
         }
