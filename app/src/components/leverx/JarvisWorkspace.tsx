@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   Bot,
@@ -37,6 +37,8 @@ import { labelCaps, tradeSurface } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
 
 const WELCOME_KEY = "leverx-jarvis-welcome-seen";
+const SCROLL_LOAD_THRESHOLD_PX = 48;
+const NEAR_BOTTOM_THRESHOLD_PX = 80;
 const TRADE_EVENT_TYPES = new Set<JarvisEventType>([
   "opening_position",
   "closing_position",
@@ -352,28 +354,42 @@ function countRecentTrades(events: JarvisEventRecord[]): number {
 
 export function JarvisWorkspace({ owner, accountId }: Props) {
   const feedRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
+  const initialScrollRef = useRef(true);
+  const pendingPrependRef = useRef<{ scrollHeight: number; scrollTop: number } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const welcomeSeen =
     typeof window !== "undefined" && localStorage.getItem(WELCOME_KEY) === "1";
 
   const { data: status, isLoading: statusLoading } = useJarvisStatus(owner, accountId);
-  const { data: events = [], isLoading: eventsLoading } = useJarvisEvents(owner, accountId);
+  const {
+    data: eventsData,
+    isLoading: eventsLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useJarvisEvents(owner, accountId);
   const enableJarvis = useEnableJarvis();
   const disableJarvis = useDisableJarvis();
   const markRead = useMarkJarvisRead();
   const { connectionState } = useJarvisLive(owner, accountId);
 
-  const sortedEvents = useMemo(
-    () =>
-      [...events].sort(
-        (a, b) => Number(b.created_at_ms) - Number(a.created_at_ms),
-      ),
-    [events],
-  );
+  const events = useMemo(() => {
+    const map = new Map<string, JarvisEventRecord>();
+    for (const page of eventsData?.pages ?? []) {
+      for (const event of page) {
+        map.set(event.id, event);
+      }
+    }
+    return [...map.values()];
+  }, [eventsData]);
 
   const displayEvents = useMemo(
-    () => [...sortedEvents].reverse(),
-    [sortedEvents],
+    () =>
+      [...events].sort(
+        (a, b) => Number(a.created_at_ms) - Number(b.created_at_ms),
+      ),
+    [events],
   );
 
   const tradesLast24h = useMemo(() => countRecentTrades(events), [events]);
@@ -389,11 +405,42 @@ export function JarvisWorkspace({ owner, accountId }: Props) {
     return () => window.clearTimeout(timer);
   }, [owner, accountId, status?.unread_count, markRead]);
 
-  useEffect(() => {
+  const handleFeedScroll = useCallback(() => {
     const el = feedRef.current;
     if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  }, [displayEvents.length]);
+
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    stickToBottomRef.current = distanceFromBottom <= NEAR_BOTTOM_THRESHOLD_PX;
+
+    if (
+      el.scrollTop <= SCROLL_LOAD_THRESHOLD_PX &&
+      hasNextPage &&
+      !isFetchingNextPage
+    ) {
+      pendingPrependRef.current = {
+        scrollHeight: el.scrollHeight,
+        scrollTop: el.scrollTop,
+      };
+      void fetchNextPage();
+    }
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+
+  useLayoutEffect(() => {
+    const el = feedRef.current;
+    if (!el) return;
+
+    const pending = pendingPrependRef.current;
+    if (pending) {
+      el.scrollTop = pending.scrollTop + (el.scrollHeight - pending.scrollHeight);
+      pendingPrependRef.current = null;
+      return;
+    }
+
+    if (stickToBottomRef.current || initialScrollRef.current) {
+      el.scrollTop = el.scrollHeight;
+      initialScrollRef.current = false;
+    }
+  }, [displayEvents, isFetchingNextPage]);
 
   const toggleBusy = enableJarvis.isPending || disableJarvis.isPending;
   const configured = isJarvisConfigured() && (status?.configured ?? true);
@@ -517,7 +564,7 @@ export function JarvisWorkspace({ owner, accountId }: Props) {
         </div>
       </div>
 
-      <section className={cn(tradeSurface, "flex min-h-[420px] flex-col")}>
+      <section className={cn(tradeSurface, "flex max-h-[min(640px,calc(100dvh-12rem))] min-h-[320px] flex-col")}>
         <header className="flex items-center justify-between border-b border-border px-4 py-3">
           <h2 className={labelCaps}>Recent activity</h2>
           {(status?.unread_count ?? 0) > 0 ? (
@@ -527,8 +574,24 @@ export function JarvisWorkspace({ owner, accountId }: Props) {
 
         <div
           ref={feedRef}
-          className="flex flex-1 flex-col gap-3 overflow-y-auto p-4"
+          onScroll={handleFeedScroll}
+          className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-4"
         >
+          {isFetchingNextPage ? (
+            <div className="flex justify-center py-1">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden />
+              <span className="sr-only">Loading earlier activity</span>
+            </div>
+          ) : hasNextPage && displayEvents.length > 0 ? (
+            <p className="text-center text-[10px] text-muted-foreground">
+              Scroll up for earlier activity
+            </p>
+          ) : displayEvents.length > 0 ? (
+            <p className="text-center text-[10px] text-muted-foreground">
+              Beginning of activity
+            </p>
+          ) : null}
+
           {showWelcome ? (
             <WelcomeCard />
           ) : null}

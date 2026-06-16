@@ -317,6 +317,7 @@ export async function fetchJarvisEvents(params: {
   owner: string;
   accountId: string;
   limit?: number;
+  beforeMs?: number;
 }): Promise<JarvisEventRecord[]> {
   const owner = normalizeJarvisOwner(params.owner);
   const accountId = normalizeJarvisAccountId(params.accountId);
@@ -325,6 +326,9 @@ export async function fetchJarvisEvents(params: {
     account_id: accountId,
     limit: String(params.limit ?? 50),
   });
+  if (params.beforeMs != null && params.beforeMs > 0) {
+    q.set("before_ms", String(params.beforeMs));
+  }
   const res = await fetch(`${keeperApiBase()}/jarvis/events?${q.toString()}`);
   if (!res.ok) {
     throw new Error(`jarvis_events_failed:${res.status}`);

@@ -553,6 +553,7 @@ export const JarvisStatusQuerySchema = z.object({
 
 export const JarvisEventsQuerySchema = JarvisStatusQuerySchema.extend({
   limit: z.coerce.number().int().min(1).max(200).optional().default(50),
+  before_ms: z.coerce.number().int().positive().optional(),
 });
 
 export const JarvisStatusResponseSchema = z.object({

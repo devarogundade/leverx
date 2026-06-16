@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, LessThan, Repository } from 'typeorm';
 import type { JarvisConfig } from '../config/jarvis.config';
 import { JarvisEventEntity } from '../database/entities/jarvis-event.entity';
 import { JarvisSettingsEntity } from '../database/entities/jarvis-settings.entity';
@@ -294,11 +294,18 @@ export class JarvisService implements OnModuleInit {
     owner: string,
     accountId: string,
     limit = 50,
+    beforeMs?: number,
   ): Promise<JarvisEventRecord[]> {
     const normalizedOwner = owner.trim().toLowerCase();
     const normalizedAccountId = accountId.trim().toLowerCase();
     const rows = await this.eventsRepo.find({
-      where: { user_address: normalizedOwner, account_id: normalizedAccountId },
+      where: {
+        user_address: normalizedOwner,
+        account_id: normalizedAccountId,
+        ...(beforeMs != null && beforeMs > 0
+          ? { created_at_ms: LessThan(String(beforeMs)) }
+          : {}),
+      },
       order: { created_at_ms: 'DESC' },
       take: Math.min(Math.max(limit, 1), 200),
     });

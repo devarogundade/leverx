@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { appConfig } from "@/lib/config";
 import {
   disableJarvis,
@@ -14,31 +19,15 @@ import {
   type JarvisStatusResponse,
   type JarvisUpdateSettingsBody,
 } from "@/lib/leverx/keeper-client";
+import {
+  JARVIS_EVENTS_PAGE_SIZE,
+  jarvisEventsQueryKey,
+  jarvisSettingsQueryKey,
+  jarvisStatusQueryKey,
+} from "@/lib/leverx/jarvis-query-keys";
 import { useJarvisWebSocket } from "@/hooks/useJarvisWebSocket";
 
-export function jarvisSettingsQueryKey(owner: string, accountId: string) {
-  return [
-    "jarvis-settings",
-    owner.trim().toLowerCase(),
-    accountId.trim().toLowerCase(),
-  ] as const;
-}
-
-export function jarvisStatusQueryKey(owner: string, accountId: string) {
-  return [
-    "jarvis-status",
-    owner.trim().toLowerCase(),
-    accountId.trim().toLowerCase(),
-  ] as const;
-}
-
-export function jarvisEventsQueryKey(owner: string, accountId: string) {
-  return [
-    "jarvis-events",
-    owner.trim().toLowerCase(),
-    accountId.trim().toLowerCase(),
-  ] as const;
-}
+export { JARVIS_EVENTS_PAGE_SIZE, jarvisEventsQueryKey, jarvisSettingsQueryKey, jarvisStatusQueryKey };
 
 export function isJarvisConfigured(): boolean {
   return Boolean(appConfig.keeperApiUrl?.trim());
@@ -65,12 +54,25 @@ export function useJarvisEvents(
   accountId: string | null | undefined,
 ) {
   const enabled = Boolean(owner && accountId);
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: enabled
       ? jarvisEventsQueryKey(owner!, accountId!)
       : ["jarvis-events", "idle"],
-    queryFn: () =>
-      fetchJarvisEvents({ owner: owner!, accountId: accountId!, limit: 100 }),
+    queryFn: ({ pageParam }) =>
+      fetchJarvisEvents({
+        owner: owner!,
+        accountId: accountId!,
+        limit: JARVIS_EVENTS_PAGE_SIZE,
+        beforeMs: pageParam,
+      }),
+    initialPageParam: undefined as number | undefined,
+    getNextPageParam: (lastPage) => {
+      if (lastPage.length < JARVIS_EVENTS_PAGE_SIZE) return undefined;
+      const oldest = lastPage[lastPage.length - 1];
+      if (!oldest) return undefined;
+      const ms = Number(oldest.created_at_ms);
+      return Number.isFinite(ms) && ms > 0 ? ms : undefined;
+    },
     enabled,
     staleTime: 10_000,
   });

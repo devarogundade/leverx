@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { io, type Socket } from "socket.io-client";
 import { appConfig } from "@/lib/config";
 import {
@@ -8,6 +8,7 @@ import {
   JarvisUnreadPayloadSchema,
   type JarvisEventRecord,
 } from "@/lib/leverx/jarvis-schemas";
+import { jarvisEventsQueryKey } from "@/lib/leverx/jarvis-query-keys";
 
 export type JarvisConnectionState = "connected" | "connecting" | "disconnected";
 
@@ -20,12 +21,30 @@ type UseJarvisWebSocketArgs = {
 const INITIAL_BACKOFF_MS = 1000;
 const MAX_BACKOFF_MS = 30_000;
 
-function jarvisEventsKey(owner: string, accountId: string) {
-  return ["jarvis-events", owner, accountId] as const;
-}
-
 function jarvisStatusKey(owner: string, accountId: string) {
   return ["jarvis-status", owner, accountId] as const;
+}
+
+function prependLiveEvent(
+  prev: InfiniteData<JarvisEventRecord[]> | undefined,
+  record: JarvisEventRecord,
+): InfiniteData<JarvisEventRecord[]> {
+  if (!prev?.pages?.length) {
+    return { pages: [[record]], pageParams: [undefined] };
+  }
+
+  const firstPage = prev.pages[0] ?? [];
+  if (firstPage.some((row) => row.id === record.id)) return prev;
+
+  return {
+    ...prev,
+    pages: [
+      [record, ...firstPage].sort(
+        (a, b) => Number(b.created_at_ms) - Number(a.created_at_ms),
+      ),
+      ...prev.pages.slice(1),
+    ],
+  };
 }
 
 export function useJarvisWebSocket({
@@ -114,15 +133,10 @@ export function useJarvisWebSocket({
         if (!parsed.success) return;
 
         const record: JarvisEventRecord = parsed.data;
-        queryClient.setQueryData<JarvisEventRecord[]>(
-          jarvisEventsKey(normalizedOwner, normalizedAccountId),
-          (prev) => {
-            const list = prev ?? [];
-            if (list.some((row) => row.id === record.id)) return list;
-            return [...list, record].sort(
-              (a, b) => Number(b.created_at_ms) - Number(a.created_at_ms),
-            );
-          },
+        const eventsKey = jarvisEventsQueryKey(normalizedOwner, normalizedAccountId);
+        queryClient.setQueryData<InfiniteData<JarvisEventRecord[]>>(
+          eventsKey,
+          (prev) => prependLiveEvent(prev, record),
         );
         queryClient.invalidateQueries({
           queryKey: jarvisStatusKey(normalizedOwner, normalizedAccountId),

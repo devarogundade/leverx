@@ -76,13 +76,20 @@ export class JarvisController {
     @Query('owner') owner: string,
     @Query('account_id') accountId: string,
     @Query('limit') limit?: string,
+    @Query('before_ms') beforeMs?: string,
   ) {
     const query = parseOrBadRequest(JarvisEventsQuerySchema, {
       owner,
       account_id: accountId,
       limit,
+      before_ms: beforeMs,
     });
-    return this.jarvis.listEvents(query.owner, query.account_id, query.limit);
+    return this.jarvis.listEvents(
+      query.owner,
+      query.account_id,
+      query.limit,
+      query.before_ms,
+    );
   }
 
   @Post('events/read')
