@@ -20,9 +20,11 @@ interface Props {
   fullWidth?: boolean;
   /** Extra classes on `<main>` (e.g. mobile bottom nav padding). */
   mainClassName?: string;
+  /** Fixed UI rendered outside page-enter animation (e.g. mobile bottom nav). */
+  fixedChrome?: ReactNode;
 }
 
-export function SiteShell({ children, fullWidth, mainClassName }: Props) {
+export function SiteShell({ children, fullWidth, mainClassName, fixedChrome }: Props) {
   const headerRef = useRef<HTMLElement>(null);
 
   useGsapHeaderScroll(headerRef);
@@ -69,6 +71,7 @@ export function SiteShell({ children, fullWidth, mainClassName }: Props) {
           {children}
         </GsapPageEnter>
       </main>
+      {fixedChrome}
       <SiteFooter />
       <WelcomeDialog />
     </div>
