@@ -103,7 +103,8 @@ export function PortfolioFundsSection({
   const { cfg } = useLeverxProtocolConfig();
   const { data: walletBalance, isLoading: walletLoading } = useWalletCoinBalance(cfg?.quoteType ?? null);
   const walletUsd = walletCoinBalanceUsd(walletBalance);
-  const { usd: withdrawableUsd, isLoading: balancesLoading } = useTradingAccountBalance(accountId);
+  const { usd: tradingBalanceUsd, isLoading: tradingBalanceLoading } =
+    useTradingAccountBalance(accountId);
 
   const [depositOpen, setDepositOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
@@ -122,7 +123,7 @@ export function PortfolioFundsSection({
     ? computeTotalBalanceUsd({
         walletUsd: walletUsd ?? 0,
         marginUsd,
-        tradingAccountUsd: withdrawableUsd,
+        tradingAccountUsd: tradingBalanceUsd,
         borrowedUsd,
       })
     : null;
@@ -170,6 +171,13 @@ export function PortfolioFundsSection({
             }
           />
           <FundsMetric
+            label={ui.predictManagerBalance}
+            info={leverxInfo.balanceTradingAccount}
+            infoTitle={ui.predictManagerBalance}
+            loading={tradingBalanceLoading && tradingBalanceUsd === 0}
+            value={<QuoteAmount amount={tradingBalanceUsd} digits={2} hideZero={false} />}
+          />
+          <FundsMetric
             label="Margin"
             info={leverxInfo.balanceMargin}
             value={<QuoteAmount amount={marginUsd} digits={2} hideZero={false} />}
@@ -178,14 +186,6 @@ export function PortfolioFundsSection({
             label="Borrowed"
             info={leverxInfo.balanceBorrowed}
             value={<QuoteAmount amount={borrowedUsd} digits={2} hideZero={false} />}
-          />
-          <FundsMetric
-            label={ui.balanceWithdrawable}
-            info={leverxInfo.balanceWithdrawableDetail}
-            infoTitle={ui.balanceWithdrawable}
-            loading={balancesLoading && withdrawableUsd === 0}
-            hint={leverxInfo.balanceWithdrawableHint}
-            value={<QuoteAmount amount={withdrawableUsd} digits={2} hideZero={false} />}
           />
         </div>
 

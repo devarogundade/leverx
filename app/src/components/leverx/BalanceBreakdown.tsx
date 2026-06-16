@@ -69,7 +69,7 @@ export function BalanceBreakdown({ className }: Props) {
     () => resolveAccountId(accounts, [...positions, ...closedPositions]),
     [accounts, positions, closedPositions],
   );
-  const { usd: withdrawableUsd, isLoading: keyBalancesLoading } =
+  const { usd: tradingBalanceUsd, isLoading: tradingBalanceLoading } =
     useTradingAccountBalance(accountId);
 
   const ready =
@@ -95,15 +95,15 @@ export function BalanceBreakdown({ className }: Props) {
   const borrowed = ready ? scaleQuote(accounts[0]?.borrowed_quote ?? 0) : null;
   const positionCount = ready ? activePositions.length : null;
 
-  const withdrawableLoading =
-    isWalletConnected && Boolean(accountId) && keyBalancesLoading;
+  const tradingBalanceRowLoading =
+    isWalletConnected && Boolean(accountId) && tradingBalanceLoading;
 
   const total =
     ready && walletReady && margin != null
       ? computeTotalBalanceUsd({
           walletUsd: walletUsd ?? 0,
           marginUsd: margin,
-          tradingAccountUsd: withdrawableUsd,
+          tradingAccountUsd: tradingBalanceUsd,
           borrowedUsd: borrowed ?? 0,
         })
       : null;
@@ -164,6 +164,17 @@ export function BalanceBreakdown({ className }: Props) {
                 }
               />
               <BalanceRow
+                label={ui.predictManagerBalance}
+                info={leverxInfo.balanceTradingAccount}
+                value={
+                  <QuoteAmount
+                    amount={tradingBalanceUsd}
+                    loading={tradingBalanceRowLoading}
+                    hideZero={false}
+                  />
+                }
+              />
+              <BalanceRow
                 label="Margin"
                 info={leverxInfo.balanceMargin}
                 value={
@@ -175,17 +186,6 @@ export function BalanceBreakdown({ className }: Props) {
                 info={leverxInfo.balanceBorrowed}
                 value={
                   <QuoteAmount amount={borrowed} loading={!ready} hideZero={false} />
-                }
-              />
-              <BalanceRow
-                label={ui.balanceWithdrawable}
-                info={leverxInfo.balanceWithdrawableDetail}
-                value={
-                  <QuoteAmount
-                    amount={withdrawableUsd}
-                    loading={withdrawableLoading}
-                    hideZero={false}
-                  />
                 }
               />
               <BalanceRow

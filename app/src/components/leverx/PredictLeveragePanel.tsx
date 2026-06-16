@@ -19,7 +19,7 @@ import {
   TradeAmountInput,
   TradeQuickAmounts,
 } from "@/components/leverx/TradeFormControls";
-import { WalletConnectButton } from "@/components/WalletConnectButton";
+import { PortfolioDepositDialog } from "@/components/leverx/PortfolioDepositDialog";
 import { useWallet } from "@/context/WalletContext";
 import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
 import { resolveAccountId, resolvePredictManagerId } from "@/lib/leverx/account-resolution";
@@ -74,7 +74,7 @@ import {
 import { ui, formatAmount } from "@/lib/copy";
 import { StrikePriceSelector } from "@/components/leverx/StrikePriceSelector";
 import { RangeStrikeSelector } from "@/components/leverx/RangeStrikeSelector";
-import { ChevronDown, CircleDollarSign, Loader2 } from "lucide-react";
+import { ChevronDown, CircleDollarSign, Loader2, Plus } from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,

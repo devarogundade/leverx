@@ -111,12 +111,14 @@ export const leverxInfo = {
 
   balanceTotal:
     "Wallet dUSDC plus margin and free trading-account surplus, minus vault borrow across your account.",
+  balanceTradingAccount:
+    "dUSDC in your trading account — deposit from your wallet to trade. You can withdraw free surplus back to your wallet anytime.",
   balanceWithdrawable: "Surplus you can withdraw to your wallet now.",
   balanceWithdrawableHint:
     "Free surplus only — not vault borrow (debt), and not margin in open trades.",
   balanceWithdrawableDetail:
     "Counts dUSDC sitting as free surplus on your trading-account market keys. Outstanding vault borrow reduces it (withdrawable = trading-account balance − borrow); borrowed debt itself is not withdrawable.",
-  balanceWallet: "dUSDC available in your account (not yet in open trades).",
+  balanceWallet: "dUSDC in your connected wallet. Deposit to your trading account before opening trades.",
   balanceMargin: "Your own funds posted in open trades.",
   balanceBorrowed:
     "Vault debt from leveraged trades. Not withdrawable — repay by closing positions or repaying debt.",

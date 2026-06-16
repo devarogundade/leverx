@@ -1,10 +1,13 @@
 import { Wallet } from "lucide-react";
 import { CopyField } from "@/components/leverx/CopyField";
 import { PortfolioTelegramPanel } from "@/components/leverx/PortfolioTelegramPanel";
-import { InfoPopover } from "@/components/leverx/InfoPopover";
+import { InfoPopover, LabelWithInfo } from "@/components/leverx/InfoPopover";
+import { QuoteAmount } from "@/components/leverx/QuoteAmount";
 import { PortfolioFundsSection } from "@/components/leverx/PortfolioFundsSection";
 import { Badge } from "@/components/ui/badge";
+import { useTradingAccountBalance } from "@/hooks/useTradingAccountBalance";
 import { leverxInfo } from "@/lib/leverx/info-copy";
+import { ui } from "@/lib/copy";
 import type { LeveragedPosition, UserProxy } from "@/lib/leverx/indexer-client";
 import { labelCaps, tradeSurface } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
@@ -27,6 +30,8 @@ export function PortfolioAccountPanel({
   const accountId = account.account_id;
   const history = allPositions ?? positions;
   const managerLinked = Boolean(account.predict_manager_id);
+  const { usd: tradingBalanceUsd, isLoading: tradingBalanceLoading } =
+    useTradingAccountBalance(accountId);
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -66,6 +71,22 @@ export function PortfolioAccountPanel({
                   Your wallet, account details, and connected apps.
                 </p>
               </div>
+            </div>
+            <div className="min-w-0 sm:text-right">
+              <LabelWithInfo
+                label={ui.predictManagerBalance}
+                labelClassName={labelCaps}
+                info={leverxInfo.balanceTradingAccount}
+                infoTitle={ui.predictManagerBalance}
+                className="sm:justify-end"
+              />
+              <p className="mt-1 font-mono text-2xl tabular-nums text-foreground">
+                {tradingBalanceLoading ? (
+                  "…"
+                ) : (
+                  <QuoteAmount amount={tradingBalanceUsd} digits={2} hideZero={false} />
+                )}
+              </p>
             </div>
           </div>
         </div>
