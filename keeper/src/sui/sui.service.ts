@@ -278,26 +278,41 @@ export class SuiService implements OnModuleInit {
     return this.devInspectAddress(tx, sender);
   }
 
-  async devInspectBool(
+  async tryDevInspectBool(
     tx: Transaction,
     sender?: string,
-  ): Promise<boolean | null> {
+  ): Promise<{ ok: true; value: boolean } | { ok: false; error: string }> {
     const address = this.devInspectSender(sender);
 
     const result = await this.client.devInspectTransactionBlock({
       transactionBlock: tx,
       sender: address,
     });
-    if (result.effects?.status?.status !== 'success') {
-      return null;
+    const status = result.effects?.status?.status;
+    if (status !== 'success') {
+      const err =
+        result.error ??
+        result.effects?.status?.error ??
+        JSON.stringify(result.effects?.status);
+      return { ok: false, error: String(err) };
     }
 
     const returnValues = result.results?.at(-1)?.returnValues;
     const first = returnValues?.[0];
-    if (!first) return null;
+    if (!first) {
+      return { ok: false, error: 'missing_bool_return' };
+    }
 
     const [bytes] = first;
-    return Buffer.from(bytes).readUInt8(0) === 1;
+    return { ok: true, value: Buffer.from(bytes).readUInt8(0) === 1 };
+  }
+
+  async devInspectBool(
+    tx: Transaction,
+    sender?: string,
+  ): Promise<boolean | null> {
+    const result = await this.tryDevInspectBool(tx, sender);
+    return result.ok ? result.value : null;
   }
 
   /** Read a Move `u64` return value from the last PTB command. */

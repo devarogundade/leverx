@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { isFinalHourBeforeExpiry } from '../config/trade-math';
+import { describeMoveAbort } from '../lib/move-abort';
 import { logKeeperError, logKeeperWarn } from '../lib/keeper-log';
 import { IndexerService } from '../indexer/indexer.service';
 import type { LeveragedPosition } from '../indexer/indexer.types';
@@ -113,12 +114,15 @@ export class ForceCloseService {
         return { kind: 'force_close', target, success: false, error: 'oracle_already_settled' };
       }
 
-      const liquidatable = await this.isLiquidatable(position);
-      if (liquidatable === null) {
-        return { kind: 'force_close', target, success: false, error: 'liquidation_check_unreachable' };
-      }
-      if (liquidatable) {
+      const liquidatable = await this.isLiquidatable(position, target);
+      if (liquidatable === true) {
         return { kind: 'force_close', target, success: false, error: 'skipped_liquidatable' };
+      }
+      if (liquidatable === null) {
+        logKeeperWarn(
+          this.logger,
+          `liquidation check unavailable for ${target}; attempting force-deleverage simulation`,
+        );
       }
 
       const tx = position.is_range
@@ -191,10 +195,17 @@ export class ForceCloseService {
 
   private async isLiquidatable(
     position: LeveragedPosition,
+    target: string,
   ): Promise<boolean | null> {
     const cfg = this.sui.getConfig();
     const tx = this.ptb.buildIsLiquidatable(cfg, position);
-    return this.sui.devInspectBool(tx);
+    const result = await this.sui.tryDevInspectBool(tx);
+    if (!result.ok) {
+      const hint = describeMoveAbort(result.error) ?? result.error;
+      logKeeperWarn(this.logger, `liquidation check failed for ${target} (${hint})`);
+      return null;
+    }
+    return result.value;
   }
 }
 

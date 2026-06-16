@@ -263,7 +263,7 @@ export class PtbBuilderService {
         tx.object(cfg.predictId),
         tx.object(position.oracle_id),
         key,
-        tx.pure.u64(position.open_quantity),
+        tx.pure.u64(BigInt(position.open_quantity || 0)),
         tx.object(SUI_CLOCK_OBJECT_ID),
       ],
     });

@@ -59,7 +59,7 @@ export class LiquidationService {
           continue;
         }
 
-        const liquidatable = await this.isLiquidatable(position);
+        const liquidatable = await this.isLiquidatable(position, target);
         if (liquidatable === null) {
           results.push({
             kind: 'liquidation',
@@ -170,9 +170,16 @@ export class LiquidationService {
 
   private async isLiquidatable(
     position: LeveragedPosition,
+    target: string,
   ): Promise<boolean | null> {
     const cfg = this.sui.getConfig();
     const tx = this.ptb.buildIsLiquidatable(cfg, position);
-    return this.sui.devInspectBool(tx);
+    const result = await this.sui.tryDevInspectBool(tx);
+    if (!result.ok) {
+      const hint = describeMoveAbort(result.error) ?? result.error;
+      logKeeperWarn(this.logger, `liquidation check failed for ${target} (${hint})`);
+      return null;
+    }
+    return result.value;
   }
 }
