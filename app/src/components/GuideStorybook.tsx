@@ -63,15 +63,20 @@ type ChapterId = (typeof CHAPTERS)[number]["id"];
 
 export function GuideStorybook() {
   const [activeChapter, setActiveChapter] = useState<ChapterId>("introduction");
-  const { data: protocol } = useIndexerProtocol();
+  const { data: protocol, isLoading: protocolLoading } = useIndexerProtocol();
   const liquidationBps = resolveLiquidationBps(protocol);
   const healthyBufferBps = resolveHealthyBandBufferBps(protocol);
+  const finalWindowMs = resolveFinalWindowMs(protocol);
   const liquidationPct = formatLiquidationThresholdPct(liquidationBps, 1);
   const healthyPct = formatLiquidationThresholdPct(
     liquidationBps + healthyBufferBps,
     1,
   );
+  const finalWindowShort = formatProtocolDurationMs(finalWindowMs, "short");
+  const finalWindowLong = formatProtocolDurationMs(finalWindowMs, "long");
+  const finalWindowPhrase = `final ${finalWindowLong}`;
   const expirationList = PREDICT_TESTNET_EXPIRATION_DAYS.join(", ");
+  const configLoading = protocolLoading && !protocol;
 
   useEffect(() => {
     const headings = CHAPTERS.map((c) => document.getElementById(c.id)).filter(Boolean);
@@ -120,14 +125,103 @@ export function GuideStorybook() {
             <span className="guide-hero-stat-label">Max leverage</span>
           </div>
           <div className="guide-hero-stat">
-            <span className="guide-hero-stat-value">{rangeEnabled ? 3 : 2}</span>
-            <span className="guide-hero-stat-label">Market types</span>
+            <span className="guide-hero-stat-value">
+              {configLoading ? "…" : liquidationPct}
+            </span>
+            <span className="guide-hero-stat-label">Liquidation threshold</span>
           </div>
           <div className="guide-hero-stat">
-            <span className="guide-hero-stat-value">~9 min</span>
-            <span className="guide-hero-stat-label">Read time</span>
+            <span className="guide-hero-stat-value">
+              {configLoading ? "…" : finalWindowShort}
+            </span>
+            <span className="guide-hero-stat-label">Final window</span>
           </div>
         </div>
+        <GuidePanel label="Current platform settings">
+          <dl className="guide-config-grid">
+            <div>
+              <dt>Network</dt>
+              <dd>Sui testnet — demo dUSDC only</dd>
+            </div>
+            <div>
+              <dt>Trading</dt>
+              <dd>
+                {configLoading ? (
+                  "Loading…"
+                ) : protocol?.trading_paused ? (
+                  <span className="guide-config-warn">Paused — new trades blocked</span>
+                ) : (
+                  "Open"
+                )}
+              </dd>
+            </div>
+            <div>
+              <dt>Margin per trade</dt>
+              <dd>
+                {MIN_MARGIN_USD}–{MAX_MARGIN_USD} dUSDC
+              </dd>
+            </div>
+            <div>
+              <dt>Leverage</dt>
+              <dd>
+                {LEVERAGE_MIN}×–{LEVERAGE_MAX}× ({LEVERAGE_STEP}× steps)
+              </dd>
+            </div>
+            <div>
+              <dt>Liquidation threshold</dt>
+              <dd>
+                {configLoading ? "…" : (
+                  <>
+                    Below {liquidationPct} health on borrowed positions — a keeper can
+                    liquidate
+                  </>
+                )}
+              </dd>
+            </div>
+            <div>
+              <dt>Healthy band</dt>
+              <dd>
+                {configLoading ? "…" : (
+                  <>
+                    {healthyPct}% and above is comfortable; {liquidationPct}%–{healthyPct}%
+                    is margin-call territory
+                  </>
+                )}
+              </dd>
+            </div>
+            <div>
+              <dt>Final window</dt>
+              <dd>
+                {configLoading ? "…" : (
+                  <>
+                    {finalWindowLong} before expiry — new leverage above 1× cannot open;
+                    existing borrowed positions may be force-deleveraged
+                  </>
+                )}
+              </dd>
+            </div>
+            <div>
+              <dt>Market expirations</dt>
+              <dd>{expirationList} days from listing</dd>
+            </div>
+          </dl>
+          <p className="guide-config-footnote">
+            <Settings className="h-3.5 w-3.5" aria-hidden />
+            Loaded from on-chain protocol settings{protocol?.updated_at_ms ? (
+              <>
+                {" "}
+                · updated{" "}
+                {new Date(protocol.updated_at_ms).toLocaleString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: false,
+                })}
+              </>
+            ) : null}
+          </p>
+        </GuidePanel>
       </header>
 
       <nav className="guide-mobile-toc lg:hidden" aria-label="Guide chapters">
@@ -257,10 +351,10 @@ export function GuideStorybook() {
             <p>
               When you open a trade, you deposit dUSDC from your wallet ({MARGIN_RANGE}) and pick
               leverage from {LEVERAGE_MIN}× to {LEVERAGE_MAX}× in {LEVERAGE_STEP}× steps. At 1× there
-              is no vault borrow. New leverage above 1× cannot be opened in the final hour before
-              expiry; existing borrowed positions in that window are force-deleveraged to 1× (or
-              liquidated if underwater). Position size = margin × leverage; anything above your
-              deposit is borrowed from the shared pool.
+              is no vault borrow. New leverage above 1× cannot be opened in the{" "}
+              {finalWindowPhrase} before expiry; existing borrowed positions in that window are
+              force-deleveraged to 1× (or liquidated if underwater). Position size = margin ×
+              leverage; anything above your deposit is borrowed from the shared pool.
             </p>
             <div className="guide-leverage-demo">
               <div className="guide-leverage-row guide-leverage-row-highlight">
@@ -366,7 +460,7 @@ export function GuideStorybook() {
               <PillarCard
                 icon={<Zap className="h-4 w-4" />}
                 title="Force deleverage"
-                body={`In the final hour before expiry, borrowed positions above 1× are force-deleveraged: contracts are redeemed, vault debt is repaid, and leftover margin can reopen at 1× if you opted in when opening the trade.`}
+                body={`In the ${finalWindowPhrase} before expiry, borrowed positions above 1× are force-deleveraged: contracts are redeemed, vault debt is repaid, and leftover margin can reopen at 1× if you opted in when opening the trade.`}
                 accent="shield"
               />
               <PillarCard
@@ -379,10 +473,11 @@ export function GuideStorybook() {
             <GuidePanel label="How force deleverage works">
               <dl className="guide-risk-grid">
                 <div>
-                  <dt>Final-hour window</dt>
+                  <dt>Final window</dt>
                   <dd>
-                    New trades above 1× cannot open in the last hour. Existing leveraged positions
-                    in that window must be brought back to 1× or liquidated if already underwater.
+                    New trades above 1× cannot open in the {finalWindowLong} before expiry.
+                    Existing leveraged positions in that window must be brought back to 1× or
+                    liquidated if already underwater.
                   </dd>
                 </div>
                 <div>
@@ -575,17 +670,17 @@ export function GuideStorybook() {
                 <dt>Liquidation vs force deleverage?</dt>
                 <dd>
                   Liquidation happens any time health falls below {liquidationPct}% on a borrowed
-                  position. Force deleverage only runs in the final hour before expiry to bring
-                  healthy leveraged trades down to 1×. Underwater positions in that hour are
+                  position. Force deleverage only runs in the {finalWindowPhrase} before expiry to
+                  bring healthy leveraged trades down to 1×. Underwater positions in that window are
                   liquidated, not deleveraged.
                 </dd>
               </div>
               <div className="guide-faq-item">
                 <dt>What is remint after deleverage?</dt>
                 <dd>
-                  A setting when you open above 1×. If a keeper force-deleverages you in the final
-                  hour, leftover margin can automatically reopen the same prediction at 1× with no
-                  vault borrow. Disable it to exit to cash instead.
+                  A setting when you open above 1×. If a keeper force-deleverages you in the{" "}
+                  {finalWindowPhrase} before expiry, leftover margin can automatically reopen the
+                  same prediction at 1× with no vault borrow. Disable it to exit to cash instead.
                 </dd>
               </div>
               <div className="guide-faq-item">
