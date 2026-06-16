@@ -70,7 +70,7 @@ export const ui = {
   balanceWallet: "Wallet",
   predictManagerTitle: "Your trading account",
   predictManagerHint: "Balance and open trades for your wallet",
-  predictManagerBalance: "Trading balance",
+  predictManagerBalance: "Trading bal",
   predictManagerRealizedPnl: "Realized P&L",
   predictManagerUnrealizedPnl: "Unrealized P&L",
   predictManagerOpenPositions: "Open trades",
@@ -116,9 +116,7 @@ function formatAmountSubscript(abs: number, sign: string, fractionDigits: number
 
   const plain = abs.toString();
   const str =
-    plain.includes("e") || plain.includes("E") || !plain.includes(".")
-      ? abs.toFixed(6)
-      : plain;
+    plain.includes("e") || plain.includes("E") || !plain.includes(".") ? abs.toFixed(6) : plain;
   const dot = str.indexOf(".");
   if (dot === -1) return null;
   return formatDecimalWithSubscriptFromParts(
@@ -129,10 +127,7 @@ function formatAmountSubscript(abs: number, sign: string, fractionDigits: number
   );
 }
 
-export function formatAmountWithMaxDigits(
-  value: number,
-  maximumFractionDigits?: number,
-): string {
+export function formatAmountWithMaxDigits(value: number, maximumFractionDigits?: number): string {
   if (!Number.isFinite(value)) return "0";
 
   const sign = value < 0 ? "-" : "";
