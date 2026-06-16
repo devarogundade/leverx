@@ -6319,7 +6319,7 @@ button:disabled {
   }
 }
 
-/* ── Markets promo carousel (mobile) ────────────────────────────── */
+/* ── Markets promo carousel ─────────────────────────────────────── */
 .markets-promo-banners {
   margin-bottom: 0.25rem;
 }
@@ -6354,14 +6354,6 @@ button:disabled {
   border-radius: 999px;
   background: var(--color-foreground);
   opacity: 1;
-}
-@media (min-width: 768px) {
-  .markets-promo-swiper {
-    padding-bottom: 0;
-  }
-  .markets-promo-swiper .swiper-pagination {
-    display: none;
-  }
 }
 
 /* ── Promo banner polish ────────────────────────────────────────── */
