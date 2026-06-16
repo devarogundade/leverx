@@ -14,7 +14,7 @@ function envBool(name: string, fallback: boolean): boolean {
 }
 
 const DEFAULT_URL =
-  'postgres://leverx:leverx@localhost:5432/leverx_indexer';
+  'postgres://leverx:leverx@localhost:5433/leverx_indexer';
 
 export default registerAs(
   'database',

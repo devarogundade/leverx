@@ -2,9 +2,9 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - '6379:6379'
+      - "6379:6379"
     healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
+      test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -17,9 +17,9 @@ services:
       POSTGRES_PASSWORD: leverx
       POSTGRES_DB: leverx_indexer
     ports:
-      - '5432:5432'
+      - "5433:5432"
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U leverx -d leverx_indexer']
+      test: ["CMD-SHELL", "pg_isready -U leverx -d leverx_indexer"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -30,18 +30,18 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - '3001:3001'
+      - "3001:3001"
     env_file:
       - path: .env
         required: false
     environment:
-      PORT: '3001'
+      PORT: "3001"
       REDIS_HOST: redis
-      REDIS_PORT: '6379'
-      DATABASE_URL: postgres://leverx:leverx@postgres:5432/leverx_indexer
-      DATABASE_SYNCHRONIZE: 'true'
-      DATABASE_LOGGING: 'false'
-      INDEXER_URL: http://host.docker.internal:3100
+      REDIS_PORT: "6379"
+      DATABASE_URL: postgres://leverx:leverx@postgres:5433/leverx_indexer
+      DATABASE_SYNCHRONIZE: "true"
+      DATABASE_LOGGING: "false"
+      INDEXER_URL: https://indexer.suileverx.xyz
       SUI_RPC_URL: https://fullnode.testnet.sui.io:443
       LEVERX_PACKAGE_ID: 0x972b59d3ee7c74a01d88d0b2d895d0f6ce58fc68fdead02c974ad824bfd6b790
       LEVERX_REGISTRY_ID: 0xe7a1cc48e4073557ed6819a313ff1bbee4cafe50929712500782b1046660bbc0
@@ -51,17 +51,17 @@ services:
       PREDICT_ID: 0xc8736204d12f0a7277c86388a68bf8a194b0a14c5538ad13f22cbd8e2a38028a
       PREDICT_SERVER_URL: https://predict-server.testnet.mystenlabs.com
       QUOTE_TYPE: 0xe95040085976bfd54a1a07225cd46c8a2b4e8e2b6732f140a0fc49850ba73e1a::dusdc::DUSDC
-      TELEGRAM_ENABLED: 'false'
-      TELEGRAM_POLLING: 'true'
+      TELEGRAM_ENABLED: "true"
+      TELEGRAM_POLLING: "true"
     depends_on:
       redis:
         condition: service_healthy
       postgres:
         condition: service_healthy
     extra_hosts:
-      - 'host.docker.internal:host-gateway'
+      - "host.docker.internal:host-gateway"
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://127.0.0.1:3001/health']
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:3001/health"]
       interval: 30s
       timeout: 5s
       retries: 3
