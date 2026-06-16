@@ -515,9 +515,11 @@ async fn protocol_settings_handler(
         return Ok(Json(serde_json::Value::Null));
     };
 
-    let mut value = serde_json::to_value(row).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let liquidation_bps = row.liquidation_bps;
+    let final_window_ms = row.final_window_ms;
+    let mut value = serde_json::to_value(&row).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     if let Some(obj) = value.as_object_mut() {
-        let effective = effective_liquidation_bps(row.liquidation_bps);
+        let effective = effective_liquidation_bps(liquidation_bps);
         obj.insert("effective_liquidation_bps".into(), json!(effective));
         obj.insert("default_liquidation_bps".into(), json!(DEFAULT_LIQUIDATION_BPS));
         obj.insert("max_liquidation_bps".into(), json!(MAX_LIQUIDATION_BPS));
@@ -525,7 +527,7 @@ async fn protocol_settings_handler(
             "healthy_band_buffer_bps".into(),
             json!(HEALTHY_BAND_BUFFER_BPS),
         );
-        let effective_window = effective_final_window_ms(row.final_window_ms);
+        let effective_window = effective_final_window_ms(final_window_ms);
         obj.insert("effective_final_window_ms".into(), json!(effective_window));
         obj.insert("default_final_window_ms".into(), json!(DEFAULT_FINAL_WINDOW_MS));
         obj.insert("min_final_window_ms".into(), json!(MIN_FINAL_WINDOW_MS));
