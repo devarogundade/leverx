@@ -6,7 +6,7 @@ import type { MarketKeyArgs } from "@/lib/leverx/market-keys";
 import {
   DEV_INSPECT_QUOTE_REFETCH_MS,
   DEV_INSPECT_QUOTE_STALE_MS,
-  ORACLE_HOT_POLL_INTERVAL_MS,
+  DEV_INSPECT_HOT_POLL_INTERVAL_MS,
 } from "@/lib/leverx/constants";
 import { fetchPredictMarketAsk } from "@/lib/leverx/quotes";
 import { useLeverxProtocolConfig } from "@/hooks/useLeverxTransactions";
@@ -61,7 +61,7 @@ export function useLeverxMarketAsk(key?: MarketKeyArgs) {
       if (query.state.data != null && query.state.data > 0n) {
         return DEV_INSPECT_QUOTE_REFETCH_MS;
       }
-      return ORACLE_HOT_POLL_INTERVAL_MS;
+      return DEV_INSPECT_HOT_POLL_INTERVAL_MS;
     },
     refetchIntervalInBackground: false,
     placeholderData: (previous) => previous,

@@ -11,10 +11,16 @@ export const PREDICT_PRICE_SCALE = 1_000_000_000n;
 export const PREDICT_QUOTE_REFERENCE_QUANTITY = 1_000_000n;
 
 /** React Query cache + poll cadence for devInspect quote simulations. */
-export const DEV_INSPECT_QUOTE_STALE_MS = 10_000;
-export const DEV_INSPECT_QUOTE_REFETCH_MS = 10_000;
+export const DEV_INSPECT_QUOTE_STALE_MS = 15_000;
+export const DEV_INSPECT_QUOTE_REFETCH_MS = 15_000;
 
-/** Aggressive oracle / quote poll while waiting for on-chain ask (no mint quote yet). */
+/** DevInspect poll while waiting for the first successful on-chain read. */
+export const DEV_INSPECT_HOT_POLL_INTERVAL_MS = 3_000;
+
+/** Trading account balance devInspect (slightly less frequent than quote ticks). */
+export const DEV_INSPECT_BALANCE_REFETCH_MS = 22_500;
+
+/** Aggressive oracle poll while waiting for Predict spot (not devInspect). */
 export const ORACLE_HOT_POLL_INTERVAL_MS = 2_000;
 
 /** Headroom below leveraged position size so mint_cost <= margin + borrow on-chain. */

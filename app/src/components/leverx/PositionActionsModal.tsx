@@ -14,6 +14,7 @@ import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { positionKeyFromArgs, type MarketKeyArgs } from "@/lib/leverx/market-keys";
 import { formatQuantity } from "@/lib/leverx/format-quantity";
 import { fetchManagerOpenQuantity } from "@/lib/leverx/quotes";
+import { DEV_INSPECT_QUOTE_STALE_MS } from "@/lib/leverx/constants";
 import {
   hasIndexerOpenQuantity,
   settleContractQuantity,
@@ -219,7 +220,7 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
         key: positionKey,
       }),
     enabled: Boolean(open && cfg && position.predict_manager_id),
-    staleTime: 10_000,
+    staleTime: DEV_INSPECT_QUOTE_STALE_MS,
     retry: 1,
   });
 

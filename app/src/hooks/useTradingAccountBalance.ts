@@ -2,6 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useWallet } from "@/context/WalletContext";
 import { useLeverxProtocolConfig } from "@/hooks/useLeverxTransactions";
 import { fetchTradingQuoteBalance } from "@/lib/leverx/quotes";
+import {
+  DEV_INSPECT_BALANCE_REFETCH_MS,
+  DEV_INSPECT_QUOTE_STALE_MS,
+} from "@/lib/leverx/constants";
 import { QUOTE_UNIT } from "@/lib/predict/constants";
 import { scaleQuoteAtoms } from "@/lib/predict/scaling";
 
@@ -31,8 +35,8 @@ export function useTradingAccountBalance(accountId: string | undefined) {
       return atoms;
     },
     enabled,
-    staleTime: 10_000,
-    refetchInterval: 15_000,
+    staleTime: DEV_INSPECT_QUOTE_STALE_MS,
+    refetchInterval: DEV_INSPECT_BALANCE_REFETCH_MS,
     retry: 1,
   });
 
