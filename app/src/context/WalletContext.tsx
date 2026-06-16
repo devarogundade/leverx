@@ -16,7 +16,7 @@ import {
 import type { WalletAccount } from "@wallet-standard/core";
 import { showError } from "@/lib/toast";
 import { suiClient } from "@/lib/sui/client";
-import { getWalletAccount, listGoogleEnokiWallets } from "@/lib/sui/wallets";
+import { getWalletAccount, listConnectableWallets } from "@/lib/sui/wallets";
 import type { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
 
 const STORAGE_KEY = "leverx:last-wallet";
@@ -60,7 +60,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const autoConnectInFlight = useRef(false);
 
   const refreshWallets = useCallback(() => {
-    setWallets(listGoogleEnokiWallets());
+    setWallets(listConnectableWallets());
   }, []);
 
   useEffect(() => {

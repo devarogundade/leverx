@@ -82,6 +82,10 @@ import {
   tradeTerminalSidebar,
   tradeTerminalTabsRow,
   tradeTerminalWorkspace,
+  vaultAction,
+  vaultChart,
+  vaultWorkspace,
+  btnTradeSignin,
 } from "@/lib/leverx/tw";
 
 const TRADE_POSITION_TABS = ["Positions", "Open Orders", "Market trades", "Summary"] as const;
@@ -556,6 +560,102 @@ export function PortfolioPageSkeleton() {
     <div className="space-y-4" aria-hidden>
       <PortfolioSummaryBarSkeleton />
       <PortfolioWorkspaceSkeleton />
+    </div>
+  );
+}
+
+function VaultStatsSkeleton() {
+  const stats = [
+    { label: "TVL", info: leverxInfo.vaultTvl },
+    { label: ui.vaultApr, info: leverxInfo.vaultApr },
+    { label: "Util.", info: leverxInfo.vaultUtil },
+  ] as const;
+
+  return (
+    <dl className="mt-4 flex flex-wrap gap-x-6 gap-y-1 text-sm" aria-hidden>
+      {stats.map(({ label, info }) => (
+        <div key={label} className="flex gap-2">
+          <dt className="text-muted-foreground">
+            <LabelWithInfo label={label} info={info} />
+          </dt>
+          <dd>
+            <SkeletonBar className="h-4 w-16" />
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function VaultChartSkeleton({ className }: { className?: string }) {
+  return (
+    <div className={cn(tradeSurface, "flex flex-col overflow-hidden", className)} aria-hidden>
+      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+        <span className={labelCaps}>{ui.vaultChartTitle}</span>
+        <div className={pillToggleGroup} role="group" aria-label="Vault chart metric">
+          <span className={cn(pillToggleBtn, pillToggleActive)}>{ui.vaultChartTvl}</span>
+          <span className={cn(pillToggleBtn, pillToggleIdle)}>{ui.vaultChartApr}</span>
+        </div>
+      </div>
+      <div
+        className={cn(
+          "lx-skeleton lx-skeleton--block h-[280px] min-h-[280px] w-full sm:h-[320px]",
+        )}
+      />
+    </div>
+  );
+}
+
+function VaultLiquidityPanelSkeleton({ className }: { className?: string }) {
+  return (
+    <div className={cn(tradeLeveragePanel, className, "pointer-events-none")} aria-hidden>
+      <div className="border-b border-border p-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className={pillToggleGroup} role="group" aria-label="Vault action">
+            <span className={cn(pillToggleBtn, pillToggleActive)}>Supply</span>
+            <span className={cn(pillToggleBtn, pillToggleIdle)}>Withdraw</span>
+          </div>
+          <SkeletonBar className="h-4 w-4 rounded-sm" />
+        </div>
+      </div>
+
+      <div className="space-y-4 p-3">
+        <div className="flex flex-wrap items-baseline gap-x-1 gap-y-1 text-sm">
+          <span className="text-muted-foreground">Pool size</span>
+          <SkeletonBar className="h-4 w-24" />
+        </div>
+
+        <div>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <LabelWithInfo label="Amount" labelClassName={labelCaps} info={leverxInfo.vaultAmount} />
+            <span className="flex items-center gap-1 text-sm text-muted-foreground">
+              Bal.
+              <SkeletonBar className="h-4 w-16" />
+            </span>
+          </div>
+          <SkeletonBar className="h-12 w-full rounded-lg" />
+          <div className="mt-2 flex flex-wrap gap-2">
+            {Array.from({ length: 4 }, (_, i) => (
+              <SkeletonBar key={i} className="h-7 w-12 rounded-md" />
+            ))}
+          </div>
+        </div>
+
+        <SkeletonBar className={cn(btnTradeSignin, "h-11 w-full rounded-md border-0")} />
+      </div>
+    </div>
+  );
+}
+
+/** Mirrors `/vault` (Pool) layout for route pending / loading. */
+export function VaultPageSkeleton() {
+  return (
+    <div className="space-y-[var(--trade-gap)]" aria-hidden>
+      <VaultStatsSkeleton />
+      <div className={vaultWorkspace}>
+        <VaultChartSkeleton className={vaultChart} />
+        <VaultLiquidityPanelSkeleton className={vaultAction} />
+      </div>
     </div>
   );
 }

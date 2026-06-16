@@ -13,8 +13,22 @@ export type TradeRelayResponse = {
   digest: string;
 };
 
+export type KeeperHealthResponse = {
+  ok: boolean;
+  service: "keeper";
+  uptimeSec?: number;
+};
+
 function keeperApiBase(): string {
-  return appConfig.leverxIndexerUrl.replace(/\/$/, "");
+  return appConfig.keeperApiUrl.replace(/\/$/, "");
+}
+
+export async function fetchKeeperHealth(): Promise<KeeperHealthResponse> {
+  const res = await fetch(`${keeperApiBase()}/health`);
+  if (!res.ok) {
+    return { ok: false, service: "keeper" };
+  }
+  return res.json() as Promise<KeeperHealthResponse>;
 }
 
 function keeperHeaders(): Record<string, string> {

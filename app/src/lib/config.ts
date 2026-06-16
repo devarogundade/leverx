@@ -84,6 +84,15 @@ function resolveLeverxWsUrl(apiUrl: string): string | null {
 const leverxApiUrl = resolveLeverxApiUrl();
 const leverxIndexerWsUrl = resolveLeverxWsUrl(leverxApiUrl);
 
+function resolveKeeperApiUrl(leverxApiUrl: string): string {
+  const explicit = viteEnv("VITE_LEVERX_KEEPER_URL");
+  if (explicit) return explicit.replace(/\/$/, "");
+  if (isKeeperApiUrl(leverxApiUrl)) return leverxApiUrl.replace(/\/$/, "");
+  return import.meta.env.PROD ? DEFAULT_KEEPER_API : "http://localhost:3001";
+}
+
+const keeperApiUrl = resolveKeeperApiUrl(leverxApiUrl);
+
 function envBool(name: string, defaultValue: boolean): boolean {
   const raw = viteEnv(name).toLowerCase();
   if (raw === "true" || raw === "1") return true;
@@ -127,6 +136,9 @@ export const appConfig = {
    * WebSocket live streams still use `leverxIndexerWsUrl` (keeper does not proxy WS).
    */
   leverxIndexerUrl: leverxApiUrl,
+
+  /** Keeper HTTP base (trade relay, manager create, health). */
+  keeperApiUrl,
 
   /** Direct leverx-server WebSocket endpoint (`/v1/ws`). */
   leverxIndexerWsUrl,

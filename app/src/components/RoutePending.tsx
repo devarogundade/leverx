@@ -12,6 +12,7 @@ import {
   PositionsTableSkeleton,
   SurfaceSkeleton,
   TradeTerminalSkeleton,
+  VaultPageSkeleton,
 } from "@/components/ui/market-skeleton";
 import { ui } from "@/lib/copy";
 import {
@@ -116,7 +117,12 @@ export function RoutePendingContent() {
   const pageHeader = SIMPLE_PAGE_HEADERS[pathname];
   if (pageHeader) {
     return (
-      <section className={pageSimple}>
+      <section
+        className={cn(
+          pageSimple,
+          pathname === "/vault" && "mx-auto max-w-[var(--page-max)]",
+        )}
+      >
         <div>
           <h1 className={pageSimpleTitle}>{pageHeader.title}</h1>
           {pageHeader.hint ? (
@@ -127,6 +133,8 @@ export function RoutePendingContent() {
           <PortfolioPageSkeleton />
         ) : pathname === "/points" ? (
           <PointsLeaderboardSkeleton rows={10} />
+        ) : pathname === "/vault" ? (
+          <VaultPageSkeleton />
         ) : (
           <SurfaceSkeleton lines={6} hideHeader />
         )}

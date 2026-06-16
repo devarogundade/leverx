@@ -2976,6 +2976,13 @@ select {
   gap: 0.375rem;
 }
 
+.site-footer-statuses {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.625rem 1rem;
+}
+
 .site-footer-dot {
   display: inline-block;
   height: 0.375rem;

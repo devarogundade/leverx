@@ -22,6 +22,27 @@ export function getGoogleEnokiWallet(): WalletWithRequiredFeatures | null {
   return listGoogleEnokiWallets()[0] ?? null;
 }
 
+/** True for the Enoki Google zkLogin wallet (gas-sponsored login path). */
+export function isGoogleEnokiWallet(wallet: WalletWithRequiredFeatures): boolean {
+  return isEnokiWallet(wallet) && isGoogleWallet(wallet);
+}
+
+/**
+ * Every wallet the user can connect with: the Enoki Google zkLogin wallet plus
+ * any installed standard Sui wallet (Sui Wallet, Suiet, Slush, …). Non-Google
+ * Enoki providers are excluded so the list stays deduped and predictable.
+ */
+export function listConnectableWallets(): WalletWithRequiredFeatures[] {
+  return listSuiWallets().filter((wallet) =>
+    isEnokiWallet(wallet) ? isGoogleWallet(wallet) : true,
+  );
+}
+
+/** Installed standard (extension) Sui wallets — everything except Enoki zkLogin. */
+export function listExternalWallets(): WalletWithRequiredFeatures[] {
+  return listSuiWallets().filter((wallet) => !isEnokiWallet(wallet));
+}
+
 export function getWalletAccount(wallet: WalletWithRequiredFeatures): WalletAccount | null {
   const account =
     wallet.accounts.find((a) => a.chains.includes(SUI_TESTNET_CHAIN)) ?? wallet.accounts[0];

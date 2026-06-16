@@ -4,6 +4,7 @@ import {
   SUI_TESTNET_CHAIN,
   type WalletWithRequiredFeatures,
 } from "@mysten/wallet-standard";
+import { isEnokiWallet } from "@mysten/enoki";
 import type { WalletAccount } from "@wallet-standard/core";
 import { Transaction } from "@mysten/sui/transactions";
 import type { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
@@ -46,7 +47,12 @@ export async function executeWalletTransaction(
   options?: { gasBudget?: number },
 ): Promise<{ digest: string }> {
   const gasBudget = options?.gasBudget ?? DEFAULT_GAS_BUDGET;
-  await ensureSuiGasBalance(client, account.address, gasBudget);
+  // Enoki (Google zkLogin) wallets are gas-sponsored: Enoki pays the gas, so the
+  // user holds 0 SUI by design. Only enforce a self-funded SUI balance for
+  // non-sponsored wallets that must pay their own gas.
+  if (!isEnokiWallet(wallet)) {
+    await ensureSuiGasBalance(client, account.address, gasBudget);
+  }
 
   const tx = new Transaction();
   tx.setSender(account.address);

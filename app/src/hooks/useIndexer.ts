@@ -25,6 +25,7 @@ import {
   fetchVaultHistory,
   fetchVaultSummary,
 } from "@/lib/leverx/indexer-client";
+import { fetchKeeperHealth } from "@/lib/leverx/keeper-client";
 
 export const indexerKeys = {
   health: ["indexer-health"] as const,
@@ -74,6 +75,17 @@ export function useIndexerHealth() {
     queryKey: indexerKeys.health,
     queryFn: fetchHealth,
     enabled,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+    retry: 1,
+  });
+}
+
+export function useKeeperHealth() {
+  return useQuery({
+    queryKey: ["keeper-health"] as const,
+    queryFn: fetchKeeperHealth,
+    enabled: Boolean(appConfig.keeperApiUrl),
     staleTime: 30_000,
     refetchInterval: 30_000,
     retry: 1,
