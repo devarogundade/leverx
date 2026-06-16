@@ -39,6 +39,16 @@ export const JarvisGuardrailsSchema = z.object({
 });
 export type JarvisGuardrails = z.infer<typeof JarvisGuardrailsSchema>;
 
+/** Slider presets applied when the user picks a risk profile tab. */
+export const JARVIS_RISK_PRESETS: Record<
+  JarvisRiskProfile,
+  Pick<JarvisGuardrails, "max_leverage" | "max_portfolio_pct" | "max_open_positions">
+> = {
+  conservative: { max_leverage: 3, max_portfolio_pct: 10, max_open_positions: 2 },
+  balanced: { max_leverage: 5, max_portfolio_pct: 20, max_open_positions: 3 },
+  aggressive: { max_leverage: 8, max_portfolio_pct: 40, max_open_positions: 5 },
+};
+
 export const JarvisEventRecordSchema = z.object({
   id: z.string(),
   user_address: z.string(),

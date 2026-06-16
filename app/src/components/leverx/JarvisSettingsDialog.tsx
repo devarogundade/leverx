@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 import { ResponsiveModal } from "@/components/leverx/ResponsiveModal";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
@@ -9,8 +9,17 @@ import {
   useUpdateJarvisSettings,
 } from "@/hooks/useJarvis";
 import { JARVIS_DEFAULT_GUARDRAILS } from "@/lib/leverx/keeper-client";
-import type { JarvisGuardrails, JarvisRiskProfile } from "@/lib/leverx/jarvis-schemas";
-import { pillToggleBtn, pillToggleIdle } from "@/lib/leverx/tw";
+import {
+  JARVIS_RISK_PRESETS,
+  type JarvisGuardrails,
+  type JarvisRiskProfile,
+} from "@/lib/leverx/jarvis-schemas";
+import {
+  pillToggleActive,
+  pillToggleBtn,
+  pillToggleGroup,
+  pillToggleIdle,
+} from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -32,11 +41,24 @@ export function JarvisSettingsDialog({ open, onOpenChange, owner, accountId }: P
 
   const [draft, setDraft] = useState<JarvisGuardrails>(JARVIS_DEFAULT_GUARDRAILS);
 
+  const serverGuardrailsKey = useMemo(() => {
+    const g = settings?.guardrails;
+    if (!g) return null;
+    return `${g.max_leverage}:${g.max_portfolio_pct}:${g.max_open_positions}:${g.risk_profile}:${g.dry_run}`;
+  }, [settings?.guardrails]);
+
   useEffect(() => {
-    if (settings?.guardrails) {
-      setDraft(settings.guardrails);
-    }
-  }, [settings?.guardrails, open]);
+    if (!open || !settings?.guardrails) return;
+    setDraft(settings.guardrails);
+  }, [open, serverGuardrailsKey]);
+
+  const applyRiskProfile = (profile: JarvisRiskProfile) => {
+    setDraft((current) => ({
+      ...current,
+      risk_profile: profile,
+      ...JARVIS_RISK_PRESETS[profile],
+    }));
+  };
 
   const pending = updateSettings.isPending;
 
@@ -75,6 +97,7 @@ export function JarvisSettingsDialog({ open, onOpenChange, owner, accountId }: P
             info="Maximum leverage for new trades (1–10)."
           >
             <Slider
+              key={`leverage-${draft.max_leverage}`}
               variant="leverage"
               min={1}
               max={10}
@@ -90,6 +113,7 @@ export function JarvisSettingsDialog({ open, onOpenChange, owner, accountId }: P
             info="Maximum share of balance per new trade (1–100%)."
           >
             <Slider
+              key={`portfolio-${draft.max_portfolio_pct}`}
               min={1}
               max={100}
               step={1}
@@ -104,6 +128,7 @@ export function JarvisSettingsDialog({ open, onOpenChange, owner, accountId }: P
             info="Jarvis will not open new trades when this limit is reached."
           >
             <Slider
+              key={`positions-${draft.max_open_positions}`}
               min={1}
               max={10}
               step={1}
@@ -118,19 +143,17 @@ export function JarvisSettingsDialog({ open, onOpenChange, owner, accountId }: P
               labelClassName="text-xs font-medium text-foreground"
               info="Influences how aggressively Jarvis sizes trades within your caps."
             />
-            <div className="flex flex-wrap gap-2">
+            <div className={cn(pillToggleGroup, "w-full")} role="group" aria-label="Risk profile">
               {RISK_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
                   type="button"
                   className={cn(
                     pillToggleBtn,
-                    "px-3 py-1.5 text-xs",
-                    draft.risk_profile === opt.value
-                      ? "border-accent/50 bg-accent/10 text-accent"
-                      : pillToggleIdle,
+                    "flex-1 px-2 py-1.5 text-xs",
+                    draft.risk_profile === opt.value ? pillToggleActive : pillToggleIdle,
                   )}
-                  onClick={() => setDraft((d) => ({ ...d, risk_profile: opt.value }))}
+                  onClick={() => applyRiskProfile(opt.value)}
                 >
                   {opt.label}
                 </button>
