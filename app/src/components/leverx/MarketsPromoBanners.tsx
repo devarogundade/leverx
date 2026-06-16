@@ -14,17 +14,19 @@ type Props = {
 export function MarketsPromoBanners({ className }: Props) {
   return (
     <div className={cn("markets-promo-banners", className)}>
-      <div className="markets-promo-banners-grid hidden md:grid md:grid-cols-2 md:gap-3">
-        <PromoBanner className="h-full" />
-        <JarvisAiBanner className="h-full" />
-      </div>
-
       <Swiper
-        className="markets-promo-swiper md:hidden"
+        className="markets-promo-swiper"
         modules={[Pagination]}
         slidesPerView={1.2}
         spaceBetween={12}
         pagination={{ clickable: true }}
+        breakpoints={{
+          768: {
+            slidesPerView: 2,
+            spaceBetween: 12,
+            allowTouchMove: false,
+          },
+        }}
       >
         <SwiperSlide className="markets-promo-slide">
           <PromoBanner className="h-full" />

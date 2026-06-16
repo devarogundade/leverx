@@ -3,7 +3,7 @@ import { LayoutGrid, List, Search } from "lucide-react";
 import { SiteShell } from "@/components/SiteShell";
 import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loading-state";
-import { PromoBanner } from "@/components/leverx/PromoBanner";
+import { MarketsPromoBanners } from "@/components/leverx/MarketsPromoBanners";
 import { UnderlineTabs } from "@/components/leverx/UnderlineTabs";
 import {
   MarketsCatalogSkeleton,
@@ -55,7 +55,7 @@ export function RoutePendingContent() {
   if (pathname === "/markets") {
     return (
       <section className={pageSimple}>
-        <PromoBanner />
+        <MarketsPromoBanners />
 
         <div className={pageSimpleToolbar}>
           <h1 className={pageSimpleTitle}>Markets</h1>
