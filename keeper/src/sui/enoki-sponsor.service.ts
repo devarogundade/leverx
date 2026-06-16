@@ -7,6 +7,7 @@ import { Transaction } from '@mysten/sui/transactions';
 import { fromBase64, toBase64 } from '@mysten/sui/utils';
 import type { KeeperConfig } from '../config/keeper.config';
 import { logKeeperError } from '../lib/keeper-log';
+import { userEnokiAllowedMoveCallTargets } from './enoki-move-targets';
 
 type EnokiNetwork = 'mainnet' | 'testnet' | 'devnet';
 
@@ -109,5 +110,63 @@ export class EnokiSponsorService implements OnModuleInit {
     });
 
     return executed.digest;
+  }
+
+  /** Move targets passed to Enoki for user zkLogin sponsorship. */
+  userAllowedMoveCallTargets(): string[] {
+    return userEnokiAllowedMoveCallTargets(
+      this.cfg.packageId,
+      this.cfg.predictPackageId,
+    );
+  }
+
+  /** Transfer recipients Enoki may allow when sponsoring a user PTB. */
+  userAllowedAddresses(sender: string): string[] {
+    const ids = [
+      sender,
+      this.cfg.vaultId,
+      this.cfg.registryId,
+      this.cfg.feeCollectorId,
+      this.cfg.predictId,
+    ];
+    return [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
+  }
+
+  /**
+   * First step of user gas sponsorship — Enoki adds gas; user signs `bytes`.
+   * Requires `ENOKI_SECRET_KEY` (private Enoki API key).
+   */
+  async createUserSponsoredTransaction(params: {
+    sender: string;
+    transactionKindBytes: string;
+  }): Promise<{ bytes: string; digest: string }> {
+    const enoki = this.enoki;
+    if (!enoki) {
+      throw new Error('enoki_not_configured');
+    }
+
+    return enoki.createSponsoredTransaction({
+      network: this.network(),
+      transactionKindBytes: params.transactionKindBytes,
+      sender: params.sender,
+      allowedMoveCallTargets: this.userAllowedMoveCallTargets(),
+      allowedAddresses: this.userAllowedAddresses(params.sender),
+    });
+  }
+
+  /** Second step — submit the user signature after they sign sponsored bytes. */
+  async executeUserSponsoredTransaction(params: {
+    digest: string;
+    signature: string;
+  }): Promise<{ digest: string }> {
+    const enoki = this.enoki;
+    if (!enoki) {
+      throw new Error('enoki_not_configured');
+    }
+
+    return enoki.executeSponsoredTransaction({
+      digest: params.digest,
+      signature: params.signature,
+    });
   }
 }

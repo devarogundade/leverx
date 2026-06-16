@@ -1,4 +1,3 @@
-import { EnokiClient, EnokiClientError, getSession } from "@mysten/enoki";
 import {
   SUI_TESTNET_CHAIN,
   SuiSignTransaction,
@@ -8,18 +7,24 @@ import type { WalletAccount } from "@wallet-standard/core";
 import { Transaction } from "@mysten/sui/transactions";
 import type { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
 import { fromBase64, toBase64 } from "@mysten/sui/utils";
-import { appConfig } from "@/lib/config";
+import {
+  keeperCreateSponsoredTransaction,
+  keeperExecuteSponsoredTransaction,
+} from "@/lib/leverx/keeper-client";
 
 const ENOKI_SPONSOR_FAILED =
-  "Gas sponsorship failed. Add the new LeverX package move targets in the Enoki Developer Portal (Sponsored transactions), or add testnet SUI to your wallet via https://faucet.sui.io/?network=testnet";
+  "Gas sponsorship failed. Ensure the keeper has ENOKI_SECRET_KEY set and LeverX move targets are allow-listed in the Enoki Developer Portal.";
 
-function formatEnokiError(err: EnokiClientError): string {
-  const detail = err.errors[0]?.message?.trim();
-  if (detail) return `${ENOKI_SPONSOR_FAILED} (${detail})`;
+function formatKeeperGasError(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  const detail = message.includes(":") ? message.split(":").slice(2).join(":").trim() : message;
+  if (detail && detail !== message) {
+    return `${ENOKI_SPONSOR_FAILED} (${detail.slice(0, 200)})`;
+  }
   return ENOKI_SPONSOR_FAILED;
 }
 
-/** Sponsor, sign, and execute a user PTB via Enoki (Google zkLogin). */
+/** Sponsor, sign, and execute a user PTB via keeper → Enoki (Google zkLogin). */
 export async function executeEnokiSponsoredTransaction(
   client: SuiJsonRpcClient,
   wallet: WalletWithRequiredFeatures,
@@ -27,35 +32,22 @@ export async function executeEnokiSponsoredTransaction(
   build: (tx: Transaction) => void | Promise<void>,
   gasBudget: number,
 ): Promise<{ digest: string }> {
-  const apiKey = appConfig.enokiApiKey?.trim();
-  if (!apiKey) {
-    throw new Error("Enoki is not configured for gas sponsorship.");
-  }
-
-  const session = await getSession(wallet);
-  const jwt = session?.jwt;
-  if (!jwt) {
-    throw new Error("Enoki session expired. Log out and sign in with Google again.");
-  }
-
   const tx = new Transaction();
   tx.setSender(account.address);
   tx.setGasBudget(gasBudget);
   await build(tx);
 
   const kindBytes = await tx.build({ client, onlyTransactionKind: true });
-  const enoki = new EnokiClient({ apiKey });
+  const transactionKindBytes = toBase64(kindBytes);
 
   let sponsored: { bytes: string; digest: string };
   try {
-    sponsored = await enoki.createSponsoredTransaction({
-      network: appConfig.suiNetwork,
-      transactionKindBytes: toBase64(kindBytes),
-      jwt,
+    sponsored = await keeperCreateSponsoredTransaction({
+      sender: account.address,
+      transactionKindBytes,
     });
   } catch (err) {
-    if (err instanceof EnokiClientError) throw new Error(formatEnokiError(err));
-    throw err;
+    throw new Error(formatKeeperGasError(err));
   }
 
   const signFeature = wallet.features[SuiSignTransaction];
@@ -74,13 +66,12 @@ export async function executeEnokiSponsoredTransaction(
 
   let executed: { digest: string };
   try {
-    executed = await enoki.executeSponsoredTransaction({
+    executed = await keeperExecuteSponsoredTransaction({
       digest: sponsored.digest,
       signature,
     });
   } catch (err) {
-    if (err instanceof EnokiClientError) throw new Error(formatEnokiError(err));
-    throw err;
+    throw new Error(formatKeeperGasError(err));
   }
 
   const finalized = await client.waitForTransaction({

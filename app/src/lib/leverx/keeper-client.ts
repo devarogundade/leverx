@@ -13,6 +13,15 @@ export type TradeRelayResponse = {
   digest: string;
 };
 
+export type GasSponsorResponse = {
+  bytes: string;
+  digest: string;
+};
+
+export type GasExecuteResponse = {
+  digest: string;
+};
+
 export type KeeperHealthResponse = {
   ok: boolean;
   service: "keeper";
@@ -96,6 +105,22 @@ export async function relayTradeRedeem(payload: SignedTradeIntent): Promise<Trad
 /** Relay a signed settle intent for an expired position — keeper builds and executes the PTB. */
 export async function relayTradeSettle(payload: SignedTradeIntent): Promise<TradeRelayResponse> {
   return postKeeper<TradeRelayResponse>("/trade/settle", payload);
+}
+
+/** Enoki sponsor step — keeper uses ENOKI_SECRET_KEY; user signs returned bytes. */
+export async function keeperCreateSponsoredTransaction(body: {
+  sender: string;
+  transactionKindBytes: string;
+}): Promise<GasSponsorResponse> {
+  return postKeeper<GasSponsorResponse>("/gas/sponsor", body);
+}
+
+/** Enoki execute step — submit user signature for a sponsored PTB. */
+export async function keeperExecuteSponsoredTransaction(body: {
+  digest: string;
+  signature: string;
+}): Promise<GasExecuteResponse> {
+  return postKeeper<GasExecuteResponse>("/gas/sponsor/execute", body);
 }
 
 export type TelegramLinkTokenResponse = {

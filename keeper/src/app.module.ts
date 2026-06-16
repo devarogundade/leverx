@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AppConfigModule } from './config/config.module';
 import { AuthModule } from './auth/auth.module';
 import { DatabaseModule } from './database/database.module';
+import { GasModule } from './gas/gas.module';
 import { IndexerModule } from './indexer/indexer.module';
 import { KeeperModule } from './keeper/keeper.module';
 import { ManagerModule } from './manager/manager.module';
@@ -22,6 +23,7 @@ import { TradeModule } from './trade/trade.module';
     TasksModule,
     ManagerModule,
     TradeModule,
+    GasModule,
     TelegramModule,
     KeeperModule,
   ],
