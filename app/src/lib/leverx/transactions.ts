@@ -255,7 +255,7 @@ export async function executeOpenTrade(params: {
       limitPremiumPerUnit: limitPremiumRaw,
       placementSlippageBps,
       orderExpiresMs: input.orderExpiresMs ?? input.key.expiryMs,
-      remintAfterDeleverage: input.remintAfterDeleverage ?? true,
+      remintAfterDeleverage: input.remintAfterDeleverage ?? false,
     };
     return executeWalletTransaction(
       client,
@@ -339,7 +339,7 @@ export async function executeOpenTrade(params: {
       quantity,
       maxMintCost: applySlippageBps(positionAtoms, marketSlippageBps),
       marketSlippageBps,
-      remintAfterDeleverage: input.remintAfterDeleverage ?? true,
+      remintAfterDeleverage: input.remintAfterDeleverage ?? false,
       orderKind: orderKind === "limit" ? "limit" : "market",
       limitPremiumPerUnit: limitPremiumRaw ?? 0n,
       placementSlippageBps,

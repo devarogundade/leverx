@@ -108,7 +108,7 @@ export function appendPlaceLimitMintOrder(
       tx.pure.u64(params.leverageBps),
       tx.pure.u64(params.quantity),
       tx.pure.u64(params.orderExpiresMs ?? params.key.expiryMs),
-      tx.pure.bool(params.remintAfterDeleverage ?? true),
+      tx.pure.bool(params.remintAfterDeleverage ?? false),
       tx.object(SUI_CLOCK_OBJECT_ID),
     ],
   });

@@ -173,7 +173,7 @@ export function PredictLeveragePanel({
   const [orderExpiresOffsetMs, setOrderExpiresOffsetMs] = useState(
     DEFAULT_LIMIT_ORDER_EXPIRY_MS,
   );
-  const [remintAfterDeleverage, setRemintAfterDeleverage] = useState(true);
+  const [remintAfterDeleverage, setRemintAfterDeleverage] = useState(false);
   const [tpSl, setTpSl] = useState(false);
   const [tp, setTp] = useState("");
   const [sl, setSl] = useState("");
@@ -1140,8 +1140,7 @@ export function PredictLeveragePanel({
               {lev > 1 ? (
                 <div className={tpSlHeader}>
                   <LabelWithInfo
-                    label="Continue prediction with 1x leverage after deleverage"
-                    labelClassName={labelCaps}
+                    label="Continue prediction with 1× leverage after deleverage"
                     info={leverxInfo.remintAfterDeleverage}
                   />
                   <Switch

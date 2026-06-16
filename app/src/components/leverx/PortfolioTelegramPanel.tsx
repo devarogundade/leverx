@@ -5,7 +5,7 @@ import {
   CheckCircle2,
   Clock,
   Loader2,
-  Sparkles,
+  Send,
   TrendingUp,
   Unplug,
 } from "lucide-react";
@@ -13,7 +13,6 @@ import { ConfirmDialog } from "@/components/leverx/ConfirmDialog";
 import { CopyField } from "@/components/leverx/CopyField";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { ResponsiveModal } from "@/components/leverx/ResponsiveModal";
-import { TelegramLogo } from "@/components/leverx/TelegramLogo";
 import { Badge } from "@/components/ui/badge";
 import { LoadingState } from "@/components/ui/loading-state";
 import { leverxInfo } from "@/lib/leverx/info-copy";
@@ -27,7 +26,7 @@ import {
   useRevokeTelegramTradingSession,
   useTelegramTradingSession,
 } from "@/hooks/useTelegramTradingAuth";
-import { labelCaps, pillToggleBtn, pillToggleIdle, tradeSurface } from "@/lib/leverx/tw";
+import { labelCaps, pillIconBtn, pillToggleIdle, tradeSurface } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -80,7 +79,6 @@ function FeatureCard({
   activeLabel,
   action,
   children,
-  accentClass,
 }: {
   title: string;
   info: string;
@@ -90,25 +88,13 @@ function FeatureCard({
   activeLabel?: string;
   action?: React.ReactNode;
   children: ReactNode;
-  accentClass: string;
 }) {
   return (
-    <div
-      className={cn(
-        "relative overflow-hidden rounded-xl border border-border/80",
-        "bg-gradient-to-b from-[color-mix(in_oklab,var(--color-card)_94%,white_6%)] to-card",
-      )}
-    >
-      <div
-        className={cn(
-          "pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b opacity-80",
-          accentClass,
-        )}
-      />
-      <div className="relative flex flex-col gap-3 p-4">
+    <div className="rounded-xl border border-border/80 bg-card">
+      <div className="flex flex-col gap-3 p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-start gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-card/80 shadow-sm">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/30">
               <Icon className="h-4 w-4 text-muted-foreground" aria-hidden />
             </span>
             <div className="min-w-0 space-y-1">
@@ -171,12 +157,12 @@ export function PortfolioTelegramPanel({ owner, accountId, className }: Props) {
   return (
     <>
       <section className={cn(tradeSurface, "overflow-hidden", className)}>
-        <div className="relative overflow-hidden border-b border-border px-4 py-4 sm:px-5 sm:py-5">
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#229ED9]/14 via-[#229ED9]/4 to-transparent" />
-          <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-[#229ED9]/10 blur-2xl" />
-          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="border-b border-border px-4 py-4 sm:px-5 sm:py-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex min-w-0 items-center gap-3.5">
-              <TelegramLogo size="lg" />
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-muted/30">
+                <Send className="h-5 w-5 text-muted-foreground" aria-hidden />
+              </span>
               <div className="min-w-0 space-y-0.5">
                 <p className={labelCaps}>Integrations</p>
                 <h3 className="text-base font-semibold tracking-tight text-foreground sm:text-lg">
@@ -193,14 +179,13 @@ export function PortfolioTelegramPanel({ owner, accountId, className }: Props) {
                 target="_blank"
                 rel="noreferrer"
                 className={cn(
-                  pillToggleBtn,
+                  pillIconBtn,
                   pillToggleIdle,
-                  "gap-1.5 self-start border-[#229ED9]/25 bg-[#229ED9]/8 text-sm text-[#1e96c8]",
-                  "hover:border-[#229ED9]/40 hover:bg-[#229ED9]/14 dark:text-[#5ec8f5]",
+                  "self-start border border-border bg-muted/20 text-sm",
                 )}
               >
                 @{botUsername}
-                <ArrowUpRight className="h-3.5 w-3.5" />
+                <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
               </a>
             ) : null}
           </div>
@@ -220,18 +205,17 @@ export function PortfolioTelegramPanel({ owner, accountId, className }: Props) {
                 icon={Bell}
                 active={subscribed}
                 activeLabel="Subscribed"
-                accentClass="from-amber-500/10 to-transparent"
                 action={
                   <button
                     type="button"
-                    className={cn(pillToggleBtn, pillToggleIdle, "gap-1.5 text-sm")}
+                    className={cn(pillIconBtn, pillToggleIdle, "text-sm")}
                     disabled={!configured || connect.isPending || isLoading || isError}
                     onClick={() => connect.mutate()}
                   >
                     {connect.isPending ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
                     ) : (
-                      <Bell className="h-3.5 w-3.5" />
+                      <Bell className="h-3.5 w-3.5" aria-hidden />
                     )}
                     {connect.isPending
                       ? "Opening…"
@@ -256,7 +240,7 @@ export function PortfolioTelegramPanel({ owner, accountId, className }: Props) {
                         {data.subscriptions.map((sub) => (
                           <li
                             key={`${sub.chat_id}:${sub.account_id}`}
-                            className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-card/60 px-3 py-2 text-xs"
+                            className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-muted/15 px-3 py-2 text-xs"
                           >
                             <span className="font-medium text-foreground">
                               {sub.telegram_username
@@ -285,39 +269,33 @@ export function PortfolioTelegramPanel({ owner, accountId, className }: Props) {
                 icon={TrendingUp}
                 active={sessionActive}
                 activeLabel="Connected"
-                accentClass="from-[#229ED9]/12 to-transparent"
                 action={
                   sessionActive ? (
                     <button
                       type="button"
                       className={cn(
-                        pillToggleBtn,
-                        "gap-1.5 border-destructive/35 bg-destructive/10 text-sm text-destructive",
+                        pillIconBtn,
+                        "border border-destructive/35 bg-destructive/10 text-sm text-destructive",
                         "hover:border-destructive/50 hover:bg-destructive/15",
                       )}
                       disabled={revokeSession.isPending || !configured}
                       onClick={() => setDisconnectOpen(true)}
                     >
                       {revokeSession.isPending ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
                       ) : (
-                        <Unplug className="h-3.5 w-3.5" />
+                        <Unplug className="h-3.5 w-3.5" aria-hidden />
                       )}
                       Disconnect
                     </button>
                   ) : (
                     <button
                       type="button"
-                      className={cn(
-                        pillToggleBtn,
-                        pillToggleIdle,
-                        "gap-1.5 border-[#229ED9]/25 bg-[#229ED9]/10 text-sm",
-                        "text-[#1e96c8] hover:border-[#229ED9]/40 hover:bg-[#229ED9]/16 dark:text-[#5ec8f5]",
-                      )}
+                      className={cn(pillIconBtn, pillToggleIdle, "text-sm")}
                       disabled={!configured || sessionLoading}
                       onClick={openOtpDialog}
                     >
-                      <Sparkles className="h-3.5 w-3.5" />
+                      <Send className="h-3.5 w-3.5" aria-hidden />
                       Connect
                     </button>
                   )
@@ -328,7 +306,7 @@ export function PortfolioTelegramPanel({ owner, accountId, className }: Props) {
                 ) : sessionActive && session ? (
                   <div className="space-y-3">
                     <div className="flex items-start gap-2 rounded-lg border border-success/20 bg-success/5 px-3 py-2.5">
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden />
                       <div className="min-w-0 text-xs leading-relaxed">
                         <p className="font-medium text-foreground">
                           Authorized until {formatExpiry(session.expires_at_ms ?? 0)}
@@ -375,8 +353,8 @@ export function PortfolioTelegramPanel({ owner, accountId, className }: Props) {
         open={otpDialogOpen}
         onOpenChange={setOtpDialogOpen}
         title={
-          <span className="flex items-center gap-2.5">
-            <TelegramLogo size="sm" />
+          <span className="inline-flex items-center gap-2.5">
+            <Send className="h-4 w-4 text-muted-foreground" aria-hidden />
             Connect Telegram trading
           </span>
         }
@@ -385,13 +363,13 @@ export function PortfolioTelegramPanel({ owner, accountId, className }: Props) {
       >
         {otp ? (
           <div className="space-y-4">
-            <div className="rounded-xl border border-[#229ED9]/20 bg-gradient-to-br from-[#229ED9]/10 to-transparent p-4">
+            <div className="rounded-xl border border-border bg-muted/15 p-4">
               <p className="text-sm text-muted-foreground">
                 Send this in{" "}
                 {botUrl ? (
                   <a
                     href={botUrl}
-                    className="font-medium text-[#1e96c8] underline-offset-2 hover:underline dark:text-[#5ec8f5]"
+                    className="font-medium text-foreground underline-offset-2 hover:underline"
                     target="_blank"
                     rel="noreferrer"
                   >
@@ -405,8 +383,8 @@ export function PortfolioTelegramPanel({ owner, accountId, className }: Props) {
               <p className="mt-2 font-mono text-lg font-semibold tracking-widest text-foreground">
                 /auth {otp.code}
               </p>
-              <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Clock className="h-3.5 w-3.5" />
+              <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Clock className="h-3.5 w-3.5" aria-hidden />
                 Code expires in 10 minutes · session lasts 7 days
               </p>
             </div>
@@ -418,7 +396,7 @@ export function PortfolioTelegramPanel({ owner, accountId, className }: Props) {
             </ol>
             <button
               type="button"
-              className={cn(pillToggleBtn, pillToggleIdle, "w-full")}
+              className={cn(pillIconBtn, pillToggleIdle, "w-full justify-center")}
               onClick={() => setOtpDialogOpen(false)}
             >
               Done
@@ -427,23 +405,19 @@ export function PortfolioTelegramPanel({ owner, accountId, className }: Props) {
         ) : (
           <div className="space-y-4">
             <p className="text-sm leading-relaxed text-muted-foreground">
-              Trades run through your trusted trading bot. Deposit dUSDC to your account and add
-              the bot under Bot & trusted traders first.
+              Trades run through the platform trading service. Deposit dUSDC to your account
+              before connecting.
             </p>
             <button
               type="button"
-              className={cn(
-                pillToggleBtn,
-                "w-full gap-2 border-[#229ED9]/30 bg-gradient-to-r from-[#229ED9]/15 to-[#229ED9]/5",
-                "text-[#1e96c8] hover:from-[#229ED9]/22 hover:to-[#229ED9]/10 dark:text-[#5ec8f5]",
-              )}
+              className={cn(pillIconBtn, pillToggleIdle, "w-full justify-center")}
               disabled={generateOtp.isPending}
               onClick={() => void handleGenerateOtp()}
             >
               {generateOtp.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
               ) : (
-                <Sparkles className="h-4 w-4" />
+                <Send className="h-4 w-4" aria-hidden />
               )}
               {generateOtp.isPending ? "Generating code…" : "Generate auth code"}
             </button>

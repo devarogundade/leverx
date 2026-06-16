@@ -60,9 +60,9 @@ export const leverxInfo = {
   telegramTrading:
     "Trade from Telegram. Generate a one-time code here, send /auth in the bot, then use /markets and /up. Sessions last 7 days; disconnect anytime.",
   jarvis:
-    "AI assistant that checks your account every 5 minutes, manages risk, finds opportunities in markets closing soon, and closes losing positions. Add the trading bot under Bot & trusted traders before turning Jarvis on.",
+    "AI assistant that checks your account every 5 minutes, manages risk, finds opportunities in markets closing soon, and closes losing positions.",
   jarvisExecutor:
-    "Jarvis places trades through your trusted trading bot. Add the bot under Portfolio → Bot & trusted traders before you turn Jarvis on.",
+    "Jarvis places trades through the platform trading service. Deposit dUSDC to your account before you turn Jarvis on.",
   triggers: "Active profit-target and stop-loss rules. Clear them when you close the matching trade.",
   collateralBalances: "dUSDC margin allocated to each open market key.",
   marginInTrades: "dUSDC margin allocated to each open market key.",
