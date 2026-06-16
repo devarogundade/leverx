@@ -19,6 +19,7 @@ const LEVERX_MUTATION_QUERY_PREFIXES = [
   "indexer-leaderboard",
   // Wallet balances & on-chain quote simulation
   "wallet-coin-balance",
+  "trading-account-balance",
   "leverx-mint-quote",
   "leverx-market-ask",
   "position-redeem-quote",

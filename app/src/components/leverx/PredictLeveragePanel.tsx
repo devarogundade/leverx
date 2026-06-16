@@ -94,6 +94,7 @@ import {
   btnTradeSignin,
   labelCaps,
   leverageBadge,
+  pillIconBtn,
   pillToggleActive,
   pillToggleBtn,
   pillToggleGroup,
@@ -181,6 +182,7 @@ export function PredictLeveragePanel({
   const [rangePreset, setRangePreset] = useState<RangePresetId>("market");
   const [customLowerUsd, setCustomLowerUsd] = useState("");
   const [customUpperUsd, setCustomUpperUsd] = useState("");
+  const [depositOpen, setDepositOpen] = useState(false);
   const { data: protocol } = useIndexerProtocol();
   const liquidationBps = resolveLiquidationBps(protocol);
   const finalWindowMs = resolveFinalWindowMs(protocol);
@@ -1064,6 +1066,20 @@ export function PredictLeveragePanel({
                   <span className="font-mono text-foreground">{quoteBalanceLabel}</span>
                 )}
                 <QuoteIcon className="h-3.5 w-3.5 shrink-0" />
+                {accountId ? (
+                  <button
+                    type="button"
+                    className={cn(
+                      pillIconBtn,
+                      pillToggleIdle,
+                      "ml-0.5 h-6 w-6 shrink-0 rounded-md p-0",
+                    )}
+                    aria-label="Deposit to trading account"
+                    onClick={() => setDepositOpen(true)}
+                  >
+                    <Plus className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                ) : null}
               </span>
             </div>
             <TradeAmountInput
@@ -1327,6 +1343,13 @@ export function PredictLeveragePanel({
           )}
         </div>
       </div>
+      {accountId ? (
+        <PortfolioDepositDialog
+          open={depositOpen}
+          onOpenChange={setDepositOpen}
+          accountId={accountId}
+        />
+      ) : null}
     </div>
   );
 }
