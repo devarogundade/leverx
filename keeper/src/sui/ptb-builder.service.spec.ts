@@ -1,3 +1,23 @@
+jest.mock('@mysten/sui/transactions', () => ({
+  Transaction: class Transaction {
+    pure = {
+      id: (value: unknown) => value,
+      u64: (value: unknown) => value,
+      u8: (value: unknown) => value,
+      bool: (value: unknown) => value,
+      address: (value: unknown) => value,
+    };
+
+    object() {
+      return this;
+    }
+
+    moveCall() {
+      return this;
+    }
+  },
+}));
+
 import { PtbBuilderService } from './ptb-builder.service';
 
 describe('PtbBuilderService', () => {

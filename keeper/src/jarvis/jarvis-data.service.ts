@@ -5,6 +5,7 @@ import type { JarvisConfig } from '../config/jarvis.config';
 import {
   MAX_LEVERAGE_BPS,
   MIN_LEVERAGE_BPS,
+  DEFAULT_LIQUIDATION_BPS,
 } from '../config/constants';
 import { computeFinalWindowContext } from '../config/trade-math';
 import { IndexerService } from '../indexer/indexer.service';
@@ -40,6 +41,7 @@ import {
 } from './jarvis.schemas';
 import { JarvisTradeService } from './jarvis-trade.service';
 import {
+  buildPositionRiskReadout,
   closingPremiumRaw,
   computeHealthMetrics,
   computePositionPnl,
@@ -85,7 +87,7 @@ export class JarvisDataService {
 
   getPlatformRules(): JarvisPlatformRules {
     const finalWindowMs = this.sui.getFinalWindowMs();
-    const liquidationBps = this.sui.getLiquidationBps() ?? 10_200;
+    const liquidationBps = this.sui.getLiquidationBps() ?? DEFAULT_LIQUIDATION_BPS;
     const finalWindowMinutes = finalWindowMs / (60 * 1000);
 
     return JarvisPlatformRulesSchema.parse({
@@ -129,6 +131,14 @@ export class JarvisDataService {
         'Keeper force_close task path 1 (pre-expiry): force-deleverage in final window for borrowed, healthy positions.',
         'Keeper force_close task path 2 (post-expiry, pre-settlement): force-repay vault debt without remint.',
         'Jarvis should close or de-risk leveraged positions before the final window — force-deleverage removes timing control.',
+      ].join(' '),
+      health_interpretation_rules: [
+        'health_bps = (mark_value_usd / vault_debt_usd) × 10_000; default liquidation_threshold_bps = 10200 (102%).',
+        'distance_to_liquidation_bps = health_bps − liquidation_threshold_bps — NOT “percent to liquidation”.',
+        'Convert distance bps to percentage points: divide by 100 (2517 bps → 25.2 pts above threshold, NOT 2.5%).',
+        'health_label healthy: health_bps ≥ threshold + 500; margin_call: ≥ threshold; at_risk: below threshold.',
+        'liquidatable is the on-chain boolean — cite imminent liquidation only when liquidatable=true or health_label=at_risk.',
+        'unrealized_pnl_pct is return on posted margin; mark_pnl_pct is per-contract premium move (smaller than equity PnL at leverage >1).',
       ].join(' '),
     });
   }
@@ -367,7 +377,7 @@ export class JarvisDataService {
         ? computePositionPnl({ position, expectedPayoutAtoms })
         : { unrealized_pnl_usd: null as number | null, unrealized_pnl_pct: null as number | null };
 
-    const liquidationBps = this.sui.getLiquidationBps() ?? 10_200;
+    const liquidationBps = this.sui.getLiquidationBps() ?? DEFAULT_LIQUIDATION_BPS;
     const finalWindowMs = this.sui.getFinalWindowMs();
     const finalWindow = computeFinalWindowContext(position.expiry_ms, now, finalWindowMs);
     const hasVaultBorrow = BigInt(position.borrow_quote || 0) > 0n;
@@ -381,11 +391,30 @@ export class JarvisDataService {
             liquidationBps,
           })
         : {
+            mark_value_usd: 0,
+            net_equity_after_redeem_usd: 0,
             health_bps: null as number | null,
+            health_pct: null as number | null,
             health_label: 'unknown' as const,
             distance_to_liquidation_bps: null as number | null,
+            distance_to_liquidation_pct_points: null as number | null,
             liquidation_threshold_bps: liquidationBps,
+            liquidation_threshold_pct: liquidationBps / 100,
           };
+
+    const riskReadout = [
+      buildPositionRiskReadout({
+        health,
+        liquidatable,
+        leverage,
+        unrealizedPnlUsd: pnl.unrealized_pnl_usd,
+        unrealizedPnlPct: pnl.unrealized_pnl_pct,
+        hasVaultBorrow,
+      }),
+      !redeemQuote ? 'redeem quote unavailable — health and PnL not computed' : '',
+    ]
+      .filter(Boolean)
+      .join('; ');
 
     return JarvisPositionSnapshotSchema.parse({
       position_key: position.position_key,
@@ -409,10 +438,16 @@ export class JarvisDataService {
       unrealized_pnl_usd: pnl.unrealized_pnl_usd,
       unrealized_pnl_pct: pnl.unrealized_pnl_pct,
       liquidatable,
+      mark_value_usd: health.mark_value_usd,
+      net_equity_after_redeem_usd: health.net_equity_after_redeem_usd,
       health_bps: health.health_bps,
+      health_pct: health.health_pct,
       health_label: health.health_label,
       distance_to_liquidation_bps: health.distance_to_liquidation_bps,
+      distance_to_liquidation_pct_points: health.distance_to_liquidation_pct_points,
       liquidation_threshold_bps: health.liquidation_threshold_bps,
+      liquidation_threshold_pct: health.liquidation_threshold_pct,
+      risk_readout: riskReadout,
       expiry_ms: position.expiry_ms,
       time_to_expiry_ms: finalWindow.time_to_expiry_ms,
       time_to_expiry_hours: finalWindow.time_to_expiry_hours,

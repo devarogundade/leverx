@@ -47,7 +47,7 @@ export function createJarvisTools(session: JarvisToolSession) {
   const getAccountSnapshotTool = new DynamicStructuredTool({
     name: 'get_account_snapshot',
     description:
-      'Return full trading account context: balance (dUSDC), executor registration, and all open positions with on-chain redeem/partial_repay quotes, health metrics, and labeled units.',
+      'Return full trading account context: balance (dUSDC), executor registration, and all open positions with on-chain redeem/partial_repay quotes, health_pct, risk_readout, and labeled units.',
     schema: GetAccountSnapshotInputSchema,
     func: async () => {
       const snapshot = await session.data.getAccountSnapshot(
@@ -134,7 +134,7 @@ export function createJarvisTools(session: JarvisToolSession) {
   const analyzePositionTool = new DynamicStructuredTool({
     name: 'analyze_position',
     description:
-      'Look up a single open position by position_key or oracle_id with on-chain redeem/partial_repay quotes, health, PnL, and labeled units.',
+      'Look up a single open position by position_key or oracle_id with on-chain redeem/partial_repay quotes, health_pct, risk_readout, PnL, and labeled units.',
     schema: AnalyzePositionInputSchema,
     func: async (input) => {
       const { position_id } = AnalyzePositionInputSchema.parse(input);
@@ -184,7 +184,7 @@ export function createJarvisTools(session: JarvisToolSession) {
   const getPlatformRulesTool = new DynamicStructuredTool({
     name: 'get_platform_rules',
     description:
-      'Return platform bounds (leverage, margin, slippage, final_window_ms) plus rule text for final window, 1× leverage, force-deleverage, settlement, and keeper force-close. For strategy context use get_knowledge_base.',
+      'Return platform bounds (leverage, margin, slippage, final_window_ms) plus rule text for final window, 1× leverage, force-deleverage, settlement, keeper force-close, and health_interpretation_rules. For strategy context use get_knowledge_base.',
     schema: GetPlatformRulesInputSchema,
     func: async () => {
       return stringifyOutput(
@@ -197,7 +197,7 @@ export function createJarvisTools(session: JarvisToolSession) {
   const getKnowledgeBaseTool = new DynamicStructuredTool({
     name: 'get_knowledge_base',
     description:
-      'Return LeverX / DeepBook Predict knowledge for Jarvis: platform overview, Predict mechanics, profit strategy, trading mechanics, or units/parameters reference. Optional topic filter: platform | predict | strategy | mechanics | units | all (default all).',
+      'Return LeverX / DeepBook Predict knowledge for Jarvis: platform overview, Predict mechanics, profit strategy, trading mechanics, risk/health/PnL messaging, or units/parameters reference. Optional topic filter: platform | predict | strategy | mechanics | risk | units | all (default all).',
     schema: GetKnowledgeBaseInputSchema,
     func: async (input) => {
       const { topic } = GetKnowledgeBaseInputSchema.parse(input);

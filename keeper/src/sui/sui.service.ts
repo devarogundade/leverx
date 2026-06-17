@@ -5,12 +5,19 @@ import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 import { Transaction } from '@mysten/sui/transactions';
 import type { KeeperConfig } from '../config/keeper.config';
 import {
+  clampFinalWindowMs,
+  protocolConfigOverrides,
+  resolveFinalWindowMs,
+  resolveLiquidationBps,
+} from '../config/protocol-resolvers';
+import {
   DEFAULT_FINAL_WINDOW_MS,
   MAX_FINAL_WINDOW_MS,
   MAX_LIQUIDATION_BPS,
   MIN_FINAL_WINDOW_MS,
   READONLY_DEVINSPECT_SENDER,
 } from '../config/constants';
+import { IndexerService } from '../indexer/indexer.service';
 import { logKeeperError, logKeeperWarn } from '../lib/keeper-log';
 import { EnokiSponsorService } from './enoki-sponsor.service';
 import { keeperAllowedMoveCallTargets } from './move-targets';
@@ -36,6 +43,7 @@ export class SuiService implements OnModuleInit {
 
   constructor(
     config: ConfigService,
+    private readonly indexer: IndexerService,
     private readonly enoki: EnokiSponsorService,
     private readonly ptb: PtbBuilderService,
   ) {
@@ -74,7 +82,30 @@ export class SuiService implements OnModuleInit {
       );
     }
 
-    await this.loadOnChainProtocol();
+    await this.refreshProtocolState();
+  }
+
+  private async loadIndexerProtocol(): Promise<void> {
+    const protocol = await this.indexer.fetchProtocol();
+    if (!protocol) {
+      logKeeperWarn(this.logger, 'indexer protocol unavailable — using env/defaults');
+      return;
+    }
+
+    this.runtimeOverrides = protocolConfigOverrides(protocol);
+
+    if (this.liquidationBps === null) {
+      this.liquidationBps = resolveLiquidationBps(protocol);
+    }
+    if (this.finalWindowMs === DEFAULT_FINAL_WINDOW_MS) {
+      this.finalWindowMs = clampFinalWindowMs(resolveFinalWindowMs(protocol));
+    }
+    this.tradingPaused = protocol.trading_paused;
+
+    const merged = this.getConfig();
+    this.logger.log(
+      `indexer protocol: package=${merged.packageId || 'unset'} registry=${merged.registryId || 'unset'} vault=${merged.vaultId || 'unset'} paused=${this.tradingPaused} liquidation_bps=${this.liquidationBps ?? 'unset'} final_window_ms=${this.finalWindowMs}`,
+    );
   }
 
   private async loadOnChainProtocol(): Promise<void> {
@@ -147,6 +178,7 @@ export class SuiService implements OnModuleInit {
   }
 
   async refreshProtocolState(): Promise<void> {
+    await this.loadIndexerProtocol();
     await this.loadOnChainProtocol();
   }
 

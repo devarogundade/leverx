@@ -14,6 +14,27 @@ import type {
   UserProxy,
 } from './indexer.types';
 
+function isIndexerRetryableError(err: unknown): boolean {
+  const message = String(err ?? '').toLowerCase();
+  if (
+    message.includes('econnreset') ||
+    message.includes('etimedout') ||
+    message.includes('enotfound') ||
+    message.includes('fetch failed') ||
+    message.includes('socket hang up')
+  ) {
+    return true;
+  }
+  if (message.includes('http 502') || message.includes('http 503') || message.includes('http 504')) {
+    return true;
+  }
+  return false;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 @Injectable()
 export class IndexerService {
   private readonly logger = new Logger(IndexerService.name);
@@ -36,22 +57,45 @@ export class IndexerService {
     return s ? `?${s}` : '';
   }
 
-  async get<T>(path: string): Promise<T> {
-    const url = `${this.baseUrl}${path}`;
-    try {
-      const res = await fetch(url);
-      if (!res.ok) {
-        const body = await res.text();
-        throw new Error(`HTTP ${res.status} ${body.slice(0, 500)}`);
+  async get<T>(path: string, options?: { retries?: number }): Promise<T> {
+    const retries = options?.retries ?? 0;
+    let lastErr: unknown;
+
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      const url = `${this.baseUrl}${path}`;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          const body = await res.text();
+          const err = new Error(`HTTP ${res.status} ${body.slice(0, 500)}`);
+          if (attempt < retries && res.status >= 500) {
+            lastErr = err;
+            await sleep(300 * 2 ** attempt);
+            continue;
+          }
+          throw err;
+        }
+        return (await res.json()) as T;
+      } catch (err) {
+        lastErr = err;
+        if (attempt < retries && isIndexerRetryableError(err)) {
+          logKeeperWarn(
+            this.logger,
+            `indexer GET ${path} retry ${attempt + 1}/${retries}`,
+            err,
+          );
+          await sleep(300 * 2 ** attempt);
+          continue;
+        }
+        const message = logKeeperError(this.logger, `indexer GET ${path}`, err, {
+          url,
+          baseUrl: this.baseUrl,
+        });
+        throw new Error(message);
       }
-      return res.json() as Promise<T>;
-    } catch (err) {
-      const message = logKeeperError(this.logger, `indexer GET ${path}`, err, {
-        url,
-        baseUrl: this.baseUrl,
-      });
-      throw new Error(message);
     }
+
+    throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
   }
 
   /** Walk paginated indexer lists until `has_more` is false or `maxItems` is reached. */
@@ -82,8 +126,13 @@ export class IndexerService {
     }
   }
 
-  fetchProtocol(): Promise<ProtocolSettings | null> {
-    return this.get('/v1/protocol');
+  async fetchProtocol(): Promise<ProtocolSettings | null> {
+    try {
+      return await this.get<ProtocolSettings>('/v1/protocol', { retries: 3 });
+    } catch (err) {
+      logKeeperWarn(this.logger, 'indexer protocol fetch failed', err);
+      return null;
+    }
   }
 
   fetchPositions(args?: {

@@ -11,6 +11,7 @@ export const JARVIS_KNOWLEDGE_TOPICS = [
   'predict',
   'strategy',
   'mechanics',
+  'risk',
   'units',
   'all',
 ] as const;
@@ -113,9 +114,10 @@ If preconditions fail (no account, no executor, no AI key), the cycle is skipped
 - \`portfolio_pct\` (0–100): fraction of **free trading balance** to allocate as margin for a new open.
 - \`leverage\` (1–10): higher only with higher conviction and favorable time-to-expiry. At 1× there is **no vault borrow** — safest default when uncertain.
 
-### Cut losers before liquidation
+### Cut losers — but cite the right reason
 
-- If \`liquidatable\` is true or health is deteriorating, **close** or **partial_repay** rather than hope.
+- If \`liquidatable\` is **true** or \`health_label\` is **at_risk**, **close** or **partial_repay** immediately — cite liquidation urgency accurately using \`risk_readout\`.
+- If \`health_label\` is **healthy** or **margin_call** but \`unrealized_pnl_pct\` is negative and thesis is wrong-way, you may **close** or **partial_repay** for PnL/thesis reasons — **do NOT** claim "tight liquidation risk" or "imminent liquidation" when \`liquidatable\` is false and \`distance_to_liquidation_pct_points\` is large.
 - Underwater leveraged positions near expiry face **force-deleverage** in the final window — you lose control of timing.
 
 ### Partial repay to salvage
@@ -138,7 +140,7 @@ If preconditions fail (no account, no executor, no AI key), the cycle is skipped
 
 - **Respect balance limits** — margin per trade is bounded by \`platform_rules.min_margin_usd\` / \`max_margin_usd\` and available \`balance_usd\`.
 - **Respect leverage bounds** — \`platform_rules.min_leverage\` to \`max_leverage\`.
-- **Explain every action** — each action needs a concise \`user_message\` for the activity feed (plain language, no jargon dumps).
+- **Explain every action** — each action needs a concise \`user_message\` for the activity feed (plain language, no jargon dumps). **Quote \`risk_readout\`, \`health_pct\`, and \`unrealized_pnl_pct\` accurately** — never mis-convert bps (see risk section).
 - **Do not open RANGE** — only UP or DOWN for new positions.
 - When trading is paused on-chain, actions will fail — prefer skip/hold.`;
 
@@ -164,9 +166,16 @@ const SECTION_MECHANICS = `# Platform mechanics & action vocabulary
 
 ## Liquidation & health
 
-- Positions with **vault borrow** can become **liquidatable** when mark-to-market health falls below the protocol threshold (\`liquidation_threshold_bps\` from \`platform_rules\`, default ~102% collateral ratio).
-- **1× positions (no vault borrow) are never liquidatable** via the health-factor path — \`ltv::effective_health_debt\` is zero at 1×, so \`liquidatable\` should always be false.
-- Permissionless keepers may liquidate eligible leveraged positions at any time; Jarvis should act **before** this when possible.
+- Positions with **vault borrow** can become **liquidatable** when on-chain health falls below \`liquidation_threshold_bps\` (default **10200 = 102%** collateral ratio: redeem mark value vs vault debt).
+- **Health formula:** \`health_bps = round((mark_value_usd / vault_debt_usd) × 10_000)\`. Example: mark $10.90, debt $8.40 → health ≈ **12976 bps (129.8%)**.
+- **Distance to liquidation:** \`distance_to_liquidation_bps = health_bps − liquidation_threshold_bps\`. Example: 12976 − 10200 = **2776 bps = 27.8 percentage points** above the threshold — **not** 2.8% and **not** "2.8% to liquidation".
+- **Health bands (\`health_label\`):**
+  - \`healthy\`: health_bps ≥ threshold + 500 (default ≥ 10700)
+  - \`margin_call\`: health_bps ≥ threshold but below healthy band
+  - \`at_risk\`: health_bps < threshold — liquidation imminent or active
+- **\`liquidatable\`** (on-chain dev-inspect) is the authoritative immediate-risk flag. When false and \`health_label\` is healthy, liquidation is **not** imminent.
+- **1× positions (no vault borrow) are never liquidatable** via the health-factor path.
+- Permissionless keepers may liquidate eligible leveraged positions at any time; Jarvis should act **before** this when \`liquidatable\` is true or \`health_label\` is at_risk.
 - Underwater leveraged positions in the final window skip force-deleverage and are liquidated instead.
 
 ## 1× leverage rules
@@ -198,9 +207,30 @@ const SECTION_MECHANICS = `# Platform mechanics & action vocabulary
 
 ## PnL interpretation
 
-- \`mark_pnl_pct\`: unrealized return vs entry mark, direction-adjusted (UP vs DOWN).
+Two different PnL views — **never conflate them in user_message**:
+
+| Field | Meaning | Example |
+|-------|---------|---------|
+| \`mark_pnl_pct\` | Per-contract premium move, direction-adjusted (UP/DOWN) | 49.9¢ → 48.2¢ ≈ **−3.4%** on premium |
+| \`unrealized_pnl_usd\` / \`unrealized_pnl_pct\` | Net equity vs **posted margin** after full redeem pays vault debt | **−$0.47 / −15.5%** on $3 margin at 3.8× |
+
 - \`entry_premium_cents\` / \`closing_premium_cents\`: per-contract premium at open vs current live bid.
-- \`unrealized_pnl_usd\` / \`unrealized_pnl_pct\`: net mark-to-market from on-chain redeem quote vs margin/borrow.
+- \`mark_value_usd\`: expected dUSDC from \`quotes.redeem\` at full size.
+- \`net_equity_after_redeem_usd\`: \`mark_value_usd − borrow_quote_usd\` — cash surplus to the account after vault repay on full close.
+- A position can be **slightly down on premium** (\`mark_pnl_pct\` −3%) but **deeply underwater on margin** (\`unrealized_pnl_pct\` −15%) because leverage amplifies equity loss.
+
+## Close / partial_repay / hold decision guide
+
+Use this order every positions phase:
+
+1. **\`liquidatable === true\`** → **close** (or partial_repay if full close sim fails). Reason: on-chain liquidation risk.
+2. **\`health_label === 'at_risk'\`** → **close** or **partial_repay**. Reason: below liquidation threshold.
+3. **\`at_risk_of_force_deleverage === true\`** → **close** or **partial_repay** before keeper force-deleverage. Reason: final-window timing loss.
+4. **\`health_label === 'margin_call'\`** + wrong-way thesis or large negative \`unrealized_pnl_pct\` → **close** or **partial_repay**. Reason: deteriorating collateral + impaired thesis.
+5. **\`health_label === 'healthy'\`** + negative \`unrealized_pnl_pct\` → **partial_repay** if thesis weakened; **close** if thesis invalidated; **hold** if thesis intact. Reason: **PnL/thesis only — do not cite liquidation urgency**.
+6. **Profitable + thesis intact** → **hold** or **close** to take profit.
+
+Always read \`risk_readout\` on each position — it pre-computes health, distance, liquidatable, and PnL in plain language.
 
 ## Data interpretation guide
 
@@ -218,8 +248,11 @@ const SECTION_MECHANICS = `# Platform mechanics & action vocabulary
 | \`candles_15m\` \`[ts,o,h,l,c]\` | 15m spot OHLCV (~7d lookback); trend and volatility (USD) |
 | \`candles_1m\` \`[ts,o,h,l,c]\` | 1m spot OHLCV (~12h lookback); intraday momentum and micro-structure (USD) |
 | \`ask_share_pct\` / \`bid_share_pct\` | Order-flow skew on that side |
-| \`liquidatable\` | Immediate risk flag — prioritize close/repay (always false at 1×) |
-| \`health_bps\` / \`health_label\` | Collateral ratio vs liquidation threshold |
+| \`liquidatable\` | On-chain immediate risk — close/repay when true (always false at 1×) |
+| \`health_bps\` / \`health_pct\` / \`health_label\` | Collateral ratio vs liquidation threshold; prefer \`health_pct\` in user messages |
+| \`distance_to_liquidation_bps\` / \`distance_to_liquidation_pct_points\` | Cushion above threshold — use **pct_points** in prose, not raw bps ÷ 1000 |
+| \`risk_readout\` | Pre-computed plain-language risk summary — **quote or paraphrase accurately** |
+| \`mark_value_usd\` / \`net_equity_after_redeem_usd\` | Full-redeem proceeds and post-repay surplus |
 | \`borrow_quote_usd\` | Vault debt — drives liquidation and deleverage |
 | \`balance_usd\` | Free trading balance for new margin |
 
@@ -228,8 +261,8 @@ const SECTION_MECHANICS = `# Platform mechanics & action vocabulary
 | Action | When to use |
 |--------|-------------|
 | **hold** | Position healthy, thesis intact, not worth transaction cost |
-| **close** | Wrong-way, liquidatable, \`at_risk_of_force_deleverage\`, near expiry with bad odds, or take profit |
-| **partial_repay** | Reduce leverage/debt while keeping some exposure; salvageable but impaired thesis |
+| **close** | \`liquidatable\`, \`at_risk\` health, \`at_risk_of_force_deleverage\`, invalidated thesis, take profit, or cut leveraged loser (cite PnL/thesis when health is healthy) |
+| **partial_repay** | Reduce leverage/debt while keeping exposure; impaired but salvageable thesis; margin_call band |
 | **open** | High conviction UP or DOWN on a candidate market; size via portfolio_pct + leverage |
 | **skip** | No action warranted this phase — no edge, blocked preconditions, or insufficient data |
 
@@ -239,6 +272,81 @@ Always call \`submit_jarvis_decision\` once with all actions for the phase.
 
 - \`get_platform_rules\` — numeric bounds plus final-window, 1×, force-deleverage, settlement, and keeper rules text.
 - \`get_knowledge_base\` — this strategic/platform reference (refresh any section on demand).`;
+
+const SECTION_RISK = `# Risk, health, PnL & user messaging
+
+This section prevents the most common Jarvis mistakes. Read it before every **positions** phase.
+
+## Bps conversion (CRITICAL — do not guess)
+
+| Field | Raw example | Correct human read | WRONG read |
+|-------|-------------|-------------------|------------|
+| \`health_bps\` | 12717 | **127.2%** collateral ratio (\`health_pct\`) | 127% or 12.7% |
+| \`liquidation_threshold_bps\` | 10200 | Liquidation below **102.0%** (\`liquidation_threshold_pct\`) | 10.2% |
+| \`distance_to_liquidation_bps\` | 2517 | **25.2 pts** above threshold (\`distance_to_liquidation_pct_points\`) | **2.5%** or 2.5% to liquidation |
+
+**Formula:** percentage display = bps ÷ 100. **2517 bps = 25.17 percentage points**, not 2.5%.
+
+## What each risk field means
+
+- **\`mark_value_usd\`:** Live on-chain redeem bid × full \`open_quantity\` (from \`quotes.redeem.quote_out_usd\`).
+- **\`borrow_quote_usd\`:** Outstanding vault debt on this key.
+- **\`net_equity_after_redeem_usd\`:** \`mark_value_usd − borrow_quote_usd\` — surplus returned to the trading account on full close after vault repay.
+- **\`health_bps\` / \`health_pct\`:** \`mark_value_usd / borrow_quote_usd\` as a ratio (only meaningful when leverage >1× and vault debt > 0).
+- **\`distance_to_liquidation_bps\` / \`distance_to_liquidation_pct_points\`:** How far **above** the liquidation threshold the position sits. Large value = **more** cushion, not less.
+- **\`liquidatable\`:** On-chain \`is_liquidatable\` dev-inspect — **the only field that means "can be liquidated right now"**.
+- **\`risk_readout\`:** Server-computed summary — prefer quoting this over re-deriving numbers.
+
+## Health bands
+
+| \`health_label\` | Condition (default threshold 10200) | Meaning |
+|------------------|-------------------------------------|---------|
+| \`healthy\` | health_bps ≥ 10700 | Comfortable cushion; do not describe as liquidation emergency |
+| \`margin_call\` | 10200 ≤ health_bps < 10700 | Above liquidation but thin; monitor and consider de-risk |
+| \`at_risk\` | health_bps < 10200 | Below threshold — liquidation risk is real |
+| \`unknown\` | No live redeem quote | Cannot assess; use tools to refresh quotes |
+
+## Worked example (typical leveraged loser — NOT a liquidation emergency)
+
+BTC UP, 3.8×, $3 margin, $8.40 borrow, 22.76M contracts, bid 48.2¢:
+
+- \`mark_value_usd\` ≈ $10.90
+- \`net_equity_after_redeem_usd\` ≈ $2.50
+- \`unrealized_pnl_usd\` ≈ −$0.50, \`unrealized_pnl_pct\` ≈ −16% on margin
+- \`mark_pnl_pct\` ≈ −3.4% (premium 49.9¢ → 48.2¢)
+- \`health_pct\` ≈ **130%**, \`distance_to_liquidation_pct_points\` ≈ **28 pts**
+- \`health_label\`: **healthy**, \`liquidatable\`: **false**
+
+**Valid close reason:** underwater on margin, wrong-way thesis, cut leveraged loser.
+**Invalid close reason:** "2.5% to liquidation" or "tight liquidation risk" — that misreads 2517 bps.
+
+## user_message rules for positions
+
+1. **Always state the true driver:** liquidation urgency vs PnL/thesis vs final-window vs take-profit.
+2. When citing health, use \`health_pct\` and \`distance_to_liquidation_pct_points\` — not raw bps alone.
+3. When citing loss, use \`unrealized_pnl_pct\` (margin basis) — not \`mark_pnl_pct\` unless discussing premium drift.
+4. When citing close proceeds, use \`mark_value_usd\`, \`borrow_quote_usd\`, and \`net_equity_after_redeem_usd\` from context.
+5. **Never** claim imminent liquidation when \`liquidatable\` is false and \`health_label\` is healthy.
+
+## Opening trades — sizing checklist
+
+1. Check \`balance_usd\` — margin comes from **free** balance, not locked margin.
+2. \`portfolio_pct\` × \`balance_usd\` = target margin; clamp to \`min_margin_usd\` / \`max_margin_usd\`.
+3. Use \`quotes.mint_up\` / \`quotes.mint_down\` for on-chain cost at reference or custom sizing.
+4. Never set \`leverage\` > 1 when \`leveraged_mint_blocked\` or \`in_final_window\` on the market.
+5. Align direction with spot vs strike, candles (15m trend + 1m momentum), and order-book skew.
+
+## Partial repay vs full close
+
+| Situation | Prefer |
+|-----------|--------|
+| \`liquidatable\` or \`at_risk\` | **close** (full exit) |
+| \`margin_call\` + weakened thesis | **partial_repay** (~40% qty) to cut leverage, or **close** if thesis dead |
+| \`healthy\` + small premium dip + thesis intact | **hold** or **partial_repay** |
+| \`healthy\` + large negative \`unrealized_pnl_pct\` + wrong-way | **close** (cite PnL/thesis, not liquidation) |
+| Final window approaching + vault borrow | **close** or **partial_repay** before \`at_risk_of_force_deleverage\` |
+
+Use \`quotes.partial_repay\` for on-chain proceeds and leverage reduction estimate.`;
 
 const SECTION_UNITS = `# Units & parameters reference
 
@@ -262,7 +370,8 @@ Every numeric field Jarvis receives is **human-readable** with parallel **raw on
 - **Premium raw → cents:** \`(raw / 1e9) × 100\`.
 - **Strike raw → USD:** divide by 1e9.
 - **Spot from predict-server:** values > 1e6 are treated as 1e9-scaled and divided.
-- **Health bps:** collateral ratio × 10_000; 10200 = 102% (default liquidation threshold).
+- **Health bps:** collateral ratio × 10_000; 10200 = 102% (default liquidation threshold). Display: \`health_pct = health_bps / 100\`.
+- **Distance bps:** \`distance_to_liquidation_pct_points = distance_to_liquidation_bps / 100\` (percentage points above threshold).
 - **Time to expiry:** \`time_to_expiry_hours = (expiry_ms - now) / 3_600_000\`.
 
 ## On-chain quote objects (\`quotes\`)
@@ -310,8 +419,11 @@ Mint quotes include \`quote_in_usd\` (margin), \`quote_out_usd\` (mint cost), \`
 | \`leverage\` | × multiplier | Indexer \`leverage_bps / 10000\` |
 | \`entry_premium_cents\`, \`closing_premium_cents\` | cents | Indexer marks or live bid |
 | \`unrealized_pnl_usd\`, \`unrealized_pnl_pct\` | USD / % | Computed from redeem quote vs margin/borrow |
+| \`mark_value_usd\`, \`net_equity_after_redeem_usd\` | dUSDC | Full redeem proceeds and post-repay surplus |
 | \`liquidatable\` | boolean | On-chain \`is_liquidatable\` dev-inspect |
-| \`health_bps\`, \`health_label\`, \`distance_to_liquidation_bps\` | bps / enum | Computed from redeem quote vs debt |
+| \`health_bps\`, \`health_pct\`, \`health_label\` | bps / % / enum | Collateral ratio vs debt; prefer \`health_pct\` in messages |
+| \`distance_to_liquidation_bps\`, \`distance_to_liquidation_pct_points\` | bps / pts | Cushion above liquidation threshold |
+| \`risk_readout\` | string | Pre-computed plain-language risk summary |
 | \`strike_usd\`, \`higher_strike_usd\` | USD | Indexer strike raw / 1e9 |
 | \`time_to_expiry_hours\` | hours | Computed from \`expiry_ms\` |
 
@@ -357,6 +469,7 @@ Each candle tuple: \`[timestamp_ms, open_usd, high_usd, low_usd, close_usd]\` fr
 | \`force_deleverage_rules\` | Redeem → repay → remint 1× flow in final window |
 | \`settlement_rules\` | Post-expiry settle and force-repay behavior |
 | \`keeper_force_close_rules\` | Keeper task paths for force-deleverage / force-repay |
+| \`health_interpretation_rules\` | How to read health_bps, distance bps, and liquidatable |
 | \`quote_unit_atoms\` | dUSDC atoms per 1 unit (1000000) |`;
 
 const KNOWLEDGE_SECTIONS: Record<Exclude<JarvisKnowledgeTopic, 'all'>, string> = {
@@ -364,6 +477,7 @@ const KNOWLEDGE_SECTIONS: Record<Exclude<JarvisKnowledgeTopic, 'all'>, string> =
   predict: SECTION_PREDICT,
   strategy: SECTION_STRATEGY,
   mechanics: SECTION_MECHANICS,
+  risk: SECTION_RISK,
   units: SECTION_UNITS,
 };
 
@@ -372,6 +486,7 @@ const SECTION_ORDER: Exclude<JarvisKnowledgeTopic, 'all'>[] = [
   'predict',
   'strategy',
   'mechanics',
+  'risk',
   'units',
 ];
 

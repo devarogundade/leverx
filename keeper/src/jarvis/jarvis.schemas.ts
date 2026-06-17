@@ -285,10 +285,16 @@ export const JarvisPositionSnapshotSchema = z.object({
   unrealized_pnl_usd: z.number().nullable(),
   unrealized_pnl_pct: z.number().nullable(),
   liquidatable: z.boolean().nullable(),
+  mark_value_usd: z.number(),
+  net_equity_after_redeem_usd: z.number(),
   health_bps: z.number().nullable(),
+  health_pct: z.number().nullable(),
   health_label: z.enum(['healthy', 'margin_call', 'at_risk', 'unknown']),
   distance_to_liquidation_bps: z.number().nullable(),
+  distance_to_liquidation_pct_points: z.number().nullable(),
   liquidation_threshold_bps: z.number().nullable(),
+  liquidation_threshold_pct: z.number().nullable(),
+  risk_readout: z.string(),
   expiry_ms: z.number(),
   time_to_expiry_ms: z.number(),
   time_to_expiry_hours: z.number(),
@@ -361,6 +367,7 @@ export const JarvisPlatformRulesSchema = z.object({
   force_deleverage_rules: z.string(),
   settlement_rules: z.string(),
   keeper_force_close_rules: z.string(),
+  health_interpretation_rules: z.string(),
 });
 
 export const JarvisRiskProfileSchema = z.enum(['conservative', 'balanced', 'aggressive']);
@@ -455,6 +462,7 @@ export const JarvisKnowledgeTopicSchema = z.enum([
   'predict',
   'strategy',
   'mechanics',
+  'risk',
   'units',
   'all',
 ]);

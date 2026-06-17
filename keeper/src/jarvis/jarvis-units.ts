@@ -199,15 +199,32 @@ export function computePositionPnl(args: {
   return { unrealized_pnl_usd: unrealizedPnlUsd, unrealized_pnl_pct: unrealizedPnlPct };
 }
 
+/** Collateral ratio as a human percent (12717 bps → 127.2%). */
+export function healthBpsToPct(healthBps: number | null): number | null {
+  if (healthBps == null) return null;
+  return Math.round((healthBps / 100) * 10) / 10;
+}
+
+/** Distance above liquidation threshold in percentage points (2517 bps → 25.2 pts). */
+export function distanceBpsToPctPoints(distanceBps: number | null): number | null {
+  if (distanceBps == null) return null;
+  return Math.round((distanceBps / 100) * 10) / 10;
+}
+
 export function computeHealthMetrics(args: {
   position: LeveragedPosition;
   expectedPayoutAtoms: bigint;
   liquidationBps: number;
 }): {
+  mark_value_usd: number;
+  net_equity_after_redeem_usd: number;
   health_bps: number | null;
+  health_pct: number | null;
   health_label: HealthLabel;
   distance_to_liquidation_bps: number | null;
+  distance_to_liquidation_pct_points: number | null;
   liquidation_threshold_bps: number;
+  liquidation_threshold_pct: number;
 } {
   const liquidationBps = args.liquidationBps || DEFAULT_LIQUIDATION_BPS;
   const leverageBps = Number(args.position.leverage_bps);
@@ -215,6 +232,7 @@ export function computeHealthMetrics(args: {
   const borrowUsd = scaleQuoteUsd(args.position.borrow_quote);
   const markValueUsd = scaleQuoteUsd(args.expectedPayoutAtoms);
   const positionSizeUsd = marginUsd + borrowUsd;
+  const netEquityAfterRedeemUsd = markValueUsd - borrowUsd;
 
   let healthDebtUsd = 0;
   if (leverageBps > 10_000) {
@@ -233,11 +251,65 @@ export function computeHealthMetrics(args: {
     healthBps != null && healthDebtUsd > 0 ? healthBps - liquidationBps : null;
 
   return {
+    mark_value_usd: markValueUsd,
+    net_equity_after_redeem_usd: netEquityAfterRedeemUsd,
     health_bps: healthBps,
+    health_pct: healthBpsToPct(healthBps),
     health_label: healthLabel,
     distance_to_liquidation_bps: distanceToLiquidationBps,
+    distance_to_liquidation_pct_points: distanceBpsToPctPoints(distanceToLiquidationBps),
     liquidation_threshold_bps: liquidationBps,
+    liquidation_threshold_pct: healthBpsToPct(liquidationBps) ?? liquidationBps / 100,
   };
+}
+
+export function buildPositionRiskReadout(args: {
+  health: ReturnType<typeof computeHealthMetrics>;
+  liquidatable: boolean | null;
+  leverage: number;
+  unrealizedPnlUsd: number | null;
+  unrealizedPnlPct: number | null;
+  hasVaultBorrow: boolean;
+}): string {
+  const parts: string[] = [];
+
+  if (args.leverage <= 1 || !args.hasVaultBorrow) {
+    parts.push('1× or no vault borrow — not liquidatable by health factor');
+  } else if (args.liquidatable === true) {
+    parts.push('LIQUIDATABLE NOW — close or partial_repay immediately');
+  } else if (args.liquidatable === false) {
+    parts.push('not liquidatable');
+  }
+
+  if (args.health.health_pct != null && args.health.liquidation_threshold_pct != null) {
+    parts.push(
+      `health ${args.health.health_pct}% vs liquidation below ${args.health.liquidation_threshold_pct}%`,
+    );
+  }
+
+  if (args.health.distance_to_liquidation_pct_points != null) {
+    parts.push(
+      `${args.health.distance_to_liquidation_pct_points} pts above liquidation threshold`,
+    );
+  }
+
+  if (args.health.health_label !== 'unknown') {
+    parts.push(`band: ${args.health.health_label}`);
+  }
+
+  if (args.unrealizedPnlUsd != null && args.unrealizedPnlPct != null) {
+    parts.push(
+      `unrealized ${args.unrealizedPnlUsd >= 0 ? '+' : ''}$${args.unrealizedPnlUsd.toFixed(2)} (${args.unrealizedPnlPct >= 0 ? '+' : ''}${args.unrealizedPnlPct.toFixed(1)}% on margin)`,
+    );
+  }
+
+  if (args.health.net_equity_after_redeem_usd > 0) {
+    parts.push(
+      `full redeem surplus ~$${args.health.net_equity_after_redeem_usd.toFixed(2)} after vault repay`,
+    );
+  }
+
+  return parts.join('; ');
 }
 
 export function estimateMintQuantity(

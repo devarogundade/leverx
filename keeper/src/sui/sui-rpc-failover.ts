@@ -1,5 +1,8 @@
 import { Logger } from '@nestjs/common';
 import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
+import { isSuiRpcRateLimitError, isSuiRpcTransientError } from './sui-rpc-errors';
+
+export { isSuiRpcRateLimitError, isSuiRpcTransientError } from './sui-rpc-errors';
 
 /** How long to stay on fallback RPC before trying the public node again. */
 export const SUI_RPC_FALLBACK_REST_MS = 60_000;
@@ -10,17 +13,6 @@ export const SUI_RPC_DEFAULT_MAX_PER_SECOND = 4;
 export const SUI_RPC_DEFAULT_MAX_RETRIES = 6;
 export const SUI_RPC_DEFAULT_RETRY_BASE_MS = 300;
 export const SUI_RPC_DEFAULT_RETRY_MAX_MS = 8_000;
-
-export function isSuiRpcRateLimitError(err: unknown): boolean {
-  const message = String(err ?? '').toLowerCase();
-  if (message.includes('429') || message.includes('rate limit')) return true;
-  if (message.includes('too many requests')) return true;
-  if (err && typeof err === 'object' && 'status' in err) {
-    const status = Number((err as { status?: number }).status);
-    if (status === 429) return true;
-  }
-  return false;
-}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -135,11 +127,11 @@ export class SuiRpcFailover {
         return await fn(this.getActiveClient());
       } catch (err) {
         lastErr = err;
-        if (!isSuiRpcRateLimitError(err)) {
+        if (!isSuiRpcTransientError(err)) {
           throw err;
         }
 
-        if (this.active === 'primary' && this.fallbackClient) {
+        if (this.active === 'primary' && this.fallbackClient && isSuiRpcRateLimitError(err)) {
           this.switchToFallback();
           continue;
         }

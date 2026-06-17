@@ -142,11 +142,11 @@ export class TriggerService {
 
   private computeTriggerMinPayout(
     position: LeveragedPosition,
-    bidPerUnit: number,
+    bidPerUnit: bigint,
     slippageBps: number,
   ): bigint {
     const expected = redeemPayoutFromBid(
-      BigInt(bidPerUnit),
+      bidPerUnit,
       BigInt(position.open_quantity),
     );
     return minPayoutAfterSlippage(expected, slippageBps);
@@ -155,23 +155,22 @@ export class TriggerService {
   private async resolveTriggerAction(
     position: LeveragedPosition,
     trigger: OnChainTriggers,
-  ): Promise<{ kind: 'take_profit' | 'stop_loss'; bid: number } | null> {
+  ): Promise<{ kind: 'take_profit' | 'stop_loss'; bid: bigint } | null> {
     const key = this.ptb.keyFromPosition(position);
     const quantity = BigInt(position.open_quantity || 0);
-    const bidRaw = await this.quotes.fetchMarketBidPerUnit(
+    const bid = await this.quotes.fetchMarketBidPerUnit(
       key,
       quantity > 0n ? quantity : undefined,
     );
-    if (bidRaw === null) return null;
-    const bid = Number(bidRaw);
+    if (bid === null || bid <= 0n) return null;
 
-    const takeProfitPremium = Number(trigger.takeProfitPremium);
-    const stopLossPremium = Number(trigger.stopLossPremium);
+    const takeProfitPremium = trigger.takeProfitPremium;
+    const stopLossPremium = trigger.stopLossPremium;
 
-    if (takeProfitPremium > 0 && bid >= takeProfitPremium) {
+    if (takeProfitPremium > 0n && bid >= takeProfitPremium) {
       return { kind: 'take_profit', bid };
     }
-    if (stopLossPremium > 0 && bid <= stopLossPremium) {
+    if (stopLossPremium > 0n && bid <= stopLossPremium) {
       return { kind: 'stop_loss', bid };
     }
     return null;
