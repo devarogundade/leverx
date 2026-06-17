@@ -12,16 +12,24 @@ import {
   keeperExecuteSponsoredTransaction,
 } from "@/lib/leverx/keeper-client";
 
-const ENOKI_SPONSOR_FAILED =
-  "Gas sponsorship failed. Ensure the keeper has ENOKI_SECRET_KEY set and LeverX move targets are allow-listed in the Enoki Developer Portal.";
-
 function formatKeeperGasError(err: unknown): string {
   const message = err instanceof Error ? err.message : String(err);
   const detail = message.includes(":") ? message.split(":").slice(2).join(":").trim() : message;
-  if (detail && detail !== message) {
-    return `${ENOKI_SPONSOR_FAILED} (${detail.slice(0, 200)})`;
+
+  if (
+    message.includes("enoki_not_configured") ||
+    detail.includes("enoki_not_configured") ||
+    message.includes(":503")
+  ) {
+    return "Gas sponsorship is not configured on the keeper. Set ENOKI_SECRET_KEY in keeper/.env and redeploy.";
   }
-  return ENOKI_SPONSOR_FAILED;
+
+  const enokiDetail = detail && detail !== message ? detail.slice(0, 240) : "";
+  if (enokiDetail) {
+    return `Gas sponsorship failed: ${enokiDetail}. After republishing contracts, update move targets and shared object addresses in the Enoki Developer Portal (run contracts/scripts/print-enoki-allowlist.mjs).`;
+  }
+
+  return "Gas sponsorship failed. After republishing contracts, update the Enoki Developer Portal allow list (contracts/scripts/print-enoki-allowlist.mjs).";
 }
 
 /** Sponsor, sign, and execute a user PTB via keeper → Enoki (Google zkLogin). */

@@ -117,13 +117,6 @@ pub fn orderbook_channel_from_position_key(position_key: &str) -> Option<String>
     ))
 }
 
-fn now_ms() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis() as i64)
-        .unwrap_or(0)
-}
-
 #[derive(Clone)]
 pub struct StreamHub {
     tx: broadcast::Sender<Arc<StreamMessage>>,

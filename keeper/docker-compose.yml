@@ -32,8 +32,7 @@ services:
     ports:
       - "3001:3001"
     env_file:
-      - path: .env
-        required: false
+      - .env
     environment:
       PORT: "3001"
       REDIS_HOST: redis
@@ -41,7 +40,7 @@ services:
       DATABASE_URL: postgres://leverx:leverx@postgres:5432/leverx_indexer
       DATABASE_SYNCHRONIZE: "true"
       DATABASE_LOGGING: "false"
-      INDEXER_URL: https://indexer.suileverx.xyz
+      INDEXER_URL: http://host.docker.internal:3100
       SUI_RPC_URL: https://fullnode.testnet.sui.io:443
       LEVERX_PACKAGE_ID: 0x97b41ca2ed4948d2b448ca4031d1727ee2dfd2c1e9c086748c758e069a366825
       LEVERX_REGISTRY_ID: 0xc165f33bffbdaf02209690f4ad7aa5090aa214bcba80e23d9be6e52db676de93
@@ -51,7 +50,7 @@ services:
       PREDICT_ID: 0xc8736204d12f0a7277c86388a68bf8a194b0a14c5538ad13f22cbd8e2a38028a
       PREDICT_SERVER_URL: https://predict-server.testnet.mystenlabs.com
       QUOTE_TYPE: 0xe95040085976bfd54a1a07225cd46c8a2b4e8e2b6732f140a0fc49850ba73e1a::dusdc::DUSDC
-      TELEGRAM_ENABLED: "true"
+      TELEGRAM_ENABLED: "false"
     depends_on:
       redis:
         condition: service_healthy

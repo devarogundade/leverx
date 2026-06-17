@@ -33,10 +33,8 @@ services:
       - "3001:3001"
       - "9186:9186"
     env_file:
-      - path: keeper/.env
-        required: false
-      - path: contracts/deploy-testnet.env
-        required: true
+      - keeper/.env
+      - contracts/deploy-testnet.env
     environment:
       PORT: "3001"
       DATABASE_URL: postgres://leverx:leverx@postgres:5432/leverx_indexer

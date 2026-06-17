@@ -26,8 +26,7 @@ services:
       - "3100:3100"
       - "9184:9184"
     env_file:
-      - path: ../contracts/deploy-testnet.env
-        required: true
+      - ../contracts/deploy-testnet.env
     environment:
       DATABASE_URL: postgres://leverx:leverx@postgres:5432/leverx_indexer
       INDEXER_DATABASE_URL: postgres://leverx:leverx@postgres:5432/leverx_indexer
