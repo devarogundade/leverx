@@ -73,5 +73,9 @@ console.log("\n## Shared object addresses (add under allowed addresses)\n");
 for (const a of sharedAddresses) console.log(a);
 
 console.log(
+  "\n# After republish, set on-chain keeper_address (required before onboarding works):",
+);
+console.log("#   cd keeper && node scripts/set-keeper-address.mjs");
+console.log(
   "\n# User zkLogin wallets are senders — allow any sender or leave sender unrestricted per portal policy.",
 );

@@ -16,6 +16,7 @@ fi
 
 echo "Keeper address: ${KEEPER_ADDR}"
 echo "Calling set_keeper_address_entry on registry ${LEVERX_REGISTRY_ID}..."
+echo "(Or from Windows: cd keeper && node scripts/set-keeper-address.mjs ${KEEPER_ADDR})"
 
 "$SUI" client call \
   --package "$LEVERX_PACKAGE_ID" \

@@ -95,3 +95,7 @@ out_repo.write_text(body, encoding="utf-8")
 print(f"Wrote {out_repo}")
 print(body)
 PY
+
+echo ""
+echo "=== Next: set registry keeper_address (required for onboarding / Enoki) ==="
+echo "  cd keeper && node scripts/set-keeper-address.mjs"

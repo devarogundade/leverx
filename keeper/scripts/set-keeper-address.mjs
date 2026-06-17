@@ -2,11 +2,8 @@
 /**
  * Set protocol_registry.keeper_address after deploy (required for create_user_proxy).
  *
- * Usage (from repo root):
- *   node contracts/scripts/set-keeper-address.mjs [keeper-address]
- *
- * Reads contracts/deploy-testnet.env and KEEPER_PRIVATE_KEY from keeper/.env
- * (admin cap must be owned by the keeper signer).
+ * Usage (from keeper/):
+ *   node scripts/set-keeper-address.mjs [keeper-address]
  */
 import { readFileSync, existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
@@ -16,7 +13,8 @@ import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from "@mysten/sui/jsonRpc";
 import { Transaction } from "@mysten/sui/transactions";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const root = resolve(__dirname, "../..");
+const keeperRoot = resolve(__dirname, "..");
+const repoRoot = resolve(keeperRoot, "..");
 
 function loadEnv(path) {
   const env = {};
@@ -31,8 +29,8 @@ function loadEnv(path) {
   return env;
 }
 
-const deployEnv = loadEnv(resolve(__dirname, "../deploy-testnet.env"));
-const keeperEnv = loadEnv(resolve(root, "keeper/.env"));
+const deployEnv = loadEnv(resolve(repoRoot, "contracts/deploy-testnet.env"));
+const keeperEnv = loadEnv(resolve(keeperRoot, ".env"));
 const privateKey = keeperEnv.KEEPER_PRIVATE_KEY?.trim();
 if (!privateKey) {
   console.error("KEEPER_PRIVATE_KEY missing in keeper/.env");
@@ -43,7 +41,7 @@ const packageId = deployEnv.LEVERX_PACKAGE_ID;
 const adminCapId = deployEnv.LEVERX_ADMIN_CAP_ID;
 const registryId = deployEnv.LEVERX_REGISTRY_ID;
 if (!packageId || !adminCapId || !registryId) {
-  console.error("LEVERX_PACKAGE_ID, LEVERX_ADMIN_CAP_ID, LEVERX_REGISTRY_ID required in deploy-testnet.env");
+  console.error("LEVERX_PACKAGE_ID, LEVERX_ADMIN_CAP_ID, LEVERX_REGISTRY_ID required in contracts/deploy-testnet.env");
   process.exit(1);
 }
 
