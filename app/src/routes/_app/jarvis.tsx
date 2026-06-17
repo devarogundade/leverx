@@ -6,7 +6,7 @@ import { useWallet } from "@/context/WalletContext";
 import { useIndexerAccounts, useIndexerPositions } from "@/hooks/useIndexer";
 import { pageTitle } from "@/lib/brand";
 import { resolveTradingAccount } from "@/lib/leverx/account-resolution";
-import { pageSimple, pageSimpleTitle } from "@/lib/leverx/tw";
+import { pageSimple } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
 import { loadAppShell } from "@/lib/router/route-loaders";
 import { routePendingOptions } from "@/lib/router/route-options";
@@ -47,23 +47,18 @@ function JarvisPage() {
   );
 
   return (
-    <section className={cn("jarvis-page", pageSimple, "mx-auto max-w-[var(--page-max)]")}>
-      <div className="shrink-0">
-        <h1 className={pageSimpleTitle}>Jarvis</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Watches your account, finds trades, and manages risk. Updates appear below.
-        </p>
-      </div>
-
+    <section className={cn("jarvis-page", pageSimple, "w-full")}>
       {!isWalletConnected || !address ? (
         <WalletConnectPrompt
           title="Sign in to use Jarvis"
           description="Sign in so Jarvis can manage the trading account linked to your wallet."
         />
       ) : !account?.account_id ? (
-        <p className="text-sm text-muted-foreground">
-          No trading account found. Deposit funds in Portfolio to get started.
-        </p>
+        <div className="flex flex-1 items-center justify-center px-4">
+          <p className="text-center text-sm text-muted-foreground">
+            No trading account found. Deposit funds in Portfolio to get started.
+          </p>
+        </div>
       ) : (
         <JarvisWorkspace owner={address} accountId={account.account_id} className="min-h-0 flex-1" />
       )}
