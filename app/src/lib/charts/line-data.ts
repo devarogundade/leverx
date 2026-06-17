@@ -8,14 +8,17 @@ function candleTime(timestamp: number): UTCTimestamp {
 
 /** Price history points → ascending unique timestamps for Lightweight Charts. */
 export function toLineData(points: readonly PricePoint[]): LineData<UTCTimestamp>[] {
-  const byTime = new Map<number, number>();
+  const out: LineData<UTCTimestamp>[] = [];
+  let lastSec = -Infinity;
+
   for (const p of points) {
-    const sec = candleTime(p.t);
-    byTime.set(sec, p.price);
+    let sec = candleTime(p.t) as number;
+    if (sec <= lastSec) sec = lastSec + 1;
+    lastSec = sec;
+    out.push({ time: sec as UTCTimestamp, value: p.price });
   }
-  return [...byTime.entries()]
-    .sort(([a], [b]) => a - b)
-    .map(([time, value]) => ({ time: time as UTCTimestamp, value }));
+
+  return out;
 }
 
 /**

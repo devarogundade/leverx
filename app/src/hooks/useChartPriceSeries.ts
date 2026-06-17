@@ -1,15 +1,17 @@
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { CandlestickData, UTCTimestamp } from "lightweight-charts";
 import {
+  appendOracleTailCandle,
+  mergeOhlcvWithOracleTail,
   ohlcvToCandlestickData,
-  patchLatestCandleWithOracle,
 } from "@/lib/charts/candle-data";
 import {
   CHART_OHLCV_INTERVAL,
   CHART_OHLCV_LOOKBACK_MS,
   deepbookPairForAsset,
   fetchDeepbookOhlcv,
+  type OhlcvCandle,
   type OhlcvInterval,
 } from "@/lib/deepbook/ohlcv";
 import { usePredictOracleState } from "@/hooks/usePredictOracleState";
@@ -53,6 +55,7 @@ function useDeepbookChartSeries(
   },
 ): ChartPriceSeriesResult {
   const { data: latest } = useOraclePriceLatest(oracleId, { enabled });
+  const [oracleTailCandles, setOracleTailCandles] = useState<OhlcvCandle[]>([]);
   const { data: fetchedOracleState } = usePredictOracleState(oracleId, {
     enabled: enabled && options?.oracleDetail === undefined,
   });
@@ -84,14 +87,22 @@ function useDeepbookChartSeries(
     retry: 1,
   });
 
+  useEffect(() => {
+    setOracleTailCandles([]);
+  }, [pair, interval, oracleId]);
+
+  useEffect(() => {
+    if (!patchWithOracle || !latest?.spot) return;
+    setOracleTailCandles((prev) =>
+      appendOracleTailCandle(prev, latest.spot, latest.timestampMs),
+    );
+  }, [latest, patchWithOracle]);
+
   const candles = useMemo(() => {
     if (!rawCandles?.length) return [];
-    const patched =
-      patchWithOracle && latest?.spot
-        ? patchLatestCandleWithOracle(rawCandles, latest.spot)
-        : rawCandles;
-    return ohlcvToCandlestickData(patched);
-  }, [rawCandles, latest, patchWithOracle]);
+    const merged = mergeOhlcvWithOracleTail(rawCandles, oracleTailCandles);
+    return ohlcvToCandlestickData(merged);
+  }, [rawCandles, oracleTailCandles]);
 
   return {
     mode: "candlestick",

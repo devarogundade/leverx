@@ -28,11 +28,12 @@ function polledPricePoint(
 
 function appendPricePoint(prev: PricePoint[], point: PricePoint): PricePoint[] {
   const last = prev[prev.length - 1];
-  const next =
-    last && last.t === point.t
-      ? [...prev.slice(0, -1), point]
-      : [...prev, point];
-  next.sort((a, b) => a.t - b.t);
+  let nextPoint = point;
+  if (last) {
+    if (nextPoint.t <= last.t) nextPoint = { ...nextPoint, t: last.t + 1_000 };
+    if (last.t === nextPoint.t && last.price === nextPoint.price) return prev;
+  }
+  const next = [...prev, nextPoint];
   return next.length > MAX_SERIES_POINTS ? next.slice(-MAX_SERIES_POINTS) : next;
 }
 

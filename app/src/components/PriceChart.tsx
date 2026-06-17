@@ -329,21 +329,6 @@ export function PriceChart({
       }
     };
 
-    const canLineTailUpdate =
-      sameSeriesAnchor &&
-      sameMode &&
-      !strikeChanged &&
-      !grew &&
-      dataLength === prevLen &&
-      dataLength > 0 &&
-      series &&
-      effectiveMode === "line";
-
-    if (canLineTailUpdate) {
-      (series as ISeriesApi<"Line">).update(lineData[lineData.length - 1]!);
-      return;
-    }
-
     const canLineStreamUpdate =
       sameSeriesAnchor &&
       sameMode &&
@@ -366,21 +351,6 @@ export function PriceChart({
       } else {
         restoreIfNeeded(saved);
       }
-      return;
-    }
-
-    const canCandleTailUpdate =
-      sameSeriesAnchor &&
-      sameMode &&
-      !strikeChanged &&
-      !grew &&
-      dataLength > 0 &&
-      dataLength === prevLen &&
-      series &&
-      effectiveMode === "candlestick";
-
-    if (canCandleTailUpdate) {
-      (series as ISeriesApi<"Candlestick">).update(candleData[candleData.length - 1]!);
       return;
     }
 

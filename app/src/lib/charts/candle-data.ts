@@ -1,6 +1,8 @@
 import type { CandlestickData, UTCTimestamp } from "lightweight-charts";
 import { ohlcvTimeToSec, type OhlcvCandle } from "@/lib/deepbook/ohlcv";
 
+const MAX_ORACLE_TAIL_CANDLES = 120;
+
 export function ohlcvToCandlestickData(
   candles: readonly OhlcvCandle[],
 ): CandlestickData<UTCTimestamp>[] {
@@ -23,25 +25,36 @@ export function ohlcvToCandlestickData(
     .map(([, bar]) => bar);
 }
 
-/** Sort ascending and patch the newest bar so close matches the predict oracle spot. */
-export function patchLatestCandleWithOracle(
-  candles: readonly OhlcvCandle[],
+/** Append a live oracle spot tick after the OHLCV history (never rewrite prior bars). */
+export function appendOracleTailCandle(
+  prevTail: readonly OhlcvCandle[],
   oracleSpot: number,
+  oracleTimeMs?: number,
 ): OhlcvCandle[] {
-  if (candles.length === 0 || !Number.isFinite(oracleSpot) || oracleSpot <= 0) {
-    return [...candles];
-  }
+  if (!Number.isFinite(oracleSpot) || oracleSpot <= 0) return [...prevTail];
 
-  const sorted = [...candles].sort((a, b) => a[0] - b[0]);
-  const last = sorted[sorted.length - 1]!;
-  const [t, open, high, low, , volume] = last;
-  sorted[sorted.length - 1] = [
-    t,
-    open,
-    Math.max(high, open, oracleSpot),
-    Math.min(low, open, oracleSpot),
-    oracleSpot,
-    volume,
-  ];
-  return sorted;
+  let t = oracleTimeMs ?? Date.now();
+  const lastTailT = prevTail[prevTail.length - 1]?.[0] ?? 0;
+  if (t <= lastTailT) t = lastTailT + 1_000;
+
+  const last = prevTail[prevTail.length - 1];
+  if (last && last[0] === t && last[4] === oracleSpot) return [...prevTail];
+
+  const next: OhlcvCandle = [t, oracleSpot, oracleSpot, oracleSpot, oracleSpot, 0];
+  const merged = [...prevTail, next];
+  return merged.length > MAX_ORACLE_TAIL_CANDLES
+    ? merged.slice(-MAX_ORACLE_TAIL_CANDLES)
+    : merged;
+}
+
+/** Merge DeepBook OHLCV with oracle tail ticks (drops tail bars at or before the last base bar). */
+export function mergeOhlcvWithOracleTail(
+  baseCandles: readonly OhlcvCandle[],
+  oracleTail: readonly OhlcvCandle[],
+): OhlcvCandle[] {
+  if (baseCandles.length === 0) return [...oracleTail];
+  const sorted = [...baseCandles].sort((a, b) => a[0] - b[0]);
+  const lastBaseT = sorted[sorted.length - 1]![0];
+  const tail = oracleTail.filter(([t]) => t > lastBaseT);
+  return [...sorted, ...tail];
 }
