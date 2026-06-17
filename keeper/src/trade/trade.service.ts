@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { IndexerService } from '../indexer/indexer.service';
 import { logKeeperError } from '../lib/keeper-log';
+import { PredictQuoteService } from '../sui/predict-quote.service';
 import { PtbBuilderService } from '../sui/ptb-builder.service';
 import { SuiService } from '../sui/sui.service';
 import {
@@ -40,6 +41,7 @@ export class TradeService {
   constructor(
     private readonly sui: SuiService,
     private readonly ptb: PtbBuilderService,
+    private readonly quotes: PredictQuoteService,
     private readonly indexer: IndexerService,
     private readonly replayStore: TradeReplayStore,
   ) {}
@@ -137,6 +139,7 @@ export class TradeService {
     const intent = await this.verifyRecoverManagerRequest(body);
     await this.assertRelayReady();
     await this.assertAccountOwnership(intent);
+    await this.assertRecoverManagerPreconditions(intent);
 
     const cfg = this.sui.getConfig();
     const tx = this.ptb.buildRecoverManagerSurplus(cfg, {
@@ -276,6 +279,37 @@ export class TradeService {
     const managerId = account.predict_manager_id?.trim().toLowerCase();
     if (!managerId || managerId !== intent.predictManagerId.toLowerCase()) {
       throw new ForbiddenException('predict_manager_mismatch');
+    }
+  }
+
+  /** Mirrors on-chain checks in `trade::recover_manager_surplus_to_trading_*`. */
+  private async assertRecoverManagerPreconditions(
+    intent: RecoverManagerIntentFields,
+  ): Promise<void> {
+    const key = {
+      oracleId: intent.oracleId,
+      expiryMs: intent.expiryMs,
+      strike: intent.strike,
+      higherStrike: intent.higherStrike,
+      isUp: intent.isUp,
+      isRange: intent.isRange,
+    };
+
+    const [openQty, managerBalance] = await Promise.all([
+      this.quotes.fetchManagerOpenQuantity(intent.predictManagerId, key),
+      this.quotes.fetchManagerQuoteBalance(intent.predictManagerId),
+    ]);
+
+    if (openQty != null && openQty > 0n) {
+      throw new BadRequestException('open_contracts_remain');
+    }
+
+    if (managerBalance == null) {
+      throw new BadRequestException('manager_balance_unavailable');
+    }
+
+    if (intent.managerQuoteAtoms > managerBalance) {
+      throw new BadRequestException('recovery_amount_exceeds_balance');
     }
   }
 

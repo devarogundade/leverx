@@ -2,7 +2,10 @@ import { useEffect, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useOnChainPositionQuantities } from "@/hooks/useOnChainPositionQuantities";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
-import { isIndexerStaleOpenPosition } from "@/lib/leverx/position-action-availability";
+import {
+  isIndexerStaleOpenPosition,
+} from "@/lib/leverx/position-action-availability";
+import { positionIndexerStaleSuspect } from "@/lib/leverx/position-indexer-hints";
 import { isActiveOpenPosition, positionRowId } from "@/lib/leverx/position-metrics";
 
 const INDEXER_CATCH_UP_DELAYS_MS = [2000, 6000, 12000] as const;
@@ -25,6 +28,10 @@ export function useVerifiedOpenPositions(positions: readonly LeveragedPosition[]
     for (const position of indexerActive) {
       const read = byPositionId.get(positionRowId(position));
       if (!read || read.isLoading || read.quantity === null) {
+        if (positionIndexerStaleSuspect(position)) {
+          stale.push(position);
+          continue;
+        }
         active.push(position);
         awaitingVerification = true;
         continue;

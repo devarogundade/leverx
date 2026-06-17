@@ -86,6 +86,36 @@ export type LeveragedPosition = {
   close_debt_repaid: number;
   close_interest_paid: number;
   close_surplus_quote: number;
+  peak_borrow_quote?: number;
+  close_source?: string | null;
+  leverx_custody_complete?: boolean;
+  external_redeem_payout_quote?: number;
+  custody_recovered_quote?: number;
+  action_hints?: PositionActionHints;
+};
+
+export type PositionEmptyStateKind =
+  | 'index_stale'
+  | 'stranded_custody'
+  | 'fully_redeemed'
+  | 'awaiting_oracle_settlement'
+  | 'no_actions';
+
+export type PositionActionHints = {
+  close_source: string | null;
+  leverx_custody_complete: boolean;
+  needs_custody_recovery: boolean;
+  external_redeem_payout_quote: number;
+  custody_recovered_quote: number;
+  recommended_actions: Array<
+    | 'close_redeem'
+    | 'settle'
+    | 'repay_debt'
+    | 'recover_custody'
+    | 'withdraw_trading'
+  >;
+  primary_cta: string | null;
+  empty_state_hint: PositionEmptyStateKind | null;
 };
 
 export type UserProxy = {

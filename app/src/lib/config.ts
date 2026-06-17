@@ -22,13 +22,13 @@ const TESTNET_PREDICT = {
 /** Published LeverX package (testnet). Shared objects filled via indexer or .env. */
 const TESTNET_LEVERX = {
   packageId:
-    "0x912790a57285b00507a2a7086fdb8695bf4df40ed693d718a00186b162fd5a1f",
+    "0x97b41ca2ed4948d2b448ca4031d1727ee2dfd2c1e9c086748c758e069a366825",
   registryId:
-    "0x603a3c43f25f3856ce4adeabf9bd5468c34b727c1580986560e2f07ba415a344",
+    "0xc165f33bffbdaf02209690f4ad7aa5090aa214bcba80e23d9be6e52db676de93",
   vaultId:
-    "0xaf348c16f498e509c80102b83ee2bf8c8d83981a29b4335003a0ced4055cccca",
+    "0x249afdb0a91126b12c262dc57ee871582376874b65ad857df54887a2145c96f3",
   feeCollectorId:
-    "0xcf794a3cba8d08b5009249a47bed91e9752d7a319c6d03d397b8ea672091ee5f",
+    "0xcdcee4fd12114732e8933039a3bbb3954b7db70444f351eee8cf71a62d0452fa",
 } as const;
 
 function viteEnv(name: string): string {

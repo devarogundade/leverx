@@ -10,6 +10,7 @@ import {
 import { computeFinalWindowContext } from '../config/trade-math';
 import { IndexerService } from '../indexer/indexer.service';
 import type { LeveragedPosition } from '../indexer/indexer.types';
+import { positionNeedsCustodyRecovery } from '../indexer/position-custody';
 import { logKeeperWarn } from '../lib/keeper-log';
 import { SuiService } from '../sui/sui.service';
 import { TelegramMarketsService } from '../telegram/telegram-markets.service';
@@ -133,7 +134,7 @@ export class JarvisDataService {
         'Jarvis should close or de-risk leveraged positions before the final window — force-deleverage removes timing control.',
       ].join(' '),
       health_interpretation_rules: [
-        'health_bps = (mark_value_usd / vault_debt_usd) × 10_000; default liquidation_threshold_bps = 10200 (102%).',
+        'health_bps = (mark_value_usd / vault_debt_usd) × 10_000; default liquidation_threshold_bps = 10500 (105%).',
         'distance_to_liquidation_bps = health_bps − liquidation_threshold_bps — NOT “percent to liquidation”.',
         'Convert distance bps to percentage points: divide by 100 (2517 bps → 25.2 pts above threshold, NOT 2.5%).',
         'health_label healthy: health_bps ≥ threshold + 500; margin_call: ≥ threshold; at_risk: below threshold.',
@@ -412,6 +413,9 @@ export class JarvisDataService {
         hasVaultBorrow,
       }),
       !redeemQuote ? 'redeem quote unavailable — health and PnL not computed' : '',
+      positionNeedsCustodyRecovery(position)
+        ? 'indexer: stranded custody — user may need recover_custody / repay_debt'
+        : '',
     ]
       .filter(Boolean)
       .join('; ');
@@ -463,6 +467,13 @@ export class JarvisDataService {
       higher_strike_raw: position.higher_strike,
       opened_at_ms: position.opened_at_ms,
       status: position.status,
+      close_source: position.close_source ?? position.action_hints?.close_source ?? null,
+      leverx_custody_complete:
+        position.leverx_custody_complete ??
+        position.action_hints?.leverx_custody_complete,
+      needs_custody_recovery: positionNeedsCustodyRecovery(position),
+      recommended_actions: position.action_hints?.recommended_actions,
+      primary_cta: position.action_hints?.primary_cta ?? null,
       quotes: {
         redeem: redeemQuote,
         partial_repay: partialRepayQuote,

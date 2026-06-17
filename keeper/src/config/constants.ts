@@ -17,12 +17,12 @@ export const TESTNET_PREDICT = {
 /** Published LeverX package + shared objects (testnet). Mirrors `contracts/deploy-testnet.env`. */
 export const TESTNET_LEVERX = {
   packageId:
-    '0x912790a57285b00507a2a7086fdb8695bf4df40ed693d718a00186b162fd5a1f',
+    '0x97b41ca2ed4948d2b448ca4031d1727ee2dfd2c1e9c086748c758e069a366825',
   registryId:
-    '0x603a3c43f25f3856ce4adeabf9bd5468c34b727c1580986560e2f07ba415a344',
-  vaultId: '0xaf348c16f498e509c80102b83ee2bf8c8d83981a29b4335003a0ced4055cccca',
+    '0xc165f33bffbdaf02209690f4ad7aa5090aa214bcba80e23d9be6e52db676de93',
+  vaultId: '0x249afdb0a91126b12c262dc57ee871582376874b65ad857df54887a2145c96f3',
   feeCollectorId:
-    '0xcf794a3cba8d08b5009249a47bed91e9752d7a319c6d03d397b8ea672091ee5f',
+    '0xcdcee4fd12114732e8933039a3bbb3954b7db70444f351eee8cf71a62d0452fa',
 } as const;
 
 /** dUSDC quote type on testnet. */
@@ -34,16 +34,16 @@ export const TESTNET_ASSETS = {
 /** Min/max leverage (basis points). */
 export const MIN_LEVERAGE_BPS = 10_000;
 
-/** Default final window at registry init (5 minutes). */
-export const DEFAULT_FINAL_WINDOW_MS = 300_000;
+/** Default final window at registry init (30 minutes). */
+export const DEFAULT_FINAL_WINDOW_MS = 1_800_000;
 /** Minimum admin-configurable final window (1 minute). */
 export const MIN_FINAL_WINDOW_MS = 60_000;
 /** Maximum admin-configurable final window (4 hours). */
 export const MAX_FINAL_WINDOW_MS = 14_400_000;
 export const MAX_LEVERAGE_BPS = 100_000;
 
-/** Default on-chain liquidation health threshold (102%). */
-export const DEFAULT_LIQUIDATION_BPS = 10_200;
+/** Default on-chain liquidation health threshold (105%). */
+export const DEFAULT_LIQUIDATION_BPS = 10_500;
 
 /** Minimum admin-configurable liquidation threshold (100%). */
 export const MIN_LIQUIDATION_BPS = 10_000;

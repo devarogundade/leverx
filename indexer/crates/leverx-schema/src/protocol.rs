@@ -1,7 +1,7 @@
 //! Protocol constants mirrored from `leverx::protocol_constants` (Move).
 
-/// Default final window at registry init (5 minutes).
-pub const DEFAULT_FINAL_WINDOW_MS: i64 = 300_000;
+/// Default final window at registry init (30 minutes).
+pub const DEFAULT_FINAL_WINDOW_MS: i64 = 1_800_000;
 
 /// Minimum admin-configurable final window (1 minute).
 pub const MIN_FINAL_WINDOW_MS: i64 = 60_000;
@@ -9,8 +9,8 @@ pub const MIN_FINAL_WINDOW_MS: i64 = 60_000;
 /// Maximum admin-configurable final window (4 hours).
 pub const MAX_FINAL_WINDOW_MS: i64 = 14_400_000;
 
-/// Default liquidation health threshold at registry init (102%).
-pub const DEFAULT_LIQUIDATION_BPS: i64 = 10_200;
+/// Default liquidation health threshold at registry init (105%).
+pub const DEFAULT_LIQUIDATION_BPS: i64 = 10_500;
 
 /// Minimum admin-configurable liquidation threshold (100%).
 pub const MIN_LIQUIDATION_BPS: i64 = 10_000;

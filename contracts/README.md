@@ -61,4 +61,4 @@ After publish:
 2. IDs land in `deploy-testnet.env` and `app/src/lib/config.ts`
 
 Liquidation threshold: health below the admin-configured `protocol_registry::liquidation_bps`
-(default 102%, min 100%; see `protocol_constants::default_liquidation_bps`).
+(default 105%, min 100%; see `protocol_constants::default_liquidation_bps`).

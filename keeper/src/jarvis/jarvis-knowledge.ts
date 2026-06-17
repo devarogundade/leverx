@@ -166,11 +166,11 @@ const SECTION_MECHANICS = `# Platform mechanics & action vocabulary
 
 ## Liquidation & health
 
-- Positions with **vault borrow** can become **liquidatable** when on-chain health falls below \`liquidation_threshold_bps\` (default **10200 = 102%** collateral ratio: redeem mark value vs vault debt).
+- Positions with **vault borrow** can become **liquidatable** when on-chain health falls below \`liquidation_threshold_bps\` (default **10500 = 105%** collateral ratio: redeem mark value vs vault debt).
 - **Health formula:** \`health_bps = round((mark_value_usd / vault_debt_usd) × 10_000)\`. Example: mark $10.90, debt $8.40 → health ≈ **12976 bps (129.8%)**.
-- **Distance to liquidation:** \`distance_to_liquidation_bps = health_bps − liquidation_threshold_bps\`. Example: 12976 − 10200 = **2776 bps = 27.8 percentage points** above the threshold — **not** 2.8% and **not** "2.8% to liquidation".
+- **Distance to liquidation:** \`distance_to_liquidation_bps = health_bps − liquidation_threshold_bps\`. Example: 12976 − 10500 = **2476 bps = 24.8 percentage points** above the threshold — **not** 2.5% and **not** "2.5% to liquidation".
 - **Health bands (\`health_label\`):**
-  - \`healthy\`: health_bps ≥ threshold + 500 (default ≥ 10700)
+  - \`healthy\`: health_bps ≥ threshold + 500 (default ≥ 11000)
   - \`margin_call\`: health_bps ≥ threshold but below healthy band
   - \`at_risk\`: health_bps < threshold — liquidation imminent or active
 - **\`liquidatable\`** (on-chain dev-inspect) is the authoritative immediate-risk flag. When false and \`health_label\` is healthy, liquidation is **not** imminent.
@@ -188,7 +188,7 @@ const SECTION_MECHANICS = `# Platform mechanics & action vocabulary
 
 ## Final window & force-deleverage
 
-- **Duration:** \`platform_rules.final_window_ms\` from on-chain registry (default **300_000 ms = 5 minutes** at init; admin range 60_000–14_400_000 ms). Read the live value from context — do not assume "one hour" from UI copy.
+- **Duration:** \`platform_rules.final_window_ms\` from on-chain registry (default **1_800_000 ms = 30 minutes** at init; admin range 60_000–14_400_000 ms). Read the live value from context — do not assume "one hour" from UI copy.
 - **Window interval:** \`[expiry_ms - final_window_ms, expiry_ms)\` — starts at \`expiry - window\`, ends at expiry.
 - **Blocked in window:** new mints with \`leverage > 1\`; resting leveraged limit orders must expire before the window opens.
 - **Force-deleverage flow (keeper, pre-expiry):** for borrowed positions (\`has_vault_borrow\`) that are healthy (\`liquidatable: false\`) inside the final window:
@@ -282,7 +282,7 @@ This section prevents the most common Jarvis mistakes. Read it before every **po
 | Field | Raw example | Correct human read | WRONG read |
 |-------|-------------|-------------------|------------|
 | \`health_bps\` | 12717 | **127.2%** collateral ratio (\`health_pct\`) | 127% or 12.7% |
-| \`liquidation_threshold_bps\` | 10200 | Liquidation below **102.0%** (\`liquidation_threshold_pct\`) | 10.2% |
+| \`liquidation_threshold_bps\` | 10500 | Liquidation below **105.0%** (\`liquidation_threshold_pct\`) | 10.5% |
 | \`distance_to_liquidation_bps\` | 2517 | **25.2 pts** above threshold (\`distance_to_liquidation_pct_points\`) | **2.5%** or 2.5% to liquidation |
 
 **Formula:** percentage display = bps ÷ 100. **2517 bps = 25.17 percentage points**, not 2.5%.
@@ -299,11 +299,11 @@ This section prevents the most common Jarvis mistakes. Read it before every **po
 
 ## Health bands
 
-| \`health_label\` | Condition (default threshold 10200) | Meaning |
+| \`health_label\` | Condition (default threshold 10500) | Meaning |
 |------------------|-------------------------------------|---------|
-| \`healthy\` | health_bps ≥ 10700 | Comfortable cushion; do not describe as liquidation emergency |
-| \`margin_call\` | 10200 ≤ health_bps < 10700 | Above liquidation but thin; monitor and consider de-risk |
-| \`at_risk\` | health_bps < 10200 | Below threshold — liquidation risk is real |
+| \`healthy\` | health_bps ≥ 11000 | Comfortable cushion; do not describe as liquidation emergency |
+| \`margin_call\` | 10500 ≤ health_bps < 11000 | Above liquidation but thin; monitor and consider de-risk |
+| \`at_risk\` | health_bps < 10500 | Below threshold — liquidation risk is real |
 | \`unknown\` | No live redeem quote | Cannot assess; use tools to refresh quotes |
 
 ## Worked example (typical leveraged loser — NOT a liquidation emergency)
@@ -370,7 +370,7 @@ Every numeric field Jarvis receives is **human-readable** with parallel **raw on
 - **Premium raw → cents:** \`(raw / 1e9) × 100\`.
 - **Strike raw → USD:** divide by 1e9.
 - **Spot from predict-server:** values > 1e6 are treated as 1e9-scaled and divided.
-- **Health bps:** collateral ratio × 10_000; 10200 = 102% (default liquidation threshold). Display: \`health_pct = health_bps / 100\`.
+- **Health bps:** collateral ratio × 10_000; 10500 = 105% (default liquidation threshold). Display: \`health_pct = health_bps / 100\`.
 - **Distance bps:** \`distance_to_liquidation_pct_points = distance_to_liquidation_bps / 100\` (percentage points above threshold).
 - **Time to expiry:** \`time_to_expiry_hours = (expiry_ms - now) / 3_600_000\`.
 
@@ -463,7 +463,7 @@ Each candle tuple: \`[timestamp_ms, open_usd, high_usd, low_usd, close_usd]\` fr
 | \`min_margin_usd\` / \`max_margin_usd\` | Per-trade margin bounds |
 | \`market_slippage_bps\` | Slippage tolerance on mint/redeem quotes |
 | \`final_window_ms\` / \`final_window_minutes\` | Final window before expiry (live on-chain value) |
-| \`liquidation_threshold_bps\` | Health threshold for liquidation (~10200 = 102%) |
+| \`liquidation_threshold_bps\` | Health threshold for liquidation (~10500 = 105%) |
 | \`final_window_rules\` | Full final-window gate description |
 | \`one_x_leverage_rules\` | 1× never liquidatable; still settles at expiry |
 | \`force_deleverage_rules\` | Redeem → repay → remint 1× flow in final window |

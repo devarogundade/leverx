@@ -14,7 +14,7 @@ fun fee_shares_sum_to_one_hundred_percent() {
 #[test]
 fun leverage_bounds() {
     assert!(protocol_constants::min_leverage_bps() == 10_000, 0);
-    assert!(protocol_constants::default_final_window_ms() == 300_000, 0);
+    assert!(protocol_constants::default_final_window_ms() == 1_800_000, 0);
     assert!(protocol_constants::min_final_window_ms() == 60_000, 0);
     assert!(protocol_constants::max_final_window_ms() == 14_400_000, 0);
     assert!(protocol_constants::max_leverage() == 10, 0);
@@ -32,7 +32,7 @@ fun margin_bounds() {
 
 #[test]
 fun liquidation_threshold_defaults_and_bounds() {
-    assert!(protocol_constants::default_liquidation_bps() == 10_200, 0);
+    assert!(protocol_constants::default_liquidation_bps() == 10_500, 0);
     assert!(protocol_constants::min_liquidation_bps() == 10_000, 0);
     assert!(protocol_constants::max_liquidation_bps() == 15_000, 0);
     assert!(protocol_constants::liquidation_flash_buffer_bps() == 500, 0);

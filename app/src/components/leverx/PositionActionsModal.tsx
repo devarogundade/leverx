@@ -23,6 +23,7 @@ import {
   getPositionActionAvailability,
   type PositionEmptyStateKind,
 } from "@/lib/leverx/position-action-availability";
+import { positionCloseSource } from "@/lib/leverx/position-indexer-hints";
 import { showTxError, showTxSuccess } from "@/lib/toast";
 import { usePredictOracleRows } from "@/hooks/usePredictOracles";
 import { predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
@@ -101,6 +102,27 @@ function PositionEmptyStatePanel({
   );
 }
 
+function formatCloseSource(source: string | null): string | null {
+  switch (source) {
+    case "leverx_redeem":
+      return "Closed via LeverX";
+    case "leverx_settle":
+      return "Settled via LeverX";
+    case "predict_external":
+      return "External Predict redeem";
+    case "stranded_recovery":
+      return "Key custody recovered";
+    case "manager_surplus_recovery":
+      return "Manager surplus recovered";
+    case "liquidation":
+      return "Liquidated";
+    case "bad_debt_writeoff":
+      return "Bad debt written off";
+    default:
+      return null;
+  }
+}
+
 function PositionDetailGrid({
   position,
   contractQuantity,
@@ -130,9 +152,16 @@ function PositionDetailGrid({
     keyQuoteBalance != null ? scaleQuoteAtoms(keyQuoteBalance) : null;
   const managerQuoteUsd =
     managerQuoteBalance != null ? scaleQuoteAtoms(managerQuoteBalance) : null;
+  const closeSourceLabel = formatCloseSource(positionCloseSource(position));
 
   return (
     <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+      {closeSourceLabel ? (
+        <>
+          <dt className="text-muted-foreground">Close path</dt>
+          <dd className="text-right text-xs text-muted-foreground">{closeSourceLabel}</dd>
+        </>
+      ) : null}
       <dt className="text-muted-foreground">Quantity</dt>
       <dd
         className="text-right font-mono tabular-nums"
@@ -618,7 +647,7 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
           if (!next) setConfirmAction(null);
         }}
         title={`Recover stranded funds?`}
-        description="Moves quote locked on this market key and/or sitting in your Predict manager into your trading account. Withdraw to your wallet from the Account tab afterward."
+        description="Moves quote locked on this market key and/or sitting in your Predict manager into your trading account. Repay vault debt first if key-locked funds cannot be swept. Withdraw to your wallet from the Account tab afterward."
         confirmLabel="Recover funds"
         pending={recoverStrandedCustody.isPending}
         onConfirm={() =>

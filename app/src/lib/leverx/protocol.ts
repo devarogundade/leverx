@@ -1,8 +1,8 @@
 import { appConfig } from "@/lib/config";
 import type { ProtocolSettings } from "@/lib/leverx/indexer-client";
 
-/** Default on-chain liquidation health threshold (102% = 2% buffer before underwater). */
-export const DEFAULT_LIQUIDATION_BPS = 10_200;
+/** Default on-chain liquidation health threshold (105% = 5% buffer before underwater). */
+export const DEFAULT_LIQUIDATION_BPS = 10_500;
 
 /** Minimum admin-configurable liquidation threshold (100%). */
 export const MIN_LIQUIDATION_BPS = 10_000;
@@ -10,8 +10,8 @@ export const MIN_LIQUIDATION_BPS = 10_000;
 /** Maximum admin-configurable liquidation threshold (150%). */
 export const MAX_LIQUIDATION_BPS = 15_000;
 
-/** Default final window before expiry (5 minutes). */
-export const DEFAULT_FINAL_WINDOW_MS = 300_000;
+/** Default final window before expiry (30 minutes). */
+export const DEFAULT_FINAL_WINDOW_MS = 1_800_000;
 /** Minimum admin-configurable final window (1 minute). */
 export const MIN_FINAL_WINDOW_MS = 60_000;
 /** Maximum admin-configurable final window (4 hours). */

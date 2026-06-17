@@ -47,4 +47,21 @@ export class PredictQuoteService {
     if (!id || id === '0x0' || /^0x0+$/i.test(id)) return null;
     return id;
   }
+
+  /** Quote balance held in a Predict manager (shared across markets). */
+  async fetchManagerQuoteBalance(predictManagerId: string): Promise<bigint | null> {
+    const cfg = this.sui.getConfig();
+    const tx = this.ptb.buildReadManagerQuoteBalance(cfg, predictManagerId);
+    return this.sui.devInspectU64(tx);
+  }
+
+  /** Open contract quantity for `key` in a Predict manager. */
+  async fetchManagerOpenQuantity(
+    predictManagerId: string,
+    key: PositionKeyArgs,
+  ): Promise<bigint | null> {
+    const cfg = this.sui.getConfig();
+    const tx = this.ptb.buildReadManagerOpenQuantity(cfg, predictManagerId, key);
+    return this.sui.devInspectU64(tx);
+  }
 }

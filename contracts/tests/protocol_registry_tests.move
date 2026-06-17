@@ -19,13 +19,13 @@ fun trading_pause_flag_roundtrip() {
 }
 
 #[test]
-fun liquidation_bps_defaults_to_one_hundred_two_percent() {
+fun liquidation_bps_defaults_to_one_hundred_five_percent() {
     let owner = @0xAD;
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
 
     let (_admin, registry) = protocol_registry::create_for_testing(ctx);
-    assert!(protocol_registry::liquidation_bps(&registry) == 10_200, 0);
+    assert!(protocol_registry::liquidation_bps(&registry) == 10_500, 0);
 
     scenario.end();
 }
@@ -100,13 +100,13 @@ fun admin_can_set_keeper_address() {
 }
 
 #[test]
-fun final_window_defaults_to_five_minutes() {
+fun final_window_defaults_to_thirty_minutes() {
     let owner = @0xAD;
     let mut scenario = test_scenario::begin(owner);
     let ctx = scenario.ctx();
 
     let (_admin, registry) = protocol_registry::create_for_testing(ctx);
-    assert!(protocol_registry::final_window_ms(&registry) == 300_000, 0);
+    assert!(protocol_registry::final_window_ms(&registry) == 1_800_000, 0);
 
     scenario.end();
 }

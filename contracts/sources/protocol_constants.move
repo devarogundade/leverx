@@ -17,8 +17,8 @@ const QUOTE_DECIMALS: u8 = 6;
 const MAX_LEVERAGE: u64 = 10;
 /// Minimum leverage in bps (10_000 bps = 1x, no vault borrow).
 const MIN_LEVERAGE_BPS: u64 = 10_000;
-/// Default liquidation health threshold at registry init (102% = 2% buffer before underwater).
-const DEFAULT_LIQUIDATION_BPS: u64 = 10_200;
+/// Default liquidation health threshold at registry init (105% = 5% buffer before underwater).
+const DEFAULT_LIQUIDATION_BPS: u64 = 10_500;
 /// Minimum admin-configurable liquidation threshold (100% health).
 const MIN_LIQUIDATION_BPS: u64 = 10_000;
 /// Maximum admin-configurable liquidation threshold (150% health).
@@ -27,7 +27,7 @@ const MAX_LIQUIDATION_BPS: u64 = 15_000;
 const LIQUIDATION_FLASH_BUFFER_BPS: u64 = 500;
 
 /// Leveraged mints (>1x) are blocked in the final window before oracle expiry.
-const DEFAULT_FINAL_WINDOW_MS: u64 = 300_000;
+const DEFAULT_FINAL_WINDOW_MS: u64 = 1_800_000;
 /// Minimum admin-configurable final window (1 minute).
 const MIN_FINAL_WINDOW_MS: u64 = 60_000;
 /// Maximum admin-configurable final window (4 hours).
@@ -133,7 +133,7 @@ public fun min_margin_quote(): u64 { MIN_MARGIN_QUOTE }
 /// Maximum dUSDC margin per trade in quote atoms (100 dUSDC).
 public fun max_margin_quote(): u64 { MAX_MARGIN_QUOTE }
 
-/// Default liquidation threshold used when the registry is initialized (102%).
+/// Default liquidation threshold used when the registry is initialized (105%).
 public fun default_liquidation_bps(): u64 { DEFAULT_LIQUIDATION_BPS }
 
 /// Minimum liquidation threshold admins may set (100%).

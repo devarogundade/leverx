@@ -100,6 +100,8 @@ function applyStreamMessage(queryClient: ReturnType<typeof useQueryClient>, mess
     void queryClient.invalidateQueries({
       queryKey: ["indexer-accounts", parsed.owner],
     });
+    void queryClient.invalidateQueries({ queryKey: ["proxy-key-balance"], refetchType: "active" });
+    void queryClient.invalidateQueries({ queryKey: ["manager-quote-balance"], refetchType: "active" });
     return;
   }
 

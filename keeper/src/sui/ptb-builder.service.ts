@@ -349,6 +349,38 @@ export class PtbBuilderService {
     return tx;
   }
 
+  /** Read-only: quote balance in a Predict manager (`predict_client::manager_balance`). */
+  buildReadManagerQuoteBalance(
+    cfg: KeeperConfig,
+    predictManagerId: string,
+  ): Transaction {
+    const tx = new Transaction();
+    tx.moveCall({
+      target: `${cfg.packageId}::predict_client::manager_balance`,
+      typeArguments: [cfg.quoteType],
+      arguments: [tx.object(predictManagerId)],
+    });
+    return tx;
+  }
+
+  /** Read-only: open contracts for `key` in a Predict manager. */
+  buildReadManagerOpenQuantity(
+    cfg: KeeperConfig,
+    predictManagerId: string,
+    key: PositionKeyArgs,
+  ): Transaction {
+    const tx = new Transaction();
+    const marketKey = this.addMarketKey(tx, cfg, key);
+    const fn = key.isRange
+      ? 'manager_range_position'
+      : 'manager_binary_position';
+    tx.moveCall({
+      target: `${cfg.packageId}::predict_client::${fn}`,
+      arguments: [tx.object(predictManagerId), marketKey],
+    });
+    return tx;
+  }
+
   /** Spendable trading-account quote (key-agnostic custody pool). */
   buildReadWithdrawableTradingQuote(cfg: KeeperConfig, accountId: string): Transaction {
     const tx = new Transaction();

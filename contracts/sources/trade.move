@@ -1900,8 +1900,8 @@ public fun recover_manager_surplus_to_trading_binary<Quote>(
     let balance = predict_client::manager_balance<Quote>(manager);
     assert!(amount <= balance, errors::recovery_amount_exceeds_balance());
 
-    let coin = predict_client::withdraw_quote(manager, amount, ctx);
-    proxy.credit_trading_quote(coin, ctx);
+    let coin = predict_client::withdraw_quote<Quote>(manager, amount, ctx);
+    proxy.credit_trading_quote<Quote>(coin, ctx);
 
     events::emit_stranded_custody_recovered(
         object::id(proxy),
@@ -1942,8 +1942,8 @@ public fun recover_manager_surplus_to_trading_range<Quote>(
     let balance = predict_client::manager_balance<Quote>(manager);
     assert!(amount <= balance, errors::recovery_amount_exceeds_balance());
 
-    let coin = predict_client::withdraw_quote(manager, amount, ctx);
-    proxy.credit_trading_quote(coin, ctx);
+    let coin = predict_client::withdraw_quote<Quote>(manager, amount, ctx);
+    proxy.credit_trading_quote<Quote>(coin, ctx);
 
     events::emit_stranded_custody_recovered(
         object::id(proxy),
@@ -3259,7 +3259,7 @@ fun repay_from_payout_binary<Quote>(
     let principal_repaid = principal_repaid_for_payment(repay_amt, debt, ledger_principal);
     let surplus = payout - repay_amt;
 
-    let mut payout_coin = predict_client::withdraw_quote(manager, payout, ctx);
+    let mut payout_coin = predict_client::withdraw_quote<Quote>(manager, payout, ctx);
     if (repay_amt > 0 && ledger_principal > 0) {
         let repay_coin = payout_coin.split(repay_amt, ctx);
         fee_collector::repay_vault_for_ledger_principal(
@@ -3293,7 +3293,7 @@ fun repay_from_payout_binary<Quote>(
             proxy.credit_quote_for_binary(key, payout_coin, ctx);
         } else {
             // Redeem proceeds (surplus / P&L) stay in the trading account, never sent to the owner.
-            proxy.credit_trading_quote(payout_coin, ctx);
+            proxy.credit_trading_quote<Quote>(payout_coin, ctx);
         };
     } else {
         coin::destroy_zero(payout_coin);
@@ -3433,7 +3433,7 @@ fun repay_from_payout_range<Quote>(
     let principal_repaid = principal_repaid_for_payment(repay_amt, debt, ledger_principal);
     let surplus = payout - repay_amt;
 
-    let mut payout_coin = predict_client::withdraw_quote(manager, payout, ctx);
+    let mut payout_coin = predict_client::withdraw_quote<Quote>(manager, payout, ctx);
     if (repay_amt > 0 && ledger_principal > 0) {
         let repay_coin = payout_coin.split(repay_amt, ctx);
         fee_collector::repay_vault_for_ledger_principal(
@@ -3467,7 +3467,7 @@ fun repay_from_payout_range<Quote>(
             proxy.credit_quote_for_range(key, payout_coin, ctx);
         } else {
             // Redeem proceeds (surplus / P&L) stay in the trading account, never sent to the owner.
-            proxy.credit_trading_quote(payout_coin, ctx);
+            proxy.credit_trading_quote<Quote>(payout_coin, ctx);
         };
     } else {
         coin::destroy_zero(payout_coin);

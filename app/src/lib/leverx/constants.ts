@@ -47,8 +47,8 @@ export type LimitOrderExpiryHours = (typeof LIMIT_ORDER_EXPIRY_HOURS)[number];
 export const DEFAULT_LIMIT_ORDER_EXPIRY_HOURS: LimitOrderExpiryHours = 6;
 
 /** Leveraged mints (>1x) blocked in the final window before oracle expiry. */
-/** Default final window at registry init (5 minutes). */
-export const DEFAULT_FINAL_WINDOW_MS = 300_000;
+/** Default final window at registry init (30 minutes). */
+export const DEFAULT_FINAL_WINDOW_MS = 1_800_000;
 /** Minimum admin-configurable final window (1 minute). */
 export const MIN_FINAL_WINDOW_MS = 60_000;
 /** Maximum admin-configurable final window (4 hours). */

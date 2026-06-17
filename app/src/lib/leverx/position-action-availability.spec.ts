@@ -54,6 +54,25 @@ describe("positionShowsManageAction", () => {
       positionShowsManageAction({ status: "closed", borrow_quote: 1_000_000 }),
     ).toBe(true);
   });
+
+  it("shows manage when indexer flags stranded custody", () => {
+    expect(
+      positionShowsManageAction({
+        status: "closed",
+        borrow_quote: 0,
+        action_hints: {
+          close_source: "predict_external",
+          leverx_custody_complete: false,
+          needs_custody_recovery: true,
+          external_redeem_payout_quote: 500_000,
+          custody_recovered_quote: 0,
+          recommended_actions: ["recover_custody"],
+          primary_cta: "recover_custody",
+          empty_state_hint: "stranded_custody",
+        },
+      }),
+    ).toBe(true);
+  });
 });
 
 describe("isIndexerStaleOpenPosition", () => {
@@ -164,6 +183,41 @@ describe("getPositionActionAvailability", () => {
       now: Date.now(),
     });
     expect(result.canRecoverCustody).toBe(true);
+    expect(result.recoverManagerQuote).toBe(500_000n);
     expect(result.emptyState).toBe("stranded_custody");
+  });
+
+  it("allows manager recover with outstanding debt when manager holds quote", () => {
+    const result = getPositionActionAvailability({
+      position: basePosition({
+        status: "closed",
+        open_quantity: 0,
+        borrow_quote: 200_000,
+        action_hints: {
+          close_source: "predict_external",
+          leverx_custody_complete: false,
+          needs_custody_recovery: true,
+          external_redeem_payout_quote: 500_000,
+          custody_recovered_quote: 0,
+          recommended_actions: ["repay_debt", "recover_custody"],
+          primary_cta: "repay_debt",
+          empty_state_hint: null,
+        },
+      }),
+      onChainQuantity: 0n,
+      quantityLoading: false,
+      oracleSettled: true,
+      custody: {
+        keyQuoteBalance: 0n,
+        managerQuoteBalance: 500_000n,
+        custodyLoading: false,
+      },
+      now: Date.now(),
+    });
+    expect(result.canRepayDebt).toBe(true);
+    expect(result.canRecoverCustody).toBe(true);
+    expect(result.canRecoverKeyQuote).toBe(false);
+    expect(result.canRecoverManagerQuote).toBe(true);
+    expect(result.recoverManagerQuote).toBe(500_000n);
   });
 });

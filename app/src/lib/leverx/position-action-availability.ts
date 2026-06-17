@@ -1,4 +1,10 @@
 import type { LeveragedPosition, PositionEmptyStateKind } from "@/lib/leverx/indexer-client";
+import {
+  positionEmptyStateHint,
+  positionIndexerStaleSuspect,
+  positionNeedsCustodyRecovery,
+  positionRecommendedActions,
+} from "@/lib/leverx/position-indexer-hints";
 import { coerceQuoteAtoms } from "@/lib/predict/scaling";
 import {
   hasIndexerOpenQuantity,
@@ -19,16 +25,22 @@ export type PositionActionAvailability = {
   canSettle: boolean;
   canRepayDebt: boolean;
   canRecoverCustody: boolean;
+  canRecoverKeyQuote: boolean;
+  canRecoverManagerQuote: boolean;
   recoverKeyQuote: bigint;
   recoverManagerQuote: bigint;
   emptyState: PositionEmptyStateKind | null;
+  primaryCta: string | null;
 };
 
 /** Portfolio index lists open qty but on-chain manager position is flat. */
 export function isIndexerStaleOpenPosition(
-  position: Pick<LeveragedPosition, "status" | "open_quantity">,
+  position: Pick<LeveragedPosition, "status" | "open_quantity" | "close_source" | "action_hints">,
   onChainQuantity: OnChainQuantityRead,
 ): boolean {
+  if (positionIndexerStaleSuspect(position)) {
+    return onChainQuantity === 0n || onChainQuantity == null;
+  }
   return (
     position.status === "open" &&
     onChainQuantity === 0n &&
@@ -40,7 +52,7 @@ function flatOnChain(onChainQuantity: OnChainQuantityRead, quantityLoading: bool
   return !quantityLoading && onChainQuantity === 0n;
 }
 
-/** Which manage actions are valid for this position (on-chain qty + oracle state). */
+/** Which manage actions are valid for this position (indexer hints + on-chain reads). */
 export function getPositionActionAvailability(params: {
   position: LeveragedPosition;
   onChainQuantity: OnChainQuantityRead;
@@ -60,39 +72,57 @@ export function getPositionActionAvailability(params: {
       ? onChainQuantity > 0n
       : hasIndexerOpenQuantity(position);
 
-  const canCloseRedeem = hasRedeemableQuantity && !oracleSettled;
+  const recommended = positionRecommendedActions(position);
+  const indexerNeedsRecovery = positionNeedsCustodyRecovery(position);
+
+  const canCloseRedeem =
+    hasRedeemableQuantity &&
+    !oracleSettled &&
+    (recommended.length === 0 || recommended.includes("close_redeem"));
   const canSettle =
     expired &&
     oracleSettled &&
     settleQty > 0n &&
     !quantityLoading &&
-    onChainQuantity != null;
-  const canRepayDebt = hasDebt;
+    onChainQuantity != null &&
+    (recommended.length === 0 || recommended.includes("settle"));
+  const canRepayDebt = hasDebt || recommended.includes("repay_debt");
 
   const custodyReady = custody != null && !custody.custodyLoading;
   const keyQuote = custodyReady ? (custody.keyQuoteBalance ?? 0n) : 0n;
   const managerQuote = custodyReady ? (custody.managerQuoteBalance ?? 0n) : 0n;
-  const canRecoverKeyCustody =
-    flatOnChain(onChainQuantity, quantityLoading) && !hasDebt && keyQuote > 0n;
-  const canRecoverManagerSurplus =
-    flatOnChain(onChainQuantity, quantityLoading) && !hasDebt && managerQuote > 0n;
+  const flat = flatOnChain(onChainQuantity, quantityLoading);
 
-  const hints = position.action_hints;
-  const indexerNeedsRecovery = hints?.needs_custody_recovery ?? false;
-  const indexerRecoverHint =
-    indexerNeedsRecovery ||
-    (hints?.recommended_actions?.includes("recover_custody") ?? false) ||
-    (coerceQuoteAtoms(position.external_redeem_payout_quote ?? 0) > 0 &&
-      position.leverx_custody_complete === false);
+  // Key sweep requires zero borrow on-chain; manager sweep may run with debt.
+  const canRecoverKeyQuote = flat && !hasDebt && keyQuote > 0n;
+  const canRecoverManagerQuote = flat && managerQuote > 0n;
 
   const canRecoverFromIndexerHint =
-    indexerRecoverHint &&
-    flatOnChain(onChainQuantity, quantityLoading) &&
-    !hasDebt &&
-    !custodyReady;
+    indexerNeedsRecovery &&
+    flat &&
+    !custodyReady &&
+    recommended.includes("recover_custody");
+
+  const externalPayoutRemaining = BigInt(
+    Math.max(
+      0,
+      coerceQuoteAtoms(position.external_redeem_payout_quote ?? 0) -
+        coerceQuoteAtoms(position.custody_recovered_quote ?? 0),
+    ),
+  );
 
   const canRecoverCustody =
-    canRecoverKeyCustody || canRecoverManagerSurplus || canRecoverFromIndexerHint;
+    canRecoverKeyQuote ||
+    canRecoverManagerQuote ||
+    canRecoverFromIndexerHint ||
+    (indexerNeedsRecovery && recommended.includes("recover_custody") && flat);
+
+  const recoverManagerAmount =
+    canRecoverManagerQuote
+      ? managerQuote
+      : canRecoverFromIndexerHint && externalPayoutRemaining > 0n
+        ? externalPayoutRemaining
+        : 0n;
 
   let emptyState: PositionEmptyStateKind | null = null;
   if (
@@ -103,9 +133,9 @@ export function getPositionActionAvailability(params: {
     !canRecoverCustody
   ) {
     if (isIndexerStaleOpenPosition(position, onChainQuantity)) {
-      emptyState = hints?.empty_state_hint ?? "index_stale";
-    } else if (hints?.empty_state_hint) {
-      emptyState = hints.empty_state_hint;
+      emptyState = positionEmptyStateHint(position) ?? "index_stale";
+    } else if (positionEmptyStateHint(position)) {
+      emptyState = positionEmptyStateHint(position);
     } else if (position.status !== "open" && settleQty === 0n) {
       emptyState = "fully_redeemed";
     } else if (settleQty === 0n && !hasIndexerOpenQuantity(position)) {
@@ -129,8 +159,11 @@ export function getPositionActionAvailability(params: {
     canSettle,
     canRepayDebt,
     canRecoverCustody,
-    recoverKeyQuote: canRecoverKeyCustody ? keyQuote : 0n,
-    recoverManagerQuote: canRecoverManagerSurplus ? managerQuote : 0n,
+    canRecoverKeyQuote,
+    canRecoverManagerQuote,
+    recoverKeyQuote: canRecoverKeyQuote ? keyQuote : 0n,
+    recoverManagerQuote: recoverManagerAmount,
     emptyState,
+    primaryCta: position.action_hints?.primary_cta ?? null,
   };
 }

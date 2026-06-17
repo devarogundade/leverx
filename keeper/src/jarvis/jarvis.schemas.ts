@@ -310,6 +310,11 @@ export const JarvisPositionSnapshotSchema = z.object({
   higher_strike_raw: z.number(),
   opened_at_ms: z.number().nullable(),
   status: z.string(),
+  close_source: z.string().nullable().optional(),
+  leverx_custody_complete: z.boolean().optional(),
+  needs_custody_recovery: z.boolean().optional(),
+  recommended_actions: z.array(z.string()).optional(),
+  primary_cta: z.string().nullable().optional(),
   quotes: JarvisPositionQuotesSchema,
 });
 

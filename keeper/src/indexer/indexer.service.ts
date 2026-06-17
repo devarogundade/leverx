@@ -161,6 +161,29 @@ export class IndexerService {
     );
   }
 
+  /** Rows where LeverX custody accounting is incomplete (external redeem, partial recovery). */
+  async fetchStrandedCustodyCandidates(): Promise<LeveragedPosition[]> {
+    const closed = await this.fetchAllPages((offset, pageSize) =>
+      this.fetchPositions({
+        status: 'all',
+        excludeStatus: 'open',
+        limit: pageSize,
+        offset,
+      }),
+    );
+    return closed.filter((p) => {
+      if (p.leverx_custody_complete ?? p.action_hints?.leverx_custody_complete) {
+        return false;
+      }
+      const source = p.close_source ?? p.action_hints?.close_source;
+      return (
+        source === 'predict_external' ||
+        source === 'manager_surplus_recovery' ||
+        p.action_hints?.needs_custody_recovery === true
+      );
+    });
+  }
+
   /** Open keys with posted margin plus any keys with residual vault borrow. */
   async fetchLiquidationCandidates(): Promise<LeveragedPosition[]> {
     const [withMargin, withBorrow] = await Promise.all([

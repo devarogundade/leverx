@@ -1,5 +1,6 @@
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { coerceQuoteAtoms } from "@/lib/predict/scaling";
+import { positionShowsManageFromIndexer } from "@/lib/leverx/position-indexer-hints";
 
 /** `null` = on-chain read failed; `0n` = read succeeded with no contracts. */
 export type OnChainQuantityRead = bigint | null;
@@ -17,19 +18,15 @@ export function hasIndexerOpenQuantity(position: Pick<LeveragedPosition, "open_q
 export function positionShowsManageAction(
   position: Pick<
     LeveragedPosition,
-    "status" | "borrow_quote" | "action_hints" | "leverx_custody_complete" | "close_surplus_quote"
+    | "status"
+    | "borrow_quote"
+    | "action_hints"
+    | "leverx_custody_complete"
+    | "close_surplus_quote"
+    | "close_source"
+    | "external_redeem_payout_quote"
+    | "custody_recovered_quote"
   >,
 ): boolean {
-  if (position.status === "open") return true;
-  if (coerceQuoteAtoms(position.borrow_quote) > 0) return true;
-  if (position.action_hints?.needs_custody_recovery) return true;
-  if (position.action_hints?.recommended_actions?.includes("recover_custody")) return true;
-  if (position.action_hints?.recommended_actions?.includes("withdraw_trading")) return true;
-  if (
-    position.leverx_custody_complete &&
-    coerceQuoteAtoms(position.close_surplus_quote) > 0
-  ) {
-    return true;
-  }
-  return false;
+  return positionShowsManageFromIndexer(position);
 }

@@ -1,7 +1,9 @@
 import {
   assertTradeIntentExpiry,
   buildMintIntentMessage,
+  buildRecoverManagerIntentMessage,
   parseMintIntentMessage,
+  parseRecoverManagerIntentMessage,
 } from './trade-message';
 
 describe('trade-message', () => {
@@ -43,5 +45,25 @@ describe('trade-message', () => {
 
   it('rejects expired intents', () => {
     expect(() => assertTradeIntentExpiry(nowMs - 60_000, nowMs)).toThrow('message_expired');
+  });
+
+  it('round-trips recover manager intent with signed amount', () => {
+    const fields = {
+      address,
+      accountId: '0x' + 'c'.repeat(64),
+      predictManagerId: '0x' + 'd'.repeat(64),
+      oracleId: '0x' + 'e'.repeat(64),
+      expiryMs: nowMs + 86_400_000,
+      strike: 100_000,
+      higherStrike: 0,
+      isUp: true,
+      isRange: false,
+      expiresAtMs: nowMs + 60_000,
+      managerQuoteAtoms: 1_930_000_000n,
+    };
+    const parsed = parseRecoverManagerIntentMessage(
+      buildRecoverManagerIntentMessage(fields),
+    );
+    expect(parsed).toEqual(fields);
   });
 });

@@ -78,6 +78,8 @@ const FUNCTION_HINTS: Readonly<Record<string, string>> = {
   not_authorized: LEVERX_ABORT_MESSAGES[17]!,
   invalid_manager: LEVERX_ABORT_MESSAGES[9]!,
   not_keeper: LEVERX_ABORT_MESSAGES[53]!,
+  open_contracts_remain: LEVERX_ABORT_MESSAGES[56]!,
+  recovery_amount_exceeds_balance: LEVERX_ABORT_MESSAGES[57]!,
 };
 
 const PREDICT_MANAGER_INSUFFICIENT_CONTRACTS =
