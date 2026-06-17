@@ -489,9 +489,18 @@ export const marketsTableScroll = "min-h-0 flex-1 overflow-x-auto overscroll-x-c
 export const marketsTable =
   "w-full min-w-[40rem] border-separate border-spacing-0 text-sm lg:min-w-[52rem]";
 
-export const marketsTableMobileList = "space-y-3 lg:hidden";
+/** Connected mobile stack — one outer radius; rows share divider lines, no gaps. */
+export const dataTableMobileStack = cn(
+  tradeSurface,
+  "flex flex-col divide-y divide-border lg:hidden",
+);
 
-export const marketsTableMobileCard = cn(tradeSurface, "flex flex-col gap-3 p-4");
+export const marketsTableMobileStack = dataTableMobileStack;
+
+/** @deprecated Use dataTableMobileStack — kept for imports that wrap the stack container. */
+export const marketsTableMobileList = dataTableMobileStack;
+
+export const marketsTableMobileCard = "flex flex-col gap-3 bg-card p-4";
 
 export const marketsTableMobileCardHeader =
   "flex items-start justify-between gap-3 border-b border-border pb-3";
@@ -504,7 +513,7 @@ export const marketsTableMobileStatLabel =
 export const marketsTableMobileStatValue = "text-sm text-foreground";
 
 /** Shared mobile list cards (DataTable, markets, portfolio). */
-export const dataTableMobileList = marketsTableMobileList;
+export const dataTableMobileList = dataTableMobileStack;
 
 export const dataTableMobileCard = marketsTableMobileCard;
 
@@ -520,7 +529,8 @@ export const dataTableMobileCardFooter = "flex flex-col gap-2 border-t border-bo
 export const settingsList = "space-y-3 lg:space-y-0 lg:divide-y lg:divide-border/60";
 
 export const settingsListItem = cn(
-  dataTableMobileCard,
+  tradeSurface,
+  "flex flex-col gap-3 p-4",
   "lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:py-2 lg:shadow-none lg:first:pt-0 lg:last:pb-0",
 );
 

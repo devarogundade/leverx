@@ -25,7 +25,7 @@ import {
   marketsTableMobileCard,
   marketsTableMobileCardHeader,
   marketsTableMobileCardStats,
-  marketsTableMobileList,
+  marketsTableMobileStack,
   marketsTableScroll,
   marketsTableShell,
   marketsTd,
@@ -44,7 +44,7 @@ import {
   dataTableMobileCardFooter,
   dataTableMobileCardHeader,
   dataTableMobileCardStats,
-  dataTableMobileList,
+  dataTableMobileStack,
   dataTableMobileStatLabel,
   orderbookSideHeader,
   pageBlock,
@@ -365,7 +365,7 @@ export function DataTableSkeleton({
         </table>
       </div>
 
-      <div className={dataTableMobileList}>
+      <div className={dataTableMobileStack}>
         {Array.from({ length: Math.min(rows, 4) }, (_, i) => (
           <DataTableMobileRowSkeleton key={i} columns={columns} />
         ))}
@@ -453,7 +453,7 @@ function PositionTableMobileCardSkeleton() {
         <SkeletonBar className="h-5 w-14 shrink-0" />
       </div>
       <dl className={dataTableMobileCardStats}>
-        {Array.from({ length: 5 }, (_, i) => (
+        {Array.from({ length: 8 }, (_, i) => (
           <div key={i} className="flex min-w-0 items-baseline justify-between gap-3">
             <SkeletonBar className="h-3 w-10" />
             <SkeletonBar className="h-4 w-14" />
@@ -537,7 +537,7 @@ export function PositionsTableSkeleton({ rows = 5 }: { rows?: number; }) {
         </table>
       </div>
 
-      <div className={dataTableMobileList}>
+      <div className={dataTableMobileStack}>
         {Array.from({ length: Math.min(rows, 4) }, (_, i) => (
           <PositionTableMobileCardSkeleton key={i} />
         ))}
@@ -663,7 +663,7 @@ export function VaultPageSkeleton() {
 export function MarketTableSkeleton({ rows = 8 }: { rows?: number; }) {
   return (
     <div className={marketsTableShell}>
-      <div className={marketsTableMobileList}>
+      <div className={marketsTableMobileStack}>
         {Array.from({ length: Math.min(rows, 4) }, (_, i) => (
           <MarketTableMobileCardSkeleton key={i} />
         ))}

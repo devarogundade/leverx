@@ -32,7 +32,7 @@ import {
   marketsTableMobileCard,
   marketsTableMobileCardHeader,
   marketsTableMobileCardStats,
-  marketsTableMobileList,
+  marketsTableMobileStack,
   marketsTableMobileStatLabel,
   marketsTableMobileStatValue,
   marketsTableScroll,
@@ -229,7 +229,7 @@ export function PredictMarketsTable({
 
   return (
     <div className={marketsTableShell}>
-      <div className={marketsTableMobileList}>
+      <div className={marketsTableMobileStack}>
         {displayMarkets.map((display) => {
           const source = sourceById.get(display.id) ?? display;
           return (

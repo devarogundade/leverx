@@ -10,7 +10,7 @@ import {
   dataTableMobileCardFooter,
   dataTableMobileCardHeader,
   dataTableMobileCardStats,
-  dataTableMobileList,
+  dataTableMobileStack,
   dataTableMobileStatLabel,
   pageState,
 } from "@/lib/leverx/tw";
@@ -139,7 +139,7 @@ export function DataTable<T>({
         </table>
       </div>
 
-      <div className={dataTableMobileList}>
+      <div className={dataTableMobileStack}>
         {displayRows.map((row) => {
           const emphasis = columns.filter((c) => c.mobileEmphasis);
           const trailing = columns.filter((c) => c.mobileTrailing);

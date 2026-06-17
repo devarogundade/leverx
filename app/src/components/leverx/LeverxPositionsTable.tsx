@@ -454,7 +454,6 @@ export function LeverxPositionsTable({
         />
       ),
       align: "right",
-      hideOnMobile: true,
       mobileLabel: "Avg fill",
       cell: (r) => {
         const closed = r.position.status !== "open";
@@ -565,7 +564,7 @@ export function LeverxPositionsTable({
         <LabelWithInfo label="Health (est.)" labelClassName="text-inherit" info={leverxInfo.estimatedHealth} />
       ),
       align: "right",
-      mobileLabel: "Health",
+      mobileLabel: "Health (est.)",
       cell: (r) => (
         <HealthCell mtm={r.mtm} position={r.position} closed={r.position.status !== "open"} />
       ),
