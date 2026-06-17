@@ -39,6 +39,7 @@ const INDEXER_CATCH_UP_PREFIXES = [
   "indexer-accounts",
   "indexer-account",
   "indexer-triggers",
+  "indexer-executors",
   "trading-account-balance",
 ] as const;
 

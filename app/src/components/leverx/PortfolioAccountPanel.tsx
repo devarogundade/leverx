@@ -1,6 +1,7 @@
 import { Wallet } from "lucide-react";
 import { CopyField } from "@/components/leverx/CopyField";
 import { PortfolioTelegramPanel } from "@/components/leverx/PortfolioTelegramPanel";
+import { PortfolioTradingServicePanel } from "@/components/leverx/PortfolioTradingServicePanel";
 import { InfoPopover, LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { QuoteAmount } from "@/components/leverx/QuoteAmount";
 import { PortfolioFundsSection } from "@/components/leverx/PortfolioFundsSection";
@@ -123,6 +124,8 @@ export function PortfolioAccountPanel({
           </div>
         </div>
       </section>
+
+      <PortfolioTradingServicePanel accountId={accountId} />
 
       <PortfolioFundsSection
         accountId={accountId}

@@ -56,6 +56,8 @@ export const leverxInfo = {
   predictManager: "Your trading account that holds positions and balances.",
   sessionExecutor:
     "A trusted wallet or bot that can place trades for you without your main wallet key.",
+  tradingServiceExecutor:
+    "Authorizes the LeverX trading service to place trades on your account — used by Jarvis, Telegram trading, and limit-order automation. You approve or revoke this from your wallet anytime.",
   telegramAlerts:
     "Telegram notifications for limit fills, liquidation risk, and completed liquidations on this trading account.",
   telegramTrading:
