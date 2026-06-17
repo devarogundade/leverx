@@ -20,6 +20,7 @@ import {
   TradeQuickAmounts,
 } from "@/components/leverx/TradeFormControls";
 import { PortfolioDepositDialog } from "@/components/leverx/PortfolioDepositDialog";
+import { WalletConnectButton } from "@/components/WalletConnectButton";
 import { useWallet } from "@/context/WalletContext";
 import { useLeverxTransactions } from "@/hooks/useLeverxTransactions";
 import { resolveAccountId, resolvePredictManagerId } from "@/lib/leverx/account-resolution";
