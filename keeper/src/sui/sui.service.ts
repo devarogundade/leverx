@@ -15,6 +15,7 @@ import { logKeeperError, logKeeperWarn } from '../lib/keeper-log';
 import { EnokiSponsorService } from './enoki-sponsor.service';
 import { keeperAllowedMoveCallTargets } from './move-targets';
 import { PtbBuilderService } from './ptb-builder.service';
+import { SuiRpcFailover } from './sui-rpc-failover';
 
 export type ExecuteOptions = {
   /** Extra transfer recipients to allow when gas is sponsored via Enoki. */
@@ -24,7 +25,7 @@ export type ExecuteOptions = {
 @Injectable()
 export class SuiService implements OnModuleInit {
   private readonly logger = new Logger(SuiService.name);
-  private client!: SuiJsonRpcClient;
+  private rpc!: SuiRpcFailover;
   private keypair: Ed25519Keypair | null = null;
   private readonly cfg: KeeperConfig;
   private runtimeOverrides: Partial<KeeperConfig> = {};
@@ -48,7 +49,12 @@ export class SuiService implements OnModuleInit {
       | 'devnet'
       | 'localnet';
     const url = this.cfg.suiRpcUrl || getJsonRpcFullnodeUrl(network);
-    this.client = new SuiJsonRpcClient({ url, network });
+    this.rpc = new SuiRpcFailover({
+      network,
+      primaryUrl: url,
+      fallbackUrl: this.cfg.suiRpcFallbackUrl,
+      logger: this.logger,
+    });
 
     this.logger.log(`indexer: ${this.cfg.indexerUrl}`);
 
@@ -146,7 +152,19 @@ export class SuiService implements OnModuleInit {
   }
 
   getClient(): SuiJsonRpcClient {
-    return this.client;
+    return this.rpc.getActiveClient();
+  }
+
+  getRpcState() {
+    return this.rpc.getState();
+  }
+
+  async getChainIdentifier(): Promise<string> {
+    return this.invokeRpc((client) => client.getChainIdentifier());
+  }
+
+  private invokeRpc<T>(fn: (client: SuiJsonRpcClient) => Promise<T>): Promise<T> {
+    return this.rpc.invoke(fn);
   }
 
   getKeypair(): Ed25519Keypair | null {
@@ -169,10 +187,12 @@ export class SuiService implements OnModuleInit {
     digest: string,
     typeFragment: string,
   ): Promise<string | null> {
-    const tx = await this.client.waitForTransaction({
-      digest,
-      options: { showObjectChanges: true },
-    });
+    const tx = await this.invokeRpc((client) =>
+      client.waitForTransaction({
+        digest,
+        options: { showObjectChanges: true },
+      }),
+    );
     for (const change of tx.objectChanges ?? []) {
       if (
         change.type === 'created' &&
@@ -256,10 +276,12 @@ export class SuiService implements OnModuleInit {
   ): Promise<string | null> {
     const address = this.devInspectSender(sender);
 
-    const result = await this.client.devInspectTransactionBlock({
-      transactionBlock: tx,
-      sender: address,
-    });
+    const result = await this.invokeRpc((client) =>
+      client.devInspectTransactionBlock({
+        transactionBlock: tx,
+        sender: address,
+      }),
+    );
     if (result.effects?.status?.status !== 'success') {
       return null;
     }
@@ -284,10 +306,12 @@ export class SuiService implements OnModuleInit {
   ): Promise<{ ok: true; value: boolean } | { ok: false; error: string }> {
     const address = this.devInspectSender(sender);
 
-    const result = await this.client.devInspectTransactionBlock({
-      transactionBlock: tx,
-      sender: address,
-    });
+    const result = await this.invokeRpc((client) =>
+      client.devInspectTransactionBlock({
+        transactionBlock: tx,
+        sender: address,
+      }),
+    );
     const status = result.effects?.status?.status;
     if (status !== 'success') {
       const err =
@@ -322,10 +346,12 @@ export class SuiService implements OnModuleInit {
   ): Promise<bigint | null> {
     const address = this.devInspectSender(sender);
 
-    const result = await this.client.devInspectTransactionBlock({
-      transactionBlock: tx,
-      sender: address,
-    });
+    const result = await this.invokeRpc((client) =>
+      client.devInspectTransactionBlock({
+        transactionBlock: tx,
+        sender: address,
+      }),
+    );
     if (result.effects?.status?.status !== 'success') {
       return null;
     }
@@ -346,10 +372,12 @@ export class SuiService implements OnModuleInit {
   ): Promise<[bigint, bigint] | null> {
     const address = this.devInspectSender(sender);
 
-    const result = await this.client.devInspectTransactionBlock({
-      transactionBlock: tx,
-      sender: address,
-    });
+    const result = await this.invokeRpc((client) =>
+      client.devInspectTransactionBlock({
+        transactionBlock: tx,
+        sender: address,
+      }),
+    );
     if (result.effects?.status?.status !== 'success') {
       return null;
     }
@@ -378,10 +406,12 @@ export class SuiService implements OnModuleInit {
   ): Promise<[bigint, bigint, bigint, bigint] | null> {
     const address = this.devInspectSender(sender);
 
-    const result = await this.client.devInspectTransactionBlock({
-      transactionBlock: tx,
-      sender: address,
-    });
+    const result = await this.invokeRpc((client) =>
+      client.devInspectTransactionBlock({
+        transactionBlock: tx,
+        sender: address,
+      }),
+    );
     if (result.effects?.status?.status !== 'success') {
       return null;
     }
@@ -411,10 +441,12 @@ export class SuiService implements OnModuleInit {
   ): Promise<{ ok: true } | { ok: false; error: string }> {
     const address = this.devInspectSender(sender);
 
-    const result = await this.client.devInspectTransactionBlock({
-      transactionBlock: tx,
-      sender: address,
-    });
+    const result = await this.invokeRpc((client) =>
+      client.devInspectTransactionBlock({
+        transactionBlock: tx,
+        sender: address,
+      }),
+    );
     const status = result.effects?.status?.status;
     if (status !== 'success') {
       const err =
@@ -438,30 +470,32 @@ export class SuiService implements OnModuleInit {
     const sender = this.keypair.getPublicKey().toSuiAddress();
     tx.setSender(sender);
 
-    // Enoki sponsors gas while the keeper still signs (sender stays the keeper,
-    // so every on-chain owner/keeper/executor auth gate is preserved).
-    if (this.enoki.isEnabled()) {
-      return this.enoki.sponsorAndExecute({
-        tx,
-        sender,
-        signer: this.keypair,
-        client: this.client,
-        allowedMoveCallTargets: keeperAllowedMoveCallTargets(this.getConfig()),
-        allowedAddresses: options?.allowedAddresses,
+    return this.invokeRpc(async (client) => {
+      // Enoki sponsors gas while the keeper still signs (sender stays the keeper,
+      // so every on-chain owner/keeper/executor auth gate is preserved).
+      if (this.enoki.isEnabled()) {
+        return this.enoki.sponsorAndExecute({
+          tx,
+          sender,
+          signer: this.keypair!,
+          client,
+          allowedMoveCallTargets: keeperAllowedMoveCallTargets(this.getConfig()),
+          allowedAddresses: options?.allowedAddresses,
+        });
+      }
+
+      const bytes = await tx.build({ client });
+      const result = await client.signAndExecuteTransaction({
+        transaction: bytes,
+        signer: this.keypair!,
+        options: { showEffects: true },
       });
-    }
 
-    const bytes = await tx.build({ client: this.client });
-    const result = await this.client.signAndExecuteTransaction({
-      transaction: bytes,
-      signer: this.keypair,
-      options: { showEffects: true },
+      const status = result.effects?.status?.status;
+      if (status !== 'success') {
+        throw new Error(result.effects?.status?.error ?? 'transaction failed');
+      }
+      return result.digest;
     });
-
-    const status = result.effects?.status?.status;
-    if (status !== 'success') {
-      throw new Error(result.effects?.status?.error ?? 'transaction failed');
-    }
-    return result.digest;
   }
 }

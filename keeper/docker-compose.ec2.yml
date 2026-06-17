@@ -46,7 +46,7 @@ services:
       DATABASE_SYNCHRONIZE: "true"
       DATABASE_LOGGING: "false"
       INDEXER_URL: http://host.docker.internal:3100
-      SUI_RPC_URL: https://fullnode.testnet.sui.io:443
+      # SUI_RPC_URL comes from .env (BlockVision or other provider)
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

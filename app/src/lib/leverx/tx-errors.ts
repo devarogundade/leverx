@@ -56,8 +56,7 @@ const NOT_KEEPER_MESSAGE =
 const MANAGER_OWNER_MESSAGE =
   "The trade could not be completed on your account. Refresh your portfolio and try again in a moment.";
 
-const RELAY_FAILED_MESSAGE =
-  "Your trade could not be completed. Please try again in a moment.";
+const RELAY_FAILED_MESSAGE = "Your trade could not be completed. Please try again in a moment.";
 
 /** A relayed trade op (mint/redeem/settle) bounced back from the keeper API. */
 function isRelayFailure(raw: string): boolean {
@@ -84,10 +83,7 @@ export function formatTxError(error: unknown): string {
   if (isGasBudgetExceededError(raw)) {
     return GAS_BUDGET_EXCEEDED_MESSAGE;
   }
-  if (
-    raw.includes("trading_paused") ||
-    (raw.includes("trade") && raw.includes(", 2)"))
-  ) {
+  if (raw.includes("trading_paused") || (raw.includes("trade") && raw.includes(", 2)"))) {
     return TRADING_PAUSED_MESSAGE;
   }
   if (
@@ -114,7 +110,10 @@ export function formatTxError(error: unknown): string {
   ) {
     return PLACEMENT_PRICE_NOT_ALIGNED_MESSAGE;
   }
-  if (raw.includes("slippage_too_high") || (raw.includes("predict_client") && raw.includes(", 32)"))) {
+  if (
+    raw.includes("slippage_too_high") ||
+    (raw.includes("predict_client") && raw.includes(", 32)"))
+  ) {
     return SLIPPAGE_TOO_HIGH_MESSAGE;
   }
   if (
@@ -188,13 +187,13 @@ export function formatTxError(error: unknown): string {
   if (raw.includes("FunctionNotFound")) {
     return "This app build is out of sync with the on-chain LeverX package. Refresh the page; if it persists, open Portfolio → Account to set up a new trading account.";
   }
-  if (raw.includes("LeverxDeployMismatchError") || raw.includes("incompatible with the linked DeepBook Predict")) {
+  if (
+    raw.includes("LeverxDeployMismatchError") ||
+    raw.includes("incompatible with the linked DeepBook Predict")
+  ) {
     return raw.replace(/^LeverxDeployMismatchError:\s*/i, "");
   }
-  if (
-    raw.includes("CommandArgumentError") &&
-    raw.includes("TypeMismatch")
-  ) {
+  if (raw.includes("CommandArgumentError") && raw.includes("TypeMismatch")) {
     return (
       "On-chain LeverX package types do not match the linked DeepBook Predict objects. " +
       "The testnet package must be republished with the published deepbook_predict dependency " +
@@ -204,13 +203,10 @@ export function formatTxError(error: unknown): string {
   if (raw.includes("InsufficientCoinBalanceError")) {
     return "Insufficient dUSDC in your wallet for this transaction.";
   }
-  if (
-    raw.includes("Insufficient") &&
-    raw.includes("balance") &&
-    !raw.includes("sui::SUI")
-  ) {
+  if (raw.includes("Insufficient") && raw.includes("balance") && !raw.includes("sui::SUI")) {
     return "Insufficient dUSDC in your wallet for this transaction.";
   }
+  console.log("raw error", raw); // dont delete this
   if (isRelayFailure(raw)) {
     return RELAY_FAILED_MESSAGE;
   }

@@ -56,15 +56,14 @@ ENV_FILE="/opt/leverx/keeper/.env"
     value="$(pick_env "${key}")"
     [[ -n "${value}" ]] && echo "${key}=${value}"
   done
-  echo "SUI_RPC_URL=https://fullnode.testnet.sui.io:443"
-  echo "PREDICT_SERVER_URL=https://predict-server.testnet.mystenlabs.com"
-  grep -E '^(LEVERX_PACKAGE_ID|LEVERX_REGISTRY_ID|LEVERX_VAULT_ID|LEVERX_FEE_COLLECTOR_ID|PREDICT_PACKAGE_ID|PREDICT_ID|QUOTE_TYPE)=' \
-    "${DEPLOY_ENV}"
-  for key in JARVIS_ENABLED ANTHROPIC_API_KEY JARVIS_ANTHROPIC_MODEL JARVIS_INTERVAL_MS \
+  for key in SUI_RPC_URL SUI_RPC_FALLBACK_URL JARVIS_ENABLED ANTHROPIC_API_KEY JARVIS_ANTHROPIC_MODEL JARVIS_INTERVAL_MS \
     JARVIS_MARKETS_LIMIT JARVIS_MARKET_SLIPPAGE_BPS DEEPBOOK_INDEXER_URL; do
     value="$(pick_env "${key}")"
     [[ -n "${value}" ]] && echo "${key}=${value}"
   done
+  echo "PREDICT_SERVER_URL=https://predict-server.testnet.mystenlabs.com"
+  grep -E '^(LEVERX_PACKAGE_ID|LEVERX_REGISTRY_ID|LEVERX_VAULT_ID|LEVERX_FEE_COLLECTOR_ID|PREDICT_PACKAGE_ID|PREDICT_ID|QUOTE_TYPE)=' \
+    "${DEPLOY_ENV}"
 } > "${ENV_FILE}"
 chmod 600 "${ENV_FILE}"
 rm -f /tmp/keeper-env.local

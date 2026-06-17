@@ -94,7 +94,7 @@ export class HealthService {
     let chain: string | null = null;
     let rpcOk = false;
     try {
-      chain = await this.sui.getClient().getChainIdentifier();
+      chain = await this.sui.getChainIdentifier();
       rpcOk = true;
     } catch (err) {
       logKeeperError(this.logger, 'RPC chain identifier check failed', err);
