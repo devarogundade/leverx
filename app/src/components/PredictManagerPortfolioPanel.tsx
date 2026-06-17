@@ -26,13 +26,11 @@ export function PredictManagerPortfolioPanel({
   const {
     activePositions,
     stalePositions,
-    isVerifying,
     indexerOpenCount,
   } = useVerifiedOpenPositions(positions);
   const { byPositionId, isRefreshing } = usePositionsMarkToMarket(activePositions);
-  const loading = Boolean(isLoading || isVerifying);
 
-  if (loading && indexerOpenCount === 0) {
+  if (isLoading && indexerOpenCount === 0) {
     return <SurfaceSkeleton className={className} />;
   }
 

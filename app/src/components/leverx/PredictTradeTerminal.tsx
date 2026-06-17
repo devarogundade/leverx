@@ -661,7 +661,6 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   const {
     activePositions: openOraclePositions,
     stalePositions: staleOraclePositions,
-    isVerifying: positionsVerifying,
   } = useVerifiedOpenPositions(openPositions);
 
   const displayPositions = useMemo(
@@ -670,9 +669,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   );
 
   const positionsLoading =
-    positionsFilter === "open"
-      ? openPositionsLoading || positionsVerifying
-      : closedPositionsLoading;
+    positionsFilter === "open" ? openPositionsLoading : closedPositionsLoading;
 
   const handleTradeSuccess = useCallback(
     ({ orderType }: { orderType: "market" | "limit" }) => {

@@ -63,6 +63,8 @@ export function useOnChainPositionQuantities(
         enabled: Boolean(cfg?.packageId && cfg?.predictPackageId && position.predict_manager_id),
         staleTime: DEV_INSPECT_QUOTE_STALE_MS,
         refetchInterval: DEV_INSPECT_QUOTE_REFETCH_MS,
+        refetchIntervalInBackground: false,
+        placeholderData: (previous) => previous,
         retry: 1,
       };
     }),
@@ -76,15 +78,16 @@ export function useOnChainPositionQuantities(
     const map = new Map<string, OnChainPositionQuantityRead>();
     verifiable.forEach((position, index) => {
       const query = queries[index];
+      const isInitialLoad = Boolean(query?.isPending);
       map.set(positionRowId(position), {
-        quantity: query?.isLoading ? null : (query?.data ?? null),
-        isLoading: query?.isLoading ?? false,
+        quantity: isInitialLoad ? null : (query?.data ?? null),
+        isLoading: isInitialLoad,
       });
     });
     return map;
   }, [verifiable, querySignature]);
 
-  const isVerifying = queries.some((query) => query.isLoading || query.isFetching);
+  const isVerifying = queries.some((query) => query.isPending);
 
   return { byPositionId, isVerifying };
 }

@@ -62,7 +62,6 @@ function PortfolioPage() {
   const {
     activePositions,
     stalePositions,
-    isVerifying,
     indexerOpenCount,
   } = useVerifiedOpenPositions(openPositions);
 
@@ -116,7 +115,7 @@ function PortfolioPage() {
             limitOrders={limitOrders}
             account={account ?? null}
             owner={address!}
-            loading={isLoading || isVerifying}
+            loading={isLoading}
             markToMarket={byPositionId}
             isRefreshing={isRefreshing}
           />

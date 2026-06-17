@@ -61,6 +61,8 @@ export function usePositionsMarkToMarket(positions: readonly LeveragedPosition[]
       enabled: Boolean(cfg?.registryId && coerceQuoteAtoms(position.open_quantity) > 0),
       staleTime: DEV_INSPECT_QUOTE_STALE_MS,
       refetchInterval: DEV_INSPECT_QUOTE_REFETCH_MS,
+      refetchIntervalInBackground: false,
+      placeholderData: (previous) => previous,
       retry: 1,
     })),
   });
@@ -74,7 +76,7 @@ export function usePositionsMarkToMarket(positions: readonly LeveragedPosition[]
       openPositions.map((position, index) => ({
         positionKey: position.position_key,
         data: quoteQueries[index]?.data ?? null,
-        isLoading: quoteQueries[index]?.isLoading ?? false,
+        isLoading: quoteQueries[index]?.isPending ?? false,
       })),
     [openPositions, quoteSignature],
   );
@@ -96,7 +98,7 @@ export function usePositionsMarkToMarket(positions: readonly LeveragedPosition[]
     return map;
   }, [openPositions, quoteSnapshot, liquidationBps]);
 
-  const isRefreshing = quoteQueries.some((q) => q.isFetching);
+  const isRefreshing = quoteQueries.some((q) => q.isFetching && q.isPending);
 
   return { byPositionId, isRefreshing };
 }
