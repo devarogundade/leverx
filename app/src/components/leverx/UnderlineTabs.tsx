@@ -27,7 +27,8 @@ export function UnderlineTabs({
   variant = "default",
 }: Props) {
   const isPlain = variant === "plain";
-  const isStretch = listClassName === "stretch";
+  const isEqualStretch = listClassName === "stretch-equal";
+  const isStretch = listClassName === "stretch" || isEqualStretch;
 
   return (
     <Tabs value={value} onValueChange={onValueChange} className={cn("w-full", className)}>
@@ -35,7 +36,9 @@ export function UnderlineTabs({
         className={cn(
           isPlain
             ? segTabsClass("plain", "scroll")
-            : segTabsClass(isStretch ? "stretch" : "scroll"),
+            : isEqualStretch
+              ? segTabsClass("stretch-equal")
+              : segTabsClass(isStretch ? "stretch" : "scroll"),
           "h-auto w-full justify-start rounded-none shadow-none",
           !isPlain && !isStretch && "bg-transparent",
         )}
@@ -48,6 +51,7 @@ export function UnderlineTabs({
               isPlain ? segTabPlain : segTab,
               "h-auto min-h-0 rounded-none border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0",
               "data-[state=active]:shadow-none",
+              isEqualStretch && "font-medium data-[state=active]:font-medium",
             )}
           >
             {opt.label}

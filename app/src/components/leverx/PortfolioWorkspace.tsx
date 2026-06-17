@@ -101,7 +101,7 @@ export function PortfolioWorkspace({
         value={tab}
         onValueChange={(v) => setTab(v as PortfolioTab)}
         options={tabOptions}
-        listClassName="stretch"
+        listClassName="stretch-equal"
       />
 
       <div>

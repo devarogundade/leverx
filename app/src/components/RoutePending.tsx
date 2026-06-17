@@ -1,5 +1,6 @@
 import { useRouterState } from "@tanstack/react-router";
 import { LayoutGrid, List, Search } from "lucide-react";
+import { AppSiteShell } from "@/components/AppSiteShell";
 import { SiteShell } from "@/components/SiteShell";
 import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -155,9 +156,9 @@ export const RoutePending = RoutePendingContent;
 /** Layout route pending — keeps header/nav/footer while loaders run. */
 export function AppShellRoutePending() {
   return (
-    <SiteShell>
+    <AppSiteShell>
       <RoutePendingContent />
-    </SiteShell>
+    </AppSiteShell>
   );
 }
 

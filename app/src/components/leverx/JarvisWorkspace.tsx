@@ -565,8 +565,8 @@ export function JarvisWorkspace({ owner, accountId, className }: Props) {
         </div>
       </div>
 
-      <section className={cn(tradeSurface, "flex min-h-[280px] flex-1 flex-col overflow-hidden sm:min-h-[320px]")}>
-        <header className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
+      <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <header className="flex shrink-0 items-center justify-between pb-2">
           <h2 className={labelCaps}>Recent activity</h2>
           {(status?.unread_count ?? 0) > 0 ? (
             <Badge variant="secondary">{status!.unread_count} unread</Badge>
@@ -576,7 +576,7 @@ export function JarvisWorkspace({ owner, accountId, className }: Props) {
         <div
           ref={feedRef}
           onScroll={handleFeedScroll}
-          className="jarvis-activity-feed flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-4 touch-pan-y"
+          className="jarvis-activity-feed flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain touch-pan-y"
         >
           {isFetchingNextPage ? (
             <div className="flex justify-center py-1">

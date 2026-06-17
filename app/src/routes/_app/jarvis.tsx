@@ -47,7 +47,7 @@ function JarvisPage() {
   );
 
   return (
-    <section className={cn(pageSimple, "mx-auto max-w-[var(--page-max)]")}>
+    <section className={cn("jarvis-page", pageSimple, "mx-auto max-w-[var(--page-max)]")}>
       <div className="shrink-0">
         <h1 className={pageSimpleTitle}>Jarvis</h1>
         <p className="mt-1 text-sm text-muted-foreground">

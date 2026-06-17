@@ -49,6 +49,12 @@ export const segTabsStretch = cn(
   "sm:[&>*]:min-w-0 sm:[&>*]:flex-1",
 );
 
+/** Equal-width tabs at every breakpoint (portfolio, outcomes). */
+export const segTabsEqualStretch = cn(
+  "flex w-full max-w-none",
+  "[&>*]:min-w-0 [&>*]:flex-1 [&>*]:justify-center",
+);
+
 /** UP/DOWN (and RANGE) outcome row — equal-width tabs at every breakpoint */
 export const segTabsOutcomesStretch = cn("flex w-full max-w-none", "[&>*]:min-w-0 [&>*]:flex-1");
 
@@ -98,14 +104,16 @@ export const sideToggleShortActive = "bg-[var(--short-bg)] font-semibold text-[v
 export const predictSideChevron = "size-3 shrink-0 fill-current stroke-current stroke-[2.5]";
 
 export function segTabsClass(
-  ...variants: ("stretch" | "scroll" | "icon" | "plain" | "outcomes")[]
+  ...variants: ("stretch" | "stretch-equal" | "scroll" | "icon" | "plain" | "outcomes")[]
 ) {
   const outcomes = variants.includes("outcomes");
-  const stretch = variants.includes("stretch");
+  const equalStretch = variants.includes("stretch-equal");
+  const stretch = variants.includes("stretch") || equalStretch;
   return cn(
     variants.includes("plain") ? segTabsPlain : segTabs,
-    stretch && (outcomes ? segTabsOutcomesStretch : segTabsStretch),
-    variants.includes("scroll") && segTabsScroll,
+    stretch &&
+      (outcomes ? segTabsOutcomesStretch : equalStretch ? segTabsEqualStretch : segTabsStretch),
+    variants.includes("scroll") && !equalStretch && segTabsScroll,
     variants.includes("icon") && segTabsIcon,
     outcomes && !stretch && "max-w-none w-full",
   );
@@ -369,10 +377,10 @@ export const tradeTerminalPositionsBody = cn(
   "trade-terminal-positions-body min-h-[var(--trade-positions-body-min-h)] text-sm text-muted-foreground",
 );
 
-/** Mobile predictions workspace switcher (Trade vs Chart) — portaled to body */
+/** Mobile predictions workspace switcher (Trade vs Chart) — portaled to body; z-40 stays below modals (z-50+). */
 export const tradeMobileDock = cn(
-  "fixed inset-x-0 bottom-[10px] z-[60] flex justify-center md:hidden",
-  "pb-[max(0.5rem,env(safe-area-inset-bottom))]",
+  "trade-mobile-dock fixed inset-x-0 z-40 flex justify-center md:hidden",
+  "bottom-[calc(50px+0.625rem+env(safe-area-inset-bottom,0px))]",
   "pointer-events-none",
 );
 
@@ -389,7 +397,8 @@ export const tradeMobileDockTab = cn(
 
 export const tradeMobileDockTabActive = "bg-hover font-semibold text-foreground";
 
-export const tradeTerminalMobileBody = "max-md:pb-[calc(50px+env(safe-area-inset-bottom,0px))]";
+export const tradeTerminalMobileBody =
+  "max-md:pb-[calc(50px+3.25rem+env(safe-area-inset-bottom,0px))]";
 
 export const tradeTerminalMobileChartPanel = "trade-terminal-mobile-chart flex flex-col";
 

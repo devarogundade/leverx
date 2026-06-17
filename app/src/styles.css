@@ -4111,7 +4111,14 @@ select {
 
 @media (max-width: 767px) {
   body:has(.trade-terminal) [data-sonner-toaster][data-y-position="bottom"] {
-    bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px)) !important;
+    bottom: calc(6.75rem + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  body:has([data-state="open"][role="dialog"]) .trade-mobile-dock,
+  body:has([data-state="open"][role="alertdialog"]) .trade-mobile-dock {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
   }
 }
 
@@ -6371,6 +6378,35 @@ button:disabled {
     padding-inline: 1.125rem;
     font-size: 0.875rem;
   }
+}
+
+/* ── Jarvis page — fill viewport; feed scrolls inside ───────────── */
+.site-shell:has(.jarvis-page) {
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+.site-shell:has(.jarvis-page) .site-footer {
+  display: none;
+}
+
+.site-shell:has(.jarvis-page) .site-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.site-shell:has(.jarvis-page) .page-shell-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.jarvis-page {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* ── Jarvis activity feed ───────────────────────────────────────── */

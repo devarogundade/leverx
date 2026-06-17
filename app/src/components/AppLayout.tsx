@@ -1,14 +1,10 @@
 import { Outlet } from "@tanstack/react-router";
-import { MobileBottomNav } from "@/components/MobileBottomNav";
-import { SiteShell } from "@/components/SiteShell";
+import { AppSiteShell } from "@/components/AppSiteShell";
 
 export function AppLayout() {
   return (
-    <SiteShell
-      fixedChrome={<MobileBottomNav />}
-      mainClassName="pb-[calc(50px+env(safe-area-inset-bottom,0px))] md:pb-[var(--page-py)]"
-    >
+    <AppSiteShell>
       <Outlet />
-    </SiteShell>
+    </AppSiteShell>
   );
 }

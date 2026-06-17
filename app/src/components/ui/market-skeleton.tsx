@@ -410,7 +410,7 @@ export function PortfolioSummaryBarSkeleton({ className }: { className?: string;
           <SkeletonBar className="h-4 w-56" />
         </div>
       </div>
-      <div className="grid divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
+      <div className="grid grid-cols-2 divide-x divide-y divide-border lg:grid-cols-4 lg:divide-y-0">
         {Array.from({ length: 4 }, (_, i) => (
           <div key={i} className="min-w-0 px-4 py-3.5">
             <SkeletonBar className="h-3 w-20" />
