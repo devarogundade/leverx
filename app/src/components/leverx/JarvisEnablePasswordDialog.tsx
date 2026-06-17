@@ -49,12 +49,12 @@ export function JarvisEnablePasswordDialog({
         <p className="text-sm leading-relaxed text-muted-foreground">
           Jarvis costs real API tokens. DM admin on Telegram{" "}
           <a
-            href="https://t.me/devarogundade"
+            href="https://t.me/arogundadeibrahim"
             target="_blank"
             rel="noopener noreferrer"
             className="font-medium text-accent underline-offset-2 hover:underline"
           >
-            @devarogundade
+            @arogundadeibrahim
           </a>{" "}
           for the password for testing purposes.
         </p>
