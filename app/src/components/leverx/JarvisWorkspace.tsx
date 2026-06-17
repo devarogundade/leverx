@@ -126,7 +126,7 @@ function headerSubtitle(args: {
   return "Offline";
 }
 
-function ChatSystemLine({ children }: { children: ReactNode }) {
+function ChatSystemLine({ children }: { children: ReactNode; }) {
   return (
     <div className="flex justify-center py-1.5">
       <span className="rounded-md bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground shadow-sm">
@@ -136,7 +136,7 @@ function ChatSystemLine({ children }: { children: ReactNode }) {
   );
 }
 
-function MessageBubble({ event }: { event: JarvisEventRecord }) {
+function MessageBubble({ event }: { event: JarvisEventRecord; }) {
   const meta = parseEventMetadata(event.metadata);
   const isDryRun =
     meta.dry_run ||
@@ -218,58 +218,60 @@ function ChatHeader({
   const subtitle = headerSubtitle({ configured, enabled, connectionState, nextRunAtMs });
 
   return (
-    <header className="jarvis-chat-header flex h-[50px] min-h-[50px] max-h-[50px] shrink-0 items-center gap-2.5 px-2.5 sm:px-3">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/15">
-        <Sparkles className="h-4 w-4 text-accent" aria-hidden />
-      </span>
+    <header className="jarvis-chat-header flex h-[50px] min-h-[50px] max-h-[50px] shrink-0 items-center">
+      <div className="mx-auto flex w-full max-w-[500px] items-center gap-2.5 px-2.5 sm:px-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/15">
+          <Sparkles className="h-4 w-4 text-accent" aria-hidden />
+        </span>
 
-      <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <p className="truncate text-sm font-semibold leading-none text-foreground">Jarvis</p>
-          <InfoPopover title="AI trading assistant" iconClassName="h-3.5 w-3.5">
-            {leverxInfo.jarvis}
-          </InfoPopover>
-          {enabled && connectionState === "connected" ? (
-            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden />
-          ) : null}
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <p className="truncate text-sm font-semibold leading-none text-foreground">Jarvis</p>
+            <InfoPopover title="AI trading assistant" iconClassName="h-3.5 w-3.5">
+              {leverxInfo.jarvis}
+            </InfoPopover>
+            {enabled && connectionState === "connected" ? (
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden />
+            ) : null}
+          </div>
+          <p className="mt-0.5 truncate text-[11px] leading-none text-muted-foreground">{subtitle}</p>
         </div>
-        <p className="mt-0.5 truncate text-[11px] leading-none text-muted-foreground">{subtitle}</p>
-      </div>
 
-      <div className="flex shrink-0 items-center gap-0.5">
-        {unreadCount > 0 ? (
-          <Badge variant="secondary" className="mr-0.5 hidden h-5 px-1.5 text-[10px] sm:inline-flex">
-            {unreadCount}
-          </Badge>
-        ) : null}
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 shrink-0"
-          disabled={!configured}
-          aria-label="Trading limits"
-          onClick={onSettings}
-        >
-          <Settings className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 shrink-0"
-          disabled={!configured || toggleBusy}
-          aria-label={enabled ? "Turn Jarvis off" : "Turn Jarvis on"}
-          onClick={onToggle}
-        >
-          {toggleBusy ? (
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-          ) : enabled ? (
-            <PowerOff className="h-4 w-4" />
-          ) : (
-            <Power className="h-4 w-4" />
-          )}
-        </Button>
+        <div className="flex shrink-0 items-center gap-0.5">
+          {unreadCount > 0 ? (
+            <Badge variant="secondary" className="mr-0.5 hidden h-5 px-1.5 text-[10px] sm:inline-flex">
+              {unreadCount}
+            </Badge>
+          ) : null}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            disabled={!configured}
+            aria-label="Trading limits"
+            onClick={onSettings}
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            disabled={!configured || toggleBusy}
+            aria-label={enabled ? "Turn Jarvis off" : "Turn Jarvis on"}
+            onClick={onToggle}
+          >
+            {toggleBusy ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            ) : enabled ? (
+              <PowerOff className="h-4 w-4" />
+            ) : (
+              <Power className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
       </div>
     </header>
   );
@@ -279,7 +281,7 @@ export function JarvisWorkspace({ owner, accountId, className }: Props) {
   const feedRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
   const initialScrollRef = useRef(true);
-  const pendingPrependRef = useRef<{ scrollHeight: number; scrollTop: number } | null>(null);
+  const pendingPrependRef = useRef<{ scrollHeight: number; scrollTop: number; } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showScrollFab, setShowScrollFab] = useState(false);
   const welcomeSeen =
@@ -407,44 +409,50 @@ export function JarvisWorkspace({ owner, accountId, className }: Props) {
         <div
           ref={feedRef}
           onScroll={handleFeedScroll}
-          className="jarvis-activity-feed flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-contain px-2.5 py-2 touch-pan-y sm:px-3"
+          className="jarvis-activity-feed flex min-h-0 w-full flex-1 flex-col overflow-y-auto overscroll-contain py-2 touch-pan-y"
         >
-          {isFetchingNextPage ? (
-            <div className="flex justify-center py-1">
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" aria-hidden />
-              <span className="sr-only">Loading earlier messages</span>
-            </div>
-          ) : hasNextPage && displayEvents.length > 0 ? (
-            <ChatSystemLine>Scroll up for earlier messages</ChatSystemLine>
-          ) : displayEvents.length > 0 ? (
-            <ChatSystemLine>Start of conversation</ChatSystemLine>
-          ) : null}
+          <div className="mx-auto flex w-full max-w-[500px] flex-col gap-1 px-2.5 sm:px-3">
+            {isFetchingNextPage ? (
+              <div className="flex justify-center py-1">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" aria-hidden />
+                <span className="sr-only">Loading earlier messages</span>
+              </div>
+            ) : hasNextPage && displayEvents.length > 0 ? (
+              <ChatSystemLine>Scroll up for earlier messages</ChatSystemLine>
+            ) : displayEvents.length > 0 ? (
+              <ChatSystemLine>Start of conversation</ChatSystemLine>
+            ) : null}
 
-          {showWelcome ? <WelcomeMessage /> : null}
+            {showWelcome ? <WelcomeMessage /> : null}
 
-          {statusLoading || eventsLoading ? (
-            <LoadingState compact message="Loading messages…" />
-          ) : displayEvents.length === 0 ? (
-            <EmptyFeed enabled={status?.enabled ?? false} configured={configured} />
-          ) : (
-            displayEvents.map((event) => <MessageBubble key={event.id} event={event} />)
-          )}
+            {statusLoading || eventsLoading ? (
+              <LoadingState compact label="Loading messages…" />
+            ) : displayEvents.length === 0 ? (
+              <EmptyFeed enabled={status?.enabled ?? false} configured={configured} />
+            ) : (
+              displayEvents.map((event) => <MessageBubble key={event.id} event={event} />)
+            )}
+          </div>
         </div>
 
         {showScrollFab ? (
-          <button
-            type="button"
-            className="absolute bottom-3 right-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-md transition-transform hover:scale-105 active:scale-95 max-md:bottom-[calc(50px+0.75rem+env(safe-area-inset-bottom,0px))]"
-            aria-label="Jump to latest messages"
-            onClick={() => scrollToBottom(true)}
-          >
-            <ChevronDown className="h-5 w-5" aria-hidden />
-            {unreadCount > 0 ? (
-              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-bold text-accent-foreground">
-                {unreadCount > 9 ? "9+" : unreadCount}
-              </span>
-            ) : null}
-          </button>
+          <div className="pointer-events-none absolute inset-x-0 bottom-15 z-10 px-2.5 sm:px-3 max-md:bottom-[calc(50px+0.75rem+env(safe-area-inset-bottom,0))]">
+            <div className="relative mx-auto w-full max-w-[500px]">
+              <button
+                type="button"
+                className="pointer-events-auto absolute right-0 inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-md transition-transform hover:scale-105 active:scale-95"
+                aria-label="Jump to latest messages"
+                onClick={() => scrollToBottom(true)}
+              >
+                <ChevronDown className="h-5 w-5" aria-hidden />
+                {unreadCount > 0 ? (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-bold text-accent-foreground">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                ) : null}
+              </button>
+            </div>
+          </div>
         ) : null}
       </div>
     </div>
@@ -462,7 +470,7 @@ function WelcomeMessage() {
   );
 }
 
-function EmptyFeed({ enabled, configured }: { enabled: boolean; configured: boolean }) {
+function EmptyFeed({ enabled, configured }: { enabled: boolean; configured: boolean; }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4 py-10 text-center">
       <span className="flex h-12 w-12 items-center justify-center rounded-full bg-card shadow-sm">
