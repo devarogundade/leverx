@@ -8,7 +8,11 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Transaction } from '@mysten/sui/transactions';
 import type { JarvisConfig } from '../config/jarvis.config';
-import { isLeveragedMintAllowed } from '../config/trade-math';
+import {
+  isLeveragedMintAllowed,
+  minPayoutAfterSlippage,
+  redeemPayoutFromBid,
+} from '../config/trade-math';
 import type { PositionKeyArgs } from '../keeper/keeper.types';
 import { IndexerService } from '../indexer/indexer.service';
 import type { LeveragedPosition } from '../indexer/indexer.types';
@@ -230,13 +234,13 @@ export class JarvisTradeService {
       isRange: position.is_range,
     };
 
-    const bid = await this.quotes.fetchMarketBidPerUnit(key);
+    const bid = await this.quotes.fetchMarketBidPerUnit(key, quantity);
     if (!bid || bid <= 0n) {
       throw new BadRequestException('market_unavailable');
     }
 
-    const expectedPayout = (bid * quantity) / 1_000_000_000n;
-    const minPayout = applySlippageBps(expectedPayout, this.cfg.marketSlippageBps);
+    const expectedPayout = redeemPayoutFromBid(bid, quantity);
+    const minPayout = minPayoutAfterSlippage(expectedPayout, this.cfg.redeemSlippageBps);
 
     const cfg = this.sui.getConfig();
     const tx = this.ptb.buildLeveragedRedeem(cfg, {
@@ -275,13 +279,13 @@ export class JarvisTradeService {
       isRange: position.is_range,
     };
 
-    const bid = await this.quotes.fetchMarketBidPerUnit(key);
+    const bid = await this.quotes.fetchMarketBidPerUnit(key, quantity);
     if (!bid || bid <= 0n) {
       throw new BadRequestException('market_unavailable');
     }
 
-    const expectedPayout = (bid * quantity) / 1_000_000_000n;
-    const minPayout = applySlippageBps(expectedPayout, this.cfg.marketSlippageBps);
+    const expectedPayout = redeemPayoutFromBid(bid, quantity);
+    const minPayout = minPayoutAfterSlippage(expectedPayout, this.cfg.redeemSlippageBps);
 
     const cfg = this.sui.getConfig();
     const tx = this.ptb.buildLeveragedRedeem(cfg, {
@@ -325,7 +329,7 @@ export class JarvisTradeService {
       kind: 'redeem',
       quantity,
       bidPerUnit: bid,
-      slippageBps: this.cfg.marketSlippageBps,
+      slippageBps: this.cfg.redeemSlippageBps,
     });
   }
 
@@ -346,7 +350,7 @@ export class JarvisTradeService {
       kind: 'partial_repay',
       quantity,
       bidPerUnit: bid,
-      slippageBps: this.cfg.marketSlippageBps,
+      slippageBps: this.cfg.redeemSlippageBps,
     });
   }
 

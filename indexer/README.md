@@ -73,6 +73,7 @@ Resync from the publish checkpoint after upgrading contracts (`bash indexer/scri
 | External `predict::PositionRedeemed` (permissionless bot) | Indexer closes matching open `leveraged_positions` rows; debt unchanged until user runs LeverX settle/repay |
 | Force-deleverage remint | Same-tx `LeveragedPositionClosed` → `LeveragedPositionOpened`; `PositionForceDeleveraged.reminted_quantity` |
 | Closed/liquidated position snapshots | `leveraged_positions` keeps quantity, margin, leverage, mint cost, and realized payout for history |
+| `PositionLiquidated` / `BadDebtWrittenOff` close P&L | `close_debt_repaid` + `close_interest_paid` on `leveraged_positions` (vault repay from redeem, not wallet); repair migration `20250617120000_repair_liquidation_close_pnl` |
 | `vault_flash::repay_flash_liquidity` + `liquidated_account_id` | Keeper PTB only (not indexed as event) |
 
 All events are always stored in `leverx_events` with full `parsed_json` even when projections are partial.

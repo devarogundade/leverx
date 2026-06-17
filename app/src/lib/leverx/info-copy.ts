@@ -50,7 +50,7 @@ export const leverxInfo = {
   positionMarginBorrow:
     "Your posted margin and vault borrow on this market key. Borrow drops when you repay; leverage updates with it.",
   closedPnlBreakdown:
-    "Cash you received after close, minus margin posted and any wallet repayments made before close (deleverage/repay debt). Borrow repaid at close comes from the redeem payout, not your wallet.",
+    "Cash you received after close, minus margin posted and any wallet repayments made before close (deleverage/repay debt). Borrow repaid at close comes from the redeem payout, not your wallet. On liquidation, surplus in the on-chain event is returned to the keeper — you only receive cash if close_surplus_quote is credited to your account.",
   accountSettings:
     "Link your trading account and allow trusted apps to trade on your behalf.",
   predictManager: "Your trading account that holds positions and balances.",

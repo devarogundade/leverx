@@ -817,6 +817,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     closed_at_ms: ctx.timestamp_ms,
                     remaining_borrow_quote: 0,
                 });
+                let debt_repaid = ev.insurance_covered as i64 + ev.socialized as i64;
                 batch.liquidation_positions.push(LiquidationPositionPatch {
                     position_key: pk.clone(),
                     account_id: ev.account_id.to_string(),
@@ -824,6 +825,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     had_position_redeem: ev.socialized > 0,
                     event_digest: ctx.event_digest.to_string(),
                     keeper: ev.keeper.to_string(),
+                    debt_repaid,
                 });
                 batch.liquidations.push(NewLiquidation {
                     event_digest: ctx.event_digest.to_string(),
@@ -831,7 +833,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     account_id: ev.account_id.to_string(),
                     owner: ev.owner.to_string(),
                     keeper: ev.keeper.to_string(),
-                    debt_repaid: ev.insurance_covered as i64 + ev.socialized as i64,
+                    debt_repaid,
                     surplus_quote: 0,
                     health_bps: 0,
                     had_position_redeem: ev.socialized > 0,
@@ -924,6 +926,7 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     had_position_redeem: ev.had_position_redeem,
                     event_digest: ctx.event_digest.to_string(),
                     keeper: ev.keeper.to_string(),
+                    debt_repaid: ev.debt_repaid as i64,
                 });
                 timeline(batch, ctx, ev.account_id.to_string(), Some(ev.owner.to_string()));
             }

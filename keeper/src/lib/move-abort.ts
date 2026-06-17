@@ -13,6 +13,8 @@ export function describeMoveAbort(error: string): string | null {
       return 'position not liquidatable on-chain';
     case '21':
       return 'redeem proceeds do not cover vault debt';
+    case '26':
+      return 'redeem slippage exceeded — market moved before execution';
     default:
       return `Move abort ${code}`;
   }

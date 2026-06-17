@@ -65,7 +65,15 @@ export function walletRepaidPrincipalAtoms(position: LeveragedPosition): number 
   const peakBorrow = effectivePeakBorrowAtoms(position);
   if (peakBorrow <= 0) return 0;
   if (isEndedPosition(position)) {
-    return Math.max(0, peakBorrow - closePrincipalRepaidAtoms(position));
+    const closePrincipal = closePrincipalRepaidAtoms(position);
+    if (
+      closePrincipal <= 0 &&
+      position.status === "liquidated"
+    ) {
+      // Legacy indexer rows: liquidation repaid vault debt from redeem proceeds, not wallet.
+      return 0;
+    }
+    return Math.max(0, peakBorrow - closePrincipal);
   }
   return Math.max(0, peakBorrow - coerceQuoteAtoms(position.borrow_quote));
 }
@@ -96,6 +104,9 @@ export function realizedPnlUsd(position: LeveragedPosition): number | null {
       positionMarginUsd(position) -
       walletRepaidPrincipalUsd(position)
     );
+  }
+  if (position.status === "liquidated") {
+    return -positionCashInUsd(position);
   }
   const payoutUsd = scaleQuote(position.realized_payout);
   const costUsd = scaleQuote(effectiveMintCostAtoms(position));

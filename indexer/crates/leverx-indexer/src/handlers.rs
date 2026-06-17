@@ -136,6 +136,8 @@ pub struct LiquidationPositionPatch {
     pub had_position_redeem: bool,
     pub event_digest: String,
     pub keeper: String,
+    /// Vault debt cleared at liquidation (principal + accrued interest). Not wallet cash.
+    pub debt_repaid: i64,
 }
 
 pub struct KeyBorrowPatch {
@@ -903,6 +905,9 @@ impl Handler for LeverxEventsHandler {
             rows += diesel::sql_query(
                 "UPDATE leveraged_positions SET \
                  status = 'liquidated', \
+                 close_debt_repaid = close_debt_repaid + $4, \
+                 close_interest_paid = close_interest_paid \
+                   + GREATEST($4 - GREATEST(borrow_quote, 0), 0), \
                  borrow_quote = 0, \
                  closed_at_ms = $1 \
                  WHERE position_key = $2 AND account_id = $3",
@@ -910,6 +915,7 @@ impl Handler for LeverxEventsHandler {
             .bind::<diesel::sql_types::BigInt, _>(liq.closed_at_ms)
             .bind::<diesel::sql_types::Text, _>(&liq.position_key)
             .bind::<diesel::sql_types::Text, _>(&liq.account_id)
+            .bind::<diesel::sql_types::BigInt, _>(liq.debt_repaid)
             .execute(conn)
             .await?;
 
