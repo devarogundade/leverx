@@ -4,7 +4,11 @@ import { useWallet } from "@/context/WalletContext";
 import { useIndexerProtocol } from "@/hooks/useIndexer";
 import { appConfig } from "@/lib/config";
 import { invalidateLeverxQueries } from "@/lib/leverx/invalidate-queries";
-import { playSuccessSound, primeSuccessSound } from "@/lib/sounds";
+import {
+  beginSuccessSoundAction,
+  cancelSuccessSoundAction,
+  endSuccessSoundAction,
+} from "@/lib/sounds";
 import type { LimitMintOrder, LeveragedPosition } from "@/lib/leverx/indexer-client";
 import type { MarketKeyArgs } from "@/lib/leverx/market-keys";
 import {
@@ -122,7 +126,6 @@ export function useLeverxTransactions() {
       if (protocol?.trading_paused) {
         throw new Error("trading_paused");
       }
-      primeSuccessSound();
       const ready = requireReady();
       return executeOpenTrade({
         client,
@@ -132,13 +135,21 @@ export function useLeverxTransactions() {
         input,
       });
     },
+    onMutate: (input) => {
+      const positionMinted =
+        input.orderType === "market" || input.limitExecution === "immediate";
+      if (positionMinted) beginSuccessSoundAction();
+    },
     onSuccess: (_data, input) => {
       const positionMinted =
         input.orderType === "market" || input.limitExecution === "immediate";
-      if (positionMinted) {
-        playSuccessSound();
-      }
+      if (positionMinted) endSuccessSoundAction();
       invalidate();
+    },
+    onError: (_error, input) => {
+      const positionMinted =
+        input.orderType === "market" || input.limitExecution === "immediate";
+      if (positionMinted) cancelSuccessSoundAction();
     },
   });
 
@@ -157,7 +168,6 @@ export function useLeverxTransactions() {
 
   const closePosition = useMutation({
     mutationFn: async (input: ClosePositionInput) => {
-      primeSuccessSound();
       const ready = requireReady();
       return executeClosePosition({
         client,
@@ -167,15 +177,16 @@ export function useLeverxTransactions() {
         input,
       });
     },
+    onMutate: () => beginSuccessSoundAction(),
     onSuccess: () => {
-      playSuccessSound();
+      endSuccessSoundAction();
       invalidate();
     },
+    onError: () => cancelSuccessSoundAction(),
   });
 
   const settleExpired = useMutation({
     mutationFn: async (position: LeveragedPosition) => {
-      primeSuccessSound();
       const ready = requireReady();
       return executeSettleExpired({
         client,
@@ -185,10 +196,12 @@ export function useLeverxTransactions() {
         position,
       });
     },
+    onMutate: () => beginSuccessSoundAction(),
     onSuccess: () => {
-      playSuccessSound();
+      endSuccessSoundAction();
       invalidate();
     },
+    onError: () => cancelSuccessSoundAction(),
   });
 
   const repayDebt = useMutation({
@@ -267,7 +280,6 @@ export function useLeverxTransactions() {
 
   const vaultSupply = useMutation({
     mutationFn: async (amountAtoms: bigint) => {
-      primeSuccessSound();
       const ready = requireReady();
       return executeVaultSupply({
         client,
@@ -277,15 +289,16 @@ export function useLeverxTransactions() {
         amountAtoms,
       });
     },
+    onMutate: () => beginSuccessSoundAction(),
     onSuccess: () => {
-      playSuccessSound();
+      endSuccessSoundAction();
       invalidate();
     },
+    onError: () => cancelSuccessSoundAction(),
   });
 
   const vaultWithdraw = useMutation({
     mutationFn: async (lpAmountAtoms: bigint) => {
-      primeSuccessSound();
       const ready = requireReady();
       return executeVaultWithdraw({
         client,
@@ -295,15 +308,16 @@ export function useLeverxTransactions() {
         lpAmountAtoms,
       });
     },
+    onMutate: () => beginSuccessSoundAction(),
     onSuccess: () => {
-      playSuccessSound();
+      endSuccessSoundAction();
       invalidate();
     },
+    onError: () => cancelSuccessSoundAction(),
   });
 
   const withdrawQuote = useMutation({
     mutationFn: async (input: WithdrawQuoteInput) => {
-      primeSuccessSound();
       const ready = requireReady();
       return executeWithdrawQuote({
         client,
@@ -313,15 +327,16 @@ export function useLeverxTransactions() {
         input,
       });
     },
+    onMutate: () => beginSuccessSoundAction(),
     onSuccess: () => {
-      playSuccessSound();
+      endSuccessSoundAction();
       invalidate();
     },
+    onError: () => cancelSuccessSoundAction(),
   });
 
   const depositQuote = useMutation({
     mutationFn: async (input: DepositQuoteInput) => {
-      primeSuccessSound();
       const ready = requireReady();
       return executeDepositQuote({
         client,
@@ -331,10 +346,12 @@ export function useLeverxTransactions() {
         input,
       });
     },
+    onMutate: () => beginSuccessSoundAction(),
     onSuccess: () => {
-      playSuccessSound();
+      endSuccessSoundAction();
       invalidate();
     },
+    onError: () => cancelSuccessSoundAction(),
   });
 
   return {

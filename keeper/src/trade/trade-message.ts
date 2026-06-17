@@ -150,6 +150,7 @@ function parseMarketKeyFields(fields: Record<string, string>): MarketKeyFields {
 }
 
 export function buildMintIntentMessage(fields: MintIntentFields): Uint8Array {
+  const orderKind = fields.orderKind ?? 'market';
   const lines = [
     TRADE_MINT_MESSAGE_PREFIX,
     `address=${fields.address.trim().toLowerCase()}`,
@@ -168,10 +169,17 @@ export function buildMintIntentMessage(fields: MintIntentFields): Uint8Array {
     `max_mint_cost=${fields.maxMintCost.toString()}`,
     `market_slippage_bps=${fields.marketSlippageBps}`,
     `remint_after_deleverage=${encodeBool(fields.remintAfterDeleverage)}`,
-    `order_kind=${fields.orderKind}`,
-    `limit_premium_per_unit=${fields.limitPremiumPerUnit.toString()}`,
-    `placement_slippage_bps=${fields.placementSlippageBps}`,
+    `order_kind=${orderKind}`,
   ];
+  if (orderKind === 'limit') {
+    if (fields.limitPremiumPerUnit == null || fields.placementSlippageBps == null) {
+      throw new Error('missing_limit_fields');
+    }
+    lines.push(
+      `limit_premium_per_unit=${fields.limitPremiumPerUnit.toString()}`,
+      `placement_slippage_bps=${fields.placementSlippageBps}`,
+    );
+  }
   return new TextEncoder().encode(lines.join('\n'));
 }
 

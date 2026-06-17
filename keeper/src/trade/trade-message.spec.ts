@@ -25,6 +25,9 @@ describe('trade-message', () => {
     maxMintCost: 2_000_000n,
     marketSlippageBps: 50,
     remintAfterDeleverage: true,
+    orderKind: 'market',
+    limitPremiumPerUnit: 0n,
+    placementSlippageBps: 0,
   };
 
   it('round-trips mint intent fields', () => {

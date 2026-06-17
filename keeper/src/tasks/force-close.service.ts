@@ -178,7 +178,7 @@ export class ForceCloseService {
     const url = `${this.sui.getConfig().predictServerUrl}/oracles/${oracleId}/state`;
     try {
       const res = await fetch(url);
-      if (!res.ok) return false;
+      if (!res.ok) return 'unreachable';
       const state = (await res.json()) as OracleState;
       if (state.is_settled === true) return true;
       return String(state.status ?? '').toLowerCase() === 'settled';

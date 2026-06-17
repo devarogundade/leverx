@@ -6,6 +6,29 @@ import { SUI_CLOCK_OBJECT_ID, type PositionKeyArgs } from '../keeper/keeper.type
 
 @Injectable()
 export class PtbBuilderService {
+  private u64(value: number | bigint | string, label: string): bigint {
+    if (typeof value === 'bigint') {
+      if (value < 0n) throw new Error(`invalid_u64:${label}`);
+      return value;
+    }
+    if (typeof value === 'number') {
+      if (!Number.isFinite(value) || value < 0 || !Number.isInteger(value)) {
+        throw new Error(`invalid_u64:${label}`);
+      }
+      // If the indexer ever returns >2^53-1, the number is already lossy.
+      // Hard-fail rather than producing an incorrect on-chain transaction.
+      if (!Number.isSafeInteger(value)) {
+        throw new Error(`unsafe_u64:${label}`);
+      }
+      return BigInt(value);
+    }
+    const trimmed = value.trim();
+    if (!trimmed) throw new Error(`invalid_u64:${label}`);
+    const asBig = BigInt(trimmed);
+    if (asBig < 0n) throw new Error(`invalid_u64:${label}`);
+    return asBig;
+  }
+
   /** Keeper-owned Predict manager (ctx.sender becomes manager.owner). */
   buildCreatePredictManager(tx: Transaction, cfg: KeeperConfig): void {
     tx.moveCall({
@@ -84,7 +107,7 @@ export class PtbBuilderService {
         tx.object(position.predict_manager_id!),
         tx.object(position.oracle_id),
         key,
-        tx.pure.u64(position.open_quantity),
+        tx.pure.u64(this.u64(position.open_quantity, 'position.open_quantity')),
         tx.object(SUI_CLOCK_OBJECT_ID),
       ],
     });
@@ -110,7 +133,7 @@ export class PtbBuilderService {
         tx.object(position.predict_manager_id!),
         tx.object(position.oracle_id),
         key,
-        tx.pure.u64(position.open_quantity),
+        tx.pure.u64(this.u64(position.open_quantity, 'position.open_quantity')),
         tx.object(SUI_CLOCK_OBJECT_ID),
       ],
     });
@@ -136,7 +159,7 @@ export class PtbBuilderService {
         tx.object(position.predict_manager_id!),
         tx.object(position.oracle_id),
         key,
-        tx.pure.u64(position.open_quantity),
+        tx.pure.u64(this.u64(position.open_quantity, 'position.open_quantity')),
         tx.object(SUI_CLOCK_OBJECT_ID),
       ],
     });
@@ -162,7 +185,7 @@ export class PtbBuilderService {
         tx.object(position.predict_manager_id!),
         tx.object(position.oracle_id),
         key,
-        tx.pure.u64(position.open_quantity),
+        tx.pure.u64(this.u64(position.open_quantity, 'position.open_quantity')),
         tx.object(SUI_CLOCK_OBJECT_ID),
       ],
     });
@@ -238,7 +261,7 @@ export class PtbBuilderService {
         tx.object(position.predict_manager_id!),
         tx.object(position.oracle_id),
         key,
-        tx.pure.u64(position.open_quantity),
+        tx.pure.u64(this.u64(position.open_quantity, 'position.open_quantity')),
         tx.pure.u64(minPayout),
         tx.object(SUI_CLOCK_OBJECT_ID),
       ],
@@ -263,7 +286,7 @@ export class PtbBuilderService {
         tx.object(cfg.predictId),
         tx.object(position.oracle_id),
         key,
-        tx.pure.u64(BigInt(position.open_quantity || 0)),
+        tx.pure.u64(this.u64(position.open_quantity || 0, 'position.open_quantity')),
         tx.object(SUI_CLOCK_OBJECT_ID),
       ],
     });
@@ -416,7 +439,7 @@ export class PtbBuilderService {
         tx.object(position.predict_manager_id!),
         tx.object(position.oracle_id),
         key,
-        tx.pure.u64(position.open_quantity),
+        tx.pure.u64(this.u64(position.open_quantity, 'position.open_quantity')),
         flashCoin,
         tx.object(SUI_CLOCK_OBJECT_ID),
       ],
@@ -448,9 +471,9 @@ export class PtbBuilderService {
   ): Transaction {
     const tx = new Transaction();
     const ledgerPrincipal =
-      BigInt(position.borrow_quote || 0) > 0n
-        ? BigInt(position.borrow_quote)
-        : BigInt(position.margin_quote || 0);
+      this.u64(position.borrow_quote || 0, 'position.borrow_quote') > 0n
+        ? this.u64(position.borrow_quote, 'position.borrow_quote')
+        : this.u64(position.margin_quote || 0, 'position.margin_quote');
 
     tx.moveCall({
       target: `${cfg.packageId}::trade::quote_liquidation_flash_borrow`,
