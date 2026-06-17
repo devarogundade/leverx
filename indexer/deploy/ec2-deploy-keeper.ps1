@@ -2,7 +2,8 @@
 param(
   [string]$Ec2Host = "100.26.3.7",
   [string]$User = "ubuntu",
-  [string]$Key = "$env:USERPROFILE\.ssh\leverx-indexer-key.pem"
+  [string]$Key = "$env:USERPROFILE\.ssh\leverx-indexer-key.pem",
+  [switch]$ResetKeeper
 )
 
 $ErrorActionPreference = "Stop"
@@ -39,5 +40,6 @@ if (Test-Path $LocalEnv) {
 & scp @ssh (Join-Path $PSScriptRoot "ec2-reload-nginx-remote.sh") "${target}:/tmp/ec2-reload-nginx-remote.sh"
 
 Write-Host "Building and restarting keeper on EC2..."
-& ssh @ssh $target "chmod +x /tmp/ec2-deploy-keeper-remote.sh && bash /tmp/ec2-deploy-keeper-remote.sh"
+$resetFlag = if ($ResetKeeper) { "RESET_KEEPER=1" } else { "RESET_KEEPER=0" }
+& ssh @ssh $target "chmod +x /tmp/ec2-deploy-keeper-remote.sh && $resetFlag bash /tmp/ec2-deploy-keeper-remote.sh"
 Write-Host "Done."

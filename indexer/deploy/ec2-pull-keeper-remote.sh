@@ -52,7 +52,9 @@ ENV_FILE="/opt/leverx/keeper/.env"
 {
   echo "KEEPER_PRIVATE_KEY=${KEEPER_PRIVATE_KEY}"
   for key in KEEPER_API_KEY ENOKI_SECRET_KEY ENOKI_NETWORK \
-    TELEGRAM_ENABLED TELEGRAM_BOT_TOKEN TELEGRAM_BOT_USERNAME; do
+    TELEGRAM_ENABLED TELEGRAM_BOT_TOKEN TELEGRAM_BOT_USERNAME TELEGRAM_POLLING \
+    TELEGRAM_POLL_INTERVAL_SEC TELEGRAM_ALERT_COOLDOWN_MS TELEGRAM_OTP_TTL_MS \
+    TELEGRAM_SESSION_TTL_MS TELEGRAM_MARKETS_LIMIT TELEGRAM_MARKET_SLIPPAGE_BPS; do
     value="$(pick_env "${key}")"
     [[ -n "${value}" ]] && echo "${key}=${value}"
   done
@@ -89,7 +91,7 @@ fi
 
 echo "=== Starting keeper stack (redis + postgres + keeper) ==="
 cd /opt/leverx/keeper
-docker compose -f docker-compose.ec2.yml up -d
+docker compose -f docker-compose.ec2.yml up -d --force-recreate keeper
 
 echo "=== Waiting for keeper health ==="
 for _ in $(seq 1 45); do

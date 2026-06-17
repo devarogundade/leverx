@@ -12,6 +12,7 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY tsconfig.json tsconfig.build.json nest-cli.json ./
+COPY .build-stamp ./
 COPY src ./src
 
 RUN pnpm run build && pnpm prune --prod
