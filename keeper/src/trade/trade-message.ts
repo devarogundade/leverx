@@ -1,6 +1,7 @@
 export const TRADE_MINT_MESSAGE_PREFIX = 'leverx:trade:mint:v1';
 export const TRADE_REDEEM_MESSAGE_PREFIX = 'leverx:trade:redeem:v1';
 export const TRADE_SETTLE_MESSAGE_PREFIX = 'leverx:trade:settle:v1';
+export const TRADE_RECOVER_MANAGER_MESSAGE_PREFIX = 'leverx:trade:recover_manager:v1';
 
 export type MintOrderKind = 'market' | 'limit';
 export type RedeemMode = 'market' | 'limit';
@@ -58,6 +59,14 @@ export type SettleIntentFields = MarketKeyFields & {
   predictManagerId: string;
   expiresAtMs: number;
   quantity: bigint;
+};
+
+export type RecoverManagerIntentFields = MarketKeyFields & {
+  address: string;
+  accountId: string;
+  predictManagerId: string;
+  expiresAtMs: number;
+  managerQuoteAtoms: bigint;
 };
 
 function encodeBool(value: boolean): string {
@@ -275,6 +284,43 @@ export function parseSettleIntentMessage(bytes: Uint8Array): SettleIntentFields 
     predictManagerId: parseAddressField(fields, 'predict_manager_id'),
     expiresAtMs,
     quantity: parseU64Field(fields, 'quantity'),
+  };
+}
+
+export function buildRecoverManagerIntentMessage(
+  fields: RecoverManagerIntentFields,
+): Uint8Array {
+  const lines = [
+    TRADE_RECOVER_MANAGER_MESSAGE_PREFIX,
+    `address=${fields.address.trim().toLowerCase()}`,
+    `account_id=${fields.accountId.trim().toLowerCase()}`,
+    `predict_manager_id=${fields.predictManagerId.trim().toLowerCase()}`,
+    `expires_ms=${fields.expiresAtMs}`,
+    `oracle_id=${fields.oracleId.trim().toLowerCase()}`,
+    `market_expiry_ms=${fields.expiryMs}`,
+    `strike=${fields.strike}`,
+    `higher_strike=${fields.higherStrike}`,
+    `is_up=${encodeBool(fields.isUp)}`,
+    `is_range=${encodeBool(fields.isRange)}`,
+    `manager_quote_atoms=${fields.managerQuoteAtoms.toString()}`,
+  ];
+  return new TextEncoder().encode(lines.join('\n'));
+}
+
+export function parseRecoverManagerIntentMessage(
+  bytes: Uint8Array,
+): RecoverManagerIntentFields {
+  const fields = parseKeyValueMessage(bytes, TRADE_RECOVER_MANAGER_MESSAGE_PREFIX);
+  const expiresAtMs = parseNumberField(fields, 'expires_ms');
+  const key = parseMarketKeyFields(fields);
+
+  return {
+    ...key,
+    address: parseAddressField(fields, 'address'),
+    accountId: parseAddressField(fields, 'account_id'),
+    predictManagerId: parseAddressField(fields, 'predict_manager_id'),
+    expiresAtMs,
+    managerQuoteAtoms: parseU64Field(fields, 'manager_quote_atoms'),
   };
 }
 

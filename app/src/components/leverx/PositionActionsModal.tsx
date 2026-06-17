@@ -7,6 +7,7 @@ import { InfoPopover } from "@/components/leverx/InfoPopover";
 import { QuoteAmount } from "@/components/leverx/QuoteAmount";
 import { Input } from "@/components/ui/input";
 import { useWallet } from "@/context/WalletContext";
+import { usePositionCustody } from "@/hooks/usePositionCustody";
 import { useLeverxProtocolConfig, useLeverxTransactions } from "@/hooks/useLeverxTransactions";
 import { useIndexerTriggers } from "@/hooks/useIndexer";
 import { leverxInfo } from "@/lib/leverx/info-copy";
@@ -37,12 +38,12 @@ import {
   formatPositionTriggerSummary,
   positionTriggerForPosition,
 } from "@/lib/leverx/position-triggers";
-import { scaleQuote } from "@/lib/predict/scaling";
+import { scaleQuote, scaleQuoteAtoms } from "@/lib/predict/scaling";
 import { cn } from "@/lib/utils";
 import { pillToggleBtn, pillToggleIdle } from "@/lib/leverx/tw";
 
 type ActionView = "menu" | "close_limit" | "repay_debt";
-type ConfirmAction = "market_close" | "settle" | "clear_triggers" | null;
+type ConfirmAction = "market_close" | "settle" | "recover_custody" | "clear_triggers" | null;
 
 interface Props {
   position: LeveragedPosition;
@@ -65,6 +66,8 @@ function positionEmptyStateMessage(kind: PositionEmptyStateKind): string {
   switch (kind) {
     case "index_stale":
       return leverxInfo.positionIndexStaleDetail;
+    case "stranded_custody":
+      return leverxInfo.recoverStrandedCustody;
     case "fully_redeemed":
       return leverxInfo.positionFullyRedeemed;
     case "awaiting_oracle_settlement":
@@ -102,17 +105,31 @@ function PositionDetailGrid({
   position,
   contractQuantity,
   quantityLoading,
+  keyQuoteBalance,
+  managerQuoteBalance,
+  custodyLoading,
 }: {
   position: LeveragedPosition;
   contractQuantity?: OnChainQuantityRead;
   quantityLoading?: boolean;
+  keyQuoteBalance?: bigint | null;
+  managerQuoteBalance?: bigint | null;
+  custodyLoading?: boolean;
 }) {
   const indexerQty = position.open_quantity;
   const onChainQty = contractQuantity != null ? Number(contractQuantity) : null;
   const displayQty = onChainQty ?? indexerQty;
   const qtyStaleHigh =
-    onChainQty != null && onChainQty > 0 && onChainQty !== indexerQty;
-  const qtyStaleLow = onChainQty === 0 && indexerQty > 0;
+    position.status === "open" &&
+    onChainQty != null &&
+    onChainQty > 0 &&
+    onChainQty !== indexerQty;
+  const qtyStaleLow =
+    position.status === "open" && onChainQty === 0 && indexerQty > 0;
+  const keyQuoteUsd =
+    keyQuoteBalance != null ? scaleQuoteAtoms(keyQuoteBalance) : null;
+  const managerQuoteUsd =
+    managerQuoteBalance != null ? scaleQuoteAtoms(managerQuoteBalance) : null;
 
   return (
     <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
@@ -136,6 +153,36 @@ function PositionDetailGrid({
         <dt className="col-span-2 text-xs text-muted-foreground">
           On-chain contracts are zero — portfolio index still lists this row.
         </dt>
+      ) : null}
+      <dt className="text-muted-foreground">
+        <span className="inline-flex items-center gap-1">
+          Locked on key
+          <InfoPopover iconClassName="h-3 w-3">{leverxInfo.lockedKeyQuote}</InfoPopover>
+        </span>
+      </dt>
+      <dd className="text-right">
+        {custodyLoading ? (
+          <Loader2 className="ml-auto h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <QuoteAmount amount={keyQuoteUsd ?? 0} digits={2} align="end" />
+        )}
+      </dd>
+      {managerQuoteUsd != null && managerQuoteUsd > 0 ? (
+        <>
+          <dt className="text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              In manager
+              <InfoPopover iconClassName="h-3 w-3">{leverxInfo.managerQuoteBalance}</InfoPopover>
+            </span>
+          </dt>
+          <dd className="text-right">
+            {custodyLoading ? (
+              <Loader2 className="ml-auto h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <QuoteAmount amount={managerQuoteUsd} digits={2} align="end" />
+            )}
+          </dd>
+        </>
       ) : null}
       <dt className="text-muted-foreground">Margin</dt>
       <dd className="text-right">
@@ -161,6 +208,7 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
   const {
     closePosition,
     settleExpired,
+    recoverStrandedCustody,
     repayDebt,
     clearTriggers,
     isProtocolReady,
@@ -200,6 +248,12 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
   const onChainQtyRead: OnChainQuantityRead =
     quantityLoading ? null : (onChainQuantity ?? null);
 
+  const {
+    keyQuoteBalance,
+    managerQuoteBalance,
+    isLoading: custodyLoading,
+  } = usePositionCustody(position, open);
+
   const oracleRow = oracles.find((o) => o.oracle_id === position.oracle_id);
   const oracleSettled = isOracleSettledForTrade(oracleRow);
 
@@ -211,24 +265,35 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
   const pending =
     closePosition.isPending ||
     settleExpired.isPending ||
+    recoverStrandedCustody.isPending ||
     repayDebt.isPending ||
     clearTriggers.isPending;
   const {
     canCloseRedeem,
     canSettle,
     canRepayDebt,
+    canRecoverCustody,
+    recoverKeyQuote,
+    recoverManagerQuote,
     emptyState,
   } = getPositionActionAvailability({
     position,
     onChainQuantity: onChainQtyRead,
     quantityLoading,
     oracleSettled,
+    custody: {
+      keyQuoteBalance,
+      managerQuoteBalance,
+      custodyLoading,
+    },
   });
 
   const refreshPortfolio = () => {
     void Promise.all([
       queryClient.invalidateQueries({ queryKey: ["indexer-positions"], refetchType: "active" }),
       queryClient.invalidateQueries({ queryKey: ["manager-open-qty"], refetchType: "active" }),
+      queryClient.invalidateQueries({ queryKey: ["proxy-key-balance"], refetchType: "active" }),
+      queryClient.invalidateQueries({ queryKey: ["manager-quote-balance"], refetchType: "active" }),
       queryClient.invalidateQueries({ queryKey: ["trading-account-balance"], refetchType: "active" }),
     ]);
   };
@@ -303,6 +368,9 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
               position={position}
               contractQuantity={onChainQtyRead}
               quantityLoading={quantityLoading}
+              keyQuoteBalance={keyQuoteBalance}
+              managerQuoteBalance={managerQuoteBalance}
+              custodyLoading={custodyLoading}
             />
             <div className="space-y-2">
               {canCloseRedeem ? (
@@ -343,6 +411,15 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
                   info={leverxInfo.settleExpired}
                   disabled={!isProtocolReady || pending}
                   onClick={() => setConfirmAction("settle")}
+                />
+              ) : null}
+              {canRecoverCustody ? (
+                <ActionButton
+                  label="Recover funds"
+                  hint="Move stranded quote into your trading account"
+                  info={leverxInfo.recoverStrandedCustody}
+                  disabled={!isProtocolReady || pending}
+                  onClick={() => setConfirmAction("recover_custody")}
                 />
               ) : null}
               {triggersLoading ? (
@@ -536,6 +613,42 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
       </ConfirmDialog>
 
       <ConfirmDialog
+        open={confirmAction === "recover_custody"}
+        onOpenChange={(next) => {
+          if (!next) setConfirmAction(null);
+        }}
+        title={`Recover stranded funds?`}
+        description="Moves quote locked on this market key and/or sitting in your Predict manager into your trading account. Withdraw to your wallet from the Account tab afterward."
+        confirmLabel="Recover funds"
+        pending={recoverStrandedCustody.isPending}
+        onConfirm={() =>
+          recoverStrandedCustody.mutate(
+            {
+              position,
+              recoverKeyQuote,
+              recoverManagerQuote,
+            },
+            {
+              onError: (err) => {
+                showTxError(err);
+                setConfirmAction(null);
+              },
+              onSuccess: () => onSuccess("Stranded funds recovered to trading account"),
+            },
+          )
+        }
+      >
+        <PositionDetailGrid
+          position={position}
+          contractQuantity={onChainQtyRead}
+          quantityLoading={quantityLoading}
+          keyQuoteBalance={keyQuoteBalance}
+          managerQuoteBalance={managerQuoteBalance}
+          custodyLoading={custodyLoading}
+        />
+      </ConfirmDialog>
+
+      <ConfirmDialog
         open={confirmAction === "clear_triggers"}
         onOpenChange={(next) => {
           if (!next) setConfirmAction(null);
@@ -625,11 +738,12 @@ interface TriggerProps {
 /** Opens position actions in a dialog (desktop) or bottom sheet (mobile). */
 export function PositionActionsTrigger({ position, className }: TriggerProps) {
   const [open, setOpen] = useState(false);
-  const { isProtocolReady, closePosition, settleExpired, repayDebt, clearTriggers } =
+  const { isProtocolReady, closePosition, settleExpired, recoverStrandedCustody, repayDebt, clearTriggers } =
     useLeverxTransactions();
   const pending =
     closePosition.isPending ||
     settleExpired.isPending ||
+    recoverStrandedCustody.isPending ||
     repayDebt.isPending ||
     clearTriggers.isPending;
 

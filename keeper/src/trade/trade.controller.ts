@@ -4,6 +4,7 @@ import type {
   MintTradeBody,
   RedeemTradeBody,
   SettleTradeBody,
+  RecoverManagerTradeBody,
   TradeRelayResponse,
 } from './trade.types';
 import { TradeService } from './trade.service';
@@ -32,5 +33,14 @@ export class TradeController {
   @RateLimit({ keyPrefix: 'trade-settle', limit: 60, windowMs: 60_000 })
   settle(@Body() body: SettleTradeBody): Promise<TradeRelayResponse> {
     return this.trades.relaySettle(body);
+  }
+
+  /** Recover orphaned Predict manager quote into the user's trading account. */
+  @Post('recover_manager')
+  @RateLimit({ keyPrefix: 'trade-recover-manager', limit: 60, windowMs: 60_000 })
+  recoverManager(
+    @Body() body: RecoverManagerTradeBody,
+  ): Promise<TradeRelayResponse> {
+    return this.trades.relayRecoverManager(body);
   }
 }

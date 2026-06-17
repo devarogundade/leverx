@@ -107,6 +107,13 @@ pub struct PositionClosePatch {
     pub settled: bool,
     pub closed_at_ms: i64,
     pub remaining_borrow_quote: i64,
+    pub close_source: String,
+    pub leverx_custody_complete: bool,
+    pub custody_recovered_quote_delta: i64,
+    /// When true, `borrow_quote` is left unchanged (e.g. manager surplus sweep with debt).
+    pub preserve_borrow_quote: bool,
+    /// When true and `quantity == 0`, existing `status` is preserved.
+    pub preserve_status: bool,
 }
 
 /// `deepbook_predict` redeem that bypasses LeverX `trade::settle_*` (e.g. permissionless bot).
@@ -520,8 +527,19 @@ impl Handler for LeverxEventsHandler {
                    WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN CASE WHEN $6 THEN 'settled' ELSE 'closed' END \
                    ELSE 'open' \
                  END, \
-                 closed_at_ms = CASE WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN $3 ELSE NULL END \
-                 WHERE position_key = $4 AND predict_manager_id = $5 AND status = 'open'",
+                 closed_at_ms = CASE WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN $3 ELSE NULL END, \
+                 close_source = CASE \
+                   WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN 'predict_external' \
+                   ELSE close_source \
+                 END, \
+                 leverx_custody_complete = CASE \
+                   WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN false \
+                   ELSE leverx_custody_complete \
+                 END, \
+                 external_redeem_payout_quote = external_redeem_payout_quote + $2 \
+                 WHERE position_key = $4 AND predict_manager_id = $5 \
+                   AND (status = 'open' \
+                        OR (status IN ('closed', 'settled') AND leverx_custody_complete = false))",
             )
             .bind::<diesel::sql_types::BigInt, _>(close.quantity)
             .bind::<diesel::sql_types::BigInt, _>(close.payout)
@@ -545,7 +563,7 @@ impl Handler for LeverxEventsHandler {
                    ELSE GREATEST(open_quantity - $1, 0) \
                  END, \
                  realized_payout = realized_payout + $2, \
-                 borrow_quote = $3, \
+                 borrow_quote = CASE WHEN $14 THEN borrow_quote ELSE $3 END, \
                  margin_quote = CASE \
                    WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN margin_quote \
                    ELSE (margin_quote * GREATEST(open_quantity - $1, 0) / GREATEST(open_quantity, 1)) \
@@ -564,10 +582,21 @@ impl Handler for LeverxEventsHandler {
                  close_interest_paid = close_interest_paid + ($8 - GREATEST(borrow_quote - $3, 0)), \
                  close_surplus_quote = close_surplus_quote + $9, \
                  status = CASE \
-                   WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN CASE WHEN $7 THEN 'settled' ELSE 'closed' END \
-                   ELSE 'open' \
+                   WHEN $1 > 0 THEN CASE \
+                     WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN CASE WHEN $7 THEN 'settled' ELSE 'closed' END \
+                     ELSE 'open' \
+                   END \
+                   WHEN $15 THEN status \
+                   ELSE status \
                  END, \
-                 closed_at_ms = CASE WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN $4 ELSE NULL END \
+                 closed_at_ms = CASE \
+                   WHEN $1 > 0 AND GREATEST(open_quantity - $1, 0) <= 0 THEN $4 \
+                   WHEN $1 > 0 THEN NULL \
+                   ELSE closed_at_ms \
+                 END, \
+                 close_source = $11, \
+                 leverx_custody_complete = $12, \
+                 custody_recovered_quote = custody_recovered_quote + $13 \
                  WHERE position_key = $5 AND account_id = $6",
             )
             .bind::<diesel::sql_types::BigInt, _>(close.quantity)
@@ -580,6 +609,11 @@ impl Handler for LeverxEventsHandler {
             .bind::<diesel::sql_types::BigInt, _>(close.debt_repaid)
             .bind::<diesel::sql_types::BigInt, _>(close.surplus_quote)
             .bind::<diesel::sql_types::Nullable<diesel::sql_types::BigInt>, _>(close.closing_mark)
+            .bind::<diesel::sql_types::Text, _>(&close.close_source)
+            .bind::<diesel::sql_types::Bool, _>(close.leverx_custody_complete)
+            .bind::<diesel::sql_types::BigInt, _>(close.custody_recovered_quote_delta)
+            .bind::<diesel::sql_types::Bool, _>(close.preserve_borrow_quote)
+            .bind::<diesel::sql_types::Bool, _>(close.preserve_status)
             .execute(conn)
             .await?;
         }
@@ -905,17 +939,25 @@ impl Handler for LeverxEventsHandler {
             rows += diesel::sql_query(
                 "UPDATE leveraged_positions SET \
                  status = 'liquidated', \
+                 open_quantity = 0, \
                  close_debt_repaid = close_debt_repaid + $4, \
                  close_interest_paid = close_interest_paid \
                    + GREATEST($4 - GREATEST(borrow_quote, 0), 0), \
                  borrow_quote = 0, \
-                 closed_at_ms = $1 \
+                 closed_at_ms = $1, \
+                 close_source = 'liquidation', \
+                 leverx_custody_complete = CASE \
+                   WHEN close_source = 'predict_external' THEN false \
+                   WHEN external_redeem_payout_quote > 0 AND NOT $5 THEN false \
+                   ELSE true \
+                 END \
                  WHERE position_key = $2 AND account_id = $3",
             )
             .bind::<diesel::sql_types::BigInt, _>(liq.closed_at_ms)
             .bind::<diesel::sql_types::Text, _>(&liq.position_key)
             .bind::<diesel::sql_types::Text, _>(&liq.account_id)
             .bind::<diesel::sql_types::BigInt, _>(liq.debt_repaid)
+            .bind::<diesel::sql_types::Bool, _>(liq.had_position_redeem)
             .execute(conn)
             .await?;
 

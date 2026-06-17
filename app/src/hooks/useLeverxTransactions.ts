@@ -26,6 +26,8 @@ import {
   executeRepayDebt,
   executeRevokeExecutor,
   executeSettleExpired,
+  executeRecoverStrandedCustody,
+  type RecoverStrandedCustodyInput,
   executeVaultSupply,
   executeVaultWithdraw,
   executeWithdrawQuote,
@@ -204,6 +206,25 @@ export function useLeverxTransactions() {
     onError: () => cancelSuccessSoundAction(),
   });
 
+  const recoverStrandedCustody = useMutation({
+    mutationFn: async (input: RecoverStrandedCustodyInput) => {
+      const ready = requireReady();
+      return executeRecoverStrandedCustody({
+        client,
+        wallet: ready.wallet,
+        account: ready.account,
+        cfg: ready.cfg,
+        input,
+      });
+    },
+    onMutate: () => beginSuccessSoundAction(),
+    onSuccess: () => {
+      endSuccessSoundAction();
+      invalidate();
+    },
+    onError: () => cancelSuccessSoundAction(),
+  });
+
   const repayDebt = useMutation({
     mutationFn: async (args: { position: LeveragedPosition; amountAtoms: bigint }) => {
       const ready = requireReady();
@@ -361,6 +382,7 @@ export function useLeverxTransactions() {
     createMarginAccount,
     closePosition,
     settleExpired,
+    recoverStrandedCustody,
     repayDebt,
     clearTriggers,
     registerExecutor,

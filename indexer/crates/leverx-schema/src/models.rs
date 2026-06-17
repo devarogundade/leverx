@@ -187,6 +187,10 @@ pub struct LeveragedPositionRow {
     pub close_debt_repaid: i64,
     pub close_interest_paid: i64,
     pub close_surplus_quote: i64,
+    pub close_source: Option<String>,
+    pub leverx_custody_complete: bool,
+    pub external_redeem_payout_quote: i64,
+    pub custody_recovered_quote: i64,
 }
 
 #[derive(Queryable, Selectable, Serialize, Debug, Clone)]
@@ -319,6 +323,10 @@ pub struct NewLeveragedPosition {
     pub close_debt_repaid: i64,
     pub close_interest_paid: i64,
     pub close_surplus_quote: i64,
+    pub close_source: Option<String>,
+    pub leverx_custody_complete: bool,
+    pub external_redeem_payout_quote: i64,
+    pub custody_recovered_quote: i64,
 }
 
 #[derive(Queryable, Selectable, Serialize, Debug, Clone)]

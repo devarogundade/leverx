@@ -29,6 +29,8 @@ export function PortfolioIndexSyncNotice({
     void Promise.all([
       queryClient.invalidateQueries({ queryKey: ["indexer-positions"], refetchType: "active" }),
       queryClient.invalidateQueries({ queryKey: ["manager-open-qty"], refetchType: "active" }),
+      queryClient.invalidateQueries({ queryKey: ["proxy-key-balance"], refetchType: "active" }),
+      queryClient.invalidateQueries({ queryKey: ["manager-quote-balance"], refetchType: "active" }),
       queryClient.invalidateQueries({ queryKey: ["trading-account-balance"], refetchType: "active" }),
     ]);
   };

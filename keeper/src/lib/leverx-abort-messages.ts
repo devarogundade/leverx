@@ -57,6 +57,8 @@ export const LEVERX_ABORT_MESSAGES: Readonly<Record<number, string>> = {
   52: "Protocol keeper address is not configured on-chain.",
   53: "The trading service isn't authorized for this action right now. Try again shortly.",
   55: "Final trading window configuration is invalid.",
+  56: "Contracts are still open on this market key. Close or settle before recovering stranded quote.",
+  57: "Recovery amount exceeds the quote balance held in the settlement account.",
 };
 
 const FUNCTION_HINTS: Readonly<Record<string, string>> = {

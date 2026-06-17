@@ -1,0 +1,1 @@
+-- Non-reversible data repair; down migration is a no-op.

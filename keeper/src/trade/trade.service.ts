@@ -14,17 +14,20 @@ import {
   verifyMintIntentAuth,
   verifyRedeemIntentAuth,
   verifySettleIntentAuth,
+  verifyRecoverManagerIntentAuth,
 } from './trade-auth';
 import type {
   MintIntentFields,
   RedeemIntentFields,
   SettleIntentFields,
+  RecoverManagerIntentFields,
 } from './trade-message';
 import { TradeReplayStore } from './trade-replay.store';
 import type {
   MintTradeBody,
   RedeemTradeBody,
   SettleTradeBody,
+  RecoverManagerTradeBody,
   TradeRelayResponse,
 } from './trade.types';
 import { simulationFailureMessage } from '../lib/move-abort';
@@ -128,6 +131,31 @@ export class TradeService {
     return this.simulateAndExecute(tx, `settle ${intent.accountId}`);
   }
 
+  async relayRecoverManager(
+    body: RecoverManagerTradeBody,
+  ): Promise<TradeRelayResponse> {
+    const intent = await this.verifyRecoverManagerRequest(body);
+    await this.assertRelayReady();
+    await this.assertAccountOwnership(intent);
+
+    const cfg = this.sui.getConfig();
+    const tx = this.ptb.buildRecoverManagerSurplus(cfg, {
+      key: {
+        oracleId: intent.oracleId,
+        expiryMs: intent.expiryMs,
+        strike: intent.strike,
+        higherStrike: intent.higherStrike,
+        isUp: intent.isUp,
+        isRange: intent.isRange,
+      },
+      accountId: intent.accountId,
+      predictManagerId: intent.predictManagerId,
+      managerQuoteAtoms: intent.managerQuoteAtoms,
+    });
+
+    return this.simulateAndExecute(tx, `recover_manager ${intent.accountId}`);
+  }
+
   private async verifyMintRequest(
     body: MintTradeBody,
   ): Promise<MintIntentFields> {
@@ -179,6 +207,27 @@ export class TradeService {
     }
   }
 
+  private async verifyRecoverManagerRequest(
+    body: RecoverManagerTradeBody,
+  ): Promise<RecoverManagerIntentFields> {
+    try {
+      this.assertIntentNotReplayed(body);
+      const intent = await verifyRecoverManagerIntentAuth(
+        body,
+        this.sui.getSuiNetwork(),
+      );
+      if (intent.managerQuoteAtoms <= 0n) {
+        throw new BadRequestException('zero_amount');
+      }
+      this.replayStore.markUsed(body.signature, intent.expiresAtMs);
+      return intent;
+    } catch (err) {
+      if (err instanceof UnauthorizedException) throw err;
+      const code = err instanceof Error ? err.message : 'invalid_auth';
+      throw new BadRequestException(code);
+    }
+  }
+
   private assertIntentNotReplayed(body: { signature: string }): void {
     if (this.replayStore.isReplayed(body.signature)) {
       throw new BadRequestException('intent_replayed');
@@ -206,7 +255,11 @@ export class TradeService {
   }
 
   private async assertAccountOwnership(
-    intent: MintIntentFields | RedeemIntentFields | SettleIntentFields,
+    intent:
+      | MintIntentFields
+      | RedeemIntentFields
+      | SettleIntentFields
+      | RecoverManagerIntentFields,
   ): Promise<void> {
     const { items } = await this.indexer.fetchAccounts({
       owner: intent.address,

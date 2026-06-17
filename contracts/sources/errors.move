@@ -82,6 +82,8 @@ const E_KEEPER_NOT_CONFIGURED: u64 = 52;
 const E_NOT_KEEPER: u64 = 53;
 // 54 retired (was E_MANAGER_LINK_IMMUTABLE — manager link is now immutable by construction).
 const E_INVALID_FINAL_WINDOW_MS: u64 = 55;
+const E_OPEN_CONTRACTS_REMAIN: u64 = 56;
+const E_RECOVERY_AMOUNT_EXCEEDS_BALANCE: u64 = 57;
 
 // --- Auth & access control ---
 
@@ -237,3 +239,8 @@ public fun not_keeper(): u64 { E_NOT_KEEPER }
 
 /// Final window must be within admin bounds (1 minute – 4 hours).
 public fun invalid_final_window_ms(): u64 { E_INVALID_FINAL_WINDOW_MS }
+
+/// Recovery rejected while Predict manager still holds open contracts on this market key.
+public fun open_contracts_remain(): u64 { E_OPEN_CONTRACTS_REMAIN }
+
+public fun recovery_amount_exceeds_balance(): u64 { E_RECOVERY_AMOUNT_EXCEEDS_BALANCE }

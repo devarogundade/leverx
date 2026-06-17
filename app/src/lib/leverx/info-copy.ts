@@ -135,10 +135,16 @@ export const leverxInfo = {
   repayDebt: "Pay back borrowed dUSDC without closing contracts. Leverage and borrow update after repay.",
   settleExpired:
     "Finalize redemption after the market settles. Uses your actual contract count, not the portfolio summary.",
+  recoverStrandedCustody:
+    "Move quote locked on this market key and/or sitting in your Predict manager into your trading account. Use when contracts are already flat on-chain.",
   portfolioIndexStaleDetail:
-    "On-chain contract count is zero, but the portfolio index still lists these rows. No redeem or settle is required. Open the Account tab to check your trading-account balance and withdraw any free dUSDC. We are refreshing the index; stale rows should drop off shortly.",
+    "On-chain contract count is zero, but the portfolio index still lists these rows. Check locked-on-key and manager balances below — use Recover funds if quote is stranded. Then withdraw from the Account tab.",
   positionIndexStaleDetail:
-    "On-chain contracts are zero while the portfolio index still shows this row. That does not mean you already redeemed — the index is behind the chain. Check the Account tab for your trading-account balance, then withdraw any free dUSDC. Refresh the portfolio if this row persists.",
+    "On-chain contracts are zero while the portfolio index still shows this row. Funds may be locked on the market key (mint surplus) or in your Predict manager — not in Trading Balance until recovered.",
+  lockedKeyQuote:
+    "Mint surplus and collateral locked on this market key — not in Trading Balance until the position is closed or recovered.",
+  managerQuoteBalance:
+    "Quote held in your Predict manager. After contracts are flat, use Recover funds to move it into your trading account.",
   positionFullyRedeemed: "Contracts fully redeemed on-chain.",
   positionAwaitingOracleSettlement:
     "Market expired. Wait for oracle settlement, then use Settle expired.",

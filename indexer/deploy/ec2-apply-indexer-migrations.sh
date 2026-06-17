@@ -55,3 +55,22 @@ WHERE NOT EXISTS (
 );
 "
 echo "Schema patches applied."
+
+# 20250617200000_position_custody_state
+docker exec indexer-postgres-1 psql -U leverx -d leverx_indexer -c "
+ALTER TABLE leveraged_positions
+    ADD COLUMN IF NOT EXISTS close_source TEXT,
+    ADD COLUMN IF NOT EXISTS leverx_custody_complete BOOLEAN NOT NULL DEFAULT false,
+    ADD COLUMN IF NOT EXISTS external_redeem_payout_quote BIGINT NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS custody_recovered_quote BIGINT NOT NULL DEFAULT 0;
+"
+docker exec indexer-postgres-1 psql -U leverx -d leverx_indexer -c "
+INSERT INTO __diesel_schema_migrations (version, run_on)
+SELECT '20250617200000_position_custody_state', NOW()
+WHERE NOT EXISTS (
+  SELECT 1 FROM __diesel_schema_migrations
+  WHERE version = '20250617200000_position_custody_state'
+);
+"
+# 20250617210000_repair_custody_backfill — run via diesel migration when possible;
+# EC2 hosts should prefer: diesel migration run inside the indexer container.

@@ -4,6 +4,7 @@ import {
   getPositionActionAvailability,
   isIndexerStaleOpenPosition,
 } from "@/lib/leverx/position-action-availability";
+import { positionShowsManageAction } from "@/lib/leverx/position-quantity";
 
 function basePosition(overrides: Partial<LeveragedPosition> = {}): LeveragedPosition {
   return {
@@ -37,6 +38,24 @@ function basePosition(overrides: Partial<LeveragedPosition> = {}): LeveragedPosi
   };
 }
 
+describe("positionShowsManageAction", () => {
+  it("shows manage for open positions", () => {
+    expect(positionShowsManageAction({ status: "open", borrow_quote: 0 })).toBe(true);
+  });
+
+  it("hides manage for settled positions without debt", () => {
+    expect(
+      positionShowsManageAction({ status: "settled", borrow_quote: 0 }),
+    ).toBe(false);
+  });
+
+  it("shows manage for ended positions with outstanding borrow", () => {
+    expect(
+      positionShowsManageAction({ status: "closed", borrow_quote: 1_000_000 }),
+    ).toBe(true);
+  });
+});
+
 describe("isIndexerStaleOpenPosition", () => {
   it("is true when indexer lists contracts but on-chain read is zero", () => {
     expect(isIndexerStaleOpenPosition(basePosition(), 0n)).toBe(true);
@@ -66,11 +85,35 @@ describe("getPositionActionAvailability", () => {
       onChainQuantity: 0n,
       quantityLoading: false,
       oracleSettled: true,
+      custody: {
+        keyQuoteBalance: 0n,
+        managerQuoteBalance: 0n,
+        custodyLoading: false,
+      },
       now: Date.now(),
     });
     expect(result.canCloseRedeem).toBe(false);
     expect(result.canSettle).toBe(false);
+    expect(result.canRecoverCustody).toBe(false);
     expect(result.emptyState).toBe("index_stale");
+  });
+
+  it("offers recover when contracts are flat and key quote is stranded", () => {
+    const result = getPositionActionAvailability({
+      position: basePosition(),
+      onChainQuantity: 0n,
+      quantityLoading: false,
+      oracleSettled: true,
+      custody: {
+        keyQuoteBalance: 1_930_000_000n,
+        managerQuoteBalance: 0n,
+        custodyLoading: false,
+      },
+      now: Date.now(),
+    });
+    expect(result.canRecoverCustody).toBe(true);
+    expect(result.recoverKeyQuote).toBe(1_930_000_000n);
+    expect(result.emptyState).toBe("stranded_custody");
   });
 
   it("offers close when oracle is live and on-chain qty > 0", () => {
@@ -83,5 +126,44 @@ describe("getPositionActionAvailability", () => {
     });
     expect(result.canCloseRedeem).toBe(true);
     expect(result.canSettle).toBe(false);
+  });
+
+  it("treats ended rows with zero on-chain qty as fully redeemed", () => {
+    const result = getPositionActionAvailability({
+      position: basePosition({ status: "settled", closed_at_ms: Date.now() }),
+      onChainQuantity: 0n,
+      quantityLoading: false,
+      oracleSettled: false,
+      now: Date.now(),
+    });
+    expect(result.emptyState).toBe("fully_redeemed");
+  });
+
+  it("suggests recover when indexer flags external predict close", () => {
+    const result = getPositionActionAvailability({
+      position: basePosition({
+        status: "closed",
+        open_quantity: 0,
+        borrow_quote: 0,
+        external_redeem_payout_quote: 500_000,
+        leverx_custody_complete: false,
+        action_hints: {
+          close_source: "predict_external",
+          leverx_custody_complete: false,
+          needs_custody_recovery: true,
+          external_redeem_payout_quote: 500_000,
+          custody_recovered_quote: 0,
+          recommended_actions: ["recover_custody"],
+          primary_cta: "recover_custody",
+          empty_state_hint: "stranded_custody",
+        },
+      }),
+      onChainQuantity: 0n,
+      quantityLoading: false,
+      oracleSettled: true,
+      now: Date.now(),
+    });
+    expect(result.canRecoverCustody).toBe(true);
+    expect(result.emptyState).toBe("stranded_custody");
   });
 });

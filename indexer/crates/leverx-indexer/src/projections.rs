@@ -26,6 +26,7 @@ use crate::move_events::{
     ExecutorRevoked, BorrowRateParamsUpdated, FeeCollectorWithdrawn, FlashLoanBorrowed,
     FlashLoanRepaid, InsuranceFundSkimmed, InterestAccrued, ProtocolFeeDistributed,
     BadDebtWrittenOff, LeveragedPositionClosed, LeveragedPositionOpened,
+    StrandedCustodyRecovered,
     LimitMintOrderCancelled, LimitMintOrderExecuted, LimitMintOrderPlaced, LiquidationBpsUpdated,
     FinalWindowUpdated,
     PositionForceDeleveraged,
@@ -303,6 +304,10 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     close_debt_repaid: 0,
                     close_interest_paid: 0,
                     close_surplus_quote: 0,
+                    close_source: None,
+                    leverx_custody_complete: false,
+                    external_redeem_payout_quote: 0,
+                    custody_recovered_quote: 0,
                     },
                 });
                 batch.trades.push(NewMarketTrade {
@@ -374,6 +379,15 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     settled: ev.is_settled,
                     closed_at_ms: ctx.timestamp_ms,
                     remaining_borrow_quote: ev.remaining_debt as i64,
+                    close_source: if ev.is_settled {
+                        "leverx_settle".into()
+                    } else {
+                        "leverx_redeem".into()
+                    },
+                    leverx_custody_complete: true,
+                    custody_recovered_quote_delta: 0,
+                    preserve_borrow_quote: false,
+                    preserve_status: false,
                 });
                 batch.trades.push(NewMarketTrade {
                     event_digest: ctx.event_digest.to_string(),
@@ -397,6 +411,55 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     ev.payout as i64,
                     ctx.timestamp_ms,
                 );
+                timeline(batch, ctx, ev.account_id.to_string(), Some(ev.owner.to_string()));
+            }
+        }
+        "StrandedCustodyRecovered" => {
+            if let Some(ev) = try_parse::<StrandedCustodyRecovered>(ctx.event.contents.as_slice()) {
+                ensure_market(
+                    batch,
+                    &ev.oracle_id.to_string(),
+                    ev.expiry_ms as i64,
+                    ev.strike as i64,
+                    ev.higher_strike as i64,
+                    ev.is_up,
+                    ev.is_range,
+                    ctx.timestamp_ms,
+                );
+                let pk = position_key(
+                    &ev.oracle_id.to_string(),
+                    ev.expiry_ms as i64,
+                    ev.strike as i64,
+                    ev.higher_strike as i64,
+                    ev.is_up,
+                    ev.is_range,
+                );
+                let key_swept = ev.key_quote_swept as i64;
+                let manager_recovered = ev.manager_quote_recovered as i64;
+                let is_key_sweep = key_swept > 0;
+                let payout = key_swept + manager_recovered;
+                batch.position_closes.push(PositionClosePatch {
+                    event_digest: ctx.event_digest.to_string(),
+                    position_key: pk.clone(),
+                    account_id: ev.account_id.to_string(),
+                    quantity: 0,
+                    payout,
+                    debt_repaid: 0,
+                    surplus_quote: payout,
+                    closing_mark: None,
+                    settled: false,
+                    closed_at_ms: ctx.timestamp_ms,
+                    remaining_borrow_quote: 0,
+                    close_source: if is_key_sweep {
+                        "stranded_recovery".into()
+                    } else {
+                        "manager_surplus_recovery".into()
+                    },
+                    leverx_custody_complete: is_key_sweep,
+                    custody_recovered_quote_delta: payout,
+                    preserve_borrow_quote: !is_key_sweep,
+                    preserve_status: true,
+                });
                 timeline(batch, ctx, ev.account_id.to_string(), Some(ev.owner.to_string()));
             }
         }
@@ -816,6 +879,11 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     settled: true,
                     closed_at_ms: ctx.timestamp_ms,
                     remaining_borrow_quote: 0,
+                    close_source: "bad_debt_writeoff".into(),
+                    leverx_custody_complete: true,
+                    custody_recovered_quote_delta: 0,
+                    preserve_borrow_quote: false,
+                    preserve_status: false,
                 });
                 let debt_repaid = ev.insurance_covered as i64 + ev.socialized as i64;
                 batch.liquidation_positions.push(LiquidationPositionPatch {
@@ -875,13 +943,6 @@ pub fn apply_event(batch: &mut LeverxBatch, ctx: EventContext<'_>) {
                     had_position_redeem: ev.redeemed_quantity > 0,
                     timestamp_ms: ctx.timestamp_ms,
                     event_kind: "force_deleverage".into(),
-                });
-                batch.key_borrow_patches.push(KeyBorrowPatch {
-                    event_digest: ctx.event_digest.to_string(),
-                    position_key: pk,
-                    account_id: ev.account_id.to_string(),
-                    key_borrowed_quote: 0,
-                    leverage_bps: Some(10_000),
                 });
                 timeline(batch, ctx, ev.account_id.to_string(), Some(ev.owner.to_string()));
             }

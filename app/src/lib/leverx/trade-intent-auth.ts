@@ -11,10 +11,12 @@ import {
   buildMintIntentMessage,
   buildRedeemIntentMessage,
   buildSettleIntentMessage,
+  buildRecoverManagerIntentMessage,
   tradeIntentExpiryMs,
   type MintIntentFields,
   type RedeemIntentFields,
   type SettleIntentFields,
+  type RecoverManagerIntentFields,
 } from "@/lib/leverx/trade-intent-message";
 
 export type SignedTradeIntent = {
@@ -100,6 +102,24 @@ export async function signSettleTradeIntent(params: {
   const address = params.intent.address.trim().toLowerCase();
   const expiresAtMs = params.expiresAtMs ?? tradeIntentExpiryMs();
   const message = buildSettleIntentMessage({ ...params.intent, expiresAtMs });
+  return signIntentMessage({
+    wallet: params.wallet,
+    account: params.account,
+    message,
+    address,
+    expiresAtMs,
+  });
+}
+
+export async function signRecoverManagerTradeIntent(params: {
+  wallet: WalletWithRequiredFeatures;
+  account: WalletAccount;
+  intent: Omit<RecoverManagerIntentFields, "expiresAtMs">;
+  expiresAtMs?: number;
+}): Promise<SignedTradeIntent> {
+  const address = params.intent.address.trim().toLowerCase();
+  const expiresAtMs = params.expiresAtMs ?? tradeIntentExpiryMs();
+  const message = buildRecoverManagerIntentMessage({ ...params.intent, expiresAtMs });
   return signIntentMessage({
     wallet: params.wallet,
     account: params.account,

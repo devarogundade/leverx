@@ -6,9 +6,11 @@ import {
   parseMintIntentMessage,
   parseRedeemIntentMessage,
   parseSettleIntentMessage,
+  parseRecoverManagerIntentMessage,
   type MintIntentFields,
   type RedeemIntentFields,
   type SettleIntentFields,
+  type RecoverManagerIntentFields,
 } from './trade-message';
 
 export type SignedTradeIntentPayload = {
@@ -20,7 +22,11 @@ export type SignedTradeIntentPayload = {
 
 const ADDRESS_RE = /^0x[a-f0-9]{64}$/;
 
-type AnyIntentFields = MintIntentFields | RedeemIntentFields | SettleIntentFields;
+type AnyIntentFields =
+  | MintIntentFields
+  | RedeemIntentFields
+  | SettleIntentFields
+  | RecoverManagerIntentFields;
 
 async function verifySignedIntent(
   payload: SignedTradeIntentPayload,
@@ -102,4 +108,15 @@ export async function verifySettleIntentAuth(
     parseSettleIntentMessage,
     network,
   )) as SettleIntentFields;
+}
+
+export async function verifyRecoverManagerIntentAuth(
+  payload: SignedTradeIntentPayload,
+  network = 'testnet',
+): Promise<RecoverManagerIntentFields> {
+  return (await verifySignedIntent(
+    payload,
+    parseRecoverManagerIntentMessage,
+    network,
+  )) as RecoverManagerIntentFields;
 }

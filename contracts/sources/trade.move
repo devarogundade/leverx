@@ -1853,6 +1853,186 @@ public fun quote_liquidation_flash_borrow<Quote>(
     debt + protocol_constants::mul_bps(debt, buffer_bps)
 }
 
+// === Stranded custody recovery ===
+
+/// Sweep mint surplus locked on a flat binary key into the trading account (wallet-callable).
+public fun recover_flat_binary_key_quote<Quote>(
+    proxy: &mut UserProxy,
+    manager: &PredictManager,
+    key: MarketKey,
+    ctx: &mut TxContext,
+): u64 {
+    recover_flat_binary_key_quote_inner<Quote>(proxy, manager, key, ctx)
+}
+
+/// Sweep mint surplus locked on a flat range key into the trading account (wallet-callable).
+public fun recover_flat_range_key_quote<Quote>(
+    proxy: &mut UserProxy,
+    manager: &PredictManager,
+    key: RangeKey,
+    ctx: &mut TxContext,
+): u64 {
+    recover_flat_range_key_quote_inner<Quote>(proxy, manager, key, ctx)
+}
+
+/// Keeper-relayed: withdraw orphaned Predict manager quote into the trading account.
+///
+/// Call only when every market on the manager is flat (enforced off-chain before relay).
+public fun recover_manager_surplus_to_trading_binary<Quote>(
+    registry: &LeverxRegistry,
+    predict_global: &Predict,
+    proxy: &mut UserProxy,
+    manager: &mut PredictManager,
+    key: MarketKey,
+    amount: u64,
+    ctx: &mut TxContext,
+): u64 {
+    assert_registry_predict(registry, predict_global);
+    protocol_registry::assert_keeper_managed_manager(registry, manager);
+    protocol_registry::assert_keeper(registry, ctx);
+    assert!(object::id(manager) == proxy.predict_manager_id(), errors::invalid_manager());
+    assert!(
+        predict_client::manager_binary_position(manager, key) == 0,
+        errors::open_contracts_remain(),
+    );
+    assert!(amount > 0, errors::zero_amount());
+
+    let balance = predict_client::manager_balance<Quote>(manager);
+    assert!(amount <= balance, errors::recovery_amount_exceeds_balance());
+
+    let coin = predict_client::withdraw_quote(manager, amount, ctx);
+    proxy.credit_trading_quote(coin, ctx);
+
+    events::emit_stranded_custody_recovered(
+        object::id(proxy),
+        proxy.owner(),
+        object::id(manager),
+        key.oracle_id(),
+        key.expiry(),
+        key.strike(),
+        0,
+        key.is_up(),
+        false,
+        0,
+        amount,
+    );
+    amount
+}
+
+/// Range variant of [`recover_manager_surplus_to_trading_binary`].
+public fun recover_manager_surplus_to_trading_range<Quote>(
+    registry: &LeverxRegistry,
+    predict_global: &Predict,
+    proxy: &mut UserProxy,
+    manager: &mut PredictManager,
+    key: RangeKey,
+    amount: u64,
+    ctx: &mut TxContext,
+): u64 {
+    assert_registry_predict(registry, predict_global);
+    protocol_registry::assert_keeper_managed_manager(registry, manager);
+    protocol_registry::assert_keeper(registry, ctx);
+    assert!(object::id(manager) == proxy.predict_manager_id(), errors::invalid_manager());
+    assert!(
+        predict_client::manager_range_position(manager, key) == 0,
+        errors::open_contracts_remain(),
+    );
+    assert!(amount > 0, errors::zero_amount());
+
+    let balance = predict_client::manager_balance<Quote>(manager);
+    assert!(amount <= balance, errors::recovery_amount_exceeds_balance());
+
+    let coin = predict_client::withdraw_quote(manager, amount, ctx);
+    proxy.credit_trading_quote(coin, ctx);
+
+    events::emit_stranded_custody_recovered(
+        object::id(proxy),
+        proxy.owner(),
+        object::id(manager),
+        key.oracle_id(),
+        key.expiry(),
+        key.lower_strike(),
+        key.higher_strike(),
+        false,
+        true,
+        0,
+        amount,
+    );
+    amount
+}
+
+fun recover_flat_binary_key_quote_inner<Quote>(
+    proxy: &mut UserProxy,
+    manager: &PredictManager,
+    key: MarketKey,
+    ctx: &mut TxContext,
+): u64 {
+    proxy.assert_can_act(ctx);
+    assert!(object::id(manager) == proxy.predict_manager_id(), errors::invalid_manager());
+    assert!(
+        predict_client::manager_binary_position(manager, key) == 0,
+        errors::open_contracts_remain(),
+    );
+    assert!(proxy.binary_borrowed_quote(key) == 0, errors::outstanding_debt());
+
+    let swept = proxy.binary_quote_balance(key);
+    if (swept == 0) return 0;
+
+    triggers::maybe_clear_binary_triggers_if_flat(proxy, manager, key);
+    finalize_binary_key_after_redeem<Quote>(proxy, key, ctx);
+
+    events::emit_stranded_custody_recovered(
+        object::id(proxy),
+        proxy.owner(),
+        object::id(manager),
+        key.oracle_id(),
+        key.expiry(),
+        key.strike(),
+        0,
+        key.is_up(),
+        false,
+        swept,
+        0,
+    );
+    swept
+}
+
+fun recover_flat_range_key_quote_inner<Quote>(
+    proxy: &mut UserProxy,
+    manager: &PredictManager,
+    key: RangeKey,
+    ctx: &mut TxContext,
+): u64 {
+    proxy.assert_can_act(ctx);
+    assert!(object::id(manager) == proxy.predict_manager_id(), errors::invalid_manager());
+    assert!(
+        predict_client::manager_range_position(manager, key) == 0,
+        errors::open_contracts_remain(),
+    );
+    assert!(proxy.range_borrowed_quote(key) == 0, errors::outstanding_debt());
+
+    let swept = proxy.range_quote_balance(key);
+    if (swept == 0) return 0;
+
+    triggers::maybe_clear_range_triggers_if_flat(proxy, manager, key);
+    finalize_range_key_after_redeem<Quote>(proxy, key, ctx);
+
+    events::emit_stranded_custody_recovered(
+        object::id(proxy),
+        proxy.owner(),
+        object::id(manager),
+        key.oracle_id(),
+        key.expiry(),
+        key.lower_strike(),
+        key.higher_strike(),
+        false,
+        true,
+        swept,
+        0,
+    );
+    swept
+}
+
 /// Permissionless: write off residual binary borrow when contracts are flat and market ended/settled.
 public fun write_off_flat_binary_borrow_permissionless<Quote>(
     registry: &LeverxRegistry,
@@ -3143,6 +3323,7 @@ fun repay_from_payout_binary<Quote>(
         triggers::maybe_clear_binary_triggers_if_flat(proxy, manager, key);
         finalize_binary_key_after_redeem<Quote>(proxy, key, ctx);
     };
+    emit_binary_key_borrow_state(proxy, key);
 }
 
 fun finalize_binary_key_after_redeem<Quote>(
@@ -3316,6 +3497,7 @@ fun repay_from_payout_range<Quote>(
         triggers::maybe_clear_range_triggers_if_flat(proxy, manager, key);
         finalize_range_key_after_redeem<Quote>(proxy, key, ctx);
     };
+    emit_range_key_borrow_state(proxy, key);
 }
 
 /// Emit `LeveragedPositionOpened` for a binary mint fill.

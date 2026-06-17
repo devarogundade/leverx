@@ -18,6 +18,7 @@ use tokio::sync::{broadcast, RwLock};
 use crate::global_trades::fetch_combined_global_trades;
 use crate::orderbook;
 use crate::pagination::paginate;
+use crate::positions_response::{now_ms, positions_json_page};
 
 const STREAM_PAGE_LIMIT: i64 = 200;
 
@@ -215,7 +216,7 @@ impl StreamHub {
                     .select(LeveragedPositionRow::as_select())
                     .load::<LeveragedPositionRow>(&mut conn)
                     .await?;
-                json!(paginate(rows, STREAM_PAGE_LIMIT, 0))
+                json!(positions_json_page(rows, STREAM_PAGE_LIMIT, 0, now_ms()))
             }
             ChannelKind::LimitOrders { owner, oracle_id } => {
                 let mut conn = pool.get().await?;
@@ -370,8 +371,14 @@ async fn dispatch_event(
         | "RangeMinted"
         | "RangeRedeemed" => {
             push_global_and_orderbook_for_oracle(pool, hub, active, parsed).await?;
+            if matches!(
+                row.event_type.as_str(),
+                "PositionRedeemed" | "RangeRedeemed"
+            ) {
+                push_positions_for_predict_manager(pool, hub, active, parsed).await?;
+            }
         }
-        "LeveragedPositionOpened" | "LeveragedPositionClosed" => {
+        "LeveragedPositionOpened" | "LeveragedPositionClosed" | "StrandedCustodyRecovered" => {
             push_global_and_orderbook_for_oracle(pool, hub, active, parsed).await?;
             if let Some(position_key) = position_key_from_parsed(parsed) {
                 if let Some(channel) = orderbook_channel_from_position_key(&position_key) {
@@ -399,7 +406,7 @@ async fn dispatch_event(
                 push_matching_limits(pool, hub, active, owner, oracle_id).await?;
             }
         }
-        "KeyBorrowUpdated" | "DebtRepaid" | "VaultRepaid" => {
+        "KeyBorrowUpdated" | "DebtRepaid" | "VaultRepaid" | "ProxyAccountingSynced" => {
             if let Some(owner) = parsed.get("owner").and_then(|v| v.as_str()) {
                 push_matching_positions(pool, hub, active, owner, None).await?;
             }
@@ -453,6 +460,29 @@ async fn push_matching_positions(
             }
             push_snapshot(pool, hub, ch).await?;
         }
+    }
+    Ok(())
+}
+
+async fn push_positions_for_predict_manager(
+    pool: &Pool<AsyncPgConnection>,
+    hub: &StreamHub,
+    active: &HashSet<String>,
+    parsed: &Value,
+) -> Result<()> {
+    let Some(manager_id) = parsed.get("manager_id").and_then(|v| v.as_str()) else {
+        return Ok(());
+    };
+    let manager_id = manager_id.to_string();
+    let mut conn = pool.get().await?;
+    let owners: Vec<String> = leveraged_positions::table
+        .filter(leveraged_positions::predict_manager_id.eq(&manager_id))
+        .select(leveraged_positions::owner)
+        .distinct()
+        .load::<String>(&mut conn)
+        .await?;
+    for owner in owners {
+        push_matching_positions(pool, hub, active, &owner, None).await?;
     }
     Ok(())
 }

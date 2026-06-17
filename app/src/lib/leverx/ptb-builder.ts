@@ -81,6 +81,30 @@ export function appendWithdrawQuote(
   });
 }
 
+/** Sweep mint surplus from a flat market key into the trading account. */
+export function appendRecoverFlatKeyQuote(
+  tx: Transaction,
+  cfg: LeverxProtocolConfig,
+  accountId: string,
+  predictManagerId: string,
+  key: MarketKeyArgs,
+): void {
+  const marketKey = addMarketKey(tx, key, cfg.predictPackageId);
+  const fn = key.isRange
+    ? "recover_flat_range_key_quote"
+    : "recover_flat_binary_key_quote";
+
+  tx.moveCall({
+    target: `${cfg.packageId}::trade::${fn}`,
+    typeArguments: [cfg.quoteType],
+    arguments: [
+      tx.object(accountId),
+      tx.object(predictManagerId),
+      marketKey,
+    ],
+  });
+}
+
 /**
  * Place a resting limit mint order. Owner-scoped (`assert_can_act`) and does not
  * touch the keeper-owned Predict manager, so the trader signs it directly. The

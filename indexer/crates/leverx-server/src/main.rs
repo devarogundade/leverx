@@ -3,6 +3,7 @@ mod global_trades;
 mod leaderboard;
 mod orderbook;
 mod pagination;
+mod positions_response;
 mod routes;
 mod stream;
 mod vault;

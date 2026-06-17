@@ -306,7 +306,36 @@ export async function fetchManagerOpenQuantity(params: {
   }
 }
 
-/** On-chain quote balance held on a market key ledger (not in wallet). */
+/** Quote balance held in a Predict manager (shared across markets on that manager). */
+export async function fetchManagerQuoteBalance(params: {
+  client: SuiJsonRpcClient;
+  packageId: string;
+  quoteType: string;
+  predictManagerId: string;
+}): Promise<bigint | null> {
+  const tx = new Transaction();
+  tx.setSender(READONLY_SENDER);
+
+  tx.moveCall({
+    target: `${params.packageId}::predict_client::manager_balance`,
+    typeArguments: [params.quoteType],
+    arguments: [tx.object(params.predictManagerId)],
+  });
+
+  try {
+    const inspect = await params.client.devInspectTransactionBlock({
+      transactionBlock: tx,
+      sender: READONLY_SENDER,
+    });
+    if (inspect.effects?.status?.status !== "success") return null;
+    const scalars = parseScalarResults(inspect.results);
+    return scalars.at(-1) ?? 0n;
+  } catch {
+    return null;
+  }
+}
+
+/** On-chain quote balance held on a market key ledger (not in the trading account). */
 export async function fetchKeyQuoteBalance(params: {
   client: SuiJsonRpcClient;
   leverxPackageId: string;

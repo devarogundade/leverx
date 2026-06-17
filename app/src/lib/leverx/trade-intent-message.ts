@@ -3,6 +3,7 @@
 export const TRADE_MINT_MESSAGE_PREFIX = "leverx:trade:mint:v1";
 export const TRADE_REDEEM_MESSAGE_PREFIX = "leverx:trade:redeem:v1";
 export const TRADE_SETTLE_MESSAGE_PREFIX = "leverx:trade:settle:v1";
+export const TRADE_RECOVER_MANAGER_MESSAGE_PREFIX = "leverx:trade:recover_manager:v1";
 
 export const TRADE_INTENT_TTL_MS = 5 * 60_000;
 
@@ -56,6 +57,14 @@ export type SettleIntentFields = MarketKeyIntentFields & {
   predictManagerId: string;
   expiresAtMs: number;
   quantity: bigint;
+};
+
+export type RecoverManagerIntentFields = MarketKeyIntentFields & {
+  address: string;
+  accountId: string;
+  predictManagerId: string;
+  expiresAtMs: number;
+  managerQuoteAtoms: bigint;
 };
 
 function encodeBool(value: boolean): string {
@@ -127,6 +136,26 @@ export function buildSettleIntentMessage(fields: SettleIntentFields): Uint8Array
     `is_up=${encodeBool(fields.isUp)}`,
     `is_range=${encodeBool(fields.isRange)}`,
     `quantity=${fields.quantity.toString()}`,
+  ];
+  return new TextEncoder().encode(lines.join("\n"));
+}
+
+export function buildRecoverManagerIntentMessage(
+  fields: RecoverManagerIntentFields,
+): Uint8Array {
+  const lines = [
+    TRADE_RECOVER_MANAGER_MESSAGE_PREFIX,
+    `address=${fields.address.trim().toLowerCase()}`,
+    `account_id=${fields.accountId.trim().toLowerCase()}`,
+    `predict_manager_id=${fields.predictManagerId.trim().toLowerCase()}`,
+    `expires_ms=${fields.expiresAtMs}`,
+    `oracle_id=${fields.oracleId.trim().toLowerCase()}`,
+    `market_expiry_ms=${fields.expiryMs}`,
+    `strike=${fields.strike}`,
+    `higher_strike=${fields.higherStrike}`,
+    `is_up=${encodeBool(fields.isUp)}`,
+    `is_range=${encodeBool(fields.isRange)}`,
+    `manager_quote_atoms=${fields.managerQuoteAtoms.toString()}`,
   ];
   return new TextEncoder().encode(lines.join("\n"));
 }

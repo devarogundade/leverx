@@ -311,6 +311,21 @@ pub struct LeveragedPositionClosed {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+pub struct StrandedCustodyRecovered {
+    pub account_id: ObjectID,
+    pub owner: SuiAddress,
+    pub predict_manager_id: ObjectID,
+    pub oracle_id: ObjectID,
+    pub expiry_ms: u64,
+    pub strike: u64,
+    pub higher_strike: u64,
+    pub is_up: bool,
+    pub is_range: bool,
+    pub key_quote_swept: u64,
+    pub manager_quote_recovered: u64,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct BadDebtWrittenOff {
     pub account_id: ObjectID,
     pub owner: SuiAddress,
@@ -541,6 +556,7 @@ pub fn parse_event_json(event_name: &str, bytes: &[u8]) -> serde_json::Value {
         }
         "LeveragedPositionOpened" => parse_as!(LeveragedPositionOpened),
         "LeveragedPositionClosed" => parse_as!(LeveragedPositionClosed),
+        "StrandedCustodyRecovered" => parse_as!(StrandedCustodyRecovered),
         "BadDebtWrittenOff" => parse_as!(BadDebtWrittenOff),
         "PositionForceDeleveraged" => parse_as!(PositionForceDeleveraged),
         "PositionLiquidated" => parse_as!(PositionLiquidated),

@@ -109,6 +109,10 @@ diesel::table! {
         close_debt_repaid -> Int8,
         close_interest_paid -> Int8,
         close_surplus_quote -> Int8,
+        close_source -> Nullable<Text>,
+        leverx_custody_complete -> Bool,
+        external_redeem_payout_quote -> Int8,
+        custody_recovered_quote -> Int8,
     }
 }
 

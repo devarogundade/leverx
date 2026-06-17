@@ -152,6 +152,13 @@ export async function relayTradeSettle(payload: SignedTradeIntent): Promise<Trad
   return postKeeper<TradeRelayResponse>("/trade/settle", payload);
 }
 
+/** Recover orphaned Predict manager quote into the trading account. */
+export async function relayTradeRecoverManager(
+  payload: SignedTradeIntent,
+): Promise<TradeRelayResponse> {
+  return postKeeper<TradeRelayResponse>("/trade/recover_manager", payload);
+}
+
 /** Enoki sponsor step — keeper uses ENOKI_SECRET_KEY; user signs returned bytes. */
 export async function keeperCreateSponsoredTransaction(body: {
   sender: string;

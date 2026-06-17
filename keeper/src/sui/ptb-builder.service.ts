@@ -669,4 +669,35 @@ export class PtbBuilderService {
     });
     return tx;
   }
+
+  /** Recover orphaned Predict manager quote into the user's trading account. */
+  buildRecoverManagerSurplus(
+    cfg: KeeperConfig,
+    params: {
+      key: PositionKeyArgs;
+      accountId: string;
+      predictManagerId: string;
+      managerQuoteAtoms: bigint;
+    },
+  ): Transaction {
+    const tx = new Transaction();
+    const key = this.addMarketKey(tx, cfg, params.key);
+    const fn = params.key.isRange
+      ? 'recover_manager_surplus_to_trading_range'
+      : 'recover_manager_surplus_to_trading_binary';
+
+    tx.moveCall({
+      target: `${cfg.packageId}::trade::${fn}`,
+      typeArguments: [cfg.quoteType],
+      arguments: [
+        tx.object(cfg.registryId),
+        tx.object(cfg.predictId),
+        tx.object(params.accountId),
+        tx.object(params.predictManagerId),
+        key,
+        tx.pure.u64(params.managerQuoteAtoms),
+      ],
+    });
+    return tx;
+  }
 }

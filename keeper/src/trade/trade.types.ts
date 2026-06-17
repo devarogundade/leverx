@@ -9,3 +9,5 @@ export type MintTradeBody = SignedTradeIntentPayload;
 export type RedeemTradeBody = SignedTradeIntentPayload;
 
 export type SettleTradeBody = SignedTradeIntentPayload;
+
+export type RecoverManagerTradeBody = SignedTradeIntentPayload;

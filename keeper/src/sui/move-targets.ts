@@ -35,6 +35,8 @@ export function keeperAllowedMoveCallTargets(cfg: KeeperConfig): string[] {
       'trade::expire_range_limit_mint_order',
       'trade::settle_expired_proxy_position_permissionless',
       'trade::settle_expired_proxy_range_permissionless',
+      'trade::recover_manager_surplus_to_trading_binary',
+      'trade::recover_manager_surplus_to_trading_range',
       'trade::force_deleverage_binary_at_expiry',
       'trade::force_deleverage_range_at_expiry',
       'trade::force_repay_binary_post_expiry',

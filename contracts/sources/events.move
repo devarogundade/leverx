@@ -404,6 +404,23 @@ public struct LeveragedPositionClosed has copy, drop {
     is_settled: bool,
 }
 
+/// Emitted when stranded quote is swept from a flat market key and/or Predict manager into the trading account.
+public struct StrandedCustodyRecovered has copy, drop {
+    account_id: ID,
+    owner: address,
+    predict_manager_id: ID,
+    oracle_id: ID,
+    expiry_ms: u64,
+    strike: u64,
+    higher_strike: u64,
+    is_up: bool,
+    is_range: bool,
+    /// Quote swept from the market key ledger into the trading account.
+    key_quote_swept: u64,
+    /// Quote withdrawn from the Predict manager into the trading account.
+    manager_quote_recovered: u64,
+}
+
 // === Liquidation ===
 
 /// Emitted when a keeper force-deleverages a leveraged key in the final hour before expiry.
@@ -932,6 +949,35 @@ public(package) fun emit_leveraged_position_closed(
         surplus_quote,
         remaining_debt,
         is_settled,
+    });
+}
+
+/// Emit `StrandedCustodyRecovered`.
+public(package) fun emit_stranded_custody_recovered(
+    account_id: ID,
+    owner: address,
+    predict_manager_id: ID,
+    oracle_id: ID,
+    expiry_ms: u64,
+    strike: u64,
+    higher_strike: u64,
+    is_up: bool,
+    is_range: bool,
+    key_quote_swept: u64,
+    manager_quote_recovered: u64,
+) {
+    event::emit(StrandedCustodyRecovered {
+        account_id,
+        owner,
+        predict_manager_id,
+        oracle_id,
+        expiry_ms,
+        strike,
+        higher_strike,
+        is_up,
+        is_range,
+        key_quote_swept,
+        manager_quote_recovered,
     });
 }
 

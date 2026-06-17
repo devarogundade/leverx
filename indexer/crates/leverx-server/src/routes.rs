@@ -32,6 +32,7 @@ use crate::global_trades::fetch_combined_global_trades;
 use crate::leaderboard::{fetch_leaderboard, fetch_owner_rank, leaderboard_response, parse_leaderboard_pagination};
 use crate::orderbook;
 use crate::pagination::{paginate, parse_limit_offset};
+use crate::positions_response::{now_ms, positions_json_list, positions_json_page};
 use crate::vault::{merge_vault_snapshot, normalize_snapshot_row};
 use crate::stream::StreamHub;
 use crate::ws::ws_handler;
@@ -291,7 +292,7 @@ async fn positions(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok(Json(serde_json::to_value(paginate(rows, limit, offset)).unwrap()))
+    Ok(Json(positions_json_page(rows, limit, offset, now_ms())))
 }
 
 async fn accounts(
@@ -353,7 +354,7 @@ async fn account_summary(
 
     Ok(Json(json!({
         "account": account,
-        "open_positions": open_positions,
+        "open_positions": positions_json_list(open_positions, now_ms()),
         "open_limit_orders": open_limit_orders,
     })))
 }

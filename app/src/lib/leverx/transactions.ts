@@ -10,7 +10,7 @@ import {
 } from "@/lib/leverx/constants";
 import type { MarketKeyArgs } from "@/lib/leverx/market-keys";
 import { ensureLeverxAccount, type LeverxAccount } from "@/lib/leverx/onboarding";
-import { relayTradeMint, relayTradeRedeem, relayTradeSettle } from "@/lib/leverx/keeper-client";
+import { relayTradeMint, relayTradeRedeem, relayTradeSettle, relayTradeRecoverManager } from "@/lib/leverx/keeper-client";
 import {
   appendCancelLimit,
   appendClearTriggers,
@@ -18,6 +18,7 @@ import {
   appendPlaceLimitMintOrder,
   appendRegisterExecutor,
   appendDeleverageDebt,
+  appendRecoverFlatKeyQuote,
   appendRevokeExecutor,
   appendSetTriggers,
   appendWithdrawQuote,
@@ -27,6 +28,7 @@ import {
   signMintTradeIntent,
   signRedeemTradeIntent,
   signSettleTradeIntent,
+  signRecoverManagerTradeIntent,
 } from "@/lib/leverx/trade-intent-auth";
 import { lxplpCoinType, type LeverxProtocolConfig } from "@/lib/leverx/protocol";
 import { hasIndexerOpenQuantity } from "@/lib/leverx/position-quantity";
@@ -497,6 +499,74 @@ export async function executeSettleExpired(params: {
     },
   });
   return relayTradeSettle(auth);
+}
+
+export type RecoverStrandedCustodyInput = {
+  position: LeveragedPosition;
+  recoverKeyQuote: bigint;
+  recoverManagerQuote: bigint;
+};
+
+/** Sweep key-locked mint surplus and/or orphaned manager quote into the trading account. */
+export async function executeRecoverStrandedCustody(params: {
+  client: SuiJsonRpcClient;
+  wallet: WalletWithRequiredFeatures;
+  account: WalletAccount;
+  cfg: LeverxProtocolConfig;
+  input: RecoverStrandedCustodyInput;
+}): Promise<{ digest: string }> {
+  const { position, recoverKeyQuote, recoverManagerQuote } = params.input;
+  if (!position.predict_manager_id) {
+    throw new Error("Position is missing a linked Predict manager.");
+  }
+  if (recoverKeyQuote <= 0n && recoverManagerQuote <= 0n) {
+    throw new Error("No stranded quote is available to recover for this position.");
+  }
+
+  const key = positionToKey(position);
+  let lastDigest = "";
+
+  if (recoverKeyQuote > 0n) {
+    const keyResult = await executeWalletTransaction(
+      params.client,
+      params.wallet,
+      params.account,
+      (tx) => {
+        appendRecoverFlatKeyQuote(
+          tx,
+          params.cfg,
+          position.account_id,
+          position.predict_manager_id!,
+          key,
+        );
+      },
+      { gasBudget: TRADE_GAS_BUDGET },
+    );
+    lastDigest = keyResult.digest;
+  }
+
+  if (recoverManagerQuote > 0n) {
+    const auth = await signRecoverManagerTradeIntent({
+      wallet: params.wallet,
+      account: params.account,
+      intent: {
+        address: params.account.address,
+        accountId: position.account_id,
+        predictManagerId: position.predict_manager_id,
+        oracleId: key.oracleId,
+        expiryMs: key.expiryMs,
+        strike: key.strike,
+        higherStrike: key.higherStrike ?? 0,
+        isUp: key.isUp,
+        isRange: key.isRange,
+        managerQuoteAtoms: recoverManagerQuote,
+      },
+    });
+    const managerResult = await relayTradeRecoverManager(auth);
+    lastDigest = managerResult.digest;
+  }
+
+  return { digest: lastDigest };
 }
 
 export async function executeRepayDebt(params: {
