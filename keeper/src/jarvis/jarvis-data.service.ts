@@ -183,6 +183,40 @@ export class JarvisDataService {
   }
 
   async getMarketCandidates(): Promise<JarvisMarketCandidate[]> {
+    return this.buildMarketCandidates();
+  }
+
+  /**
+   * Full markets-phase context: candidates + candles + order books.
+   * Fetches each market sequentially and caches OHLCV per underlying.
+   */
+  async buildMarketsInitialBundle(): Promise<
+    Array<{
+      candidate: JarvisMarketCandidate;
+      candles_15m: OhlcvCandle[];
+      candles_1m: OhlcvCandle[];
+      order_book_up: Awaited<ReturnType<JarvisDataService['getOrderBook']>>;
+      order_book_down: Awaited<ReturnType<JarvisDataService['getOrderBook']>>;
+    }>
+  > {
+    const candidates = await this.buildMarketCandidates();
+    const ohlcvCache = new Map<string, JarvisOhlcvBundle>();
+    const markets: Array<{
+      candidate: JarvisMarketCandidate;
+      candles_15m: OhlcvCandle[];
+      candles_1m: OhlcvCandle[];
+      order_book_up: Awaited<ReturnType<JarvisDataService['getOrderBook']>>;
+      order_book_down: Awaited<ReturnType<JarvisDataService['getOrderBook']>>;
+    }> = [];
+
+    for (const candidate of candidates) {
+      markets.push(await this.enrichMarketCandidate(candidate, ohlcvCache));
+    }
+
+    return markets;
+  }
+
+  private async buildMarketCandidates(): Promise<JarvisMarketCandidate[]> {
     const oracles = await this.fetchLiveOracles();
     const now = Date.now();
     const endingSoon = oracles
@@ -226,9 +260,14 @@ export class JarvisDataService {
     }
   }
 
-  async getMarketDetail(oracleId: string) {
-    const candidates = await this.getMarketCandidates();
-    const candidate = candidates.find((c) => c.oracle_id === oracleId.toLowerCase()) ?? null;
+  async getMarketDetail(
+    oracleId: string,
+    candidates?: JarvisMarketCandidate[],
+  ) {
+    const resolved =
+      candidates ?? (await this.buildMarketCandidates());
+    const candidate =
+      resolved.find((c) => c.oracle_id === oracleId.toLowerCase()) ?? null;
     if (!candidate) {
       return JarvisMarketDetailSchema.parse({
         candidate: null,
@@ -239,26 +278,13 @@ export class JarvisDataService {
       });
     }
 
-    const ohlcv = await this.fetchOhlcvBundle(candidate.underlying);
-    const orderBookUp = await this.getOrderBook({
-      oracleId: candidate.oracle_id,
-      expiryMs: candidate.expiry_ms,
-      strike: candidate.atm_strike_raw,
-      isUp: true,
-    });
-    const orderBookDown = await this.getOrderBook({
-      oracleId: candidate.oracle_id,
-      expiryMs: candidate.expiry_ms,
-      strike: candidate.atm_strike_raw,
-      isUp: false,
-    });
-
+    const enriched = await this.enrichMarketCandidate(candidate, new Map());
     return JarvisMarketDetailSchema.parse({
-      candidate,
-      candles_15m: ohlcv.candles_15m,
-      candles_1m: ohlcv.candles_1m,
-      order_book_up: orderBookUp,
-      order_book_down: orderBookDown,
+      candidate: enriched.candidate,
+      candles_15m: enriched.candles_15m,
+      candles_1m: enriched.candles_1m,
+      order_book_up: enriched.order_book_up,
+      order_book_down: enriched.order_book_down,
     });
   }
 
@@ -409,6 +435,39 @@ export class JarvisDataService {
     });
   }
 
+  private async enrichMarketCandidate(
+    candidate: JarvisMarketCandidate,
+    ohlcvCache: Map<string, JarvisOhlcvBundle>,
+  ) {
+    const underlying = candidate.underlying;
+    let ohlcv = ohlcvCache.get(underlying);
+    if (!ohlcv) {
+      ohlcv = await this.fetchOhlcvBundle(underlying);
+      ohlcvCache.set(underlying, ohlcv);
+    }
+
+    const orderBookUp = await this.getOrderBook({
+      oracleId: candidate.oracle_id,
+      expiryMs: candidate.expiry_ms,
+      strike: candidate.atm_strike_raw,
+      isUp: true,
+    });
+    const orderBookDown = await this.getOrderBook({
+      oracleId: candidate.oracle_id,
+      expiryMs: candidate.expiry_ms,
+      strike: candidate.atm_strike_raw,
+      isUp: false,
+    });
+
+    return {
+      candidate,
+      candles_15m: ohlcv.candles_15m,
+      candles_1m: ohlcv.candles_1m,
+      order_book_up: orderBookUp,
+      order_book_down: orderBookDown,
+    };
+  }
+
   private async buildMarketCandidate(
     row: { oracle_id: string; underlying_asset: string; expiry?: number; status?: string },
     now: number,
@@ -481,10 +540,8 @@ export class JarvisDataService {
   }
 
   private async fetchOhlcvBundle(underlying: string): Promise<JarvisOhlcvBundle> {
-    const [candles_15m, candles_1m] = await Promise.all([
-      this.fetchOhlcv(underlying, '15m'),
-      this.fetchOhlcv(underlying, '1m'),
-    ]);
+    const candles_15m = await this.fetchOhlcv(underlying, '15m');
+    const candles_1m = await this.fetchOhlcv(underlying, '1m');
     return JarvisOhlcvBundleSchema.parse({ candles_15m, candles_1m });
   }
 

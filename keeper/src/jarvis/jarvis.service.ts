@@ -46,6 +46,8 @@ import {
 export class JarvisService implements OnModuleInit {
   private readonly logger = new Logger(JarvisService.name);
   private readonly cfg: JarvisConfig;
+  /** Prevents overlapping lifecycle runs for the same account (e.g. bootstrap + scheduler). */
+  private readonly lifecycleLocks = new Map<string, Promise<void>>();
 
   constructor(
     config: ConfigService,
@@ -355,6 +357,26 @@ export class JarvisService implements OnModuleInit {
   }
 
   async runLifecycle(userAddress: string, accountId: string): Promise<void> {
+    const normalizedAccountId = accountId.trim().toLowerCase();
+    const inFlight = this.lifecycleLocks.get(normalizedAccountId);
+    if (inFlight) {
+      this.logger.debug(
+        `jarvis lifecycle already running for ${normalizedAccountId} — skipping duplicate job`,
+      );
+      return;
+    }
+
+    const run = this.runLifecycleInner(userAddress, accountId).finally(() => {
+      this.lifecycleLocks.delete(normalizedAccountId);
+    });
+    this.lifecycleLocks.set(normalizedAccountId, run);
+    await run;
+  }
+
+  private async runLifecycleInner(
+    userAddress: string,
+    accountId: string,
+  ): Promise<void> {
     const normalizedOwner = userAddress.trim().toLowerCase();
     const normalizedAccountId = accountId.trim().toLowerCase();
     const settings = await this.settingsRepo.findOne({

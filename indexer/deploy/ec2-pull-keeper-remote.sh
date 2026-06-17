@@ -56,7 +56,7 @@ ENV_FILE="/opt/leverx/keeper/.env"
     value="$(pick_env "${key}")"
     [[ -n "${value}" ]] && echo "${key}=${value}"
   done
-  for key in SUI_RPC_URL SUI_RPC_FALLBACK_URL JARVIS_ENABLED ANTHROPIC_API_KEY JARVIS_ANTHROPIC_MODEL JARVIS_INTERVAL_MS \
+  for key in SUI_RPC_URL SUI_RPC_FALLBACK_URL SUI_RPC_MAX_PER_SECOND JARVIS_ENABLED ANTHROPIC_API_KEY JARVIS_ANTHROPIC_MODEL JARVIS_INTERVAL_MS \
     JARVIS_MARKETS_LIMIT JARVIS_MARKET_SLIPPAGE_BPS DEEPBOOK_INDEXER_URL; do
     value="$(pick_env "${key}")"
     [[ -n "${value}" ]] && echo "${key}=${value}"

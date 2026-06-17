@@ -21,6 +21,8 @@ export type KeeperConfig = {
   suiRpcUrl: string;
   /** Paid / higher-quota RPC used when the primary returns 429. */
   suiRpcFallbackUrl: string;
+  /** Max Sui JSON-RPC calls per second (global throttle). */
+  suiRpcMaxPerSecond: number;
   packageId: string;
   registryId: string;
   vaultId: string;
@@ -64,6 +66,10 @@ export default registerAs(
     suiNetwork: DEFAULT_SUI_NETWORK,
     suiRpcUrl: envOrDefault('SUI_RPC_URL', SUI_RPC_URLS[DEFAULT_SUI_NETWORK]),
     suiRpcFallbackUrl: (process.env.SUI_RPC_FALLBACK_URL ?? '').trim(),
+    suiRpcMaxPerSecond: Math.max(
+      1,
+      Number(process.env.SUI_RPC_MAX_PER_SECOND ?? 4),
+    ),
     packageId: envOrDefault('LEVERX_PACKAGE_ID', TESTNET_LEVERX.packageId),
     registryId: envOrDefault('LEVERX_REGISTRY_ID', TESTNET_LEVERX.registryId),
     vaultId: envOrDefault('LEVERX_VAULT_ID', TESTNET_LEVERX.vaultId),

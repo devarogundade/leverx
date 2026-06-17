@@ -53,6 +53,7 @@ export class SuiService implements OnModuleInit {
       network,
       primaryUrl: url,
       fallbackUrl: this.cfg.suiRpcFallbackUrl,
+      maxPerSecond: this.cfg.suiRpcMaxPerSecond,
       logger: this.logger,
     });
 
@@ -89,12 +90,10 @@ export class SuiService implements OnModuleInit {
       const windowTx = this.ptb.buildReadRegistryU64(cfg, 'final_window_ms');
       const keeperTx = this.ptb.buildReadKeeperAddress(cfg);
 
-      const [paused, liquidationRaw, windowRaw, keeper] = await Promise.all([
-        this.devInspectBool(pausedTx),
-        this.devInspectU64(liquidationTx),
-        this.devInspectU64(windowTx),
-        this.devInspectAddress(keeperTx),
-      ]);
+      const paused = await this.devInspectBool(pausedTx);
+      const liquidationRaw = await this.devInspectU64(liquidationTx);
+      const windowRaw = await this.devInspectU64(windowTx);
+      const keeper = await this.devInspectAddress(keeperTx);
 
       if (paused !== null) {
         this.tradingPaused = paused;

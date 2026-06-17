@@ -8,6 +8,7 @@ import {
   Settings,
   Sparkles,
 } from "lucide-react";
+import { JarvisEnablePasswordDialog } from "@/components/leverx/JarvisEnablePasswordDialog";
 import { JarvisSettingsDialog } from "@/components/leverx/JarvisSettingsDialog";
 import { InfoPopover } from "@/components/leverx/InfoPopover";
 import { Badge } from "@/components/ui/badge";
@@ -283,6 +284,7 @@ export function JarvisWorkspace({ owner, accountId, className }: Props) {
   const initialScrollRef = useRef(true);
   const pendingPrependRef = useRef<{ scrollHeight: number; scrollTop: number; } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [enablePasswordOpen, setEnablePasswordOpen] = useState(false);
   const [showScrollFab, setShowScrollFab] = useState(false);
   const welcomeSeen =
     typeof window !== "undefined" && localStorage.getItem(WELCOME_KEY) === "1";
@@ -381,8 +383,17 @@ export function JarvisWorkspace({ owner, accountId, className }: Props) {
       disableJarvis.mutate({ owner, accountId });
       return;
     }
+    setEnablePasswordOpen(true);
+  };
+
+  const handleEnableConfirm = () => {
     localStorage.setItem(WELCOME_KEY, "1");
-    enableJarvis.mutate({ owner, accountId });
+    enableJarvis.mutate(
+      { owner, accountId },
+      {
+        onSuccess: () => setEnablePasswordOpen(false),
+      },
+    );
   };
 
   return (
@@ -392,6 +403,13 @@ export function JarvisWorkspace({ owner, accountId, className }: Props) {
         onOpenChange={setSettingsOpen}
         owner={owner}
         accountId={accountId}
+      />
+
+      <JarvisEnablePasswordDialog
+        open={enablePasswordOpen}
+        onOpenChange={setEnablePasswordOpen}
+        busy={enableJarvis.isPending}
+        onConfirm={handleEnableConfirm}
       />
 
       <ChatHeader

@@ -178,25 +178,13 @@ export class JarvisAiService {
       });
     }
 
-    const candidates = await this.data.getMarketCandidates();
-    const markets = await Promise.all(
-      candidates.map(async (candidate) => {
-        const detail = await this.data.getMarketDetail(candidate.oracle_id);
-        return {
-          candidate,
-          candles_15m: detail.candles_15m,
-          candles_1m: detail.candles_1m,
-          order_book_up: detail.order_book_up,
-          order_book_down: detail.order_book_down,
-        };
-      }),
-    );
+    const market_candidates = await this.data.buildMarketsInitialBundle();
 
     return JarvisInitialContextSchema.parse({
       system: request.systemContext,
       account,
       platform_rules: platformRules,
-      market_candidates: markets,
+      market_candidates,
     });
   }
 

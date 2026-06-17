@@ -19,7 +19,7 @@ export default registerAs('jarvis', (): JarvisConfig => {
     model:
       process.env.JARVIS_ANTHROPIC_MODEL?.trim() ||
       process.env.JARVIS_MODEL?.trim() ||
-      'claude-sonnet-4-20250514',
+      'claude-haiku-4-5-20251001',
     intervalMs: Number(process.env.JARVIS_INTERVAL_MS ?? JARVIS_RUN_INTERVAL_MS),
     marketsLimit: Number(process.env.JARVIS_MARKETS_LIMIT ?? 10),
     marketSlippageBps: Number(process.env.JARVIS_MARKET_SLIPPAGE_BPS ?? 100),

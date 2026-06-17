@@ -4,6 +4,13 @@ import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc';
 /** How long to stay on fallback RPC before trying the public node again. */
 export const SUI_RPC_FALLBACK_REST_MS = 60_000;
 
+/** Default spacing between RPC calls (~4/s — under BlockVision free tier). */
+export const SUI_RPC_DEFAULT_MAX_PER_SECOND = 4;
+
+export const SUI_RPC_DEFAULT_MAX_RETRIES = 6;
+export const SUI_RPC_DEFAULT_RETRY_BASE_MS = 300;
+export const SUI_RPC_DEFAULT_RETRY_MAX_MS = 8_000;
+
 export function isSuiRpcRateLimitError(err: unknown): boolean {
   const message = String(err ?? '').toLowerCase();
   if (message.includes('429') || message.includes('rate limit')) return true;
@@ -15,11 +22,35 @@ export function isSuiRpcRateLimitError(err: unknown): boolean {
   return false;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Spaces out RPC calls to avoid bursting past provider rate limits. */
+export class RpcRateLimiter {
+  private lastCallMs = 0;
+
+  constructor(private readonly minIntervalMs: number) {}
+
+  async acquire(): Promise<void> {
+    const now = Date.now();
+    const wait = this.lastCallMs + this.minIntervalMs - now;
+    if (wait > 0) {
+      await sleep(wait);
+    }
+    this.lastCallMs = Date.now();
+  }
+}
+
 export type SuiRpcFailoverOptions = {
   network: 'mainnet' | 'testnet' | 'devnet' | 'localnet';
   primaryUrl: string;
   fallbackUrl?: string;
   restMs?: number;
+  maxPerSecond?: number;
+  maxRetries?: number;
+  retryBaseMs?: number;
+  retryMaxMs?: number;
   logger?: Logger;
 };
 
@@ -37,6 +68,10 @@ export class SuiRpcFailover {
   private readonly primaryUrl: string;
   private readonly fallbackUrl: string | null;
   private readonly restMs: number;
+  private readonly maxRetries: number;
+  private readonly retryBaseMs: number;
+  private readonly retryMaxMs: number;
+  private readonly limiter: RpcRateLimiter;
   private readonly logger?: Logger;
   private active: 'primary' | 'fallback' = 'primary';
   private fallbackUntilMs: number | null = null;
@@ -46,6 +81,11 @@ export class SuiRpcFailover {
     this.primaryUrl = options.primaryUrl || getJsonRpcFullnodeUrl(network);
     this.fallbackUrl = options.fallbackUrl?.trim() || null;
     this.restMs = options.restMs ?? SUI_RPC_FALLBACK_REST_MS;
+    this.maxRetries = options.maxRetries ?? SUI_RPC_DEFAULT_MAX_RETRIES;
+    this.retryBaseMs = options.retryBaseMs ?? SUI_RPC_DEFAULT_RETRY_BASE_MS;
+    this.retryMaxMs = options.retryMaxMs ?? SUI_RPC_DEFAULT_RETRY_MAX_MS;
+    const maxPerSecond = options.maxPerSecond ?? SUI_RPC_DEFAULT_MAX_PER_SECOND;
+    this.limiter = new RpcRateLimiter(Math.ceil(1000 / Math.max(1, maxPerSecond)));
     this.logger = options.logger;
 
     this.primaryClient = new SuiJsonRpcClient({
@@ -58,10 +98,12 @@ export class SuiRpcFailover {
 
     if (this.fallbackClient) {
       this.logger?.log(
-        `Sui RPC failover enabled: primary=${this.redactUrl(this.primaryUrl)} fallback=${this.redactUrl(this.fallbackUrl!)} rest=${this.restMs}ms`,
+        `Sui RPC failover enabled: primary=${this.redactUrl(this.primaryUrl)} fallback=${this.redactUrl(this.fallbackUrl!)} rest=${this.restMs}ms throttle=${maxPerSecond}/s`,
       );
     } else {
-      this.logger?.log(`Sui RPC: ${this.redactUrl(this.primaryUrl)} (no fallback)`);
+      this.logger?.log(
+        `Sui RPC: ${this.redactUrl(this.primaryUrl)} throttle=${maxPerSecond}/s (no fallback)`,
+      );
     }
   }
 
@@ -83,22 +125,37 @@ export class SuiRpcFailover {
   }
 
   async invoke<T>(fn: (client: SuiJsonRpcClient) => Promise<T>): Promise<T> {
-    this.maybeSwitchBackToPrimary();
+    let lastErr: unknown;
 
-    try {
-      return await fn(this.getActiveClient());
-    } catch (err) {
-      if (!isSuiRpcRateLimitError(err) || !this.fallbackClient) {
-        throw err;
+    for (let attempt = 0; attempt < this.maxRetries; attempt++) {
+      await this.limiter.acquire();
+      this.maybeSwitchBackToPrimary();
+
+      try {
+        return await fn(this.getActiveClient());
+      } catch (err) {
+        lastErr = err;
+        if (!isSuiRpcRateLimitError(err)) {
+          throw err;
+        }
+
+        if (this.active === 'primary' && this.fallbackClient) {
+          this.switchToFallback();
+          continue;
+        }
+
+        const backoff = Math.min(
+          this.retryBaseMs * 2 ** attempt,
+          this.retryMaxMs,
+        );
+        this.logger?.warn(
+          `Sui RPC rate limited (${this.active}) — retry ${attempt + 1}/${this.maxRetries} in ${backoff}ms`,
+        );
+        await sleep(backoff);
       }
-
-      if (this.active === 'fallback') {
-        throw err;
-      }
-
-      this.switchToFallback();
-      return await fn(this.fallbackClient);
     }
+
+    throw lastErr;
   }
 
   private switchToFallback(): void {
