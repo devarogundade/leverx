@@ -2,6 +2,13 @@ import { LineChart, RotateCcw, ZoomIn, ZoomOut } from "lucide-react";
 import { CHART_OHLCV_INTERVALS, type OhlcvInterval } from "@/lib/deepbook/ohlcv";
 import type { ChartDisplayMode } from "@/hooks/useChartPriceSeries";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   pillToggleActive,
   pillToggleBtn,
   pillToggleGroup,
@@ -60,26 +67,47 @@ export function ChartToolbar({
     >
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         {hasOhlcv ? (
-          <div
-            className={cn(pillToggleGroup, "max-w-full overflow-x-auto")}
-            role="group"
-            aria-label="Chart timeframe"
-          >
-            {CHART_OHLCV_INTERVALS.map((value) => (
-              <button
-                key={value}
-                type="button"
-                className={cn(
-                  pillToggleBtn,
-                  interval === value ? pillToggleActive : pillToggleIdle,
-                )}
-                onClick={() => onIntervalChange(value)}
-                aria-pressed={interval === value}
+          <>
+            <Select
+              value={interval}
+              onValueChange={(value) => onIntervalChange(value as OhlcvInterval)}
+            >
+              <SelectTrigger
+                className="h-7 w-22 border-0 bg-muted/60 px-2.5 py-1 text-sm font-medium capitalize shadow-none focus:ring-1 md:hidden"
+                aria-label="Chart timeframe"
               >
-                {value}
-              </button>
-            ))}
-          </div>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CHART_OHLCV_INTERVALS.map((value) => (
+                  <SelectItem key={value} value={value} className="capitalize">
+                    {value}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <div
+              className={cn(pillToggleGroup, "hidden max-w-full overflow-x-auto md:flex")}
+              role="group"
+              aria-label="Chart timeframe"
+            >
+              {CHART_OHLCV_INTERVALS.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={cn(
+                    pillToggleBtn,
+                    interval === value ? pillToggleActive : pillToggleIdle,
+                  )}
+                  onClick={() => onIntervalChange(value)}
+                  aria-pressed={interval === value}
+                >
+                  {value}
+                </button>
+              ))}
+            </div>
+          </>
         ) : null}
 
         {hasOhlcv ? (

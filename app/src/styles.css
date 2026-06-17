@@ -817,8 +817,8 @@ select {
 @media (max-width: 767px) {
   .trade-terminal-mobile-chart .trade-terminal-chart {
     flex: 0 0 auto;
-    height: 280px;
-    min-height: 280px;
+    height: 400px;
+    min-height: 400px;
   }
 
   .trade-terminal-mobile-chart .trade-terminal-orderbook {
