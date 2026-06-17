@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Transaction } from '@mysten/sui/transactions';
+import { simulationFailureMessage } from '../lib/move-abort';
 import type { JarvisConfig } from '../config/jarvis.config';
 import {
   isLeveragedMintAllowed,
@@ -457,8 +458,9 @@ export class JarvisTradeService {
       throw new ServiceUnavailableException('trading_paused');
     }
 
-    if (!(await this.sui.devInspect(tx))) {
-      throw new BadRequestException('simulation_failed');
+    const simulation = await this.sui.tryDevInspect(tx);
+    if (!simulation.ok) {
+      throw new BadRequestException(simulationFailureMessage(simulation.error));
     }
 
     try {

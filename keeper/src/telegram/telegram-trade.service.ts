@@ -12,6 +12,7 @@ import { isLeveragedMintAllowed } from '../config/trade-math';
 import type { PositionKeyArgs } from '../keeper/keeper.types';
 import { IndexerService } from '../indexer/indexer.service';
 import { logKeeperError } from '../lib/keeper-log';
+import { simulationFailureMessage } from '../lib/move-abort';
 import { PredictQuoteService } from '../sui/predict-quote.service';
 import { PtbBuilderService } from '../sui/ptb-builder.service';
 import { SuiService } from '../sui/sui.service';
@@ -198,8 +199,9 @@ export class TelegramTradeService {
       throw new ServiceUnavailableException('trading_paused');
     }
 
-    if (!(await this.sui.devInspect(tx))) {
-      throw new BadRequestException('simulation_failed');
+    const simulation = await this.sui.tryDevInspect(tx);
+    if (!simulation.ok) {
+      throw new BadRequestException(simulationFailureMessage(simulation.error));
     }
 
     try {

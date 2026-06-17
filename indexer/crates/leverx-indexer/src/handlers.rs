@@ -498,7 +498,7 @@ impl Handler for LeverxEventsHandler {
             rows += diesel::sql_query(
                 "UPDATE leveraged_positions SET \
                  open_quantity = CASE \
-                   WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN open_quantity \
+                   WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN 0 \
                    ELSE GREATEST(open_quantity - $1, 0) \
                  END, \
                  realized_payout = realized_payout + $2, \
@@ -541,7 +541,7 @@ impl Handler for LeverxEventsHandler {
             rows += diesel::sql_query(
                 "UPDATE leveraged_positions SET \
                  open_quantity = CASE \
-                   WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN open_quantity \
+                   WHEN GREATEST(open_quantity - $1, 0) <= 0 THEN 0 \
                    ELSE GREATEST(open_quantity - $1, 0) \
                  END, \
                  realized_payout = realized_payout + $2, \

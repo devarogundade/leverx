@@ -11,6 +11,7 @@ import { IndexerService } from '../indexer/indexer.service';
 import type { LeveragedPosition } from '../indexer/indexer.types';
 import type { TaskResult } from '../keeper/keeper.types';
 import { logKeeperError } from '../lib/keeper-log';
+import { simulationFailureMessage } from '../lib/move-abort';
 import { PredictQuoteService } from '../sui/predict-quote.service';
 import { PtbBuilderService } from '../sui/ptb-builder.service';
 import { SuiService } from '../sui/sui.service';
@@ -84,12 +85,13 @@ export class TriggerService {
           slippageBps,
         );
         const tx = this.ptb.buildTriggerRedeem(cfg, position, minPayout);
-        if (!(await this.sui.devInspect(tx))) {
+        const simulation = await this.sui.tryDevInspect(tx);
+        if (!simulation.ok) {
           results.push({
             kind: 'trigger',
             target,
             success: false,
-            error: 'simulation_failed',
+            error: simulationFailureMessage(simulation.error),
           });
           continue;
         }

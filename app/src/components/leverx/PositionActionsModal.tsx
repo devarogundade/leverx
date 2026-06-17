@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft, Loader2 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ChevronLeft, Loader2, RefreshCw } from "lucide-react";
 import { ConfirmDialog } from "@/components/leverx/ConfirmDialog";
 import { ResponsiveModal } from "@/components/leverx/ResponsiveModal";
 import { InfoPopover } from "@/components/leverx/InfoPopover";
@@ -16,10 +16,12 @@ import { formatQuantity } from "@/lib/leverx/format-quantity";
 import { fetchManagerOpenQuantity } from "@/lib/leverx/quotes";
 import { DEV_INSPECT_QUOTE_STALE_MS } from "@/lib/leverx/constants";
 import {
-  hasIndexerOpenQuantity,
-  settleContractQuantity,
   type OnChainQuantityRead,
 } from "@/lib/leverx/position-quantity";
+import {
+  getPositionActionAvailability,
+  type PositionEmptyStateKind,
+} from "@/lib/leverx/position-action-availability";
 import { showTxError, showTxSuccess } from "@/lib/toast";
 import { usePredictOracleRows } from "@/hooks/usePredictOracles";
 import { predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
@@ -59,71 +61,41 @@ function positionToKey(position: LeveragedPosition): MarketKeyArgs {
   };
 }
 
-type PositionActionAvailability = {
-  canCloseRedeem: boolean;
-  canSettle: boolean;
-  canRepayDebt: boolean;
-  emptyMessage: string | null;
-};
-
-/** Which manage actions are valid for this position (on-chain qty + oracle state). */
-function getPositionActionAvailability(params: {
-  position: LeveragedPosition;
-  onChainQuantity: OnChainQuantityRead;
-  quantityLoading: boolean;
-  oracleSettled: boolean;
-  now?: number;
-}): PositionActionAvailability {
-  const { position, onChainQuantity, quantityLoading, oracleSettled } = params;
-  const now = params.now ?? Date.now();
-  const expired = position.expiry_ms > 0 && position.expiry_ms < now;
-  const hasDebt = position.borrow_quote > 0;
-
-  const settleQty = settleContractQuantity(onChainQuantity);
-  const hasRedeemableQuantity =
-    onChainQuantity != null
-      ? onChainQuantity > 0n
-      : hasIndexerOpenQuantity(position);
-
-  const canCloseRedeem = hasRedeemableQuantity && !oracleSettled;
-  const canSettle =
-    expired &&
-    oracleSettled &&
-    settleQty > 0n &&
-    !quantityLoading &&
-    onChainQuantity != null;
-  const canRepayDebt = hasDebt;
-
-  let emptyMessage: string | null = null;
-  if (
-    !quantityLoading &&
-    !canCloseRedeem &&
-    !canSettle &&
-    !canRepayDebt
-  ) {
-    const indexStale =
-      onChainQuantity === 0n && hasIndexerOpenQuantity(position);
-    if (indexStale && expired && oracleSettled) {
-      emptyMessage =
-        "These contracts are already settled. Refresh your portfolio — this row should disappear shortly.";
-    } else if (indexStale) {
-      emptyMessage =
-        "These contracts are already settled. Refresh your portfolio — this row should disappear shortly.";
-    } else if (settleQty === 0n && !hasIndexerOpenQuantity(position)) {
-      emptyMessage = "Contracts fully redeemed.";
-    } else if (expired && !oracleSettled && hasIndexerOpenQuantity(position)) {
-      emptyMessage = "Waiting for oracle settlement before you can settle.";
-    } else {
-      emptyMessage = "No actions available for this position.";
-    }
+function positionEmptyStateMessage(kind: PositionEmptyStateKind): string {
+  switch (kind) {
+    case "index_stale":
+      return leverxInfo.positionIndexStaleDetail;
+    case "fully_redeemed":
+      return leverxInfo.positionFullyRedeemed;
+    case "awaiting_oracle_settlement":
+      return leverxInfo.positionAwaitingOracleSettlement;
+    case "no_actions":
+      return "No actions available for this position.";
   }
+}
 
-  return {
-    canCloseRedeem,
-    canSettle,
-    canRepayDebt,
-    emptyMessage,
-  };
+function PositionEmptyStatePanel({
+  kind,
+  onRefresh,
+}: {
+  kind: PositionEmptyStateKind;
+  onRefresh?: () => void;
+}) {
+  return (
+    <div className="space-y-3 rounded-lg border border-border bg-muted/30 px-3 py-3 text-sm text-muted-foreground">
+      <p className="leading-relaxed">{positionEmptyStateMessage(kind)}</p>
+      {kind === "index_stale" && onRefresh ? (
+        <button
+          type="button"
+          onClick={onRefresh}
+          className="inline-flex items-center gap-1.5 font-medium text-foreground underline-offset-4 hover:underline"
+        >
+          <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+          Refresh portfolio
+        </button>
+      ) : null}
+    </div>
+  );
 }
 
 function PositionDetailGrid({
@@ -157,12 +129,12 @@ function PositionDetailGrid({
       </dd>
       {qtyStaleHigh ? (
         <dt className="col-span-2 text-xs text-muted-foreground">
-          On-chain quantity (portfolio index may be stale).
+          On-chain quantity differs from the portfolio index.
         </dt>
       ) : null}
       {qtyStaleLow ? (
         <dt className="col-span-2 text-xs text-muted-foreground">
-          On-chain contracts are zero — portfolio index still lists this position.
+          On-chain contracts are zero — portfolio index still lists this row.
         </dt>
       ) : null}
       <dt className="text-muted-foreground">Margin</dt>
@@ -183,6 +155,7 @@ function PositionDetailGrid({
 
 export function PositionActionsModal({ position, open, onOpenChange }: Props) {
   const { client } = useWallet();
+  const queryClient = useQueryClient();
   const { cfg } = useLeverxProtocolConfig();
   const { data: oracles = [] } = usePredictOracleRows();
   const {
@@ -244,13 +217,21 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
     canCloseRedeem,
     canSettle,
     canRepayDebt,
-    emptyMessage,
+    emptyState,
   } = getPositionActionAvailability({
     position,
     onChainQuantity: onChainQtyRead,
     quantityLoading,
     oracleSettled,
   });
+
+  const refreshPortfolio = () => {
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["indexer-positions"], refetchType: "active" }),
+      queryClient.invalidateQueries({ queryKey: ["manager-open-qty"], refetchType: "active" }),
+      queryClient.invalidateQueries({ queryKey: ["trading-account-balance"], refetchType: "active" }),
+    ]);
+  };
   const borrowedUsd = scaleQuote(position.borrow_quote);
   const repayNum = parseFloat(repayUsd) || 0;
   const repayExceedsDebt = repayNum > borrowedUsd + 1e-6;
@@ -384,10 +365,11 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
                   onClick={() => setConfirmAction("clear_triggers")}
                 />
               ) : null}
-              {emptyMessage ? (
-                <p className="rounded-lg border border-border bg-muted/30 px-3 py-3 text-sm text-muted-foreground">
-                  {emptyMessage}
-                </p>
+              {emptyState ? (
+                <PositionEmptyStatePanel
+                  kind={emptyState}
+                  onRefresh={emptyState === "index_stale" ? refreshPortfolio : undefined}
+                />
               ) : null}
             </div>
           </div>

@@ -28,6 +28,7 @@ SET
         ELSE lp.closing_mark
     END,
     status = 'settled',
+    open_quantity = 0,
     closed_at_ms = COALESCE(lp.closed_at_ms, sr.timestamp_ms)
 FROM settled_redeems AS sr
 WHERE lp.position_key = sr.market_key

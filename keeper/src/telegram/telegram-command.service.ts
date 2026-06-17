@@ -8,6 +8,7 @@ import {
   TelegramTradeService,
   type TelegramTradeSide,
 } from './telegram-trade.service';
+import { describeLeverxAbort } from '../lib/leverx-abort-messages';
 
 @Injectable()
 export class TelegramCommandService {
@@ -368,6 +369,11 @@ function formatTradeError(err: unknown): string {
     } else if ('message' in err && typeof err.message === 'string') {
       code = err.message;
     }
+  }
+
+  const abortMessage = describeLeverxAbort(code);
+  if (abortMessage) {
+    return abortMessage;
   }
 
   if (code.includes('no_active_market')) {

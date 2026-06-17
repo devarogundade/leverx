@@ -2,9 +2,10 @@ import { Inbox } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SurfaceSkeleton } from "@/components/ui/market-skeleton";
 import { LeverxPositionsTable } from "@/components/leverx/LeverxPositionsTable";
+import { PortfolioIndexSyncNotice } from "@/components/leverx/PortfolioIndexSyncNotice";
 import { usePositionsMarkToMarket } from "@/hooks/usePositionsMarkToMarket";
+import { useVerifiedOpenPositions } from "@/hooks/useVerifiedOpenPositions";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
-import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
 import { pageState } from "@/lib/leverx/tw";
 import { ui } from "@/lib/copy";
 import { cn } from "@/lib/utils";
@@ -22,14 +23,20 @@ export function PredictManagerPortfolioPanel({
   isLoading,
   className,
 }: Props) {
-  const activePositions = positions.filter(isActiveOpenPosition);
+  const {
+    activePositions,
+    stalePositions,
+    isVerifying,
+    indexerOpenCount,
+  } = useVerifiedOpenPositions(positions);
   const { byPositionId, isRefreshing } = usePositionsMarkToMarket(activePositions);
+  const loading = Boolean(isLoading || isVerifying);
 
-  if (isLoading && activePositions.length === 0) {
+  if (loading && indexerOpenCount === 0) {
     return <SurfaceSkeleton className={className} />;
   }
 
-  if (activePositions.length === 0) {
+  if (activePositions.length === 0 && stalePositions.length === 0) {
     return (
       <div className={cn(pageState, "py-6", className)}>
         <EmptyState
@@ -43,12 +50,16 @@ export function PredictManagerPortfolioPanel({
   }
 
   return (
-    <LeverxPositionsTable
-      className={className}
-      positions={activePositions}
-      markToMarket={byPositionId}
-      isRefreshing={isRefreshing}
-      owner={owner}
-    />
+    <div className={cn("space-y-3", className)}>
+      <PortfolioIndexSyncNotice stalePositions={stalePositions} />
+      {activePositions.length > 0 ? (
+        <LeverxPositionsTable
+          positions={activePositions}
+          markToMarket={byPositionId}
+          isRefreshing={isRefreshing}
+          owner={owner}
+        />
+      ) : null}
+    </div>
   );
 }

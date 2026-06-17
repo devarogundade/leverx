@@ -11,11 +11,11 @@ import {
   useIndexerPositions,
 } from "@/hooks/useIndexer";
 import { usePositionsMarkToMarket } from "@/hooks/usePositionsMarkToMarket";
+import { useVerifiedOpenPositions } from "@/hooks/useVerifiedOpenPositions";
 import { pageTitle } from "@/lib/brand";
 import { ui } from "@/lib/copy";
 import { aggregatePortfolioSummary } from "@/lib/leverx/portfolio-summary";
 import { resolveTradingAccount } from "@/lib/leverx/account-resolution";
-import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
 import { pageSimple, pageSimpleTitle } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
 import { loadAppShell } from "@/lib/router/route-loaders";
@@ -59,12 +59,14 @@ function PortfolioPage() {
     isFetched: ordersFetched,
   } = useIndexerLimitOrders(address ?? undefined);
 
-  const activeOpenPositions = useMemo(
-    () => openPositions.filter(isActiveOpenPosition),
-    [openPositions],
-  );
+  const {
+    activePositions,
+    stalePositions,
+    isVerifying,
+    indexerOpenCount,
+  } = useVerifiedOpenPositions(openPositions);
 
-  const { byPositionId, isRefreshing } = usePositionsMarkToMarket(activeOpenPositions);
+  const { byPositionId, isRefreshing } = usePositionsMarkToMarket(activePositions);
 
   const account = useMemo(
     () =>
@@ -75,9 +77,9 @@ function PortfolioPage() {
   const statsReady = accountsFetched && openFetched && closedFetched && ordersFetched && !isLoading;
 
   const summary = useMemo(() => {
-    if (activeOpenPositions.length === 0) return null;
-    return aggregatePortfolioSummary(activeOpenPositions, byPositionId);
-  }, [activeOpenPositions, byPositionId]);
+    if (activePositions.length === 0) return null;
+    return aggregatePortfolioSummary(activePositions, byPositionId);
+  }, [activePositions, byPositionId]);
 
   return (
     <section className={cn(pageSimple, "mx-auto max-w-[var(--page-max)]")}>
@@ -98,19 +100,23 @@ function PortfolioPage() {
           title="Sign in for portfolio"
           description="Sign in to see your trades, orders, and account settings."
         />
-      ) : isLoading && !account && activeOpenPositions.length === 0 ? (
+      ) : isLoading && !account && indexerOpenCount === 0 ? (
         <PortfolioPageSkeleton />
       ) : (
         <div className="space-y-4">
-          <PortfolioSummaryBar summary={summary} loading={!statsReady && activeOpenPositions.length > 0} />
+          <PortfolioSummaryBar
+            summary={summary}
+            loading={!statsReady && activePositions.length > 0}
+          />
 
           <PortfolioWorkspace
-            openPositions={activeOpenPositions}
+            openPositions={activePositions}
+            stalePositions={stalePositions}
             closedPositions={closedPositions}
             limitOrders={limitOrders}
             account={account ?? null}
             owner={address!}
-            loading={isLoading}
+            loading={isLoading || isVerifying}
             markToMarket={byPositionId}
             isRefreshing={isRefreshing}
           />

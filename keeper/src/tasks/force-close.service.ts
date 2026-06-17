@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { isFinalHourBeforeExpiry } from '../config/trade-math';
-import { describeMoveAbort } from '../lib/move-abort';
+import { describeMoveAbort, simulationFailureMessage } from '../lib/move-abort';
 import { logKeeperError, logKeeperWarn } from '../lib/keeper-log';
 import { IndexerService } from '../indexer/indexer.service';
 import type { LeveragedPosition } from '../indexer/indexer.types';
@@ -129,8 +129,14 @@ export class ForceCloseService {
         ? this.ptb.buildForceDeleverageRange(cfg, position)
         : this.ptb.buildForceDeleverageBinary(cfg, position);
 
-      if (!(await this.sui.devInspect(tx))) {
-        return { kind: 'force_close', target, success: false, error: 'simulation_failed' };
+      const simulation = await this.sui.tryDevInspect(tx);
+      if (!simulation.ok) {
+        return {
+          kind: 'force_close',
+          target,
+          success: false,
+          error: simulationFailureMessage(simulation.error),
+        };
       }
 
       const digest = await this.sui.execute(tx);
@@ -159,8 +165,14 @@ export class ForceCloseService {
         ? this.ptb.buildForceRepayRangePostExpiry(cfg, position)
         : this.ptb.buildForceRepayBinaryPostExpiry(cfg, position);
 
-      if (!(await this.sui.devInspect(tx))) {
-        return { kind: 'force_close', target, success: false, error: 'simulation_failed' };
+      const simulation = await this.sui.tryDevInspect(tx);
+      if (!simulation.ok) {
+        return {
+          kind: 'force_close',
+          target,
+          success: false,
+          error: simulationFailureMessage(simulation.error),
+        };
       }
 
       const digest = await this.sui.execute(tx);

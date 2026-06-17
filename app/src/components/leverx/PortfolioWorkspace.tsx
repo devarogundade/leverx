@@ -10,6 +10,7 @@ import { LeverxPositionsTable } from "@/components/leverx/LeverxPositionsTable";
 import { PortfolioAccountPanel } from "@/components/leverx/PortfolioAccountPanel";
 import type { LeveragedPosition, LimitMintOrder, UserProxy } from "@/lib/leverx/indexer-client";
 import type { PositionMarkToMarket } from "@/lib/leverx/position-metrics";
+import { PortfolioIndexSyncNotice } from "@/components/leverx/PortfolioIndexSyncNotice";
 import { TradingPausedNotice } from "@/components/leverx/TradingPausedNotice";
 import { useIndexerProtocol } from "@/hooks/useIndexer";
 import { leverxInfo } from "@/lib/leverx/info-copy";
@@ -45,6 +46,7 @@ function tabLabelMobile(
 
 interface Props {
   openPositions: readonly LeveragedPosition[];
+  stalePositions?: readonly LeveragedPosition[];
   closedPositions: readonly LeveragedPosition[];
   limitOrders: readonly LimitMintOrder[];
   account: UserProxy | null;
@@ -57,6 +59,7 @@ interface Props {
 
 export function PortfolioWorkspace({
   openPositions,
+  stalePositions = [],
   closedPositions,
   limitOrders,
   account,
@@ -69,6 +72,7 @@ export function PortfolioWorkspace({
   const [tab, setTab] = useState<PortfolioTab>("positions");
   const { data: protocol } = useIndexerProtocol();
   const byPositionId = markToMarket;
+  const positionsTabCount = openPositions.length + stalePositions.length;
 
   const tabOptions = TABS.map((value) => ({
     value,
@@ -83,13 +87,13 @@ export function PortfolioWorkspace({
           <span className="sm:hidden">
             {tabLabelMobile(
               value,
-              openPositions.length,
+              positionsTabCount,
               limitOrders.length,
               closedPositions.length,
             )}
           </span>
           <span className="hidden sm:inline">
-            {tabLabel(value, openPositions.length, limitOrders.length, closedPositions.length)}
+            {tabLabel(value, positionsTabCount, limitOrders.length, closedPositions.length)}
           </span>
         </>
       ),
@@ -109,9 +113,9 @@ export function PortfolioWorkspace({
           <TradingPausedNotice className="mb-3" />
         ) : null}
         {tab === "positions" ? (
-          loading && openPositions.length === 0 ? (
+          loading && openPositions.length === 0 && stalePositions.length === 0 ? (
             <PositionsTableSkeleton rows={5} />
-          ) : openPositions.length === 0 ? (
+          ) : openPositions.length === 0 && stalePositions.length === 0 ? (
             <EmptyState
               icon={Inbox}
               title={ui.emptyPositions}
@@ -119,13 +123,21 @@ export function PortfolioWorkspace({
               compact
             />
           ) : (
-            <LeverxPositionsTable
-              positions={openPositions}
-              markToMarket={byPositionId}
-              isRefreshing={isRefreshing}
-              owner={owner}
-              showHeader={false}
-            />
+            <div className="space-y-3">
+              <PortfolioIndexSyncNotice
+                stalePositions={stalePositions}
+                onOpenAccount={() => setTab("account")}
+              />
+              {openPositions.length > 0 ? (
+                <LeverxPositionsTable
+                  positions={openPositions}
+                  markToMarket={byPositionId}
+                  isRefreshing={isRefreshing}
+                  owner={owner}
+                  showHeader={false}
+                />
+              ) : null}
+            </div>
           )
         ) : null}
 

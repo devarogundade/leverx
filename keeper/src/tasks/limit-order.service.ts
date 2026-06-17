@@ -4,6 +4,7 @@ import { IndexerService } from '../indexer/indexer.service';
 import type { LimitMintOrder } from '../indexer/indexer.types';
 import type { TaskResult } from '../keeper/keeper.types';
 import { logKeeperError } from '../lib/keeper-log';
+import { simulationFailureMessage } from '../lib/move-abort';
 import { PredictQuoteService } from '../sui/predict-quote.service';
 import { PtbBuilderService } from '../sui/ptb-builder.service';
 import { SuiService } from '../sui/sui.service';
@@ -81,12 +82,13 @@ export class LimitOrderService {
           }
 
           const tx = this.ptb.buildExecuteLimitMint(cfg, order, managerId);
-          if (!(await this.sui.devInspect(tx))) {
+          const simulation = await this.sui.tryDevInspect(tx);
+          if (!simulation.ok) {
             results.push({
               kind: 'limit_order',
               target,
               success: false,
-              error: 'simulation_failed',
+              error: simulationFailureMessage(simulation.error),
             });
             continue;
           }
@@ -117,12 +119,13 @@ export class LimitOrderService {
       const target = `${order.account_id}:${order.position_key}`;
       try {
         const tx = this.ptb.buildExpireLimitMint(cfg, order);
-        if (!(await this.sui.devInspect(tx))) {
+        const simulation = await this.sui.tryDevInspect(tx);
+        if (!simulation.ok) {
           results.push({
             kind: 'limit_order_expire',
             target,
             success: false,
-            error: 'simulation_failed',
+            error: simulationFailureMessage(simulation.error),
           });
           continue;
         }

@@ -94,10 +94,7 @@ export class LiquidationService {
             kind: 'liquidation',
             target,
             success: false,
-            error:
-              hint === 'vault idle liquidity too low for flash loan'
-                ? 'insufficient_vault_liquidity'
-                : 'simulation_failed',
+            error: hint,
           });
           continue;
         }

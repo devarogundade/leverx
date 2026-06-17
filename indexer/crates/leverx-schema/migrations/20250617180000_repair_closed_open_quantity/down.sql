@@ -1,0 +1,1 @@
+-- Repair migration is data-only; no schema rollback required.

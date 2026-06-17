@@ -11,8 +11,10 @@ import { MarketQuotePausedBadge } from "@/components/leverx/MarketQuotePausedBad
 import { PredictLeveragePanel } from "@/components/leverx/PredictLeveragePanel";
 import { LeverxLimitOrdersTable } from "@/components/leverx/LeverxLimitOrdersTable";
 import { LeverxPositionsTable } from "@/components/leverx/LeverxPositionsTable";
+import { PortfolioIndexSyncNotice } from "@/components/leverx/PortfolioIndexSyncNotice";
 import { MarketTradesTable } from "@/components/leverx/MarketTradesTable";
 import { usePositionsMarkToMarket } from "@/hooks/usePositionsMarkToMarket";
+import { useVerifiedOpenPositions } from "@/hooks/useVerifiedOpenPositions";
 import { useMinMdViewport } from "@/hooks/use-min-md-viewport";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { PriceChart } from "@/components/PriceChart";
@@ -65,7 +67,6 @@ import {
   buildPositionStrikeChartLevels,
   buildStrikeChartLevels,
 } from "@/lib/charts/predict-chart-levels";
-import { isActiveOpenPosition } from "@/lib/leverx/position-metrics";
 import { formatCount, ui } from "@/lib/copy";
 import { DATA_PLACEHOLDER } from "@/lib/leverx/placeholders";
 import { formatRangeStrikes, coercePredictSide, type PredictSide } from "@/lib/predict/instruments";
@@ -283,6 +284,7 @@ type TradePositionsPanelProps = {
   address: string | null;
   positionsLoading: boolean;
   positions: Awaited<ReturnType<typeof useIndexerPositions>>["data"];
+  stalePositions?: Awaited<ReturnType<typeof useIndexerPositions>>["data"];
   positionCount: number;
   ordersLoading: boolean;
   limitOrders: Awaited<ReturnType<typeof useIndexerLimitOrders>>["data"];
@@ -300,6 +302,7 @@ function TradePositionsPanel({
   address,
   positionsLoading,
   positions = [],
+  stalePositions = [],
   positionCount,
   ordersLoading,
   limitOrders = [],
@@ -394,17 +397,24 @@ function TradePositionsPanel({
             />
           ) : positionsLoading ? (
             <LoadingState label="Loading positions…" compact />
-          ) : positions.length > 0 ? (
-            <LeverxPositionsTable
-              positions={positions}
-              markToMarket={byPositionId}
-              isRefreshing={isRefreshing}
-              owner={address ?? undefined}
-              compact
-              showHeader={false}
-              paginationKey={positionsFilter}
-              hideLiveMetrics={positionsFilter === "closed"}
-            />
+          ) : positions.length > 0 || stalePositions.length > 0 ? (
+            <div className="space-y-3">
+              {positionsFilter === "open" ? (
+                <PortfolioIndexSyncNotice stalePositions={stalePositions} />
+              ) : null}
+              {positions.length > 0 ? (
+                <LeverxPositionsTable
+                  positions={positions}
+                  markToMarket={byPositionId}
+                  isRefreshing={isRefreshing}
+                  owner={address ?? undefined}
+                  compact
+                  showHeader={false}
+                  paginationKey={positionsFilter}
+                  hideLiveMetrics={positionsFilter === "closed"}
+                />
+              ) : null}
+            </div>
           ) : (
             <EmptyState
               icon={Inbox}
@@ -648,10 +658,11 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   const { data: limitOrders = [], isLoading: ordersLoading, refetch: refetchLimitOrders } =
     useIndexerLimitOrders(address ?? undefined, oracleId);
 
-  const openOraclePositions = useMemo(
-    () => openPositions.filter(isActiveOpenPosition),
-    [openPositions],
-  );
+  const {
+    activePositions: openOraclePositions,
+    stalePositions: staleOraclePositions,
+    isVerifying: positionsVerifying,
+  } = useVerifiedOpenPositions(openPositions);
 
   const displayPositions = useMemo(
     () => (positionsFilter === "open" ? openOraclePositions : closedPositions),
@@ -659,7 +670,9 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   );
 
   const positionsLoading =
-    positionsFilter === "open" ? openPositionsLoading : closedPositionsLoading;
+    positionsFilter === "open"
+      ? openPositionsLoading || positionsVerifying
+      : closedPositionsLoading;
 
   const handleTradeSuccess = useCallback(
     ({ orderType }: { orderType: "market" | "limit" }) => {
@@ -829,7 +842,11 @@ export function PredictTradeTerminal({ oracleId }: Props) {
     address: address ?? null,
     positionsLoading,
     positions: displayPositions,
-    positionCount: displayPositions.length,
+    stalePositions: positionsFilter === "open" ? staleOraclePositions : [],
+    positionCount:
+      positionsFilter === "open"
+        ? displayPositions.length + staleOraclePositions.length
+        : displayPositions.length,
     ordersLoading,
     limitOrders,
     vaultSummary,

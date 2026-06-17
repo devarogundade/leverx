@@ -27,6 +27,7 @@ import type {
   SettleTradeBody,
   TradeRelayResponse,
 } from './trade.types';
+import { simulationFailureMessage } from '../lib/move-abort';
 import { Transaction } from '@mysten/sui/transactions';
 
 @Injectable()
@@ -229,8 +230,9 @@ export class TradeService {
     tx: Transaction,
     label: string,
   ): Promise<TradeRelayResponse> {
-    if (!(await this.sui.devInspect(tx))) {
-      throw new BadRequestException('simulation_failed');
+    const simulation = await this.sui.tryDevInspect(tx);
+    if (!simulation.ok) {
+      throw new BadRequestException(simulationFailureMessage(simulation.error));
     }
 
     try {
