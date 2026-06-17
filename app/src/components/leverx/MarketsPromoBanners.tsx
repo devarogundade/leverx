@@ -33,10 +33,10 @@ export function MarketsPromoBanners({ className }: Props) {
         }}
       >
         <SwiperSlide className="markets-promo-slide">
-          <PromoBanner className="h-full" />
+          <PromoBanner className="h-full w-full" />
         </SwiperSlide>
         <SwiperSlide className="markets-promo-slide">
-          <JarvisAiBanner className="h-full" />
+          <JarvisAiBanner className="h-full w-full" />
         </SwiperSlide>
       </Swiper>
     </div>

@@ -37,4 +37,14 @@ export type TelegramUpdate = {
     text?: string;
     from?: { id: number; username?: string; first_name?: string };
   };
+  callback_query?: {
+    id: string;
+    from?: { id: number; username?: string; first_name?: string };
+    message?: {
+      message_id: number;
+      chat: { id: number; type: string; username?: string };
+      text?: string;
+    };
+    data?: string;
+  };
 };

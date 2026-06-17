@@ -6,9 +6,9 @@ import { SiteShell } from "@/components/SiteShell";
 export const APP_SHELL_MAIN_CLASS =
   "pb-[calc(50px+env(safe-area-inset-bottom,0px))] md:pb-[var(--page-py)]";
 
-export function AppSiteShell({ children }: { children: ReactNode }) {
+export function AppSiteShell({ children, fullWidth }: { children: ReactNode; fullWidth?: boolean }) {
   return (
-    <SiteShell fixedChrome={<MobileBottomNav />} mainClassName={APP_SHELL_MAIN_CLASS}>
+    <SiteShell fullWidth={fullWidth} fixedChrome={<MobileBottomNav />} mainClassName={APP_SHELL_MAIN_CLASS}>
       {children}
     </SiteShell>
   );

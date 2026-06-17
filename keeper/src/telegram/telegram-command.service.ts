@@ -74,6 +74,47 @@ export class TelegramCommandService {
     }
   }
 
+  async handleCallback(
+    chatId: string,
+    data: string,
+    username: string | null,
+  ): Promise<void> {
+    const trimmed = data.trim();
+    if (trimmed === 'do:help') {
+      await this.sendTradingHelp(chatId);
+      return;
+    }
+    if (trimmed === 'do:markets') {
+      await this.handleMarkets(chatId);
+      return;
+    }
+    if (trimmed === 'do:balance') {
+      await this.handleBalance(chatId);
+      return;
+    }
+    if (trimmed === 'do:session') {
+      await this.handleSession(chatId);
+      return;
+    }
+    if (trimmed === 'do:logout') {
+      await this.handleLogout(chatId);
+      return;
+    }
+    if (trimmed.startsWith('do:market:')) {
+      const n = trimmed.slice('do:market:'.length).trim();
+      if (/^[1-9]$|^10$/.test(n)) {
+        await this.handleMarketNumber(chatId, n);
+      }
+      return;
+    }
+    if (trimmed.startsWith('do:cmd:')) {
+      const cmd = trimmed.slice('do:cmd:'.length);
+      if (cmd.trim()) {
+        await this.handleMessage(chatId, cmd.trim(), username);
+      }
+    }
+  }
+
   async sendTradingHelp(chatId: string): Promise<void> {
     await this.send(chatId, [
       'LeverX Telegram trading',
@@ -95,7 +136,7 @@ export class TelegramCommandService {
       '/logout — end trading session',
       '',
       'Alerts (separate): /status, /stop',
-    ].join('\n'));
+    ].join('\n'), { reply_markup: mainTradingKeyboard() });
   }
 
   private async handleAuth(
@@ -119,7 +160,7 @@ export class TelegramCommandService {
       return;
     }
 
-    await this.send(chatId, [
+      await this.send(chatId, [
       'Trading session active',
       '',
       `Account: ${shortId(session.account_id)}`,
@@ -131,7 +172,7 @@ export class TelegramCommandService {
       '• Trade with /up 10 4x (margin in dUSDC, leverage 1x–10x)',
       '',
       'Send /help for all commands.',
-    ].join('\n'));
+    ].join('\n'), { reply_markup: mainTradingKeyboard() });
   }
 
   private async handleLogout(chatId: string): Promise<void> {
@@ -166,7 +207,11 @@ export class TelegramCommandService {
       return;
     }
     const entries = await this.markets.listLiveMarkets(chatId);
-    await this.send(chatId, this.markets.formatMarketsMessage(entries));
+    await this.send(
+      chatId,
+      this.markets.formatMarketsMessage(entries),
+      { reply_markup: marketsKeyboard(entries.map((e) => e.index)) },
+    );
   }
 
   private async handleMarket(chatId: string, text: string): Promise<void> {
@@ -220,7 +265,9 @@ export class TelegramCommandService {
       return;
     }
     const atoms = await this.trades.fetchTradingBalanceAtoms(session.account_id);
-    await this.send(chatId, this.trades.formatBalanceMessage(atoms));
+    await this.send(chatId, this.trades.formatBalanceMessage(atoms), {
+      reply_markup: mainTradingKeyboard(),
+    });
   }
 
   private async handleTrade(chatId: string, text: string): Promise<void> {
@@ -253,16 +300,51 @@ export class TelegramCommandService {
         `Leverage: ${result.leverage}x`,
         `Quantity: ${result.quantity}`,
         `Tx: ${explorerTxLink(result.digest)}`,
-      ].join('\n'));
+      ].join('\n'), { reply_markup: mainTradingKeyboard() });
     } catch (err) {
       this.logger.warn(`telegram trade failed: ${formatTradeError(err)}`);
-      await this.send(chatId, formatTradeError(err));
+      await this.send(chatId, formatTradeError(err), { reply_markup: mainTradingKeyboard() });
     }
   }
 
-  private async send(chatId: string, text: string): Promise<void> {
-    await this.api.sendMessage(this.cfg.botToken, chatId, text);
+  private async send(
+    chatId: string,
+    text: string,
+    options?: { reply_markup?: { inline_keyboard?: Array<Array<{ text: string; callback_data?: string }>> } },
+  ): Promise<void> {
+    await this.api.sendMessage(this.cfg.botToken, chatId, text, options);
   }
+}
+
+function mainTradingKeyboard(): {
+  inline_keyboard: Array<Array<{ text: string; callback_data: string }>>;
+} {
+  return {
+    inline_keyboard: [
+      [
+        { text: 'Do Markets', callback_data: 'do:markets' },
+        { text: 'Do Balance', callback_data: 'do:balance' },
+      ],
+      [
+        { text: 'Do Session', callback_data: 'do:session' },
+        { text: 'Do Logout', callback_data: 'do:logout' },
+      ],
+    ],
+  };
+}
+
+function marketsKeyboard(indices: number[]): {
+  inline_keyboard: Array<Array<{ text: string; callback_data: string }>>;
+} {
+  const usable = indices.filter((n) => Number.isFinite(n) && n >= 1 && n <= 10).slice(0, 10);
+  const buttons = usable.map((n) => ({ text: String(n), callback_data: `do:market:${n}` }));
+  const rows: Array<Array<{ text: string; callback_data: string }>> = [];
+  for (let i = 0; i < buttons.length; i += 5) rows.push(buttons.slice(i, i + 5));
+  rows.push([
+    { text: 'Refresh', callback_data: 'do:markets' },
+    { text: 'Menu', callback_data: 'do:help' },
+  ]);
+  return { inline_keyboard: rows };
 }
 
 function parseTradeSide(text: string): TelegramTradeSide {

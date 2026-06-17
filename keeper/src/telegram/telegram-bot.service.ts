@@ -172,6 +172,20 @@ export class TelegramBotService implements OnModuleInit {
   }
 
   private async processUpdate(update: TelegramUpdate): Promise<void> {
+    const cq = update.callback_query;
+    if (cq?.data && cq.message?.chat?.id != null) {
+      const chatId = String(cq.message.chat.id);
+      const username = cq.from?.username ?? null;
+      try {
+        await this.commands.handleCallback(chatId, cq.data, username);
+      } catch (err) {
+        logKeeperError(this.logger, `telegram callback failed for ${chatId}`, err);
+      } finally {
+        await this.api.answerCallbackQuery(this.cfg.botToken, cq.id).catch(() => {});
+      }
+      return;
+    }
+
     const message = update.message;
     if (!message?.text) return;
 
@@ -283,6 +297,7 @@ export class TelegramBotService implements OnModuleInit {
         '/status — alert subscriptions',
         '/stop — unsubscribe alerts',
       ].join('\n'),
+      { reply_markup: mainMenuKeyboard() },
     );
   }
 
@@ -327,4 +342,21 @@ function formatDate(ms: number): string {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function mainMenuKeyboard(): {
+  inline_keyboard: Array<Array<{ text: string; callback_data: string }>>;
+} {
+  return {
+    inline_keyboard: [
+      [
+        { text: 'Do Markets', callback_data: 'do:markets' },
+        { text: 'Do Balance', callback_data: 'do:balance' },
+      ],
+      [
+        { text: 'Do Session', callback_data: 'do:session' },
+        { text: 'Do Help', callback_data: 'do:help' },
+      ],
+    ],
+  };
 }
