@@ -1,9 +1,10 @@
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, Loader2, RefreshCw } from "lucide-react";
 import { ConfirmDialog } from "@/components/leverx/ConfirmDialog";
 import { ResponsiveModal } from "@/components/leverx/ResponsiveModal";
-import { InfoPopover } from "@/components/leverx/InfoPopover";
+import { InfoPopover, LabelWithInfo } from "@/components/leverx/InfoPopover";
+import { TradeAmountInput, TradeQuickAmounts } from "@/components/leverx/TradeFormControls";
 import { QuoteAmount } from "@/components/leverx/QuoteAmount";
 import { Input } from "@/components/ui/input";
 import { useWallet } from "@/context/WalletContext";
@@ -15,7 +16,7 @@ import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { positionKeyFromArgs, type MarketKeyArgs } from "@/lib/leverx/market-keys";
 import { formatQuantity } from "@/lib/leverx/format-quantity";
 import { fetchManagerOpenQuantity } from "@/lib/leverx/quotes";
-import { DEV_INSPECT_QUOTE_STALE_MS } from "@/lib/leverx/constants";
+import { DEV_INSPECT_QUOTE_STALE_MS, DEFAULT_SLIPPAGE_BPS } from "@/lib/leverx/constants";
 import {
   type OnChainQuantityRead,
 } from "@/lib/leverx/position-quantity";
@@ -24,16 +25,23 @@ import {
   type PositionEmptyStateKind,
 } from "@/lib/leverx/position-action-availability";
 import { positionCloseSource } from "@/lib/leverx/position-indexer-hints";
+import { entryPremiumPerUnitRaw } from "@/lib/leverx/position-metrics";
 import { showTxError, showTxSuccess } from "@/lib/toast";
 import { usePredictOracleRows } from "@/hooks/usePredictOracles";
 import { predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
 import { assetLabelForOracleId, isOracleSettledForTrade } from "@/lib/predict/oracles";
 import {
   centsToPremiumRaw,
+  defaultTpSlPremiumsFromEntry,
+  formatTriggerSlippageBps,
   marginUsdToQuoteAtoms,
   isLimitCentsWithinPredictBounds,
+  premiumRawToCents,
   PREDICT_MAX_PREMIUM_CENTS,
   PREDICT_MIN_PREMIUM_CENTS,
+  slPremiumCentsFromEntry,
+  TP_SL_OFFSET_PRESETS,
+  tpPremiumCentsFromEntry,
 } from "@/lib/leverx/trade-math";
 import {
   formatPositionTriggerSummary,
@@ -41,9 +49,9 @@ import {
 } from "@/lib/leverx/position-triggers";
 import { scaleQuote, scaleQuoteAtoms } from "@/lib/predict/scaling";
 import { cn } from "@/lib/utils";
-import { pillToggleBtn, pillToggleIdle } from "@/lib/leverx/tw";
+import { labelCaps, pillToggleBtn, pillToggleIdle, tpSlBlock, tpSlFields } from "@/lib/leverx/tw";
 
-type ActionView = "menu" | "close_limit" | "repay_debt";
+type ActionView = "menu" | "auto_exit" | "repay_debt";
 type ConfirmAction = "market_close" | "settle" | "recover_custody" | "clear_triggers" | null;
 
 interface Props {
@@ -239,6 +247,7 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
     settleExpired,
     recoverStrandedCustody,
     repayDebt,
+    setTriggers,
     clearTriggers,
     isProtocolReady,
   } = useLeverxTransactions();
@@ -288,7 +297,8 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
 
   const [view, setView] = useState<ActionView>("menu");
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
-  const [limitCents, setLimitCents] = useState("");
+  const [tp, setTp] = useState("");
+  const [sl, setSl] = useState("");
   const [repayUsd, setRepayUsd] = useState("");
 
   const pending =
@@ -296,6 +306,7 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
     settleExpired.isPending ||
     recoverStrandedCustody.isPending ||
     repayDebt.isPending ||
+    setTriggers.isPending ||
     clearTriggers.isPending;
   const {
     canCloseRedeem,
@@ -329,16 +340,83 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
   const borrowedUsd = scaleQuote(position.borrow_quote);
   const repayNum = parseFloat(repayUsd) || 0;
   const repayExceedsDebt = repayNum > borrowedUsd + 1e-6;
-  const limitCentsNum = parseFloat(limitCents);
-  const limitCentsInvalid =
-    !Number.isFinite(limitCentsNum) ||
-    limitCentsNum <= 0 ||
-    !isLimitCentsWithinPredictBounds(limitCentsNum);
   const repayInvalid = !Number.isFinite(repayNum) || repayNum <= 0;
+
+  const entryPremiumRaw = entryPremiumPerUnitRaw(position);
+  const entryCents = entryPremiumRaw != null ? premiumRawToCents(entryPremiumRaw) : 0;
+
+  const tpPresets = useMemo(
+    () =>
+      entryCents > 0
+        ? TP_SL_OFFSET_PRESETS.map((offset) => ({
+            label: `+${offset}¢`,
+            value: tpPremiumCentsFromEntry(entryCents, offset).toFixed(1),
+          }))
+        : [],
+    [entryCents],
+  );
+
+  const slPresets = useMemo(
+    () =>
+      entryCents > 0
+        ? TP_SL_OFFSET_PRESETS.map((offset) => ({
+            label: `−${offset}¢`,
+            value: slPremiumCentsFromEntry(entryCents, offset).toFixed(1),
+          }))
+        : [],
+    [entryCents],
+  );
+
+  const autoExitErrors = useMemo(() => {
+    const errors: string[] = [];
+    if (entryCents <= 0) {
+      errors.push("Entry premium is unavailable for this position.");
+    }
+    const tpVal = parseFloat(tp);
+    const slVal = parseFloat(sl);
+    if (!tp && !sl) {
+      errors.push("Set a take-profit or stop-loss premium.");
+    }
+    if (tp) {
+      if (!Number.isFinite(tpVal) || !isLimitCentsWithinPredictBounds(tpVal)) {
+        errors.push(
+          `Take profit must be between ${PREDICT_MIN_PREMIUM_CENTS}¢ and ${PREDICT_MAX_PREMIUM_CENTS}¢.`,
+        );
+      } else if (entryCents > 0 && tpVal <= entryCents) {
+        errors.push("Take profit must be above your entry premium.");
+      }
+    }
+    if (sl) {
+      if (!Number.isFinite(slVal) || !isLimitCentsWithinPredictBounds(slVal)) {
+        errors.push(
+          `Stop loss must be between ${PREDICT_MIN_PREMIUM_CENTS}¢ and ${PREDICT_MAX_PREMIUM_CENTS}¢.`,
+        );
+      } else if (entryCents > 0 && slVal >= entryCents) {
+        errors.push("Stop loss must be below your entry premium.");
+      }
+    }
+    return errors;
+  }, [entryCents, tp, sl]);
+
+  const canConfirmAutoExit = autoExitErrors.length === 0 && (tp || sl);
 
   const reset = () => {
     setView("menu");
     setConfirmAction(null);
+    setTp("");
+    setSl("");
+  };
+
+  const openAutoExitView = () => {
+    if (entryCents > 0) {
+      const defaults = defaultTpSlPremiumsFromEntry(entryCents);
+      setTp(defaults.tp);
+      setSl(defaults.sl);
+    } else {
+      setTp("");
+      setSl("");
+    }
+    setView("auto_exit");
   };
 
   const closeModal = () => {
@@ -358,15 +436,15 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
   const title =
     view === "menu"
       ? `${asset} · ${side}`
-      : view === "close_limit"
-        ? "Close at limit"
+      : view === "auto_exit"
+        ? "Add auto-exit"
         : "Repay debt";
 
   const description =
     view === "menu"
       ? "Choose how to manage this position."
-      : view === "close_limit"
-        ? leverxInfo.closeLimit
+      : view === "auto_exit"
+        ? leverxInfo.tpSl
         : leverxInfo.repayDebt;
 
   return (
@@ -411,13 +489,15 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
                     disabled={!isProtocolReady || pending}
                     onClick={() => setConfirmAction("market_close")}
                   />
-                  <ActionButton
-                    label="Close at limit"
-                    hint="Set a minimum bid per contract"
-                    info={leverxInfo.closeLimit}
-                    disabled={!isProtocolReady || pending}
-                    onClick={() => setView("close_limit")}
-                  />
+                  {!triggersLoading && !positionTrigger ? (
+                    <ActionButton
+                      label="Add auto-exit"
+                      hint="Set take-profit and stop-loss exit prices"
+                      info={leverxInfo.tpSl}
+                      disabled={!isProtocolReady || pending}
+                      onClick={openAutoExitView}
+                    />
+                  ) : null}
                 </>
               ) : null}
               {canRepayDebt ? (
@@ -481,49 +561,113 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
           </div>
         ) : null}
 
-        {view === "close_limit" ? (
-          <div className="space-y-3">
-            <Input
-              type="number"
-              inputMode="decimal"
-              min={0.1}
-              step={0.1}
-              placeholder="Min bid (¢)"
-              value={limitCents}
-              onChange={(e) => setLimitCents(e.target.value)}
-              className="font-mono"
-            />
-            {limitCentsInvalid && limitCents ? (
-              <p className="text-sm text-destructive">
-                Min bid must be between {PREDICT_MIN_PREMIUM_CENTS}¢ and {PREDICT_MAX_PREMIUM_CENTS}¢.
+        {view === "auto_exit" ? (
+          <div className={cn(tpSlBlock, "space-y-3")}>
+            <div className={tpSlFields}>
+              <p className="text-sm text-muted-foreground">
+                <LabelWithInfo
+                  label="Entry premium"
+                  labelClassName="inline text-sm text-muted-foreground"
+                  info={leverxInfo.tpSlEntry}
+                />
+                {": "}
+                <span className="font-mono text-foreground">
+                  {entryCents > 0 ? `${entryCents.toFixed(1)}¢` : "—"}
+                </span>
               </p>
-            ) : null}
+              <p className="text-sm text-muted-foreground">
+                <LabelWithInfo
+                  label="Exit slippage"
+                  labelClassName="inline text-sm text-muted-foreground"
+                  info={leverxInfo.tpSlExitSlippage}
+                />
+                {": "}
+                <span className="font-mono text-foreground">
+                  {formatTriggerSlippageBps(DEFAULT_SLIPPAGE_BPS)}
+                </span>
+                <span className="text-muted-foreground"> · market</span>
+              </p>
+              <div>
+                <LabelWithInfo
+                  className="mb-2"
+                  label="Take profit"
+                  labelClassName={labelCaps}
+                  info={leverxInfo.tpSlTakeProfit}
+                />
+                <TradeAmountInput
+                  type="number"
+                  inputMode="decimal"
+                  min={0.1}
+                  step={0.1}
+                  value={tp}
+                  onChange={(e) => setTp(e.target.value)}
+                  placeholder={entryCents > 0 ? defaultTpSlPremiumsFromEntry(entryCents).tp : "0.0"}
+                  suffix={<span className="text-sm text-muted-foreground">¢</span>}
+                />
+                {tpPresets.length > 0 ? (
+                  <div className="mt-2">
+                    <TradeQuickAmounts amounts={tpPresets} onPick={setTp} />
+                  </div>
+                ) : null}
+              </div>
+              <div>
+                <LabelWithInfo
+                  className="mb-2"
+                  label="Stop loss"
+                  labelClassName={labelCaps}
+                  info={leverxInfo.tpSlStopLoss}
+                />
+                <TradeAmountInput
+                  type="number"
+                  inputMode="decimal"
+                  min={0.1}
+                  step={0.1}
+                  value={sl}
+                  onChange={(e) => setSl(e.target.value)}
+                  placeholder={entryCents > 0 ? defaultTpSlPremiumsFromEntry(entryCents).sl : "0.0"}
+                  suffix={<span className="text-sm text-muted-foreground">¢</span>}
+                />
+                {slPresets.length > 0 ? (
+                  <div className="mt-2">
+                    <TradeQuickAmounts amounts={slPresets} onPick={setSl} />
+                  </div>
+                ) : null}
+              </div>
+            </div>
+            {autoExitErrors.map((err) => (
+              <p key={err} className="text-sm text-destructive">
+                {err}
+              </p>
+            ))}
             <button
               type="button"
               className={cn(pillToggleBtn, pillToggleIdle, "w-full")}
-              disabled={pending || limitCentsInvalid}
+              disabled={pending || !canConfirmAutoExit}
               onClick={() => {
-                const cents = parseFloat(limitCents);
-                if (!Number.isFinite(cents) || cents <= 0 || !isLimitCentsWithinPredictBounds(cents)) {
-                  return;
-                }
-                closePosition.mutate(
+                const tpPremium =
+                  tp && Number.isFinite(parseFloat(tp)) ? centsToPremiumRaw(parseFloat(tp)) : 0n;
+                const slPremium =
+                  sl && Number.isFinite(parseFloat(sl)) ? centsToPremiumRaw(parseFloat(sl)) : 0n;
+                if (tpPremium <= 0n && slPremium <= 0n) return;
+                setTriggers.mutate(
                   {
-                    position,
-                    redeemMode: "limit",
-                    minPremiumPerUnit: centsToPremiumRaw(cents),
+                    accountId: position.account_id,
+                    key: positionKey,
+                    takeProfitPremium: tpPremium,
+                    stopLossPremium: slPremium,
+                    marketSlippageBps: DEFAULT_SLIPPAGE_BPS,
                   },
                   {
                     onError,
-                    onSuccess: () => onSuccess("Position closed at limit"),
+                    onSuccess: () => onSuccess("Auto-exit rules saved"),
                   },
                 );
               }}
             >
-              {closePosition.isPending ? (
+              {setTriggers.isPending ? (
                 <Loader2 className="mx-auto h-4 w-4 animate-spin" />
               ) : (
-                "Confirm limit close"
+                "Save auto-exit"
               )}
             </button>
           </div>
@@ -767,13 +911,14 @@ interface TriggerProps {
 /** Opens position actions in a dialog (desktop) or bottom sheet (mobile). */
 export function PositionActionsTrigger({ position, className }: TriggerProps) {
   const [open, setOpen] = useState(false);
-  const { isProtocolReady, closePosition, settleExpired, recoverStrandedCustody, repayDebt, clearTriggers } =
+  const { isProtocolReady, closePosition, settleExpired, recoverStrandedCustody, repayDebt, setTriggers, clearTriggers } =
     useLeverxTransactions();
   const pending =
     closePosition.isPending ||
     settleExpired.isPending ||
     recoverStrandedCustody.isPending ||
     repayDebt.isPending ||
+    setTriggers.isPending ||
     clearTriggers.isPending;
 
   return (

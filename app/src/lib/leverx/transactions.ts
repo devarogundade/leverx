@@ -600,6 +600,41 @@ export async function executeRepayDebt(params: {
   );
 }
 
+export type SetTriggersInput = {
+  accountId: string;
+  key: MarketKeyArgs;
+  takeProfitPremium: bigint;
+  stopLossPremium: bigint;
+  marketSlippageBps?: number;
+};
+
+export async function executeSetTriggers(params: {
+  client: SuiJsonRpcClient;
+  wallet: WalletWithRequiredFeatures;
+  account: WalletAccount;
+  cfg: LeverxProtocolConfig;
+  input: SetTriggersInput;
+}): Promise<{ digest: string }> {
+  const slippageBps = params.input.marketSlippageBps ?? DEFAULT_SLIPPAGE_BPS;
+  return executeWalletTransaction(
+    params.client,
+    params.wallet,
+    params.account,
+    (tx) => {
+      appendSetTriggers(tx, params.cfg, {
+        accountId: params.input.accountId,
+        key: params.input.key,
+        takeProfitPremium: params.input.takeProfitPremium,
+        stopLossPremium: params.input.stopLossPremium,
+        takeProfitSlippageBps:
+          params.input.takeProfitPremium > 0n ? slippageBps : 0,
+        stopLossSlippageBps: params.input.stopLossPremium > 0n ? slippageBps : 0,
+      });
+    },
+    { gasBudget: TRADE_GAS_BUDGET },
+  );
+}
+
 export async function executeClearTriggers(params: {
   client: SuiJsonRpcClient;
   wallet: WalletWithRequiredFeatures;

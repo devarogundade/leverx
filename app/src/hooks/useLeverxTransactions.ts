@@ -19,6 +19,8 @@ import { resolveLeverxProtocol } from "@/lib/leverx/protocol";
 import {
   executeCancelLimitOrder,
   executeClearTriggers,
+  executeSetTriggers,
+  type SetTriggersInput,
   executeClosePosition,
   executeCreateMarginAccount,
   executeOpenTrade,
@@ -240,6 +242,20 @@ export function useLeverxTransactions() {
     onSuccess: () => invalidate(),
   });
 
+  const setTriggers = useMutation({
+    mutationFn: async (input: SetTriggersInput) => {
+      const ready = requireReady();
+      return executeSetTriggers({
+        client,
+        wallet: ready.wallet,
+        account: ready.account,
+        cfg: ready.cfg,
+        input,
+      });
+    },
+    onSuccess: () => invalidate(),
+  });
+
   const clearTriggers = useMutation({
     mutationFn: async (args: { accountId: string; key: MarketKeyArgs }) => {
       const ready = requireReady();
@@ -384,6 +400,7 @@ export function useLeverxTransactions() {
     settleExpired,
     recoverStrandedCustody,
     repayDebt,
+    setTriggers,
     clearTriggers,
     registerExecutor,
     revokeExecutor,
