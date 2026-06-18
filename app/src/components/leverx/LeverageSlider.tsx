@@ -25,6 +25,7 @@ interface Props {
   maxLeverage?: number;
   info?: string;
   className?: string;
+  disabled?: boolean;
 }
 
 export function LeverageSlider({
@@ -33,6 +34,7 @@ export function LeverageSlider({
   maxLeverage = LEVERAGE_MAX,
   info = leverxInfo.leverage,
   className,
+  disabled = false,
 }: Props) {
   const effectiveMax = Math.min(LEVERAGE_MAX, Math.max(LEVERAGE_MIN, maxLeverage));
   const clamped = Math.min(clampLeverage(value), effectiveMax);
@@ -54,7 +56,7 @@ export function LeverageSlider({
             type="button"
             className={cn(pillToggleBtn, pillToggleIdle, "flex h-7 w-7 items-center justify-center p-0")}
             aria-label="Decrease leverage"
-            disabled={clamped <= LEVERAGE_MIN}
+            disabled={disabled || clamped <= LEVERAGE_MIN}
             onClick={() => step(-LEVERAGE_STEP)}
           >
             <Minus className="h-3.5 w-3.5" />
@@ -66,7 +68,7 @@ export function LeverageSlider({
             type="button"
             className={cn(pillToggleBtn, pillToggleIdle, "flex h-7 w-7 items-center justify-center p-0")}
             aria-label="Increase leverage"
-            disabled={clamped >= effectiveMax}
+            disabled={disabled || clamped >= effectiveMax}
             onClick={() => step(LEVERAGE_STEP)}
           >
             <Plus className="h-3.5 w-3.5" />
@@ -80,6 +82,7 @@ export function LeverageSlider({
         max={effectiveMax}
         step={LEVERAGE_STEP}
         value={[clamped]}
+        disabled={disabled}
         onValueChange={([next]) =>
           next != null && onChange(Math.min(clampLeverage(next), effectiveMax))
         }

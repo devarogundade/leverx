@@ -114,8 +114,8 @@ export function ChartToolbar({
           <div className={pillToggleGroup} role="group" aria-label="Chart type">
             {(
               [
-                { id: "candlestick" as const, label: "Candles" },
                 { id: "line" as const, label: "Line" },
+                { id: "candlestick" as const, label: "Candles" },
               ] as const
             ).map(({ id, label }) => (
               <button

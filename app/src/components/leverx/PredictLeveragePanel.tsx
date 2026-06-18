@@ -190,6 +190,7 @@ export function PredictLeveragePanel({
   const { data: leverxAccounts = [] } = useIndexerAccounts(address ?? undefined);
   const hasMarginAccount = leverxAccounts.length > 0 || marginAccountReady;
   const needsMarginAccountSetup = isWalletConnected && !hasMarginAccount;
+  const formDisabled = disabled || needsMarginAccountSetup;
   const predictManagerId = useMemo(
     () => resolvePredictManagerId(leverxAccounts, openPositions),
     [leverxAccounts, openPositions],
@@ -938,10 +939,17 @@ export function PredictLeveragePanel({
             ? "This market has expired. New orders are not accepted."
             : "This market has settled. New orders are not accepted."}
         </div>
+      ) : needsMarginAccountSetup ? (
+        <div
+          className="border-b border-border bg-muted/40 px-4 py-2.5 text-center text-sm text-muted-foreground"
+          role="status"
+        >
+          Create a trading account to configure deposits, leverage, and orders.
+        </div>
       ) : null}
       <div
         className={cn(
-          disabled && "pointer-events-none select-none opacity-50",
+          formDisabled && "pointer-events-none select-none opacity-50",
         )}
       >
         <div className="border-b border-border p-3">
@@ -951,6 +959,7 @@ export function PredictLeveragePanel({
                 <button
                   key={outcome}
                   type="button"
+                  disabled={formDisabled}
                   onClick={() => onSideChange(outcome)}
                   className={cn(
                     segTabOutcome,
@@ -985,6 +994,7 @@ export function PredictLeveragePanel({
                 <button
                   key={type}
                   type="button"
+                  disabled={formDisabled}
                   className={cn(
                     pillToggleBtn,
                     orderType === type ? pillToggleActive : pillToggleIdle,
@@ -1030,6 +1040,7 @@ export function PredictLeveragePanel({
                 inputMode="decimal"
                 min={0.1}
                 step={0.1}
+                disabled={formDisabled}
                 value={limitPrice}
                 onChange={(e) => setLimitPrice(e.target.value)}
                 suffix={<span className="text-sm text-muted-foreground">¢</span>}
@@ -1088,6 +1099,7 @@ export function PredictLeveragePanel({
               large
               type="number"
               inputMode="decimal"
+              disabled={formDisabled}
               value={margin}
               onChange={(e) => setMargin(e.target.value)}
               placeholder="0.00"
@@ -1123,6 +1135,7 @@ export function PredictLeveragePanel({
               onChange={setLeverage}
               maxLeverage={maxLeverageForMarket}
               info={leverxInfo.leverage}
+              disabled={formDisabled}
             />
           ) : null}
 
@@ -1147,7 +1160,7 @@ export function PredictLeveragePanel({
                   resolvedStrikeRaw={resolvedBinaryStrikeRaw}
                   oracleSpotUsd={oracleSpotUsd}
                   minStrikeRaw={minStrikeRaw}
-                  disabled={disabled}
+                  disabled={formDisabled}
                 />
               ) : (
                 <RangeStrikeSelector
@@ -1161,7 +1174,7 @@ export function PredictLeveragePanel({
                   upperStrikeRaw={resolvedRangeUpperRaw}
                   oracleSpotUsd={oracleSpotUsd}
                   minStrikeRaw={minStrikeRaw}
-                  disabled={disabled}
+                  disabled={formDisabled}
                 />
               )}
 
@@ -1174,6 +1187,7 @@ export function PredictLeveragePanel({
                   <Switch
                     checked={remintAfterDeleverage}
                     onCheckedChange={setRemintAfterDeleverage}
+                    disabled={formDisabled}
                   />
                 </div>
               ) : null}
@@ -1193,7 +1207,7 @@ export function PredictLeveragePanel({
                 labelClassName={labelCaps}
                 info={leverxInfo.tpSl}
               />
-              <Switch checked={tpSl} onCheckedChange={handleTpSlToggle} />
+              <Switch checked={tpSl} onCheckedChange={handleTpSlToggle} disabled={formDisabled} />
             </div>
             {tpSl ? (
               <div className={tpSlFields}>
@@ -1240,6 +1254,7 @@ export function PredictLeveragePanel({
                     inputMode="decimal"
                     min={0.1}
                     step={0.1}
+                    disabled={formDisabled}
                     value={tp}
                     onChange={(e) => setTp(e.target.value)}
                     placeholder={entryCents > 0 ? defaultTpSlPremiumsFromEntry(entryCents).tp : "0.0"}
@@ -1263,6 +1278,7 @@ export function PredictLeveragePanel({
                     inputMode="decimal"
                     min={0.1}
                     step={0.1}
+                    disabled={formDisabled}
                     value={sl}
                     onChange={(e) => setSl(e.target.value)}
                     placeholder={entryCents > 0 ? defaultTpSlPremiumsFromEntry(entryCents).sl : "0.0"}
@@ -1278,8 +1294,14 @@ export function PredictLeveragePanel({
             ) : null}
           </div>
         </div>
+      </div>
 
-        <div className="space-y-2 border-t border-border p-4">
+      <div
+        className={cn(
+          "space-y-2 border-t border-border p-4",
+          disabled && "pointer-events-none select-none opacity-50",
+        )}
+      >
           {protocol?.trading_paused ? <TradingPausedNotice compact /> : null}
           {!isProtocolReady && isWalletConnected ? (
             <p className="flex items-center gap-1 text-sm text-muted-foreground">
@@ -1342,7 +1364,6 @@ export function PredictLeveragePanel({
           ) : (
             <WalletConnectButton fullWidth large className={ctaClass} />
           )}
-        </div>
       </div>
       {accountId ? (
         <PortfolioDepositDialog

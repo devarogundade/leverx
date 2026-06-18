@@ -469,7 +469,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   const [selectedRangeLower, setSelectedRangeLower] = useState<number | undefined>();
   const [selectedRangeUpper, setSelectedRangeUpper] = useState<number | undefined>();
   const [chartInterval, setChartInterval] = useState<OhlcvInterval>(CHART_OHLCV_INTERVAL);
-  const [chartDisplayMode, setChartDisplayMode] = useState<ChartDisplayMode>("candlestick");
+  const [chartDisplayMode, setChartDisplayMode] = useState<ChartDisplayMode>("line");
   const { address } = useWallet();
 
   useEffect(() => {

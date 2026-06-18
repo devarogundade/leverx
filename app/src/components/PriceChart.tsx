@@ -113,7 +113,7 @@ export function PriceChart({
   const [mounted, setMounted] = useState(false);
   const [chartReady, setChartReady] = useState(false);
   const [internalInterval, setInternalInterval] = useState<OhlcvInterval>(CHART_OHLCV_INTERVAL);
-  const [internalDisplayMode, setInternalDisplayMode] = useState<ChartDisplayMode>("candlestick");
+  const [internalDisplayMode, setInternalDisplayMode] = useState<ChartDisplayMode>("line");
   const interval = intervalProp ?? internalInterval;
   const setInterval = onIntervalChange ?? setInternalInterval;
   const displayMode = displayModeProp ?? internalDisplayMode;
