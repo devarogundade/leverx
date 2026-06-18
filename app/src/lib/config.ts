@@ -100,6 +100,32 @@ function envBool(name: string, defaultValue: boolean): boolean {
   return defaultValue;
 }
 
+function resolveFirebaseConfig():
+  | {
+      apiKey: string;
+      authDomain: string;
+      projectId: string;
+      storageBucket: string;
+      messagingSenderId: string;
+      appId: string;
+      measurementId?: string;
+    }
+  | null {
+  const apiKey = viteEnv("VITE_FIREBASE_API_KEY");
+  const projectId = viteEnv("VITE_FIREBASE_PROJECT_ID");
+  if (!apiKey || !projectId) return null;
+
+  return {
+    apiKey,
+    authDomain: viteEnv("VITE_FIREBASE_AUTH_DOMAIN"),
+    projectId,
+    storageBucket: viteEnv("VITE_FIREBASE_STORAGE_BUCKET"),
+    messagingSenderId: viteEnv("VITE_FIREBASE_MESSAGING_SENDER_ID"),
+    appId: viteEnv("VITE_FIREBASE_APP_ID"),
+    measurementId: viteEnv("VITE_FIREBASE_MEASUREMENT_ID") || undefined,
+  };
+}
+
 export const appConfig = {
   suiNetwork: "testnet" as const,
 
@@ -156,6 +182,9 @@ export const appConfig = {
 
   /** Vertical RANGE instruments in trade UI and market actions. */
   rangeEnabled: true,
+
+  /** Firebase web app config for market comments (Firestore). */
+  firebase: resolveFirebaseConfig(),
 } as const;
 
 /** True when Google zkLogin can be registered via Enoki at startup. */

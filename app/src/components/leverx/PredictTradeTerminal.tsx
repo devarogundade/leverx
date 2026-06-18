@@ -12,7 +12,9 @@ import { PredictLeveragePanel } from "@/components/leverx/PredictLeveragePanel";
 import { LeverxLimitOrdersTable } from "@/components/leverx/LeverxLimitOrdersTable";
 import { LeverxPositionsTable } from "@/components/leverx/LeverxPositionsTable";
 import { PortfolioIndexSyncNotice } from "@/components/leverx/PortfolioIndexSyncNotice";
+import { MarketCommentsPanel } from "@/components/leverx/comments/MarketCommentsPanel";
 import { MarketTradesTable } from "@/components/leverx/MarketTradesTable";
+import { useMarketComments } from "@/hooks/useMarketComments";
 import { usePositionsMarkToMarket } from "@/hooks/usePositionsMarkToMarket";
 import { useVerifiedOpenPositions } from "@/hooks/useVerifiedOpenPositions";
 import { useMinMdViewport } from "@/hooks/use-min-md-viewport";
@@ -57,6 +59,7 @@ import {
 import { defaultRangeBoundsRaw, oracleStrikeBounds } from "@/lib/leverx/strike-selection";
 import { useTradeNavigation } from "@/context/TradeNavigationContext";
 import { baseFromUnderlying } from "@/lib/markets";
+import { positionRowId } from "@/lib/leverx/position-metrics";
 import { summarizeGlobalTrades } from "@/lib/leverx/trade-stats";
 import { resolveFinalWindowMs } from "@/lib/leverx/protocol";
 import {
@@ -108,12 +111,14 @@ import {
 } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
 
-const TABS = ["Positions", "Open Orders", "Market trades", "Summary"] as const;
+const TABS = ["Comments", "Positions", "Open Orders", "Market trades", "Summary"] as const;
 const MOBILE_WORKSPACE_TABS = ["trade", "chart"] as const;
 type MobileWorkspaceTab = (typeof MOBILE_WORKSPACE_TABS)[number];
 
 function tradeTabLabel(
   tab: (typeof TABS)[number],
+  commentsLoading: boolean,
+  commentCount: number,
   tradesLoading: boolean,
   tradeCount: string,
   positionsLoading: boolean,
@@ -121,6 +126,10 @@ function tradeTabLabel(
   ordersLoading: boolean,
   orderCount: number,
 ) {
+  if (tab === "Comments") {
+    const count = commentsLoading ? "…" : formatCount(commentCount);
+    return <>Comments ({count})</>;
+  }
   if (tab === "Market trades") {
     const count = tradesLoading ? "…" : tradeCount;
     return (
@@ -276,6 +285,9 @@ function TerminalOrderBook({
 type TradePositionsPanelProps = {
   activeTab: (typeof TABS)[number];
   setActiveTab: (tab: (typeof TABS)[number]) => void;
+  commentsLoading: boolean;
+  commentCount: number;
+  commentsState: ReturnType<typeof useMarketComments>;
   tradesLoading: boolean;
   tradeStats: ReturnType<typeof summarizeGlobalTrades>;
   trades: Awaited<ReturnType<typeof useIndexerGlobalTrades>>["data"];
@@ -289,11 +301,16 @@ type TradePositionsPanelProps = {
   ordersLoading: boolean;
   limitOrders: Awaited<ReturnType<typeof useIndexerLimitOrders>>["data"];
   vaultSummary: Awaited<ReturnType<typeof useIndexerVaultSummary>>["data"];
+  chartVisiblePositionIds: ReadonlySet<string>;
+  onChartVisibilityToggle: (positionId: string) => void;
 };
 
 function TradePositionsPanel({
   activeTab,
   setActiveTab,
+  commentsLoading,
+  commentCount,
+  commentsState,
   tradesLoading,
   tradeStats,
   trades = [],
@@ -307,6 +324,8 @@ function TradePositionsPanel({
   ordersLoading,
   limitOrders = [],
   vaultSummary,
+  chartVisiblePositionIds,
+  onChartVisibilityToggle,
 }: TradePositionsPanelProps) {
   const { byPositionId, isRefreshing } = usePositionsMarkToMarket(positions);
 
@@ -322,6 +341,8 @@ function TradePositionsPanel({
             value: tab,
             label: tradeTabLabel(
               tab,
+              commentsLoading,
+              commentCount,
               tradesLoading,
               formatCount(tradeStats.total),
               positionsLoading,
@@ -354,7 +375,9 @@ function TradePositionsPanel({
       </div>
 
       <div className={tradeTerminalPositionsBody}>
-        {activeTab === "Summary" ? (
+        {activeTab === "Comments" ? (
+          <MarketCommentsPanel address={address} commentsState={commentsState} />
+        ) : activeTab === "Summary" ? (
           <div className={tradeSummaryGrid}>
             <StatItem label="Total trades" value={<AnimatedCount value={tradeStats.total} />} />
             <StatItem label="24h trades" value={<AnimatedCount value={tradeStats.last24h} />} />
@@ -412,6 +435,12 @@ function TradePositionsPanel({
                   showHeader={false}
                   paginationKey={positionsFilter}
                   hideLiveMetrics={positionsFilter === "closed"}
+                  chartVisibleIds={
+                    positionsFilter === "open" ? chartVisiblePositionIds : undefined
+                  }
+                  onChartVisibilityToggle={
+                    positionsFilter === "open" ? onChartVisibilityToggle : undefined
+                  }
                 />
               ) : null}
             </div>
@@ -461,7 +490,7 @@ interface Props {
 export function PredictTradeTerminal({ oracleId }: Props) {
   const { consumePendingTrade } = useTradeNavigation();
   const [activeSide, setActiveSide] = useState<PredictSide>("up");
-  const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>("Positions");
+  const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>("Comments");
   const [positionsFilter, setPositionsFilter] = useState<"open" | "closed">("open");
   const [mobileWorkspace, setMobileWorkspace] = useState<MobileWorkspaceTab>("trade");
   const [dockMounted, setDockMounted] = useState(false);
@@ -470,6 +499,9 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   const [selectedRangeUpper, setSelectedRangeUpper] = useState<number | undefined>();
   const [chartInterval, setChartInterval] = useState<OhlcvInterval>(CHART_OHLCV_INTERVAL);
   const [chartDisplayMode, setChartDisplayMode] = useState<ChartDisplayMode>("line");
+  const [chartVisiblePositionIds, setChartVisiblePositionIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const { address } = useWallet();
 
   useEffect(() => {
@@ -668,6 +700,48 @@ export function PredictTradeTerminal({ oracleId }: Props) {
     [positionsFilter, openOraclePositions, closedPositions],
   );
 
+  const seenChartPositionIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    seenChartPositionIdsRef.current = new Set();
+    setChartVisiblePositionIds(new Set());
+  }, [oracleId]);
+
+  useEffect(() => {
+    setChartVisiblePositionIds((prev) => {
+      const next = new Set(prev);
+      let changed = false;
+
+      for (const position of openOraclePositions) {
+        const id = positionRowId(position);
+        if (!seenChartPositionIdsRef.current.has(id)) {
+          seenChartPositionIdsRef.current.add(id);
+          next.add(id);
+          changed = true;
+        }
+      }
+
+      for (const id of next) {
+        if (!openOraclePositions.some((position) => positionRowId(position) === id)) {
+          next.delete(id);
+          seenChartPositionIdsRef.current.delete(id);
+          changed = true;
+        }
+      }
+
+      return changed ? next : prev;
+    });
+  }, [openOraclePositions]);
+
+  const toggleChartVisibility = useCallback((positionId: string) => {
+    setChartVisiblePositionIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(positionId)) next.delete(positionId);
+      else next.add(positionId);
+      return next;
+    });
+  }, []);
+
   const positionsLoading =
     positionsFilter === "open" ? openPositionsLoading : closedPositionsLoading;
 
@@ -793,10 +867,18 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   const chartRangeLower = rangeLower ? scaleSpot(rangeLower) : undefined;
   const chartRangeUpper = rangeUpper ? scaleSpot(rangeUpper) : undefined;
 
+  const chartPositionsOnChart = useMemo(
+    () =>
+      openOraclePositions.filter((position) =>
+        chartVisiblePositionIds.has(positionRowId(position)),
+      ),
+    [openOraclePositions, chartVisiblePositionIds],
+  );
+
   const chartStrikeLevels = useMemo(() => {
-    if (openOraclePositions.length > 0) {
+    if (chartPositionsOnChart.length > 0) {
       return buildPositionStrikeChartLevels(
-        openOraclePositions.map((position) => ({
+        chartPositionsOnChart.map((position) => ({
           isUp: position.is_up,
           isRange: position.is_range,
           strikeRaw: position.strike,
@@ -811,7 +893,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
       rangeUpper: chartRangeUpper,
     });
   }, [
-    openOraclePositions,
+    chartPositionsOnChart,
     activeSide,
     chartStrikePrice,
     chartRangeLower,
@@ -828,9 +910,15 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   const desktopChartActive = isMdViewport;
   const mobileChartActive = !isMdViewport && showMobileChart;
 
+  const commentsState = useMarketComments(oracleId);
+  const { comments, loading: commentsLoading } = commentsState;
+
   const positionsPanelProps: TradePositionsPanelProps = {
     activeTab,
     setActiveTab,
+    commentsLoading,
+    commentCount: comments.length,
+    commentsState,
     tradesLoading,
     tradeStats,
     trades,
@@ -847,6 +935,8 @@ export function PredictTradeTerminal({ oracleId }: Props) {
     ordersLoading,
     limitOrders,
     vaultSummary,
+    chartVisiblePositionIds,
+    onChartVisibilityToggle: toggleChartVisibility,
   };
 
   return (

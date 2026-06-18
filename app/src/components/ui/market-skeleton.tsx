@@ -88,7 +88,7 @@ import {
   btnTradeSignin,
 } from "@/lib/leverx/tw";
 
-const TRADE_POSITION_TABS = ["Positions", "Open Orders", "Market trades", "Summary"] as const;
+const TRADE_POSITION_TABS = ["Comments", "Positions", "Open Orders", "Market trades", "Summary"] as const;
 
 function SkeletonBar({ className }: { className?: string; }) {
   return <div className={cn("lx-skeleton", className)} />;
@@ -950,6 +950,9 @@ function TradeLeveragePanelSkeleton() {
 }
 
 function tradePositionTabLabel(tab: (typeof TRADE_POSITION_TABS)[number]) {
+  if (tab === "Comments") {
+    return <>Comments (…)</>;
+  }
   if (tab === "Market trades") {
     return (
       <>

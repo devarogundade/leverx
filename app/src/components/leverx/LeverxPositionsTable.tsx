@@ -1,5 +1,5 @@
 import { useMemo, type ReactNode } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Eye, EyeOff } from "lucide-react";
 import { DataTable, type Column } from "@/components/DataTable";
 import { AssetBadge } from "@/components/AssetBadge";
 import { PositionActionsTrigger } from "@/components/leverx/PositionActionsModal";
@@ -43,7 +43,7 @@ import { formatLiquidationThresholdPct, resolveLiquidationBps } from "@/lib/leve
 import { formatStrikeUsdFromRaw } from "@/lib/leverx/strike-selection";
 import { TableExpiryCountdown } from "@/components/leverx/TableExpiryCountdown";
 import { cn } from "@/lib/utils";
-import { labelCaps } from "@/lib/leverx/tw";
+import { labelCaps, pillIconBtn, pillToggleIdle } from "@/lib/leverx/tw";
 
 interface Props {
   positions: readonly LeveragedPosition[];
@@ -58,6 +58,9 @@ interface Props {
   /** Resets table pagination when changed (e.g. open vs closed filter). */
   paginationKey?: string | number;
   pageSize?: number;
+  /** When set, shows an eye toggle per open row to show/hide strike lines on the trade chart. */
+  chartVisibleIds?: ReadonlySet<string>;
+  onChartVisibilityToggle?: (positionId: string) => void;
 }
 
 interface PositionRow {
@@ -375,6 +378,36 @@ function StatusCell({ status }: { status: string; }) {
   );
 }
 
+function ChartVisibilityCell({
+  positionId,
+  visible,
+  onToggle,
+}: {
+  positionId: string;
+  visible: boolean;
+  onToggle: (positionId: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        pillIconBtn,
+        pillToggleIdle,
+        "h-7 w-7 rounded-md p-0",
+        visible && "text-foreground",
+      )}
+      aria-label={visible ? "Hide position on chart" : "Show position on chart"}
+      aria-pressed={visible}
+      onClick={(event) => {
+        event.stopPropagation();
+        onToggle(positionId);
+      }}
+    >
+      {visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+    </button>
+  );
+}
+
 export function LeverxPositionsTable({
   positions,
   markToMarket,
@@ -386,6 +419,8 @@ export function LeverxPositionsTable({
   className,
   paginationKey,
   pageSize,
+  chartVisibleIds,
+  onChartVisibilityToggle,
 }: Props) {
   const { data: oracles = [] } = usePredictOracleRows();
   const rows = useMemo(
@@ -393,7 +428,26 @@ export function LeverxPositionsTable({
     [positions, markToMarket, oracles],
   );
 
+  const showChartToggle = Boolean(onChartVisibilityToggle && chartVisibleIds);
+
   const allCols: Column<PositionRow>[] = [
+    ...(showChartToggle
+      ? [
+          {
+            key: "chart",
+            header: "",
+            className: "w-[1px] whitespace-nowrap px-0",
+            cell: (r: PositionRow) =>
+              r.position.status === "open" ? (
+                <ChartVisibilityCell
+                  positionId={r.id}
+                  visible={chartVisibleIds!.has(r.id)}
+                  onToggle={onChartVisibilityToggle!}
+                />
+              ) : null,
+          } satisfies Column<PositionRow>,
+        ]
+      : []),
     {
       key: "market",
       header: "Market",
