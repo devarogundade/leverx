@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { AssetBadge } from "@/components/AssetBadge";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
+import { MARKET_TITLE_UP } from "@/lib/leverx/indexer-markets";
 import { UnderlineTabs } from "@/components/leverx/UnderlineTabs";
 import { ui } from "@/lib/copy";
 import { leverxInfo } from "@/lib/leverx/info-copy";
@@ -805,7 +806,7 @@ function TradeTerminalHeaderShell({ oracleId }: { oracleId?: string; }) {
         <div className="flex min-w-0 flex-1 items-start gap-3">
           <AssetBadge asset={asset} size="md" />
           <div className="min-w-0 flex-1 space-y-2">
-            <div className="lx-skeleton h-4 w-full max-w-lg sm:h-5" aria-hidden />
+            <h1 className={tradeTerminalTitle}>{MARKET_TITLE_UP}</h1>
             <Link to="/markets" className={tradeTerminalBack}>
               {ui.backToMarkets}
             </Link>

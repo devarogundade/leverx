@@ -46,8 +46,8 @@ import { useNow } from "@/hooks/useNow";
 import { useOraclePriceLatest } from "@/hooks/useOracleSpotPriceSeries";
 import { useOracleNeighbors, usePredictOracleRows } from "@/hooks/usePredictOracles";
 import { usePredictOracleState } from "@/hooks/usePredictOracleState";
+import { MarketTitle } from "@/components/leverx/MarketTitle";
 import {
-  buildQuestion,
   catalogToMarketRows,
 } from "@/lib/leverx/indexer-markets";
 import {
@@ -72,7 +72,7 @@ import {
 } from "@/lib/charts/predict-chart-levels";
 import { formatCount, ui } from "@/lib/copy";
 import { DATA_PLACEHOLDER } from "@/lib/leverx/placeholders";
-import { formatRangeStrikes, coercePredictSide, type PredictSide } from "@/lib/predict/instruments";
+import { coercePredictSide, type PredictSide } from "@/lib/predict/instruments";
 import { isOracleSettledForTrade, shouldPatchOhlcvWithOracleSpot } from "@/lib/predict/oracles";
 import { scaleQuote, scaleSpot } from "@/lib/predict/scaling";
 import {
@@ -806,34 +806,6 @@ export function PredictTradeTerminal({ oracleId }: Props) {
   const rangeQuoteUpper =
     activeSide === "range" ? rangeBounds?.upper : undefined;
 
-  const question = useMemo(() => {
-    if (activeSide === "range" && rangeLower && rangeUpper) {
-      return `Will ${asset} settle in ${formatRangeStrikes(rangeLower / 1e9, rangeUpper / 1e9)}?`;
-    }
-    if (market?.question) return market.question;
-    const strike = activeBinaryStrikeRaw;
-    if (strike && expiry) {
-      return buildQuestion(
-        asset,
-        strike,
-        expiry,
-        activeSide === "range",
-        rangeUpper ?? 0,
-        activeSide === "up",
-      );
-    }
-    return "Trade this market";
-  }, [
-    activeSide,
-    rangeLower,
-    rangeUpper,
-    asset,
-    market?.question,
-    activeBinaryStrikeRaw,
-    expiry,
-    rangeUpper,
-  ]);
-
   const contractPremium = useLiveContractPremium({
     oracleId,
     expiryMs: expiry,
@@ -946,7 +918,9 @@ export function PredictTradeTerminal({ oracleId }: Props) {
           <div className="flex min-w-0 flex-1 items-start gap-3">
             <AssetBadge asset={asset} size="md" />
             <div className="min-w-0 flex-1">
-              <h1 className={tradeTerminalTitle}>{question}</h1>
+              <h1 className={tradeTerminalTitle}>
+                <MarketTitle />
+              </h1>
               <Link to="/markets" className={tradeTerminalBack}>
                 {ui.backToMarkets}
               </Link>

@@ -1,5 +1,4 @@
 import { FLOAT_SCALING } from "@/lib/predict/constants";
-import { formatStrikeUsdFromRaw } from "@/lib/leverx/format-asset-price";
 import type { GlobalMarketTrade, MarketCatalogEntry } from "@/lib/leverx/indexer-client";
 import { premiumPerUnitFromMintCost } from "@/lib/leverx/trade-math";
 import type { PredictSide } from "@/lib/predict/instruments";
@@ -15,7 +14,6 @@ export interface LeverxMarketRow {
   higherStrikeRaw: number;
   isUp: boolean;
   isRange: boolean;
-  question: string;
   lastAskPremium: number | null;
   /** Live on-chain contract quote unavailable after fetch attempt. */
   quotePaused?: boolean;
@@ -43,17 +41,13 @@ export function tradePremiumRaw(trade: GlobalMarketTrade): number | null {
   if (trade.trade_side === "mint") {
     if (trade.ask_price != null && trade.ask_price > 0) return trade.ask_price;
     if (trade.cost != null && trade.cost > 0 && trade.quantity > 0) {
-      return Number(
-        premiumPerUnitFromMintCost(BigInt(trade.cost), BigInt(trade.quantity)),
-      );
+      return Number(premiumPerUnitFromMintCost(BigInt(trade.cost), BigInt(trade.quantity)));
     }
     return null;
   }
   if (trade.bid_price != null && trade.bid_price > 0) return trade.bid_price;
   if (trade.payout != null && trade.payout > 0 && trade.quantity > 0) {
-    return Number(
-      premiumPerUnitFromMintCost(BigInt(trade.payout), BigInt(trade.quantity)),
-    );
+    return Number(premiumPerUnitFromMintCost(BigInt(trade.payout), BigInt(trade.quantity)));
   }
   return null;
 }
@@ -98,31 +92,15 @@ function oracleAssetLabel(oracleId: string): string {
   return oracleId.slice(2, 6).toUpperCase() || "MKT";
 }
 
-export function buildQuestion(
-  asset: string,
-  strike: number,
-  expiry: number,
-  isRange: boolean,
-  higherStrike: number,
-  isUp: boolean,
-  /** When set, UP/DOWN market cards use live spot instead of strike in the question. */
-  spotPriceUsd?: number | null,
-): string {
-  const date = new Date(expiry).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-  if (isRange) {
-    return `Will ${asset} settle between ${formatStrikeUsdFromRaw(strike)} and ${formatStrikeUsdFromRaw(higherStrike)} on ${date}?`;
-  }
-  const direction = isUp ? "above" : "below";
-  const priceRaw =
-    spotPriceUsd != null && spotPriceUsd > 0
-      ? Math.round(spotPriceUsd * SCALE)
-      : strike;
-  return `Will ${asset} be ${direction} ${formatStrikeUsdFromRaw(priceRaw)} on ${date}?`;
-}
+export const MARKET_TITLES = {
+  up: "Bitcoin Up, Down, or Range",
+  down: "Bitcoin Up, Down, or Range",
+  range: "Bitcoin Up, Down, or Range",
+} as const;
+
+export const MARKET_TITLE_UP = MARKET_TITLES.up;
+export const MARKET_TITLE_DOWN = MARKET_TITLES.down;
+export const MARKET_TITLE_RANGE = MARKET_TITLES.range;
 
 export function catalogEntryToMarketRow(entry: MarketCatalogEntry): LeverxMarketRow {
   const asset = oracleAssetLabel(entry.oracle_id);
@@ -137,14 +115,6 @@ export function catalogEntryToMarketRow(entry: MarketCatalogEntry): LeverxMarket
     expiry: entry.expiry_ms,
     isUp: entry.is_up,
     isRange: entry.is_range,
-    question: buildQuestion(
-      asset,
-      entry.strike,
-      entry.expiry_ms,
-      entry.is_range,
-      entry.higher_strike,
-      entry.is_up,
-    ),
     lastAskPremium: entry.last_ask_price ?? null,
     volume: scaleQuote(entry.volume_24h),
     status: entry.trade_count_24h > 0 ? "active" : "indexed",
@@ -167,9 +137,7 @@ export function findMarketRow(
 
   const isUp = side === "up";
   if (strikeRaw) {
-    return rows.find(
-      (m) => !m.isRange && m.isUp === isUp && m.strikeRaw === strikeRaw,
-    );
+    return rows.find((m) => !m.isRange && m.isUp === isUp && m.strikeRaw === strikeRaw);
   }
 
   return rows.find((m) => !m.isRange && m.isUp === isUp) ?? rows[0];

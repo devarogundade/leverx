@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { useOracleSpotMap } from "@/hooks/useOracleSpotMap";
 import type { LeverxMarketRow } from "@/lib/leverx/indexer-markets";
-import { buildQuestion } from "@/lib/leverx/indexer-markets";
 
 export function uniqueOracleIds(markets: readonly LeverxMarketRow[]): string[] {
   return [...new Set(markets.map((m) => m.oracleId).filter(Boolean))];
@@ -18,15 +17,6 @@ export function withOracleSpots(
     return {
       ...m,
       spotPrice: spot,
-      question: buildQuestion(
-        m.asset,
-        m.strikeRaw,
-        m.expiry,
-        m.isRange,
-        m.higherStrikeRaw,
-        m.isUp,
-        spot,
-      ),
     };
   });
 }

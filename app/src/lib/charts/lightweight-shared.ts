@@ -1,4 +1,13 @@
-import { ColorType, CrosshairMode, LineStyle, type DeepPartial, type ChartOptions, type IChartApi, type ISeriesApi } from "lightweight-charts";
+import {
+  ColorType,
+  CrosshairMode,
+  LineStyle,
+  LineType,
+  type DeepPartial,
+  type ChartOptions,
+  type IChartApi,
+  type ISeriesApi,
+} from "lightweight-charts";
 import type { PriceLevel } from "@/lib/charts/price-level";
 import { formatAssetPriceUsd } from "@/lib/leverx/format-asset-price";
 
@@ -151,15 +160,15 @@ export function applyCandlestickSeriesTheme(series: ISeriesApi<"Candlestick">) {
 }
 
 export function applyLineSeriesWinTheme(series: ISeriesApi<"Line">) {
-  series.applyOptions({ color: lineSeriesWinColor() });
+  series.applyOptions({ color: lineSeriesWinColor(), lineType: LineType.Curved });
 }
 
 export function applyLineSeriesMarketsSparklineTheme(series: ISeriesApi<"Line">) {
-  series.applyOptions({ color: lineSeriesMarketsSparklineColor() });
+  series.applyOptions({ color: lineSeriesMarketsSparklineColor(), lineType: LineType.Curved });
 }
 
 export function applyLineSeriesAccentTheme(series: ISeriesApi<"Line">) {
-  series.applyOptions({ color: lineSeriesAccentColor() });
+  series.applyOptions({ color: lineSeriesAccentColor(), lineType: LineType.Curved });
 }
 
 export function lineSeriesAccentColor(): string {

@@ -14,6 +14,7 @@ import {
   paginateSlice,
 } from "@/components/leverx/MarketCatalogPagination";
 import type { LeverxMarketRow } from "@/lib/leverx/indexer-markets";
+import { MarketTitle } from "@/components/leverx/MarketTitle";
 import {
   marketSortToKeyDir,
   toggleMarketTableSort,
@@ -125,7 +126,7 @@ function MarketMobileCard({
             side="up"
             className={cn(marketsMarketLink, "font-medium")}
           >
-            {display.question}
+            <MarketTitle />
           </MarketTradeLink>
           <MarketLeverageBadges
             expiryMs={display.expiry}
@@ -302,7 +303,7 @@ export function PredictMarketsTable({
                           side="up"
                           className={cn(marketsMarketLink, "font-medium")}
                         >
-                          {display.question}
+                          <MarketTitle />
                         </MarketTradeLink>
                         <MarketLeverageBadges
                           expiryMs={display.expiry}

@@ -1,13 +1,11 @@
 import { useMemo } from "react";
 import { DataTable, type Column } from "@/components/DataTable";
 import { CancelOrderTrigger } from "@/components/leverx/CancelOrderModal";
-import { usePredictOracleRows } from "@/hooks/usePredictOracles";
 import { AnimatedPremium, AnimatedQuantity } from "@/components/ui/animated-numbers";
 import { QuoteAmount } from "@/components/leverx/QuoteAmount";
 import type { LimitMintOrder } from "@/lib/leverx/indexer-client";
-import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
+import { MarketTitle } from "@/components/leverx/MarketTitle";
 import { predictSideFromBinary, type PredictSide } from "@/lib/predict/instruments";
-import { assetLabelForOracleId } from "@/lib/predict/oracles";
 import { scaleQuote } from "@/lib/predict/scaling";
 
 interface Props {
@@ -20,7 +18,6 @@ interface Props {
 interface OrderRow {
   id: string;
   order: LimitMintOrder;
-  asset: string;
   side: PredictSide;
 }
 
@@ -30,19 +27,17 @@ export function LeverxLimitOrdersTable({
   paginationKey,
   pageSize,
 }: Props) {
-  const { data: oracles = [] } = usePredictOracleRows();
   const rows: OrderRow[] = useMemo(
     () =>
       orders.map((order) => ({
         id: order.placed_event_digest,
         order,
-        asset: assetLabelForOracleId(order.oracle_id, oracles),
         side: predictSideFromBinary({
           isUp: order.is_up,
           isRange: order.is_range,
         }),
       })),
-    [orders, oracles],
+    [orders],
   );
 
   const cols: Column<OrderRow>[] = [
@@ -52,9 +47,8 @@ export function LeverxLimitOrdersTable({
       mobileEmphasis: true,
       cell: (r) => (
         <div>
-          <p className="text-sm font-medium">{r.asset}</p>
-          <p className="text-[11px] text-muted-foreground">
-            <PredictSideLabel side={r.side} />
+          <p className="text-sm font-medium">
+            <MarketTitle side={r.side} />
           </p>
         </div>
       ),

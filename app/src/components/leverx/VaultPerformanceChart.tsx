@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { LineSeries, createChart, type IChartApi, type ISeriesApi } from "lightweight-charts";
+import { LineSeries, LineType, createChart, type IChartApi, type ISeriesApi } from "lightweight-charts";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ui } from "@/lib/copy";
 import {
@@ -95,6 +95,7 @@ export function VaultPerformanceChart({ snapshots = [], loading, className }: Pr
     const lineSeries = chart.addSeries(LineSeries, {
       color: lineSeriesAccentColor(),
       lineWidth: 2,
+      lineType: LineType.Curved,
       crosshairMarkerVisible: true,
       lastValueVisible: true,
       priceLineVisible: false,

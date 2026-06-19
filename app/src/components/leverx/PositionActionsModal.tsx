@@ -28,8 +28,9 @@ import { positionCloseSource } from "@/lib/leverx/position-indexer-hints";
 import { entryPremiumPerUnitRaw } from "@/lib/leverx/position-metrics";
 import { showTxError, showTxSuccess } from "@/lib/toast";
 import { usePredictOracleRows } from "@/hooks/usePredictOracles";
-import { predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
-import { assetLabelForOracleId, isOracleSettledForTrade } from "@/lib/predict/oracles";
+import { MARKET_TITLES } from "@/lib/leverx/indexer-markets";
+import { predictSideFromBinary } from "@/lib/predict/instruments";
+import { isOracleSettledForTrade } from "@/lib/predict/oracles";
 import {
   centsToPremiumRaw,
   defaultTpSlPremiumsFromEntry,
@@ -430,12 +431,13 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
     closeModal();
   };
 
-  const asset = assetLabelForOracleId(position.oracle_id, oracles);
-  const side = predictSideLabel[sideFromIsUp(position.is_up)];
+  const marketTitle = MARKET_TITLES[
+    predictSideFromBinary({ isUp: position.is_up, isRange: position.is_range })
+  ];
 
   const title =
     view === "menu"
-      ? `${asset} · ${side}`
+      ? marketTitle
       : view === "auto_exit"
         ? "Add auto-exit"
         : "Repay debt";
@@ -729,7 +731,7 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
         onOpenChange={(next) => {
           if (!next) setConfirmAction(null);
         }}
-        title={`Close ${asset} ${side} at market?`}
+        title={`Close ${marketTitle} at market?`}
         description="Your position will be redeemed at the best available bid. This cannot be undone."
         confirmLabel="Close position"
         variant="destructive"
@@ -759,7 +761,7 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
         onOpenChange={(next) => {
           if (!next) setConfirmAction(null);
         }}
-        title={`Settle expired ${asset} ${side}?`}
+        title={`Settle expired ${marketTitle}?`}
         description={
           oracleSettled
             ? "Finalize redemption after oracle settlement."

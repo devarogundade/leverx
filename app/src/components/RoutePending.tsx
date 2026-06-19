@@ -4,7 +4,7 @@ import { AppSiteShell } from "@/components/AppSiteShell";
 import { SiteShell } from "@/components/SiteShell";
 import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loading-state";
-import { MarketsPromoBanners } from "@/components/leverx/MarketsPromoBanners";
+import { MarketsHeroSection } from "@/components/leverx/MarketsHeroSection";
 import { UnderlineTabs } from "@/components/leverx/UnderlineTabs";
 import {
   MarketsCatalogSkeleton,
@@ -56,10 +56,10 @@ export function RoutePendingContent() {
   if (pathname === "/markets") {
     return (
       <section className={pageSimple}>
-        <MarketsPromoBanners />
+        <MarketsHeroSection />
 
         <div className={pageSimpleToolbar}>
-          <h1 className={pageSimpleTitle}>Markets</h1>
+          <h1 className={pageSimpleTitle}>All markets</h1>
           <div className={pageSimpleActions}>
             <div className="relative min-w-0 flex-1 sm:max-w-sm">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

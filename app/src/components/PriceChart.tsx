@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CandlestickSeries,
   LineSeries,
+  LineType,
   createChart,
   type CandlestickData,
   type IChartApi,
@@ -428,6 +429,7 @@ export function PriceChart({
       const lineSeries = chart.addSeries(LineSeries, {
         color: lineSeriesMarketsSparklineColor(),
         lineWidth: 2,
+        lineType: LineType.Curved,
         crosshairMarkerVisible: true,
         lastValueVisible: true,
         priceLineVisible: false,

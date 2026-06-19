@@ -6,6 +6,7 @@ import { AssetBadge } from "@/components/AssetBadge";
 import { AnimatedMarketPremium } from "@/components/ui/animated-numbers";
 import { MarketTradeLink } from "@/components/leverx/MarketTradeLink";
 import type { LeverxMarketRow } from "@/lib/leverx/indexer-markets";
+import { MarketTitle } from "@/components/leverx/MarketTitle";
 import { ui } from "@/lib/copy";
 import { MarketLeverageBadge } from "@/components/leverx/MarketLeverageBadge";
 import { useNow } from "@/hooks/useNow";
@@ -53,7 +54,9 @@ export function FeaturedCarousel({ markets, loading }: Props) {
               >
                 <AssetBadge asset={m.asset} size="sm" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{m.question}</p>
+                  <p className="truncate text-sm font-medium">
+                    <MarketTitle />
+                  </p>
                   <p className="text-[10px] text-muted-foreground">DeepBook Predict</p>
                 </div>
                 <div className="shrink-0 text-right">

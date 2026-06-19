@@ -17,6 +17,7 @@ import type { ReactNode } from "react";
 import { AnimatedCompactUsd, AnimatedMarketPremium } from "@/components/ui/animated-numbers";
 import { MarketTradeLink } from "@/components/leverx/MarketTradeLink";
 import type { LeverxMarketRow } from "@/lib/leverx/indexer-markets";
+import { MarketTitle } from "@/components/leverx/MarketTitle";
 import { ui } from "@/lib/copy";
 import {
   landingCtaSecondary,
@@ -117,7 +118,7 @@ export function PredictMarketsGrid({
                     className={cn(marketCardInteractive, "min-w-0 flex-1 no-underline")}
                   >
                     <p className="line-clamp-2 text-sm font-medium leading-snug text-foreground transition-colors hover:text-accent">
-                      {display.question}
+                      <MarketTitle />
                     </p>
                     <MarketLeverageBadges
                       expiryMs={display.expiry}

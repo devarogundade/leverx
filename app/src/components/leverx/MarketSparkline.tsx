@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { seriesToAreaPath, seriesToPolylinePoints } from "@/lib/charts/sparkline-path";
+import { seriesToAreaPath, seriesToSmoothPath } from "@/lib/charts/sparkline-path";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -30,11 +30,11 @@ export function MarketSparkline({
   const padding = edgeToEdge ? 0 : 1;
 
   const series = rawSeries ?? [];
-  const points = seriesToPolylinePoints(series, viewWidth, viewHeight, padding);
+  const linePath = seriesToSmoothPath(series, viewWidth, viewHeight, padding);
   const areaPath = seriesToAreaPath(series, viewWidth, viewHeight, padding);
   const fixedSize = typeof width === "number";
 
-  if (!points) {
+  if (!linePath) {
     return (
       <svg
         width={width}
@@ -98,8 +98,8 @@ export function MarketSparkline({
         </linearGradient>
       </defs>
       <path d={areaPath} fill={`url(#${fillGradientId})`} />
-      <polyline
-        points={points}
+      <path
+        d={linePath}
         fill="none"
         stroke={`url(#${strokeGradientId})`}
         strokeWidth={strokeWidth}

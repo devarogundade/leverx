@@ -8,7 +8,7 @@ import { UnderlineTabs } from "@/components/leverx/UnderlineTabs";
 import { MarketsSortPopover } from "@/components/leverx/MarketsSortPopover";
 import { PredictMarketsGrid } from "@/components/leverx/PredictMarketsGrid";
 import { PredictMarketsTable } from "@/components/leverx/PredictMarketsTable";
-import { MarketsPromoBanners } from "@/components/leverx/MarketsPromoBanners";
+import { MarketsHeroSection } from "@/components/leverx/MarketsHeroSection";
 import { useMarketFavorites } from "@/context/MarketFavoritesContext";
 import { useMergedMarkets } from "@/hooks/useMergedMarkets";
 import { useMarketsUpDisplay } from "@/hooks/useMarketsUpDisplay";
@@ -55,7 +55,7 @@ export const Route = createFileRoute("/_app/markets")({
   loader: ({ context }) => loadMarketsRoute(context.queryClient),
   head: () => ({
     meta: [
-      { title: pageTitle("Markets") },
+      { title: pageTitle("All markets") },
       {
         name: "description",
         content: "Browse live markets and open leveraged trades on price predictions.",
@@ -123,10 +123,10 @@ function MarketsPage() {
 
   return (
     <section className={pageSimple}>
-      <MarketsPromoBanners />
+      <MarketsHeroSection />
 
       <div className={pageSimpleToolbar}>
-        <h1 className={pageSimpleTitle}>Markets</h1>
+        <h1 className={pageSimpleTitle}>All markets</h1>
         <div className={pageSimpleActions}>
           <div className="relative min-w-0 flex-1 sm:max-w-sm">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

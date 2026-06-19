@@ -6,8 +6,8 @@ import { showTxError, showTxSuccess } from "@/lib/toast";
 import type { LimitMintOrder } from "@/lib/leverx/indexer-client";
 import { formatQuantity } from "@/lib/leverx/format-quantity";
 import { QuoteAmount } from "@/components/leverx/QuoteAmount";
-import { formatPremiumCents } from "@/lib/leverx/indexer-markets";
-import { predictSideLabel, sideFromIsUp } from "@/lib/predict/instruments";
+import { formatPremiumCents, MARKET_TITLES } from "@/lib/leverx/indexer-markets";
+import { predictSideFromBinary } from "@/lib/predict/instruments";
 import { scaleQuote } from "@/lib/predict/scaling";
 import { cn } from "@/lib/utils";
 import { pillToggleBtn, pillToggleIdle } from "@/lib/leverx/tw";
@@ -23,7 +23,9 @@ export function CancelOrderTrigger({ order, className }: Props) {
 
   const pending = cancelLimitOrder.isPending;
   const disabled = !isProtocolReady || order.status !== "open" || pending;
-  const side = predictSideLabel[sideFromIsUp(order.is_up)];
+  const marketTitle = MARKET_TITLES[
+    predictSideFromBinary({ isUp: order.is_up, isRange: order.is_range })
+  ];
 
   const confirm = () => {
     cancelLimitOrder.mutate(order, {
@@ -49,7 +51,7 @@ export function CancelOrderTrigger({ order, className }: Props) {
         open={open}
         onOpenChange={setOpen}
         title="Cancel open order"
-        description={`${side} limit @ ${formatPremiumCents(order.limit_premium_per_unit)}`}
+        description={`${marketTitle} limit @ ${formatPremiumCents(order.limit_premium_per_unit)}`}
       >
         <dl className="mb-4 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
           <dt className="text-muted-foreground">Quantity</dt>

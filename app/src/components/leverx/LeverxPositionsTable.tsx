@@ -3,7 +3,7 @@ import { ChevronDown, Eye, EyeOff } from "lucide-react";
 import { DataTable, type Column } from "@/components/DataTable";
 import { AssetBadge } from "@/components/AssetBadge";
 import { PositionActionsTrigger } from "@/components/leverx/PositionActionsModal";
-import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
+import { MarketTitle } from "@/components/leverx/MarketTitle";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { QuoteAmount } from "@/components/leverx/QuoteAmount";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -461,11 +461,8 @@ export function LeverxPositionsTable({
                 position={r.position}
                 className="truncate text-sm font-medium hover:underline"
               >
-                {r.asset}
+                <MarketTitle side={r.side} />
               </PositionTradeLink>
-              <p className="text-[11px]">
-                <PredictSideLabel side={r.side} colored />
-              </p>
             </div>
           </div>
         </div>

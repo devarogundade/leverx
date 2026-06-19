@@ -2,7 +2,9 @@ import { baseFromUnderlying } from "@/lib/markets";
 import { appConfig } from "@/lib/config";
 import type { MarketCatalogEntry } from "@/lib/leverx/indexer-client";
 import {
-  buildQuestion,
+  MARKET_TITLE_DOWN,
+  MARKET_TITLE_RANGE,
+  MARKET_TITLE_UP,
   catalogEntryToMarketRow,
   type LeverxMarketRow,
 } from "@/lib/leverx/indexer-markets";
@@ -108,7 +110,6 @@ function buildSyntheticRangeRow(
     expiry,
     isUp: true,
     isRange: true,
-    question: buildQuestion(asset, lower, expiry, true, upper, true),
     lastAskPremium: null,
     volume: 0,
     status: oracle.status ?? "active",
@@ -191,15 +192,6 @@ export function enrichMarketRow(
     minStrikeRaw,
     tickSizeRaw,
     spotPrice: spot ?? row.spotPrice ?? null,
-    question: buildQuestion(
-      asset,
-      row.strikeRaw,
-      expiry,
-      row.isRange,
-      row.higherStrikeRaw,
-      row.isUp,
-      spot ?? row.spotPrice,
-    ),
     status: row.status === "indexed" && oracle.status ? oracle.status : row.status,
   };
 }
@@ -223,7 +215,6 @@ function defaultUpRow(
     expiry,
     isUp: true,
     isRange: false,
-    question: buildQuestion(asset, strikeRaw, expiry, false, 0, true, spot),
     lastAskPremium: null,
     volume: 0,
     status: oracle.status ?? "active",
@@ -275,15 +266,6 @@ export function gridUpDisplayRow(row: LeverxMarketRow): LeverxMarketRow {
     higherStrikeRaw: 0,
     isUp: true,
     isRange: false,
-    question: buildQuestion(
-      row.asset,
-      quoteStrikeRaw,
-      row.expiry,
-      false,
-      0,
-      true,
-      spot,
-    ),
     lastAskPremium: catalogUpAtQuote ? row.lastAskPremium : null,
     quotePaused: catalogUpAtQuote ? row.quotePaused : undefined,
   };
@@ -417,7 +399,9 @@ export function mergeOracleMarkets(args: {
 
   return rows.filter(
     (m) =>
-      m.question.toLowerCase().includes(q) ||
+      MARKET_TITLE_UP.toLowerCase().includes(q) ||
+      MARKET_TITLE_DOWN.toLowerCase().includes(q) ||
+      MARKET_TITLE_RANGE.toLowerCase().includes(q) ||
       m.asset.toLowerCase().includes(q) ||
       m.oracleId.toLowerCase().includes(q) ||
       (m.underlyingAsset?.toLowerCase().includes(q) ?? false),
@@ -506,7 +490,6 @@ export function resolveTradeMarket(args: {
       ...row,
       id: `${oracleId}:${expiry}:${rawStrike}:0:0:0`,
       isUp: false,
-      question: buildQuestion(asset, rawStrike, expiry, false, 0, false),
     };
   }
   return row;
