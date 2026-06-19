@@ -8,6 +8,7 @@ interface Props {
   address: string | null;
   posting?: boolean;
   onSubmit: (text: string) => Promise<void>;
+  onGifSelect?: (path: string) => Promise<void>;
   placeholder?: string;
   compact?: boolean;
 }
@@ -16,6 +17,7 @@ export function CommentComposer({
   address,
   posting = false,
   onSubmit,
+  onGifSelect,
   placeholder = "Share your thoughts…",
   compact = false,
 }: Props) {
@@ -44,7 +46,10 @@ export function CommentComposer({
           />
           <GifPickerPopover
             disabled={!address || posting}
-            onSelect={(gifUrl) => setText((current) => appendToCommentText(current, gifUrl))}
+            onSelect={async (path) => {
+              if (!address || !onGifSelect) return;
+              await onGifSelect(path);
+            }}
           />
         </div>
         <button

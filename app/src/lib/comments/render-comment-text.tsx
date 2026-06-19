@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
+import { commentGifSrc } from "@/lib/comments/gif-catalog";
+import type { CommentReply, CommentType, MarketComment } from "@/lib/comments/types";
 
-const GIF_URL_PATTERN =
+const LEGACY_GIF_URL_PATTERN =
   /(?:https?:\/\/(?:media\d?\.giphy\.com|i\.giphy\.com)[^\s]+|\/comments\/gifs\/[^\s]+)/gi;
 
 export function appendToCommentText(current: string, addition: string): string {
@@ -9,9 +11,34 @@ export function appendToCommentText(current: string, addition: string): string {
   return `${current}${current.endsWith(" ") ? "" : " "}${addition}`;
 }
 
-export function renderCommentText(text: string) {
-  const parts = text.split(GIF_URL_PATTERN);
-  const matches = text.match(GIF_URL_PATTERN) ?? [];
+function resolveGifSrc(path: string): string {
+  if (!path) return "";
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  if (path.startsWith("/comments/gifs/")) {
+    const file = decodeURIComponent(path.slice("/comments/gifs/".length));
+    return commentGifSrc(file);
+  }
+  return commentGifSrc(path.replace(/^\/+/, ""));
+}
+
+function renderGif(path: string, key: string) {
+  const src = resolveGifSrc(path);
+  if (!src) return null;
+
+  return (
+    <img
+      key={key}
+      src={src}
+      alt="GIF"
+      className="mt-2 max-h-48 w-auto max-w-full rounded-md"
+      loading="lazy"
+    />
+  );
+}
+
+function renderLegacyText(text: string) {
+  const parts = text.split(LEGACY_GIF_URL_PATTERN);
+  const matches = text.match(LEGACY_GIF_URL_PATTERN) ?? [];
 
   if (matches.length === 0) {
     return <span className="whitespace-pre-wrap break-words">{text}</span>;
@@ -36,3 +63,24 @@ export function renderCommentText(text: string) {
 
   return <div className="space-y-1 whitespace-pre-wrap break-words">{nodes}</div>;
 }
+
+export function renderCommentBody(item: {
+  type?: CommentType;
+  text: string;
+  path?: string;
+}) {
+  if (item.type === "gif") {
+    return renderGif(item.path ?? "", "gif") ?? (
+      <span className="text-sm text-muted-foreground">GIF unavailable</span>
+    );
+  }
+
+  if (!item.text) return null;
+  return renderLegacyText(item.text);
+}
+
+export function renderCommentText(text: string) {
+  return renderLegacyText(text);
+}
+
+export type CommentRenderable = Pick<MarketComment, "type" | "text" | "path"> | CommentReply;

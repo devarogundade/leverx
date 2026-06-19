@@ -1,6 +1,8 @@
-import EmojiPicker, { Theme, type EmojiClickData } from "emoji-picker-react";
+import EmojiPicker, { Theme as EmojiPickerTheme, type EmojiClickData } from "emoji-picker-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useCommentPickerLayout } from "@/lib/comments/comment-picker-layout";
 import { pillIconBtn, pillToggleIdle } from "@/lib/leverx/tw";
+import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { Smile } from "lucide-react";
 
@@ -10,8 +12,11 @@ interface Props {
 }
 
 export function EmojiPickerPopover({ onSelect, disabled }: Props) {
+  const appTheme = useTheme();
+  const { width, height, isDesktop, popoverProps } = useCommentPickerLayout();
+
   return (
-    <Popover>
+    <Popover modal={!isDesktop}>
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -23,15 +28,14 @@ export function EmojiPickerPopover({ onSelect, disabled }: Props) {
         </button>
       </PopoverTrigger>
       <PopoverContent
-        align="start"
-        side="top"
-        className="w-auto border-border/80 bg-[#1a1a1a] p-0 shadow-xl"
+        {...popoverProps}
+        className="w-auto max-w-[calc(100vw-2rem)] border-border/80 bg-popover p-0 shadow-xl"
       >
         <EmojiPicker
-          theme={Theme.DARK}
+          theme={appTheme === "light" ? EmojiPickerTheme.LIGHT : EmojiPickerTheme.DARK}
           searchPlaceholder="Search emoji"
-          width={320}
-          height={360}
+          width={width}
+          height={height}
           lazyLoadEmojis
           onEmojiClick={(data: EmojiClickData) => onSelect(data.emoji)}
           previewConfig={{ showPreview: false }}

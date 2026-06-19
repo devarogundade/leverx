@@ -1,10 +1,18 @@
 import type { Timestamp } from "firebase/firestore";
 
+export type CommentType = "text" | "gif";
+
+export type CommentPayload =
+  | { type: "text"; text: string }
+  | { type: "gif"; path: string };
+
 export type CommentReply = {
   id: string;
   address: string;
   timestamp: Timestamp;
+  type: CommentType;
   text: string;
+  path: string;
   likes: string[];
 };
 
@@ -12,12 +20,9 @@ export type MarketComment = {
   id: string;
   address: string;
   timestamp: Timestamp;
+  type: CommentType;
   text: string;
+  path: string;
   likes: string[];
   replies: CommentReply[];
-};
-
-export type MarketCommentInput = {
-  address: string;
-  text: string;
 };

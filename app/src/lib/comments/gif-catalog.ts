@@ -181,8 +181,17 @@ export function commentGifSrc(file: string): string {
   return `/comments/gifs/${encodeURIComponent(file)}`;
 }
 
+/** Public path stored in Firestore for GIF comments. */
+export function commentGifPath(file: string): string {
+  return `/comments/gifs/${file}`;
+}
+
 export function commentGifUrl(gif: CommentGif): string {
   return commentGifSrc(gif.file);
+}
+
+export function commentGifStoragePath(gif: CommentGif): string {
+  return commentGifPath(gif.file);
 }
 
 export function getCategoryPreviewSrc(category: CommentGifCategory): string {

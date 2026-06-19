@@ -3,11 +3,13 @@ import { ArrowLeft, ImageIcon, Search, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   COMMENT_GIF_CATEGORIES,
+  commentGifStoragePath,
   commentGifUrl,
   getCategoryPreviewSrc,
   searchCommentGifs,
   type CommentGif,
 } from "@/lib/comments/gif-catalog";
+import { useCommentPickerLayout } from "@/lib/comments/comment-picker-layout";
 import { pillIconBtn, pillToggleIdle } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +22,7 @@ export function GifPickerPopover({ onSelect, disabled }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const { width, scrollHeight, isDesktop, popoverProps } = useCommentPickerLayout();
 
   const mode = useMemo(() => {
     if (query.trim() || activeCategory) return "results" as const;
@@ -39,7 +42,7 @@ export function GifPickerPopover({ onSelect, disabled }: Props) {
   }, [open]);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={setOpen} modal={!isDesktop}>
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -51,9 +54,9 @@ export function GifPickerPopover({ onSelect, disabled }: Props) {
         </button>
       </PopoverTrigger>
       <PopoverContent
-        align="start"
-        side="top"
-        className="w-[min(92vw,360px)] border-border/80 bg-[#121212] p-0 shadow-xl"
+        {...popoverProps}
+        style={{ width }}
+        className="max-w-[calc(100vw-2rem)] border-border/80 bg-popover p-0 shadow-xl"
       >
         <div className="flex items-center justify-between border-b border-border/60 px-3 py-2">
           <div className="flex items-center gap-2">
@@ -97,7 +100,7 @@ export function GifPickerPopover({ onSelect, disabled }: Props) {
           </div>
         </div>
 
-        <div className="max-h-[360px] overflow-y-auto p-3">
+        <div className="overflow-y-auto p-3" style={{ maxHeight: scrollHeight }}>
           {mode === "categories" ? (
             <div className="grid grid-cols-2 gap-2">
               {COMMENT_GIF_CATEGORIES.map((category) => (
@@ -126,7 +129,7 @@ export function GifPickerPopover({ onSelect, disabled }: Props) {
             <GifGrid
               gifs={gifs}
               onSelect={(gif) => {
-                onSelect(commentGifUrl(gif));
+                onSelect(commentGifStoragePath(gif));
                 setOpen(false);
               }}
             />
