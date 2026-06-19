@@ -68,7 +68,7 @@ export function FeaturedMarketCard({
 
         <div className="featured-market-prices">
           <div className="featured-market-price-stat">
-            <span className="featured-market-price-label">Price to beat</span>
+            <span className="featured-market-price-label">Strike price</span>
             <span className="featured-market-price-value">
               {strikeUsd > 0 ? formatStrikeUsdFromRaw(market.strikeRaw) : "—"}
             </span>
@@ -101,7 +101,9 @@ export function FeaturedMarketCard({
           <p className="featured-market-countdown" role="timer" aria-live="polite">
             Ends in <span>{countdown}</span>
           </p>
-        ) : null}
+        ) : <p className="featured-market-countdown" role="timer" aria-live="polite">
+          Ended
+        </p>}
       </header>
 
       <div className="featured-market-content">
