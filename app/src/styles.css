@@ -4016,13 +4016,7 @@ select {
 
 .featured-market-comments--marquee {
   height: 100%;
-  mask-image: linear-gradient(
-    to bottom,
-    transparent 0%,
-    black 14%,
-    black 86%,
-    transparent 100%
-  );
+  mask-image: linear-gradient(to bottom, transparent 0%, black 14%, black 86%, transparent 100%);
   -webkit-mask-image: linear-gradient(
     to bottom,
     transparent 0%,
@@ -4223,7 +4217,9 @@ select {
   background: var(--color-muted-foreground);
   opacity: 0.35;
   cursor: pointer;
-  transition: opacity 160ms ease, transform 160ms ease;
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
 }
 
 .featured-market-dot--active {

@@ -83,6 +83,7 @@ import {
   tradeTerminalSidebar,
   tradeTerminalTabsRow,
   tradeTerminalWorkspace,
+  tradeTerminalTitle,
   vaultAction,
   vaultChart,
   vaultWorkspace,
@@ -588,7 +589,7 @@ function VaultStatsSkeleton() {
   );
 }
 
-function VaultChartSkeleton({ className }: { className?: string }) {
+function VaultChartSkeleton({ className }: { className?: string; }) {
   return (
     <div className={cn(tradeSurface, "flex flex-col overflow-hidden", className)} aria-hidden>
       <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
@@ -607,7 +608,7 @@ function VaultChartSkeleton({ className }: { className?: string }) {
   );
 }
 
-function VaultLiquidityPanelSkeleton({ className }: { className?: string }) {
+function VaultLiquidityPanelSkeleton({ className }: { className?: string; }) {
   return (
     <div className={cn(tradeLeveragePanel, className, "pointer-events-none")} aria-hidden>
       <div className="border-b border-border p-3">

@@ -1,4 +1,5 @@
 import type { PredictSide } from "@/lib/predict/instruments";
+import { payoutMultiplier } from "./featured-market-utils";
 
 export type TradeOrderType = "market" | "limit";
 
@@ -8,23 +9,31 @@ const sideCtaLabel: Record<PredictSide, string> = {
   range: "Range",
 };
 
-export function tradeActionLabel(side: PredictSide, orderType: TradeOrderType): string {
+export function tradeActionLabel(
+  side: PredictSide,
+  orderType: TradeOrderType,
+  lastAskPremium: number,
+): string {
   const sideLabel = sideCtaLabel[side];
   if (orderType === "limit") {
     return `Place ${sideLabel} limit`;
   }
-  return `Open ${sideLabel}`;
+
+  const multiplier = payoutMultiplier(lastAskPremium);
+
+  return `${sideLabel} ${multiplier}`;
 }
 
 export function tradeCtaLabel(args: {
   side: PredictSide;
   orderType: TradeOrderType;
   needsDeposit: boolean;
+  lastAskPremium: number;
 }): string {
   if (args.needsDeposit) {
     return "Deposit funds to trade";
   }
-  return tradeActionLabel(args.side, args.orderType);
+  return tradeActionLabel(args.side, args.orderType, args.lastAskPremium);
 }
 
 /** True when the chosen source must fund the margin before the trade can open. */
@@ -33,8 +42,7 @@ export function tradeNeedsDeposit(args: {
   availableQuoteBalance?: number | null;
   walletQuoteBalance?: number | null;
 }): boolean {
-  const available =
-    args.availableQuoteBalance ?? args.walletQuoteBalance ?? null;
+  const available = args.availableQuoteBalance ?? args.walletQuoteBalance ?? null;
   if (args.marginUsd <= 0) return false;
   if (available == null) return false;
   return available + 1e-6 < args.marginUsd;

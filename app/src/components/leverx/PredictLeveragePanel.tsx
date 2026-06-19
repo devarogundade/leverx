@@ -488,11 +488,6 @@ export function PredictLeveragePanel({
     [marginNum, availableQuoteBalance],
   );
 
-  const submitLabel = useMemo(
-    () => tradeCtaLabel({ side, orderType, needsDeposit }),
-    [side, orderType, needsDeposit],
-  );
-
   const quoteBalanceLabel = useMemo(() => {
     if (availableQuoteBalance == null) return "—";
     return availableQuoteBalance;
@@ -556,6 +551,11 @@ export function PredictLeveragePanel({
     }
     return null;
   }, [liveAskPremium, lastAskPremium]);
+
+  const submitLabel = useMemo(
+    () => tradeCtaLabel({ side, orderType, needsDeposit, lastAskPremium: Number(liveAskPremium ?? lastAskPremium) }),
+    [side, orderType, needsDeposit, liveAskPremium],
+  );
 
   const entryPremiumRaw = useMemo(() => {
     if (orderType === "limit" && limitPrice) {
@@ -1302,68 +1302,68 @@ export function PredictLeveragePanel({
           disabled && "pointer-events-none select-none opacity-50",
         )}
       >
-          {protocol?.trading_paused ? <TradingPausedNotice compact /> : null}
-          {!isProtocolReady && isWalletConnected ? (
-            <p className="flex items-center gap-1 text-sm text-muted-foreground">
-              Trading is not available yet. Check back soon.
-              <InfoPopover title="Setup">{leverxInfo.protocolNotConfigured}</InfoPopover>
-            </p>
-          ) : null}
-          {visibleValidationErrors.map((err) => (
-            <p key={err} className="text-sm text-destructive">
-              {err}
-            </p>
-          ))}
-          {isWalletConnected ? (
-            needsMarginAccountSetup ? (
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  className={cn(
-                    btnTradeSignin,
-                    "!bg-accent !text-white hover:!bg-accent/90 hover:brightness-100",
-                    "w-[60%] min-w-0 shrink-0",
-                  )}
-                  disabled={!isProtocolReady || createMarginAccount.isPending}
-                  onClick={handleCreateMarginAccount}
-                >
-                  {createMarginAccount.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
-                      Creating…
-                    </>
-                  ) : (
-                    "Create account"
-                  )}
-                </button>
-                <button
-                  type="button"
-                  className={cn(ctaClass, "min-w-0 flex-1")}
-                  disabled
-                >
-                  {submitLabel}
-                </button>
-              </div>
-            ) : (
+        {protocol?.trading_paused ? <TradingPausedNotice compact /> : null}
+        {!isProtocolReady && isWalletConnected ? (
+          <p className="flex items-center gap-1 text-sm text-muted-foreground">
+            Trading is not available yet. Check back soon.
+            <InfoPopover title="Setup">{leverxInfo.protocolNotConfigured}</InfoPopover>
+          </p>
+        ) : null}
+        {visibleValidationErrors.map((err) => (
+          <p key={err} className="text-sm text-destructive">
+            {err}
+          </p>
+        ))}
+        {isWalletConnected ? (
+          needsMarginAccountSetup ? (
+            <div className="flex gap-2">
               <button
                 type="button"
-                className={ctaClass}
-                disabled={!canSubmit || openTrade.isPending}
-                onClick={handleSubmit}
+                className={cn(
+                  btnTradeSignin,
+                  "!bg-accent !text-white hover:!bg-accent/90 hover:brightness-100",
+                  "w-[60%] min-w-0 shrink-0",
+                )}
+                disabled={!isProtocolReady || createMarginAccount.isPending}
+                onClick={handleCreateMarginAccount}
               >
-                {openTrade.isPending ? (
+                {createMarginAccount.isPending ? (
                   <>
                     <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
-                    Submitting…
+                    Creating…
                   </>
                 ) : (
-                  submitLabel
+                  "Create account"
                 )}
               </button>
-            )
+              <button
+                type="button"
+                className={cn(ctaClass, "min-w-0 flex-1")}
+                disabled
+              >
+                {submitLabel}
+              </button>
+            </div>
           ) : (
-            <WalletConnectButton fullWidth large className={ctaClass} />
-          )}
+            <button
+              type="button"
+              className={ctaClass}
+              disabled={!canSubmit || openTrade.isPending}
+              onClick={handleSubmit}
+            >
+              {openTrade.isPending ? (
+                <>
+                  <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
+                  Submitting…
+                </>
+              ) : (
+                submitLabel
+              )}
+            </button>
+          )
+        ) : (
+          <WalletConnectButton fullWidth large className={ctaClass} />
+        )}
       </div>
       {accountId ? (
         <PortfolioDepositDialog
