@@ -13,8 +13,8 @@ export function MarketsHeroSidebar({ className }: Props) {
       <MarketsHeroPromoCard
         badge="Live"
         imageSrc={overflowBg}
-        title="Earn LVX points"
-        description="Trade with leverage on demo markets and climb the volume leaderboard."
+        title="Sui Overflow Season"
+        description="Earn LVX points by trading with leverage on demo markets and climb the volume leaderboard."
         ctaLabel="View leaderboard"
         to="/points"
       />

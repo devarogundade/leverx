@@ -3571,7 +3571,7 @@ select {
   background: linear-gradient(
     to top,
     color-mix(in oklab, var(--color-background) 92%, transparent) 0%,
-    color-mix(in oklab, var(--color-background) 55%, transparent) 45%,
+    color-mix(in oklab, var(--color-background) 55%, transparent) 85%,
     color-mix(in oklab, var(--color-background) 20%, transparent) 100%
   );
 }
