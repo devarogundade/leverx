@@ -1,15 +1,43 @@
 import { useId, useMemo } from "react";
 import { LoadingState } from "@/components/ui/loading-state";
-import { useOracleSpotPriceSeries } from "@/hooks/useOracleSpotPriceSeries";
+import {
+  useChartPriceSeries,
+  type ChartPriceSeriesResult,
+} from "@/hooks/useChartPriceSeries";
 import { formatAssetPriceUsd } from "@/lib/leverx/format-asset-price";
 import type { PricePoint } from "@/lib/predict/price-point";
+import type { PredictOracleSummary } from "@/lib/predict/types";
 import { pointsToSmoothPath } from "@/lib/charts/sparkline-path";
 import { cn } from "@/lib/utils";
 
+type OracleChartRow = Pick<
+  PredictOracleSummary,
+  "oracle_id" | "status" | "expiry" | "settled_at"
+>;
+
 interface Props {
   oracleId: string;
+  asset: string;
   strikeUsd: number;
+  oracleRow?: OracleChartRow | null;
   className?: string;
+}
+
+const FEATURED_CHART_MAX_POINTS = 10;
+
+function chartSeriesToPricePoints(series: ChartPriceSeriesResult): PricePoint[] {
+  let points: PricePoint[];
+  if (series.mode === "candlestick" && series.candles.length > 0) {
+    points = series.candles.map((bar) => ({
+      t: (bar.time as number) * 1000,
+      price: bar.close,
+    }));
+  } else {
+    points = series.linePoints;
+  }
+  return points.length > FEATURED_CHART_MAX_POINTS
+    ? points.slice(-FEATURED_CHART_MAX_POINTS)
+    : points;
 }
 
 const VIEW_W = 320;
@@ -64,10 +92,18 @@ function formatAxisTime(t: number): string {
   });
 }
 
-export function FeaturedMarketSpotChart({ oracleId, strikeUsd, className }: Props) {
+export function FeaturedMarketSpotChart({
+  oracleId,
+  asset,
+  strikeUsd,
+  oracleRow,
+  className,
+}: Props) {
   const rawGradientId = useId();
   const fillId = `featured-chart-fill-${rawGradientId.replace(/:/g, "")}`;
-  const { data: points, isLoading } = useOracleSpotPriceSeries(oracleId);
+  const chartSeries = useChartPriceSeries(oracleId, asset, { oracleRow });
+  const points = useMemo(() => chartSeriesToPricePoints(chartSeries), [chartSeries]);
+  const isLoading = chartSeries.isLoading;
 
   const domain = useMemo(() => chartDomain(points, strikeUsd), [points, strikeUsd]);
   const paths = useMemo(() => toPath(points, domain), [points, domain]);

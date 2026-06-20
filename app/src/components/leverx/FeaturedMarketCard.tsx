@@ -132,7 +132,14 @@ export function FeaturedMarketCard({
 
         <FeaturedMarketSpotChart
           oracleId={market.oracleId}
+          asset={market.asset}
           strikeUsd={strikeUsd}
+          oracleRow={{
+            oracle_id: market.oracleId,
+            status: market.oracleStatus ?? market.status,
+            expiry: market.expiry,
+            settled_at: null,
+          }}
         />
       </div>
 
