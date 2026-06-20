@@ -34,7 +34,7 @@ function toStrikeRaw(value: number | undefined | null): number {
   return value < 1_000_000 ? Math.round(value * SCALE) : Math.round(value);
 }
 
-/** Resolve vertical range bounds for an oracle (catalog row, URL params, or spot ± 0.5%). */
+/** Resolve vertical range bounds for an oracle (catalog row, URL params, or spot ± 0.2%). */
 export function resolveRangeBounds(args: {
   oracleId: string;
   catalogRows?: readonly LeverxMarketRow[];

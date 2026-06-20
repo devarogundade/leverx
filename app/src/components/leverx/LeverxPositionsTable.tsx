@@ -216,7 +216,7 @@ function PnlCell({
       : mtm.unrealizedPnlUsd < 0
         ? "text-destructive"
         : "text-muted-foreground";
-  const borrowedUsd = positionBorrowUsd(position);
+  const borrowedUsd = mtm.borrowedUsd;
   const marginUsd = positionMarginUsd(position);
   const walletRepaidUsd = walletRepaidPrincipalUsd(position);
 
@@ -322,12 +322,19 @@ function HealthCell({
   const isLeveraged = mtm?.isLeveraged ?? position.leverage_bps > 10_000;
 
   if (!isLeveraged) {
+    const collateralHint =
+      mtm.keyQuoteUsd > 0
+        ? `Collateral includes ${mtm.keyQuoteUsd.toFixed(2)} locked on key. `
+        : "";
     return (
-      <div className="min-w-[5.5rem]">
+      <div className="min-w-22">
         <div className="mb-1 flex items-center justify-end gap-1.5 text-sm font-medium tabular-nums">
           <span className="text-success">{formatHealthBps(mtm.healthBps)}</span>
         </div>
-        <div className="relative h-1.5 overflow-hidden rounded-full bg-muted">
+        <div
+          className="relative h-1.5 overflow-hidden rounded-full bg-muted"
+          title={`${collateralHint}No vault borrow on this position.`}
+        >
           <div className="absolute inset-y-0 left-0 w-full rounded-full bg-success" />
         </div>
       </div>
@@ -356,7 +363,7 @@ function HealthCell({
       : "";
 
   return (
-    <div className="min-w-[5.5rem]">
+    <div className="min-w-22">
       <div className="mb-1 flex items-center justify-end gap-1.5 text-sm font-medium tabular-nums">
         <span
           className={cn(

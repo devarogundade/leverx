@@ -180,11 +180,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     if (prev && prev !== address) {
       clearWalletScopedQueries(queryClient);
-    }
-
-    if (address) {
+      if (address) {
+        void invalidateWalletScopedQueries(queryClient);
+      }
+    } else if (!prev && address) {
       void invalidateWalletScopedQueries(queryClient);
-    } else if (prev) {
+    } else if (prev && !address) {
       clearWalletScopedQueries(queryClient);
     }
   }, [address, queryClient]);

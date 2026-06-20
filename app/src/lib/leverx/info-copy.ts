@@ -36,7 +36,7 @@ export const leverxInfo = {
   limitPrice: "Most you will pay per contract when placing a limit order.",
   rangeMarket: "Pays when the final price lands inside your chosen range.",
   rangePreset:
-    "Market is a tight band around spot (±1 tick). Percent presets widen the band symmetrically. Custom sets exact low and high strikes.",
+    "Market is a tight ±0.2% band around spot. 0.5% and 1% widen the band symmetrically. Custom sets exact low and high strikes.",
 
   marginOpen: "Total you have locked in open trades.",
   borrowedQuote: "Amount borrowed from the pool across your account.",

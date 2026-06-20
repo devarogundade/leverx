@@ -1,5 +1,6 @@
 import type { PositionLedgerHealthInputs, RedeemQuote } from "@/lib/leverx/quotes";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
+import { formatAmount } from "@/lib/copy";
 import { DEFAULT_LIQUIDATION_BPS, resolveHealthLabel } from "@/lib/leverx/protocol";
 import { premiumRawToCents, premiumPerUnitFromMintCost } from "@/lib/leverx/trade-math";
 import { coerceQuoteAtoms, scaleQuote } from "@/lib/predict/scaling";
@@ -23,6 +24,7 @@ export type PositionMarkToMarket = {
   unrealizedPnlUsd: number;
   unrealizedPnlPct: number | null;
   netEquityUsd: number;
+  borrowedUsd: number;
   healthBps: number | null;
   healthLabel: "healthy" | "margin_call" | "at_risk" | "unknown";
   /** True when on-chain (or indexer fallback) vault borrow exists above 1×. */
@@ -262,6 +264,7 @@ export function computePositionMarkToMarket(
   quoteLoading: boolean,
   liquidationBps: number = DEFAULT_LIQUIDATION_BPS,
   ledger?: PositionLedgerHealthInputs | null,
+  ledgerReady = ledger != null,
 ): PositionMarkToMarket {
   const entryCostUsd = scaleQuote(position.mint_cost);
   const marginUsd = scaleQuote(position.margin_quote);
@@ -293,6 +296,7 @@ export function computePositionMarkToMarket(
       unrealizedPnlUsd: 0,
       unrealizedPnlPct: null,
       netEquityUsd: 0,
+      borrowedUsd,
       healthBps: null,
       healthLabel: quoteLoading ? "unknown" : "unknown",
       isLeveraged,
@@ -336,14 +340,13 @@ export function computePositionMarkToMarket(
     unrealizedPnlUsd,
     unrealizedPnlPct,
     netEquityUsd,
+    borrowedUsd,
     healthBps,
     healthLabel,
     isLeveraged,
-    isLive: true,
+    isLive: Boolean(redeemQuote && !quoteLoading && ledgerReady),
   };
 }
-
-import { formatAmount } from "@/lib/copy";
 
 export function formatPnlUsd(value: number): string {
   if (!Number.isFinite(value)) return "—";

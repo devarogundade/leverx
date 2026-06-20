@@ -133,6 +133,8 @@ export function usePositionsMarkToMarket(positions: readonly LeveragedPosition[]
     openPositions.forEach((position, index) => {
       const snapshot = quoteSnapshot[index];
       const ledgerRow = ledgerSnapshot[index];
+      const ledgerQuery = ledgerQueries[index];
+      const ledgerReady = Boolean(ledgerQuery?.isSuccess && ledgerRow?.data != null);
       map.set(
         positionRowId(position),
         computePositionMarkToMarket(
@@ -141,11 +143,12 @@ export function usePositionsMarkToMarket(positions: readonly LeveragedPosition[]
           Boolean(snapshot?.isLoading || ledgerRow?.isLoading),
           liquidationBps,
           ledgerRow?.data ?? null,
+          ledgerReady,
         ),
       );
     });
     return map;
-  }, [openPositions, quoteSnapshot, ledgerSnapshot, liquidationBps]);
+  }, [openPositions, quoteSnapshot, ledgerSnapshot, ledgerQueries, liquidationBps]);
 
   const isRefreshing =
     quoteQueries.some((q) => q.isFetching && q.isPending) ||

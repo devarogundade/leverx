@@ -85,14 +85,13 @@ export function strikeUsdFromRaw(strikeRaw: number): number {
   return strikeRaw / SCALE;
 }
 
-/** Default “Market” range band: spot ± 0.5% (snapped to oracle tick grid). */
-export const RANGE_MARKET_WIDTH = 0.005;
+/** Default “Market” range band: spot ± 0.2% (snapped to oracle tick grid). */
+export const RANGE_MARKET_WIDTH = 0.002;
 
 export const RANGE_PRESET_WIDTHS = {
   market: RANGE_MARKET_WIDTH,
+  pct_0_5: 0.005,
   pct_1: 0.01,
-  pct_2: 0.02,
-  pct_3: 0.03,
 } as const;
 
 export type RangePresetId = keyof typeof RANGE_PRESET_WIDTHS | "custom";
@@ -102,9 +101,8 @@ export const RANGE_PRESET_OPTIONS: readonly {
   label: string;
 }[] = [
   { id: "market", label: "Market" },
-  { id: "pct_1", label: "±1%" },
-  { id: "pct_2", label: "±2%" },
-  { id: "pct_3", label: "±3%" },
+  { id: "pct_0_5", label: "0.5%" },
+  { id: "pct_1", label: "1%" },
   { id: "custom", label: "Custom" },
 ];
 

@@ -50,7 +50,7 @@ describe("computePositionMarkToMarket", () => {
       keyQuoteBalance: 5_000_000n,
     };
 
-    const mtm = computePositionMarkToMarket(position, quote, false, 10_500, ledger);
+    const mtm = computePositionMarkToMarket(position, quote, false, 10_500, ledger, true);
 
     expect(mtm.markValueUsd).toBe(100);
     expect(mtm.keyQuoteUsd).toBe(5);
@@ -61,7 +61,13 @@ describe("computePositionMarkToMarket", () => {
   });
 
   it("matches redeem bid only when key ledger is empty", () => {
-    const position = basePosition({ margin_quote: 10_000_000, borrow_quote: 0, leverage_bps: 10_000 });
+    const position = basePosition({
+      margin_quote: 10_000_000,
+      borrow_quote: 0,
+      peak_borrow_quote: 0,
+      mint_cost: 10_000_000,
+      leverage_bps: 10_000,
+    });
     const quote = redeemQuote(12_000_000n);
     const ledger = {
       borrowedQuote: 0n,
@@ -69,9 +75,25 @@ describe("computePositionMarkToMarket", () => {
       keyQuoteBalance: 0n,
     };
 
-    const mtm = computePositionMarkToMarket(position, quote, false, 10_500, ledger);
+    const mtm = computePositionMarkToMarket(position, quote, false, 10_500, ledger, true);
 
     expect(mtm.netEquityUsd).toBe(12);
     expect(mtm.unrealizedPnlUsd).toBe(2);
+  });
+
+  it("stays not live until on-chain ledger inputs are available", () => {
+    const position = basePosition();
+    const quote = redeemQuote(100_000_000n);
+
+    const pending = computePositionMarkToMarket(position, quote, false, 10_500, null, false);
+    expect(pending.isLive).toBe(false);
+
+    const ledger = {
+      borrowedQuote: 90_000_000n,
+      leverageBps: 100_000n,
+      keyQuoteBalance: 5_000_000n,
+    };
+    const live = computePositionMarkToMarket(position, quote, false, 10_500, ledger, true);
+    expect(live.isLive).toBe(true);
   });
 });
