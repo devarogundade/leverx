@@ -3930,7 +3930,7 @@ select {
 
 @media (min-width: 640px) {
   .featured-market-content {
-    grid-template-columns: minmax(0, 0.36fr) minmax(0, 0.64fr);
+    grid-template-columns: minmax(0, 0.32fr) minmax(0, 0.68fr);
     grid-template-rows: auto auto;
     column-gap: var(--space-3);
     align-items: start;
