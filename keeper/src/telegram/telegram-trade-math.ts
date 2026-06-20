@@ -8,6 +8,10 @@ export const MIN_MARGIN_USD = 0.1;
 export const MAX_MARGIN_USD = 100;
 export const MIN_LEVERAGE = 1;
 export const MAX_LEVERAGE = 10;
+/** Min/max market slippage percent (matches app trade form). */
+export const MIN_SLIPPAGE_PCT = 0.1;
+export const MAX_SLIPPAGE_PCT = 50;
+export const DEFAULT_MARKET_SLIPPAGE_PCT = 5;
 
 export function marginUsdToQuoteAtoms(marginUsd: number): bigint {
   if (!Number.isFinite(marginUsd) || marginUsd <= 0) return 0n;
@@ -52,6 +56,57 @@ export function parseLeverageMultiplier(raw: string): number | null {
   return Math.round(value * 10) / 10;
 }
 
+export function parseSlippagePercent(raw: string | undefined | null): number | null {
+  if (raw == null || raw.trim() === '') return null;
+  const trimmed = raw.trim().toLowerCase().replace(/%$/, '');
+  const value = Number.parseFloat(trimmed);
+  if (!Number.isFinite(value) || value < MIN_SLIPPAGE_PCT || value > MAX_SLIPPAGE_PCT) {
+    return null;
+  }
+  return Math.round(value * 10) / 10;
+}
+
+export function percentToBps(percent: number): number {
+  return Math.round(percent * 100);
+}
+
+export function bpsToPercent(bps: number): number {
+  return Math.round((bps / 100) * 10) / 10;
+}
+
+export function formatSlippagePercent(value: number): string {
+  const rounded = Math.round(value * 10) / 10;
+  return Number.isInteger(rounded) ? `${rounded}%` : `${rounded.toFixed(1)}%`;
+}
+
+export type TelegramTradeCommandArgs = {
+  marginUsd: number;
+  leverageRaw: string;
+  slippagePct: number | null;
+};
+
+/** Parse `/up 10 4x` or `/up 0.1 1x 5%`. */
+export function parseTelegramTradeCommand(text: string): TelegramTradeCommandArgs | null {
+  const match = text.match(
+    /^(?:\/up|\/down|\/range)(?:@\w+)?\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?x?|\d+x)(?:\s+(\S+))?$/i,
+  );
+  if (!match) return null;
+
+  const marginUsd = Number.parseFloat(match[1]!);
+  if (!Number.isFinite(marginUsd)) return null;
+
+  const slippageRaw = match[3]?.trim();
+  if (slippageRaw != null && slippageRaw !== '' && parseSlippagePercent(slippageRaw) == null) {
+    return null;
+  }
+
+  return {
+    marginUsd,
+    leverageRaw: match[2]!,
+    slippagePct: parseSlippagePercent(slippageRaw),
+  };
+}
+
 export function leverageMultiplierToBps(multiplier: number): bigint {
   return BigInt(Math.round(multiplier * 10_000));
 }
@@ -83,4 +138,26 @@ export function formatTimeRemaining(expiryMs: number, now = Date.now()): string 
   if (hours >= 24) return `${Math.floor(hours / 24)}d ${hours % 24}h`;
   if (hours > 0) return `${hours}h ${minutes}m`;
   return `${Math.max(1, minutes)}m`;
+}
+
+/** Human-readable leverage multiplier (e.g. 4 → "4x", 2.5 → "2.5x"). */
+export function formatLeverageMultiplier(value: number): string {
+  if (!Number.isFinite(value)) return '—';
+  const rounded = Math.round(value * 10) / 10;
+  return Number.isInteger(rounded) ? `${rounded}x` : `${rounded.toFixed(1)}x`;
+}
+
+/** Warning when requested leverage exceeds the time-graded cap for a market. */
+export function formatLeverageTimeCapWarning(
+  maxLeverage: number,
+  requestedLeverage?: number,
+): string {
+  const maxLabel = formatLeverageMultiplier(maxLeverage);
+  if (requestedLeverage != null && requestedLeverage > maxLeverage + 1e-6) {
+    return (
+      `Leverage ${formatLeverageMultiplier(requestedLeverage)} exceeds the time-graded cap ` +
+      `for this market (max ${maxLabel} now). Lower leverage or pick a market with more time left.`
+    );
+  }
+  return `Max leverage for this market right now: ${maxLabel} (time-graded by expiry).`;
 }

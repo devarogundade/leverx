@@ -66,6 +66,9 @@ export const TRIGGER_REDEEM_SLIPPAGE_BPS = DEFAULT_TRIGGER_SLIPPAGE_BPS;
 /** Predict per-contract premium scale (1e9). */
 export const PREDICT_PRICE_SCALE = 1_000_000_000n;
 
+/** Headroom below leveraged position size so mint_cost <= margin + borrow on-chain. */
+export const MINT_BUDGET_SAFETY_BPS = 50;
+
 /**
  * Quantity for dev-inspect per-contract ask/bid reads.
  * qty=1 often rounds mint/redeem totals to 0 on Predict.

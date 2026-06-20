@@ -8,7 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Transaction } from '@mysten/sui/transactions';
 import type { TelegramConfig } from '../config/telegram.config';
-import { isLeveragedMintAllowed } from '../config/trade-math';
+import { isLeveragedMintAllowed, maxLeverageForExpiry, capMaxMintCost } from '../config/trade-math';
 import type { PositionKeyArgs } from '../keeper/keeper.types';
 import { IndexerService } from '../indexer/indexer.service';
 import { logKeeperError } from '../lib/keeper-log';
@@ -18,15 +18,15 @@ import { PtbBuilderService } from '../sui/ptb-builder.service';
 import { SuiService } from '../sui/sui.service';
 import type { TelegramTradingSession } from './telegram-session.types';
 import {
-  applySlippageBps,
   atmStrikeRaw,
-  costFromPremiumPerUnit,
-  estimateQuantity,
+  formatLeverageTimeCapWarning,
   leverageMultiplierToBps,
   marginUsdToQuoteAtoms,
   MAX_MARGIN_USD,
   MIN_MARGIN_USD,
   parseLeverageMultiplier,
+  percentToBps,
+  bpsToPercent,
   QUOTE_UNIT,
   toOracleStrikeRaw,
 } from './telegram-trade-math';
@@ -39,6 +39,7 @@ export type TelegramOpenTradeResult = {
   side: TelegramTradeSide;
   marginUsd: number;
   leverage: number;
+  slippagePct: number;
   quantity: string;
   oracleId: string;
 };
@@ -71,11 +72,18 @@ export class TelegramTradeService {
     return `${usd.toFixed(2)} dUSDC available in your trading account.`;
   }
 
+  formatMarketLeverageNotice(expiryMs: number, now = Date.now()): string {
+    const finalWindowMs = this.sui.getFinalWindowMs();
+    const maxLeverage = maxLeverageForExpiry(expiryMs, now, finalWindowMs);
+    return formatLeverageTimeCapWarning(maxLeverage);
+  }
+
   async openTrade(
     session: TelegramTradingSession,
     side: TelegramTradeSide,
     marginUsd: number,
     leverageRaw: string,
+    slippagePct?: number | null,
   ): Promise<TelegramOpenTradeResult> {
     if (!session.active_oracle_id) {
       throw new BadRequestException('no_active_market');
@@ -88,6 +96,12 @@ export class TelegramTradeService {
     if (leverage == null) {
       throw new BadRequestException('invalid_leverage');
     }
+
+    const marketSlippageBps =
+      slippagePct != null
+        ? percentToBps(slippagePct)
+        : this.cfg.defaultMarketSlippageBps;
+
     const leverageBps = leverageMultiplierToBps(leverage);
     const marginAtoms = marginUsdToQuoteAtoms(marginUsd);
     if (marginAtoms <= 0n) {
@@ -109,8 +123,16 @@ export class TelegramTradeService {
 
     const expiryMs = oracleState.expiry ?? 0;
     const now = Date.now();
-    if (!isLeveragedMintAllowed(expiryMs, Number(leverageBps), now, this.sui.getFinalWindowMs())) {
+    const finalWindowMs = this.sui.getFinalWindowMs();
+    if (!isLeveragedMintAllowed(expiryMs, Number(leverageBps), now, finalWindowMs)) {
       throw new BadRequestException('leverage_blocked_final_window');
+    }
+
+    const maxLeverageForTime = maxLeverageForExpiry(expiryMs, now, finalWindowMs);
+    if (leverage > maxLeverageForTime + 1e-6) {
+      throw new BadRequestException(
+        `leverage_exceeds_time_cap:${maxLeverageForTime}:${leverage}`,
+      );
     }
 
     const minStrikeRaw = toOracleStrikeRaw(oracleState.min_strike);
@@ -133,15 +155,20 @@ export class TelegramTradeService {
     }
 
     await this.assertKeeperIsExecutor(session.account_id);
+    await this.assertNoDuplicateOpen(session.account_id, key);
 
-    const ask = await this.quotes.fetchMarketAskPerUnit(key);
-    if (!ask || ask <= 0n) {
+    const mintQuote = await this.quotes.resolveMintQuote(key, marginAtoms, leverageBps);
+    if (!mintQuote) {
       throw new BadRequestException('market_unavailable');
     }
 
-    const quantity = estimateQuantity(marginAtoms, leverageBps, ask);
-    const mintCost = costFromPremiumPerUnit(ask, quantity);
-    const maxMintCost = applySlippageBps(mintCost, this.cfg.defaultMarketSlippageBps);
+    const quantity = mintQuote.tradeQuantity;
+    const maxMintCost = capMaxMintCost(
+      mintQuote.mintCost,
+      marketSlippageBps,
+      marginAtoms,
+      leverageBps,
+    );
 
     const cfg = this.sui.getConfig();
     const tx = this.ptb.buildLeveragedMint(
@@ -154,7 +181,7 @@ export class TelegramTradeService {
         leverageBps,
         quantity,
         maxMintCost,
-        marketSlippageBps: this.cfg.defaultMarketSlippageBps,
+        marketSlippageBps,
         remintAfterDeleverage: true,
         orderKind: 'market',
         limitPremiumPerUnit: 0n,
@@ -168,9 +195,35 @@ export class TelegramTradeService {
       side,
       marginUsd,
       leverage,
+      slippagePct: bpsToPercent(marketSlippageBps),
       quantity: quantity.toString(),
       oracleId: session.active_oracle_id,
     };
+  }
+
+  private async assertNoDuplicateOpen(
+    accountId: string,
+    key: PositionKeyArgs,
+  ): Promise<void> {
+    try {
+      const detail = await this.indexer.fetchAccount(accountId);
+      const duplicate = (detail.open_positions ?? []).find(
+        (position) =>
+          BigInt(position.open_quantity || 0) > 0n &&
+          position.oracle_id?.toLowerCase() === key.oracleId.toLowerCase() &&
+          position.expiry_ms === key.expiryMs &&
+          position.strike === key.strike &&
+          position.higher_strike === key.higherStrike &&
+          position.is_up === key.isUp &&
+          position.is_range === key.isRange,
+      );
+      if (duplicate) {
+        throw new BadRequestException('duplicate_open_position');
+      }
+    } catch (err) {
+      if (err instanceof BadRequestException) throw err;
+      this.logger.warn(`duplicate position check skipped: ${String(err)}`);
+    }
   }
 
   private async assertKeeperIsExecutor(accountId: string): Promise<void> {

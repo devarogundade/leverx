@@ -14,6 +14,7 @@ export type TelegramMarketsListEntry = {
   label: string;
   underlying: string;
   expiry_ms: number;
+  max_leverage_for_time?: number;
 };
 
 export type TelegramOtpResponse = {

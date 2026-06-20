@@ -48,6 +48,6 @@ export default registerAs(
     otpTtlMs: envInt('TELEGRAM_OTP_TTL_MS', 10 * 60 * 1000),
     sessionTtlMs: envInt('TELEGRAM_SESSION_TTL_MS', 7 * 24 * 60 * 60 * 1000),
     marketsListLimit: envInt('TELEGRAM_MARKETS_LIMIT', 10),
-    defaultMarketSlippageBps: envInt('TELEGRAM_MARKET_SLIPPAGE_BPS', 100),
+    defaultMarketSlippageBps: envInt('TELEGRAM_MARKET_SLIPPAGE_BPS', 500),
   }),
 );

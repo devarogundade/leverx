@@ -5,6 +5,7 @@ import type { RedisConfig } from '../config/redis.config';
 import type { TelegramConfig } from '../config/telegram.config';
 import type { KeeperConfig } from '../config/keeper.config';
 import { SuiService } from '../sui/sui.service';
+import { maxLeverageForExpiry } from '../config/trade-math';
 import type {
   PredictOracleRow,
   PredictOracleState,
@@ -16,6 +17,7 @@ import {
 } from '../lib/predict-oracle-parse';
 import {
   baseFromUnderlying,
+  formatLeverageMultiplier,
   formatTimeRemaining,
 } from './telegram-trade-math';
 
@@ -54,13 +56,22 @@ export class TelegramMarketsService implements OnModuleDestroy {
       .sort((a, b) => (a.expiry ?? 0) - (b.expiry ?? 0))
       .slice(0, this.cfg.marketsListLimit);
 
-    const entries = live.map((row, index) => ({
-      index: index + 1,
-      oracle_id: row.oracle_id.toLowerCase(),
-      underlying: baseFromUnderlying(row.underlying_asset),
-      label: `${baseFromUnderlying(row.underlying_asset)} · ${formatTimeRemaining(row.expiry ?? 0, now)} left`,
-      expiry_ms: row.expiry ?? 0,
-    }));
+    const entries = live.map((row, index) => {
+      const expiryMs = row.expiry ?? 0;
+      const maxLeverage = maxLeverageForExpiry(
+        expiryMs,
+        now,
+        this.sui.getFinalWindowMs(),
+      );
+      return {
+        index: index + 1,
+        oracle_id: row.oracle_id.toLowerCase(),
+        underlying: baseFromUnderlying(row.underlying_asset),
+        label: `${baseFromUnderlying(row.underlying_asset)} · ${formatTimeRemaining(expiryMs, now)} left · max ${formatLeverageMultiplier(maxLeverage)}`,
+        expiry_ms: expiryMs,
+        max_leverage_for_time: maxLeverage,
+      };
+    });
 
     await this.redis.set(
       `${MARKETS_CACHE_PREFIX}${chatId}`,
@@ -87,6 +98,11 @@ export class TelegramMarketsService implements OnModuleDestroy {
         underlying: baseFromUnderlying(match.underlying_asset),
         label: baseFromUnderlying(match.underlying_asset),
         expiry_ms: match.expiry ?? 0,
+        max_leverage_for_time: maxLeverageForExpiry(
+          match.expiry ?? 0,
+          Date.now(),
+          this.sui.getFinalWindowMs(),
+        ),
       };
     }
 
@@ -128,6 +144,7 @@ export class TelegramMarketsService implements OnModuleDestroy {
       '',
       ...lines,
       '',
+      'Max leverage is time-graded (drops as expiry nears).',
       'Reply with a number (1–10) or /market <oracle_id> to select.',
     ].join('\n');
   }

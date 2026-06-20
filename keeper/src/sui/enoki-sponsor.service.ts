@@ -109,6 +109,15 @@ export class EnokiSponsorService implements OnModuleInit {
       signature,
     });
 
+    const txBlock = await params.client.waitForTransaction({
+      digest: executed.digest,
+      options: { showEffects: true },
+    });
+    const status = txBlock.effects?.status?.status;
+    if (status !== 'success') {
+      throw new Error(txBlock.effects?.status?.error ?? 'transaction failed');
+    }
+
     return executed.digest;
   }
 

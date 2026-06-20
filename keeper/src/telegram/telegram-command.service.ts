@@ -9,6 +9,7 @@ import {
   type TelegramTradeSide,
 } from './telegram-trade.service';
 import { describeLeverxAbort } from '../lib/leverx-abort-messages';
+import { formatLeverageTimeCapWarning, parseTelegramTradeCommand } from './telegram-trade-math';
 
 @Injectable()
 export class TelegramCommandService {
@@ -129,12 +130,16 @@ export class TelegramCommandService {
       '/markets — list live markets',
       '/market <oracle_id> — select market',
       'Reply 1–10 after /markets to select',
-      '/up <margin> <leverage> — e.g. /up 10 4x',
-      '/down 10 2x',
+      '/up <margin> <leverage> [slippage] — e.g. /up 10 4x or /up 0.1 1x 5%',
+      '/down 10 2x 5%',
       '/range 5 1x',
       '/balance — trading account balance',
       '/session — active session info',
       '/logout — end trading session',
+      '',
+      'Time-graded leverage: max open leverage drops as expiry nears (shown in /markets).',
+      'Example: 90m left with a 30m final window → max 3×, not 10×.',
+      'Optional slippage: 0.1%–50% (default 5% if omitted). Use 5% on fast markets.',
       '',
       'Alerts (separate): /status, /stop',
     ].join('\n'), { reply_markup: mainTradingKeyboard() });
@@ -253,9 +258,16 @@ export class TelegramCommandService {
     }
 
     await this.auth.setActiveOracle(chatId, selected.oracle_id);
+    const leverageNotice = this.trades.formatMarketLeverageNotice(selected.expiry_ms);
     await this.send(
       chatId,
-      `Active market: ${selected.label}\n${shortId(selected.oracle_id)}\n\nExample: /up 10 4x`,
+      [
+        `Active market: ${selected.label}`,
+        shortId(selected.oracle_id),
+        leverageNotice,
+        '',
+        'Example: /up 10 4x',
+      ].join('\n'),
     );
   }
 
@@ -278,27 +290,34 @@ export class TelegramCommandService {
       return;
     }
 
-    const match = text.match(
-      /^(?:\/up|\/down|\/range)(?:@\w+)?\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?x?|\d+x)$/i,
-    );
-    if (!match) {
-      await this.send(chatId, 'Usage: /up <margin_dUSDC> <leverage>\nExample: /up 10 4x');
+    const parsed = parseTelegramTradeCommand(text);
+    if (!parsed) {
+      await this.send(
+        chatId,
+        'Usage: /up <margin_dUSDC> <leverage> [slippage%]\nExamples:\n/up 10 4x\n/up 0.1 1x 5%',
+      );
       return;
     }
 
     const side = parseTradeSide(text);
-    const marginUsd = Number.parseFloat(match[1]!);
-    const leverageRaw = match[2]!;
+    const { marginUsd, leverageRaw, slippagePct } = parsed;
 
     await this.send(chatId, 'Submitting trade…');
     try {
-      const result = await this.trades.openTrade(session, side, marginUsd, leverageRaw);
+      const result = await this.trades.openTrade(
+        session,
+        side,
+        marginUsd,
+        leverageRaw,
+        slippagePct,
+      );
       await this.send(chatId, [
         'Trade submitted',
         '',
         `Side: ${result.side.toUpperCase()}`,
         `Margin: ${result.marginUsd} dUSDC`,
         `Leverage: ${result.leverage}x`,
+        `Slippage: ${result.slippagePct}%`,
         `Quantity: ${result.quantity}`,
         `Tx: ${explorerTxLink(result.digest)}`,
       ].join('\n'), { reply_markup: mainTradingKeyboard() });
@@ -376,6 +395,14 @@ function formatTradeError(err: unknown): string {
     return abortMessage;
   }
 
+  if (
+    code.includes('Mint cost exceeds') ||
+    code.includes('Market moved beyond') ||
+    code.includes('slippage tolerance')
+  ) {
+    return code;
+  }
+
   if (code.includes('no_active_market')) {
     return 'Select a market first: /markets then reply with a number, or /market <oracle_id>.';
   }
@@ -388,8 +415,21 @@ function formatTradeError(err: unknown): string {
   if (code.includes('leverage_blocked_final_window')) {
     return 'Leverage above 1× is blocked in the final window before expiry.';
   }
+  if (code.includes('leverage_exceeds_time_cap')) {
+    const parsed = parseLeverageTimeCapError(code);
+    if (parsed) {
+      return formatLeverageTimeCapWarning(parsed.maxLeverage, parsed.requestedLeverage);
+    }
+    return 'Leverage exceeds the time-graded cap for this market. Check /markets for the max allowed now.';
+  }
   if (code.includes('margin_out_of_bounds')) {
     return 'Margin must be between 0.1 and 100 dUSDC.';
+  }
+  if (code.includes('slippage_out_of_bounds') || code.includes('invalid_slippage')) {
+    return 'Slippage must be between 0.1% and 50%. Example: /up 0.1 1x 5%';
+  }
+  if (code.includes('duplicate_open_position')) {
+    return 'You already have an open position on this market and side. Close it in the app before opening again.';
   }
   if (code.includes('simulation_failed')) {
     return 'Trade simulation failed. Check balance, market, and try again.';
@@ -407,4 +447,18 @@ function formatDate(ms: number): string {
 
 function explorerTxLink(digest: string): string {
   return `https://suiscan.xyz/testnet/tx/${digest}`;
+}
+
+function parseLeverageTimeCapError(code: string): {
+  maxLeverage: number;
+  requestedLeverage: number;
+} | null {
+  const match = code.match(/leverage_exceeds_time_cap:([\d.]+):([\d.]+)/);
+  if (!match) return null;
+  const maxLeverage = Number.parseFloat(match[1]!);
+  const requestedLeverage = Number.parseFloat(match[2]!);
+  if (!Number.isFinite(maxLeverage) || !Number.isFinite(requestedLeverage)) {
+    return null;
+  }
+  return { maxLeverage, requestedLeverage };
 }

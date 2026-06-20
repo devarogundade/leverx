@@ -1,4 +1,5 @@
 import {
+  capMaxMintCost,
   computeFinalWindowContext,
   maxLeverageForExpiry,
 } from './trade-math';
@@ -20,6 +21,20 @@ describe('maxLeverageForExpiry', () => {
   it('caps at 10× with many periods remaining', () => {
     const now = expiryMs - 6 * 60 * 60_000; // 6 hours
     expect(maxLeverageForExpiry(expiryMs, now, windowMs)).toBe(10);
+  });
+});
+
+describe('capMaxMintCost', () => {
+  it('never exceeds margin + borrow for 1× trades', () => {
+    const margin = 240_000n;
+    const mintCost = 238_800n;
+    expect(capMaxMintCost(mintCost, 500, margin, 10_000n)).toBe(margin);
+  });
+
+  it('uses slippage cap when it is tighter than funding', () => {
+    const margin = 1_000_000n;
+    const mintCost = 500_000n;
+    expect(capMaxMintCost(mintCost, 500, margin, 10_000n)).toBe(525_000n);
   });
 });
 

@@ -1,7 +1,51 @@
-import { MAX_LEVERAGE_BPS, MIN_LEVERAGE_BPS, PREDICT_PRICE_SCALE } from './constants';
+import { MAX_LEVERAGE_BPS, MIN_LEVERAGE_BPS, MINT_BUDGET_SAFETY_BPS, PREDICT_PRICE_SCALE } from './constants';
 
 const LEVERAGE_MAX = MAX_LEVERAGE_BPS / 10_000;
 const LEVERAGE_MIN = MIN_LEVERAGE_BPS / 10_000;
+
+export function applySlippageBps(amount: bigint, slippageBps: number): bigint {
+  return (amount * BigInt(10_000 + slippageBps)) / 10_000n;
+}
+
+export function positionQuoteAtoms(marginAtoms: bigint, leverageBps: bigint): bigint {
+  return (marginAtoms * leverageBps) / 10_000n;
+}
+
+/** Max mint spend: leveraged position minus a small on-chain safety buffer. */
+export function maxMintBudgetAtoms(marginAtoms: bigint, leverageBps: bigint): bigint {
+  const position = positionQuoteAtoms(marginAtoms, leverageBps);
+  return (position * BigInt(10_000 - MINT_BUDGET_SAFETY_BPS)) / 10_000n;
+}
+
+/** Estimate contract quantity from margin and per-unit premium (linear; verify on-chain). */
+export function estimateQuantity(
+  marginAtoms: bigint,
+  leverageBps: bigint,
+  premiumPerUnit: bigint,
+): bigint {
+  if (premiumPerUnit <= 0n) return 1n;
+  const budget = maxMintBudgetAtoms(marginAtoms, leverageBps);
+  const qty = (budget * PREDICT_PRICE_SCALE) / premiumPerUnit;
+  return qty > 0n ? qty : 1n;
+}
+
+export function costFromPremiumPerUnit(premiumPerUnit: bigint, quantity: bigint): bigint {
+  if (premiumPerUnit <= 0n || quantity <= 0n) return 0n;
+  return (premiumPerUnit * quantity) / PREDICT_PRICE_SCALE;
+}
+
+/** Slippage cap bounded by on-chain funding (margin + borrow). */
+export function capMaxMintCost(
+  mintCost: bigint,
+  slippageBps: number,
+  marginAtoms: bigint,
+  leverageBps: bigint,
+  borrowQuote = 0n,
+): bigint {
+  const slippageCap = applySlippageBps(mintCost, slippageBps);
+  const fundingCap = marginAtoms + borrowQuote;
+  return slippageCap < fundingCap ? slippageCap : fundingCap;
+}
 
 export function redeemPayoutFromBid(bidPerUnit: bigint, quantity: bigint): bigint {
   return (bidPerUnit * quantity) / PREDICT_PRICE_SCALE;
