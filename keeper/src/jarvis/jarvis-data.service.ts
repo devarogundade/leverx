@@ -12,6 +12,7 @@ import { IndexerService } from '../indexer/indexer.service';
 import type { LeveragedPosition } from '../indexer/indexer.types';
 import { positionNeedsCustodyRecovery } from '../indexer/position-custody';
 import { logKeeperWarn } from '../lib/keeper-log';
+import { parsePredictOraclesList } from '../lib/predict-oracle-parse';
 import { SuiService } from '../sui/sui.service';
 import { TelegramMarketsService } from '../telegram/telegram-markets.service';
 import {
@@ -515,7 +516,14 @@ export class JarvisDataService {
   }
 
   private async buildMarketCandidate(
-    row: { oracle_id: string; underlying_asset: string; expiry?: number; status?: string },
+    row: {
+      oracle_id: string;
+      underlying_asset: string;
+      expiry?: number;
+      status?: string;
+      min_strike?: number;
+      tick_size?: number;
+    },
     now: number,
   ): Promise<JarvisMarketCandidate | null> {
     const oracleId = row.oracle_id.toLowerCase();
@@ -523,8 +531,9 @@ export class JarvisDataService {
     if (!oracleState) return null;
 
     const spotUsd = scaleSpotUsd(oracleState.spot_price);
-    const minStrikeRaw = toOracleStrikeRaw(oracleState.min_strike);
-    const tickSizeRaw = toOracleStrikeRaw(oracleState.tick_size) || minStrikeRaw;
+    const minStrikeRaw = toOracleStrikeRaw(oracleState.min_strike ?? row.min_strike);
+    const tickSizeRaw =
+      toOracleStrikeRaw(oracleState.tick_size ?? row.tick_size) || minStrikeRaw;
     const atmStrike = atmStrikeRaw(spotUsd, minStrikeRaw, tickSizeRaw);
     const expiryMs = row.expiry ?? oracleState.expiry ?? 0;
 
@@ -567,18 +576,21 @@ export class JarvisDataService {
   }
 
   private async fetchLiveOracles(): Promise<
-    Array<{ oracle_id: string; underlying_asset: string; expiry?: number; status?: string }>
+    Array<{
+      oracle_id: string;
+      underlying_asset: string;
+      expiry?: number;
+      status?: string;
+      min_strike?: number;
+      tick_size?: number;
+    }>
   > {
     const cfg = this.sui.getConfig();
     const url = `${cfg.predictServerUrl}/predicts/${cfg.predictId}/oracles`;
     try {
       const res = await fetch(url);
       if (!res.ok) return [];
-      const body = (await res.json()) as
-        | Array<{ oracle_id: string; underlying_asset: string; expiry?: number; status?: string }>
-        | { oracles?: Array<{ oracle_id: string; underlying_asset: string; expiry?: number; status?: string }> };
-      if (Array.isArray(body)) return body;
-      return body.oracles ?? [];
+      return parsePredictOraclesList(await res.json());
     } catch (err) {
       logKeeperWarn(this.logger, 'jarvis oracle list fetch failed', err);
       return [];

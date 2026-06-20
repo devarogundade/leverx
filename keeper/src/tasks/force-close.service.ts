@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { parseOracleState } from '../lib/predict-oracle-parse';
 import { isFinalHourBeforeExpiry } from '../config/trade-math';
 import { describeMoveAbort, simulationFailureMessage } from '../lib/move-abort';
 import { logKeeperError, logKeeperWarn } from '../lib/keeper-log';
@@ -7,11 +8,6 @@ import type { LeveragedPosition } from '../indexer/indexer.types';
 import type { TaskResult } from '../keeper/keeper.types';
 import { PtbBuilderService } from '../sui/ptb-builder.service';
 import { SuiService } from '../sui/sui.service';
-
-type OracleState = {
-  is_settled?: boolean;
-  status?: string;
-};
 
 @Injectable()
 export class ForceCloseService {
@@ -191,7 +187,8 @@ export class ForceCloseService {
     try {
       const res = await fetch(url);
       if (!res.ok) return 'unreachable';
-      const state = (await res.json()) as OracleState;
+      const state = parseOracleState(await res.json());
+      if (!state) return 'unreachable';
       if (state.is_settled === true) return true;
       return String(state.status ?? '').toLowerCase() === 'settled';
     } catch (err) {

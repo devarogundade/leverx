@@ -11,6 +11,10 @@ import type {
   TelegramMarketsListEntry,
 } from './telegram-session.types';
 import {
+  parseOracleState,
+  parsePredictOraclesList,
+} from '../lib/predict-oracle-parse';
+import {
   baseFromUnderlying,
   formatTimeRemaining,
 } from './telegram-trade-math';
@@ -104,7 +108,7 @@ export class TelegramMarketsService implements OnModuleDestroy {
     try {
       const res = await fetch(url);
       if (!res.ok) return null;
-      return (await res.json()) as PredictOracleState;
+      return parseOracleState(await res.json());
     } catch (err) {
       this.logger.warn(`oracle state fetch failed for ${oracleId}: ${String(err)}`);
       return null;
@@ -133,9 +137,7 @@ export class TelegramMarketsService implements OnModuleDestroy {
     try {
       const res = await fetch(url);
       if (!res.ok) return [];
-      const body = (await res.json()) as PredictOracleRow[] | { oracles?: PredictOracleRow[] };
-      if (Array.isArray(body)) return body;
-      return body.oracles ?? [];
+      return parsePredictOraclesList(await res.json());
     } catch (err) {
       this.logger.warn(`predict oracle list fetch failed: ${String(err)}`);
       return [];
