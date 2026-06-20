@@ -542,8 +542,17 @@ export function PredictLeveragePanel({
   }, [liveAskPremium, lastAskPremium]);
 
   const submitLabel = useMemo(
-    () => tradeCtaLabel({ side, orderType, needsDeposit, lastAskPremium: Number(liveAskPremium ?? lastAskPremium) }),
-    [side, orderType, needsDeposit, liveAskPremium],
+    () =>
+      tradeCtaLabel({
+        side,
+        orderType,
+        needsDeposit,
+        lastAskPremium:
+          liveAskPremium != null && liveAskPremium > 0n
+            ? liveAskPremium
+            : lastAskPremium,
+      }),
+    [side, orderType, needsDeposit, liveAskPremium, lastAskPremium],
   );
 
   const entryPremiumRaw = useMemo(() => {

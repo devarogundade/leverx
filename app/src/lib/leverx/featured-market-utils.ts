@@ -13,11 +13,28 @@ export function featuredDownRow(row: LeverxMarketRow): LeverxMarketRow {
   };
 }
 
-export function payoutMultiplier(premium: number | null | undefined): string | null {
-  if (premium == null || premium <= 0) return null;
-  const cents = premiumToCents(premium);
-  if (cents <= 0 || cents >= 100) return null;
-  return `${(100 / cents).toFixed(2)}x`;
+export function normalizeAskPremium(
+  premium: number | bigint | null | undefined,
+): number | null {
+  if (premium == null) return null;
+  const value = typeof premium === "bigint" ? Number(premium) : premium;
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return value;
+}
+
+export function payoutMultiplier(
+  premium: number | bigint | null | undefined,
+): string | null {
+  const normalized = normalizeAskPremium(premium);
+  if (normalized == null) return null;
+
+  const cents = premiumToCents(normalized);
+  if (!Number.isFinite(cents) || cents <= 0 || cents >= 100) return null;
+
+  const multiplier = 100 / cents;
+  if (!Number.isFinite(multiplier)) return null;
+
+  return `${multiplier.toFixed(2)}x`;
 }
 
 /** Short countdown — M:SS under an hour, otherwise H:MM:SS. */

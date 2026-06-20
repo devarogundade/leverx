@@ -12,7 +12,7 @@ const sideCtaLabel: Record<PredictSide, string> = {
 export function tradeActionLabel(
   side: PredictSide,
   orderType: TradeOrderType,
-  lastAskPremium: number,
+  lastAskPremium: number | bigint | null | undefined,
 ): string {
   const sideLabel = sideCtaLabel[side];
   if (orderType === "limit") {
@@ -20,15 +20,14 @@ export function tradeActionLabel(
   }
 
   const multiplier = payoutMultiplier(lastAskPremium);
-
-  return `${sideLabel} ${multiplier}`;
+  return multiplier ? `${sideLabel} ${multiplier}` : sideLabel;
 }
 
 export function tradeCtaLabel(args: {
   side: PredictSide;
   orderType: TradeOrderType;
   needsDeposit: boolean;
-  lastAskPremium: number;
+  lastAskPremium: number | bigint | null | undefined;
 }): string {
   if (args.needsDeposit) {
     return "Deposit funds to trade";

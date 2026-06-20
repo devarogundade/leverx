@@ -6,6 +6,7 @@ import { FeaturedMarketSpotChart } from "@/components/leverx/FeaturedMarketSpotC
 import { MarketTradeLink } from "@/components/leverx/MarketTradeLink";
 import { AnimatedAssetPrice, AnimatedCompactUsd } from "@/components/ui/animated-numbers";
 import { useVisibleMarketAsks } from "@/hooks/useVisibleMarketAsks";
+import { usePayoutMultiplier } from "@/hooks/usePayoutMultiplier";
 import { useNow } from "@/hooks/useNow";
 import { formatAutoClose } from "@/lib/leverx/placeholders";
 import type { LeverxMarketRow } from "@/lib/leverx/indexer-markets";
@@ -14,7 +15,6 @@ import { formatAssetPriceUsd, formatStrikeUsdFromRaw } from "@/lib/leverx/format
 import {
   featuredDownRow,
   formatFeaturedCountdown,
-  payoutMultiplier,
 } from "@/lib/leverx/featured-market-utils";
 import { cn } from "@/lib/utils";
 
@@ -42,8 +42,8 @@ export function FeaturedMarketCard({
   const remainingMs = market.expiry > 0 ? Math.max(0, market.expiry - now) : 0;
   const countdown = remainingMs > 0 ? formatFeaturedCountdown(remainingMs) : null;
 
-  const upMultiplier = payoutMultiplier(upQuote.lastAskPremium);
-  const downMultiplier = payoutMultiplier(downQuote.lastAskPremium);
+  const upMultiplier = usePayoutMultiplier(upQuote.lastAskPremium);
+  const downMultiplier = usePayoutMultiplier(downQuote.lastAskPremium);
 
   return (
     <article className={cn("featured-market-card", className)}>
