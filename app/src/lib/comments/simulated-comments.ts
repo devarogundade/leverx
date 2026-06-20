@@ -16,17 +16,17 @@ export const SimulatedComments: MarketComment[] = [
     type: "gif",
     path: "/comments/gifs/Give%20Up%20Crying%20GIF%20by%20Pudgy%20Penguins.gif",
     likes: [],
-    replies: [],
-  },
-  {
-    id: `${SIMULATED_COMMENT_ID_PREFIX}2`,
-    address: "0xb804a62e626c53ba707aafbb6f8e9406d375fe79af00545e8427c3f403283357",
-    timestamp: Timestamp.fromDate(new Date()),
-    text: "Got liquidated 🤣 😭",
-    type: "text",
-    path: "",
-    likes: [],
-    replies: [],
+    replies: [
+      {
+        id: `${SIMULATED_COMMENT_ID_PREFIX}2`,
+        address: "0xb804a62e626c53ba707aafbb6f8e9406d375fe79af00545e8427c3f403283357",
+        timestamp: Timestamp.fromDate(new Date()),
+        text: "Got liquidated 🤣 😭",
+        type: "text",
+        path: "",
+        likes: [],
+      },
+    ],
   },
   {
     id: `${SIMULATED_COMMENT_ID_PREFIX}3`,
@@ -35,7 +35,10 @@ export const SimulatedComments: MarketComment[] = [
     text: "",
     type: "gif",
     path: "/comments/gifs/Fire%20Elmo%20GIF.gif",
-    likes: [],
+    likes: [
+      "0x5e56d7faeb76ca2d6ec2966d192948901a4742cf429304d778d7bee8df4122a0",
+      "0x87efada1ce85bf7fa6c7eff64355f7de19f7a67203897e002d2813f7f9c6e690",
+    ],
     replies: [],
   },
   {
@@ -58,16 +61,7 @@ export const SimulatedComments: MarketComment[] = [
     likes: [],
     replies: [],
   },
-  {
-    id: `${SIMULATED_COMMENT_ID_PREFIX}6`,
-    address: "0x2ae7f80d16feb037cf7974a98be6921c02195b001b9b03c0b051b4ebb6410714",
-    timestamp: Timestamp.fromDate(new Date()),
-    text: "UP UP UP",
-    type: "text",
-    path: "",
-    likes: [],
-    replies: [],
-  },
+
   {
     id: `${SIMULATED_COMMENT_ID_PREFIX}7`,
     address: "0xdc68ac44eb736faaf2c98f0b8ad4b1a574b3fc13a0992c49990b9949494ad1f0",
@@ -75,8 +69,18 @@ export const SimulatedComments: MarketComment[] = [
     text: "",
     type: "gif",
     path: "/comments/gifs/Despicable%20Me%20What%20GIF.gif",
-    likes: [],
-    replies: [],
+    likes: ["0x5e56d7faeb76ca2d6ec2966d192948901a4742cf429304d778d7bee8df4122a0"],
+    replies: [
+      {
+        id: `${SIMULATED_COMMENT_ID_PREFIX}6`,
+        address: "0x2ae7f80d16feb037cf7974a98be6921c02195b001b9b03c0b051b4ebb6410714",
+        timestamp: Timestamp.fromDate(new Date()),
+        text: "UP UP UP",
+        type: "text",
+        path: "",
+        likes: [],
+      },
+    ],
   },
   {
     id: `${SIMULATED_COMMENT_ID_PREFIX}8`,
@@ -95,7 +99,7 @@ export const SimulatedComments: MarketComment[] = [
     text: "Got 0.41 profit with 3.6x 🤣 🤣",
     type: "text",
     path: "",
-    likes: [],
+    likes: ["0x5e56d7faeb76ca2d6ec2966d192948901a4742cf429304d778d7bee8df4122a0"],
     replies: [],
   },
   {
