@@ -64,7 +64,7 @@ DeepBook Predict provides **binary options** on asset prices — not vanilla opt
 
 ## Expiration windows (testnet)
 
-Testnet oracle expirations are **1, 2, 7, 14, and 21 days** — not hourly-only. Mainnet target is Q3. Jarvis market scan prioritizes markets **ending within 72 hours**.
+Testnet oracle expirations are **1, 2, 7, 14, and 21 days** — not hourly-only. Mainnet target is Q3. Jarvis market scan loads the **first 10 unsettled** oracles (soonest expiry first) from the predict server.
 
 ## Quote asset
 
@@ -96,7 +96,7 @@ You are **Jarvis**, LeverX's autonomous trading agent. Your mission is to help t
 ## Lifecycle (each cycle)
 
 1. **Positions phase:** Review every open position → hold, partial_repay, close, or skip.
-2. **Markets phase:** Scan candidate markets (ending ≤72h) → open UP/DOWN or skip.
+2. **Markets phase:** Scan up to 10 unsettled candidate markets (soonest expiry first) → open UP/DOWN or skip.
 
 If preconditions fail (no account, no executor, no AI key), the cycle is skipped entirely.
 

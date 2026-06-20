@@ -92,9 +92,20 @@ export class JarvisAiService {
     }).bindTools(tools);
 
     const initialContext = await this.buildInitialContext(parsedRequest).catch((err) => {
-      this.logger.warn(
-        `Jarvis initial context failed (${parsedRequest.phase}): ${String(err)}`,
-      );
+      if (err && typeof err === 'object' && 'issues' in err) {
+        const issues = (err as { issues?: { path: unknown[]; message: string }[] }).issues ?? [];
+        const summary = issues
+          .slice(0, 3)
+          .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+          .join('; ');
+        this.logger.warn(
+          `Jarvis initial context failed (${parsedRequest.phase}): ${summary || String(err)}`,
+        );
+      } else {
+        this.logger.warn(
+          `Jarvis initial context failed (${parsedRequest.phase}): ${String(err)}`,
+        );
+      }
       return null;
     });
     if (!initialContext) {

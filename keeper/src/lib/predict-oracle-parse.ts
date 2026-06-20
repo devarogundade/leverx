@@ -16,6 +16,15 @@ export function parsePredictOraclesList(data: unknown): PredictOracleRow[] {
   return [];
 }
 
+/** True when the predict-server oracle list row is settled or expired. */
+export function isPredictOracleRowSettled(row: PredictOracleRow, nowMs = Date.now()): boolean {
+  if (row.is_settled === true) return true;
+  if (row.settled_at != null && row.settled_at > 0) return true;
+  if (String(row.status ?? '').toLowerCase() === 'settled') return true;
+  const expiry = row.expiry ?? 0;
+  return expiry > 0 && expiry <= nowMs;
+}
+
 /**
  * `GET /oracles/:id/state` wraps fields under `oracle` + `latest_price.spot`.
  * Flat legacy payloads are still accepted.

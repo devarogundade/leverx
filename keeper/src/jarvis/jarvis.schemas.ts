@@ -199,13 +199,17 @@ export type JarvisPhaseRequest = z.infer<typeof JarvisPhaseRequestSchema>;
 // Data / tool payloads
 // ---------------------------------------------------------------------------
 
-export const OhlcvCandleSchema = z.tuple([
-  z.number(),
-  z.number(),
-  z.number(),
-  z.number(),
-  z.number(),
-]);
+/** DeepBook indexer candles are `[ts, o, h, l, c]`; some responses include extra fields (e.g. volume). */
+export function normalizeOhlcvCandle(value: unknown): [number, number, number, number, number] | null {
+  if (!Array.isArray(value) || value.length < 5) return null;
+  const nums = value.slice(0, 5).map((v) => Number(v));
+  if (nums.some((n) => !Number.isFinite(n))) return null;
+  return [nums[0], nums[1], nums[2], nums[3], nums[4]];
+}
+
+export const OhlcvCandleSchema = z.custom<[number, number, number, number, number]>(
+  (value) => normalizeOhlcvCandle(value) !== null,
+).transform((value) => normalizeOhlcvCandle(value)!);
 
 export type OhlcvCandle = z.infer<typeof OhlcvCandleSchema>;
 

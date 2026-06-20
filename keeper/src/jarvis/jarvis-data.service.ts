@@ -12,7 +12,7 @@ import { IndexerService } from '../indexer/indexer.service';
 import type { LeveragedPosition } from '../indexer/indexer.types';
 import { positionNeedsCustodyRecovery } from '../indexer/position-custody';
 import { logKeeperWarn } from '../lib/keeper-log';
-import { parsePredictOraclesList } from '../lib/predict-oracle-parse';
+import { parsePredictOraclesList, isPredictOracleRowSettled } from '../lib/predict-oracle-parse';
 import { SuiService } from '../sui/sui.service';
 import { TelegramMarketsService } from '../telegram/telegram-markets.service';
 import type { PredictOracleRow } from '../telegram/telegram-session.types';
@@ -33,7 +33,7 @@ import {
   JarvisPlatformRulesSchema,
   JarvisPositionSnapshotSchema,
   JarvisOhlcvBundleSchema,
-  OhlcvCandleSchema,
+  normalizeOhlcvCandle,
   type JarvisAccountSnapshot,
   type JarvisMarketCandidate,
   type JarvisPlatformRules,
@@ -240,17 +240,13 @@ export class JarvisDataService {
   private async buildMarketCandidates(): Promise<JarvisMarketCandidate[]> {
     const oracles = await this.fetchLiveOracles();
     const now = Date.now();
-    const endingSoon = oracles
-      .filter((row) => {
-        const expiry = row.expiry ?? 0;
-        const hoursLeft = (expiry - now) / (60 * 60 * 1000);
-        return expiry > now && hoursLeft <= 72;
-      })
+    const unsettled = oracles
+      .filter((row) => row.oracle_id && !isPredictOracleRowSettled(row, now))
       .sort((a, b) => (a.expiry ?? 0) - (b.expiry ?? 0))
       .slice(0, this.cfg.marketsLimit);
 
     const candidates: JarvisMarketCandidate[] = [];
-    for (const row of endingSoon) {
+    for (const row of unsettled) {
       const candidate = await this.buildMarketCandidate(row, now);
       if (candidate) candidates.push(candidate);
     }
@@ -536,6 +532,13 @@ export class JarvisDataService {
     const oracleState = await this.markets.fetchOracleState(oracleId);
     if (!oracleState) return null;
 
+    if (
+      oracleState.is_settled ||
+      String(oracleState.status ?? '').toLowerCase() === 'settled'
+    ) {
+      return null;
+    }
+
     const spotUsd = scaleSpotUsd(oracleState.spot_price);
     const minStrikeRaw = toOracleStrikeRaw(oracleState.min_strike ?? row.min_strike);
     const tickSizeRaw =
@@ -642,8 +645,10 @@ export class JarvisDataService {
     const body = (await res.json()) as
       | OhlcvCandle[]
       | { data?: OhlcvCandle[]; candles?: OhlcvCandle[] };
-    if (Array.isArray(body)) return body;
-    return body.candles ?? body.data ?? [];
+    const rows = Array.isArray(body) ? body : body.candles ?? body.data ?? [];
+    return rows
+      .map((row) => normalizeOhlcvCandle(row))
+      .filter((row): row is OhlcvCandle => row !== null);
   }
 }
 

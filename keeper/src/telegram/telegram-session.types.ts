@@ -39,6 +39,8 @@ export type PredictOracleRow = {
   status?: string;
   min_strike?: number;
   tick_size?: number;
+  settled_at?: number | null;
+  is_settled?: boolean;
 };
 
 export type PredictOracleState = {
