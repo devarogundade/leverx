@@ -1,5 +1,6 @@
 import { premiumToCents, type LeverxMarketRow } from "@/lib/leverx/indexer-markets";
 import { positionKeyFromArgs, marketRowToKey } from "@/lib/leverx/market-keys";
+import { resolveRangeBounds } from "@/lib/leverx/predict-oracle-markets";
 
 export function featuredDownRow(row: LeverxMarketRow): LeverxMarketRow {
   const keyArgs = marketRowToKey({ ...row, isUp: false, isRange: false });
@@ -10,6 +11,34 @@ export function featuredDownRow(row: LeverxMarketRow): LeverxMarketRow {
     id,
     isUp: false,
     isRange: false,
+  };
+}
+
+export function featuredRangeRow(row: LeverxMarketRow): LeverxMarketRow | null {
+  const bounds = resolveRangeBounds({
+    oracleId: row.oracleId,
+    oracleSpot: row.spotPrice ?? null,
+    strikeRaw: row.strikeRaw,
+  });
+  if (!bounds) return null;
+
+  const keyArgs = marketRowToKey({
+    ...row,
+    isUp: true,
+    isRange: true,
+    strikeRaw: bounds.lower,
+    higherStrikeRaw: bounds.upper,
+  });
+  if (!keyArgs) return null;
+
+  return {
+    ...row,
+    id: positionKeyFromArgs(keyArgs),
+    strikeRaw: bounds.lower,
+    strike: bounds.lower / 1e9,
+    higherStrikeRaw: bounds.upper,
+    isUp: true,
+    isRange: true,
   };
 }
 

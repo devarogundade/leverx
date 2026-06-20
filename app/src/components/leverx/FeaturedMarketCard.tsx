@@ -14,8 +14,10 @@ import { MarketTitle } from "@/components/leverx/MarketTitle";
 import { formatAssetPriceUsd, formatStrikeUsdFromRaw } from "@/lib/leverx/format-asset-price";
 import {
   featuredDownRow,
+  featuredRangeRow,
   formatFeaturedCountdown,
 } from "@/lib/leverx/featured-market-utils";
+import { isRangeTradingEnabled } from "@/lib/predict/instruments";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -31,9 +33,17 @@ export function FeaturedMarketCard({
 }: Props) {
   const now = useNow(1000);
   const downRow = useMemo(() => featuredDownRow(market), [market]);
-  const { markets: quoted } = useVisibleMarketAsks([market, downRow]);
+  const rangeRow = useMemo(() => featuredRangeRow(market), [market]);
+  const rangeEnabled = isRangeTradingEnabled() && rangeRow != null;
+  const askRows = useMemo(() => {
+    const rows = [market, downRow];
+    if (rangeRow) rows.push(rangeRow);
+    return rows;
+  }, [market, downRow, rangeRow]);
+  const { markets: quoted } = useVisibleMarketAsks(askRows);
   const upQuote = quoted[0] ?? market;
   const downQuote = quoted[1] ?? downRow;
+  const rangeQuote = rangeRow ? (quoted[2] ?? rangeRow) : null;
 
   const spot = market.spotPrice ?? sourceMarket.spotPrice ?? null;
   const strikeUsd = market.strikeRaw > 0 ? market.strikeRaw / 1e9 : 0;
@@ -44,6 +54,7 @@ export function FeaturedMarketCard({
 
   const upMultiplier = usePayoutMultiplier(upQuote.lastAskPremium);
   const downMultiplier = usePayoutMultiplier(downQuote.lastAskPremium);
+  const rangeMultiplier = usePayoutMultiplier(rangeQuote?.lastAskPremium);
 
   return (
     <article className={cn("featured-market-card", className)}>
@@ -106,29 +117,47 @@ export function FeaturedMarketCard({
         </p>}
       </header>
 
-      <div className="featured-market-content">
-        <div className="featured-market-left">
-          <div className="featured-market-bets">
+      <div
+        className={cn(
+          "featured-market-content",
+          rangeEnabled && "featured-market-content--with-range",
+        )}
+      >
+        <div
+          className={cn(
+            "featured-market-bets",
+            rangeEnabled && "featured-market-bets--with-range",
+          )}
+        >
+          <MarketTradeLink
+            market={sourceMarket}
+            side="up"
+            className="featured-market-bet featured-market-bet--up"
+          >
+            <span className="featured-market-bet-label">UP</span>
+            <span className="featured-market-bet-odds">{upMultiplier ?? "—"}</span>
+          </MarketTradeLink>
+          <MarketTradeLink
+            market={sourceMarket}
+            side="down"
+            className="featured-market-bet featured-market-bet--down"
+          >
+            <span className="featured-market-bet-label">DOWN</span>
+            <span className="featured-market-bet-odds">{downMultiplier ?? "—"}</span>
+          </MarketTradeLink>
+          {rangeEnabled && rangeRow ? (
             <MarketTradeLink
-              market={sourceMarket}
-              side="up"
-              className="featured-market-bet featured-market-bet--up"
+              market={rangeRow}
+              side="range"
+              className="featured-market-bet featured-market-bet--range"
             >
-              <span>UP</span>
-              <span>{upMultiplier ?? "—"}</span>
+              <span className="featured-market-bet-label">RANGE</span>
+              <span className="featured-market-bet-odds">{rangeMultiplier ?? "—"}</span>
             </MarketTradeLink>
-            <MarketTradeLink
-              market={sourceMarket}
-              side="down"
-              className="featured-market-bet featured-market-bet--down"
-            >
-              <span>DOWN</span>
-              <span>{downMultiplier ?? "—"}</span>
-            </MarketTradeLink>
-          </div>
-
-          <FeaturedCommentsFeed oracleId={market.oracleId} />
+          ) : null}
         </div>
+
+        <FeaturedCommentsFeed oracleId={market.oracleId} />
 
         <FeaturedMarketSpotChart
           oracleId={market.oracleId}
