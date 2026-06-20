@@ -4,7 +4,6 @@ import type { WalletWithRequiredFeatures } from "@mysten/wallet-standard";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -64,7 +63,6 @@ export function WalletConnectButton({
     useWallet();
   const [open, setOpen] = useState(false);
   const [chooserOpen, setChooserOpen] = useState(false);
-  const [showWallets, setShowWallets] = useState(false);
   const loginEnabled = isEnokiGoogleLoginEnabled();
 
   const externalWallets = wallets.filter((w) => !isGoogleEnokiWallet(w));
@@ -78,7 +76,6 @@ export function WalletConnectButton({
   const handleChooserOpenChange = (next: boolean) => {
     setChooserOpen(next);
     if (next) refreshWallets();
-    if (!next) setShowWallets(false);
   };
 
   const handleGoogleLogin = async () => {
@@ -203,15 +200,6 @@ export function WalletConnectButton({
     );
   }
 
-  const loginLabel = compact ? (
-    <>
-      <span className="sm:hidden">Sign in</span>
-      <span className="hidden sm:inline">Sign in with Google</span>
-    </>
-  ) : (
-    "Sign in with Google"
-  );
-
   const connectLabel = compact ? (
     <>
       <span className="sm:hidden">Sign in</span>
@@ -263,40 +251,6 @@ export function WalletConnectButton({
     );
   }
 
-  // Google only: connect directly without a chooser.
-  if (hasGoogle && !hasWallets) {
-    return (
-      <div className={cn("flex flex-col gap-1", fullWidth && "w-full")}>
-        <Button
-          type="button"
-          variant="ghost"
-          disabled={connecting}
-          onClick={() => void googleOption!.onSelect()}
-          className={buttonClasses}
-        >
-          {connecting ? (
-            <>
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              <span className={cn(compact && "hidden sm:inline")}>Signing in…</span>
-            </>
-          ) : (
-            <>
-              {googleOption!.icon}
-              {loginLabel}
-            </>
-          )}
-        </Button>
-      </div>
-    );
-  }
-
-  const chooserTriggerLabel = hasGoogle ? loginLabel : connectLabel;
-  const chooserTriggerIcon = hasGoogle ? (
-    <GoogleIcon className="h-4 w-4 shrink-0 opacity-90" />
-  ) : (
-    <WalletIcon className="h-4 w-4 shrink-0 opacity-90" />
-  );
-
   return (
     <DropdownMenu open={chooserOpen} onOpenChange={handleChooserOpenChange}>
       <DropdownMenuTrigger asChild>
@@ -308,8 +262,8 @@ export function WalletConnectButton({
             </>
           ) : (
             <>
-              {chooserTriggerIcon}
-              {chooserTriggerLabel}
+              <WalletIcon className="h-4 w-4 shrink-0 opacity-90" />
+              {connectLabel}
               <ChevronDown
                 className={cn(
                   "h-3.5 w-3.5 shrink-0 opacity-60 transition-transform",
@@ -332,32 +286,14 @@ export function WalletConnectButton({
           Choose how to connect
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {walletMenuItems}
+        {hasGoogle && hasWallets ? <DropdownMenuSeparator /> : null}
         {hasGoogle ? (
-          <>
-            <DropdownMenuItem
-              className="gap-2"
-              onClick={() => void googleOption!.onSelect()}
-            >
-              {googleOption!.icon}
-              <span className="truncate">Sign in with Google</span>
-            </DropdownMenuItem>
-            {hasWallets ? (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuCheckboxItem
-                  checked={showWallets}
-                  onCheckedChange={(checked) => setShowWallets(checked === true)}
-                  onSelect={(event) => event.preventDefault()}
-                >
-                  Wallets
-                </DropdownMenuCheckboxItem>
-                {showWallets ? walletMenuItems : null}
-              </>
-            ) : null}
-          </>
-        ) : (
-          walletMenuItems
-        )}
+          <DropdownMenuItem className="gap-2" onClick={() => void googleOption!.onSelect()}>
+            {googleOption!.icon}
+            <span className="truncate">Sign in with Google</span>
+          </DropdownMenuItem>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );
