@@ -13,5 +13,6 @@ TanStack Router file-based routes for LeverX.
 | `/predictions/:oracleId` | `_detail/predictions/$oracleId.tsx` — trade terminal |
 | `/terms` | `terms.tsx` |
 | `/privacy` | `privacy.tsx` |
+| `/pitch` | `pitch.tsx` — animated pitch deck |
 
 Layout routes: `__root.tsx`, `_app.tsx`, `_detail.tsx`.

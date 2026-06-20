@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as PitchRouteImport } from './routes/pitch'
 import { Route as DetailRouteImport } from './routes/_detail'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
@@ -30,6 +31,11 @@ const TermsRoute = TermsRouteImport.update({
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PitchRoute = PitchRouteImport.update({
+  id: '/pitch',
+  path: '/pitch',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DetailRoute = DetailRouteImport.update({
@@ -84,6 +90,7 @@ const DetailPredictionsOracleIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/pitch': typeof PitchRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/guide': typeof AppGuideRoute
@@ -96,6 +103,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/pitch': typeof PitchRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/guide': typeof AppGuideRoute
@@ -111,6 +119,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/_detail': typeof DetailRouteWithChildren
+  '/pitch': typeof PitchRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
   '/_app/guide': typeof AppGuideRoute
@@ -125,6 +134,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/pitch'
     | '/privacy'
     | '/terms'
     | '/guide'
@@ -137,6 +147,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/pitch'
     | '/privacy'
     | '/terms'
     | '/guide'
@@ -151,6 +162,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/_detail'
+    | '/pitch'
     | '/privacy'
     | '/terms'
     | '/_app/guide'
@@ -166,6 +178,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   DetailRoute: typeof DetailRouteWithChildren
+  PitchRoute: typeof PitchRoute
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
 }
@@ -184,6 +197,13 @@ declare module '@tanstack/react-router' {
       path: '/privacy'
       fullPath: '/privacy'
       preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pitch': {
+      id: '/pitch'
+      path: '/pitch'
+      fullPath: '/pitch'
+      preLoaderRoute: typeof PitchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_detail': {
@@ -294,6 +314,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   DetailRoute: DetailRouteWithChildren,
+  PitchRoute: PitchRoute,
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
 }

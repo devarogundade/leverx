@@ -7691,3 +7691,701 @@ button:disabled {
 }
 
 /* End premium UI pass v2 --------------------------------------- */
+
+/* Pitch deck --------------------------------------------------- */
+
+.pitch-deck {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  background: var(--background);
+  color: var(--foreground);
+  outline: none;
+}
+
+.pitch-deck-header {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: clamp(1rem, 3vw, 1.5rem) clamp(1.25rem, 4vw, 2rem);
+}
+
+.pitch-deck-home {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  transition: color 0.2s ease;
+}
+
+.pitch-deck-home:hover {
+  color: var(--foreground);
+}
+
+.pitch-deck-counter {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  letter-spacing: 0.08em;
+  color: var(--muted-foreground);
+}
+
+.pitch-deck-counter-current {
+  color: var(--accent);
+}
+
+.pitch-deck-counter-sep {
+  opacity: 0.45;
+}
+
+.pitch-slides {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.pitch-slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(1rem, 4vw, 2.5rem);
+  visibility: hidden;
+}
+
+.pitch-slide[aria-hidden="false"] {
+  visibility: visible;
+}
+
+.pitch-slide-inner {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(14rem, 22rem);
+  gap: clamp(1.25rem, 4vw, 3rem);
+  align-items: center;
+  width: min(72rem, 100%);
+  padding-inline: clamp(0.5rem, 2vw, 1rem);
+}
+
+.pitch-slide-copy {
+  min-width: 0;
+}
+
+.pitch-illus {
+  width: 100%;
+  min-width: 0;
+  will-change: transform, opacity;
+}
+
+.pitch-illus-frame {
+  height: 100%;
+}
+
+.pitch-illus-cover {
+  display: grid;
+  gap: 0.85rem;
+  justify-items: center;
+  text-align: center;
+}
+
+.pitch-illus-logo {
+  width: 4.5rem;
+  height: 4.5rem;
+  object-fit: contain;
+}
+
+.pitch-illus-cover-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.pitch-illus-badge {
+  display: inline-flex;
+  padding: 0.35rem 0.65rem;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--accent) 14%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.pitch-illus-cover-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.65rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.pitch-illus-cover-spark {
+  width: 100%;
+  height: auto;
+}
+
+.pitch-illus-problem {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+
+.pitch-illus-problem-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 3.5rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--card);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.pitch-illus-problem-card--yes {
+  color: #38ef7d;
+  border-color: color-mix(in srgb, #38ef7d 35%, var(--border));
+}
+
+.pitch-illus-problem-card--no {
+  color: #ef5350;
+  border-color: color-mix(in srgb, #ef5350 35%, var(--border));
+}
+
+.pitch-illus-problem-card--muted {
+  opacity: 0.45;
+  filter: grayscale(0.35);
+}
+
+.pitch-illus-problem-lock {
+  font-size: 0.75rem;
+}
+
+.pitch-illus-layers {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.pitch-illus-layer {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+
+.pitch-illus-layer--accent {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, var(--card));
+}
+
+.pitch-illus-layer-name {
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.pitch-illus-layer-sub {
+  font-size: 0.6875rem;
+  color: var(--muted-foreground);
+}
+
+.pitch-illus-split {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.pitch-illus-jarvis {
+  display: grid;
+  gap: 0.55rem;
+  font-size: 0.75rem;
+}
+
+.pitch-illus-jarvis-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 600;
+}
+
+.pitch-illus-live {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: #38ef7d;
+}
+
+.pitch-illus-jarvis-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+}
+
+.pitch-illus-telegram {
+  display: grid;
+  gap: 0.45rem;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+}
+
+.pitch-illus-telegram code {
+  display: block;
+  padding: 0.45rem 0.55rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 10%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+  color: var(--foreground);
+}
+
+.pitch-illus-pillars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 8.5rem;
+}
+
+.pitch-illus-pillar {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: center;
+  flex: 1;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.pitch-illus-pillar-bar {
+  width: 100%;
+  max-width: 2.25rem;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--accent) 70%, white),
+    var(--accent)
+  );
+  transform-origin: bottom center;
+}
+
+.pitch-illus-flow {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.pitch-illus-flow-step {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--card);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.pitch-illus-flow-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 16%, var(--card));
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+}
+
+.pitch-illus-flow-arrow {
+  margin-left: auto;
+  color: var(--muted-foreground);
+}
+
+.pitch-illus-personas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+}
+
+.pitch-illus-persona {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: center;
+  padding: 0.75rem 0.5rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--card);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.pitch-illus-persona-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.pitch-slide-pattern {
+  position: absolute;
+  inset: -8%;
+  pointer-events: none;
+  opacity: 0.55;
+  mask-image: radial-gradient(ellipse 72% 68% at 50% 46%, black 18%, transparent 72%);
+}
+
+.pitch-eyebrow {
+  margin-bottom: 0.875rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.pitch-title {
+  font-size: clamp(2.25rem, 6.5vw, 4.25rem);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+}
+
+.pitch-body {
+  margin-top: 1rem;
+  max-width: 34rem;
+  font-size: clamp(1rem, 2.2vw, 1.125rem);
+  line-height: 1.55;
+  color: var(--muted-foreground);
+}
+
+.pitch-list {
+  margin-top: clamp(1.25rem, 3vw, 2rem);
+  display: grid;
+  gap: 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+.pitch-list li {
+  position: relative;
+  padding-left: 1.125rem;
+  font-size: clamp(0.9375rem, 2vw, 1.0625rem);
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--foreground) 88%, transparent);
+}
+
+.pitch-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 999px;
+  background: var(--accent);
+  opacity: 0.85;
+}
+
+.pitch-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+  margin-top: clamp(1.5rem, 3vw, 2rem);
+}
+
+.pitch-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem;
+  border: 1px solid color-mix(in srgb, var(--border) 80%, var(--accent) 20%);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--card) 70%, transparent);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--foreground);
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.pitch-link:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, var(--card));
+}
+
+.pitch-nav {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem 1.25rem;
+}
+
+.pitch-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--card) 80%, transparent);
+  color: var(--foreground);
+  transition:
+    border-color 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.pitch-nav-btn:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+.pitch-nav-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.pitch-dots {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pitch-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted-foreground) 35%, transparent);
+  transition:
+    width 0.25s ease,
+    background 0.25s ease;
+}
+
+.pitch-dot--active {
+  width: 1.375rem;
+  background: var(--accent);
+}
+
+.pitch-advance-hint {
+  position: absolute;
+  right: clamp(1.25rem, 4vw, 2rem);
+  bottom: clamp(4.5rem, 10vh, 5.5rem);
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: transparent;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  transition: color 0.2s ease;
+}
+
+.pitch-advance-hint:hover:not(:disabled) {
+  color: var(--foreground);
+}
+
+.pitch-advance-hint--cta {
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  background: color-mix(in srgb, var(--accent) 10%, var(--card));
+  color: var(--foreground);
+}
+
+.pitch-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 0.5rem;
+  z-index: 3;
+  transform: translateX(-50%);
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--muted-foreground) 55%, transparent);
+  pointer-events: none;
+}
+
+.pitch-slide-pattern--grid {
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--accent) 12%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--accent) 12%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+.pitch-slide-pattern--dots {
+  background-image: radial-gradient(
+    circle at center,
+    color-mix(in srgb, var(--accent) 22%, transparent) 1px,
+    transparent 1px
+  );
+  background-size: 22px 22px;
+}
+
+.pitch-slide-pattern--diagonal {
+  background-image: repeating-linear-gradient(
+    -32deg,
+    transparent,
+    transparent 18px,
+    color-mix(in srgb, var(--accent) 10%, transparent) 18px,
+    color-mix(in srgb, var(--accent) 10%, transparent) 19px
+  );
+}
+
+.pitch-slide-pattern--cross {
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 16px,
+      color-mix(in srgb, var(--accent) 8%, transparent) 16px,
+      color-mix(in srgb, var(--accent) 8%, transparent) 17px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 16px,
+      color-mix(in srgb, var(--accent) 8%, transparent) 16px,
+      color-mix(in srgb, var(--accent) 8%, transparent) 17px
+    );
+}
+
+.pitch-slide-pattern--rings {
+  background-image: repeating-radial-gradient(
+    circle at 50% 50%,
+    transparent 0,
+    transparent 42px,
+    color-mix(in srgb, var(--accent) 10%, transparent) 42px,
+    color-mix(in srgb, var(--accent) 10%, transparent) 43px
+  );
+}
+
+.pitch-slide-pattern--mesh {
+  background:
+    radial-gradient(circle at 18% 28%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 34%),
+    radial-gradient(circle at 78% 62%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 38%),
+    radial-gradient(circle at 52% 82%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 30%);
+}
+
+.pitch-slide-pattern--stripes {
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent,
+    transparent 28px,
+    color-mix(in srgb, var(--accent) 8%, transparent) 28px,
+    color-mix(in srgb, var(--accent) 8%, transparent) 29px
+  );
+}
+
+.pitch-slide-pattern--diamond {
+  background-image:
+    linear-gradient(45deg, color-mix(in srgb, var(--accent) 7%, transparent) 25%, transparent 25%),
+    linear-gradient(-45deg, color-mix(in srgb, var(--accent) 7%, transparent) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, color-mix(in srgb, var(--accent) 7%, transparent) 75%),
+    linear-gradient(-45deg, transparent 75%, color-mix(in srgb, var(--accent) 7%, transparent) 75%);
+  background-size: 34px 34px;
+  background-position:
+    0 0,
+    0 17px,
+    17px -17px,
+    -17px 0;
+}
+
+.pitch-slide-pattern--wave {
+  background-image: repeating-radial-gradient(
+    ellipse 120% 80% at 50% 120%,
+    transparent 0,
+    transparent 38px,
+    color-mix(in srgb, var(--accent) 9%, transparent) 38px,
+    color-mix(in srgb, var(--accent) 9%, transparent) 39px
+  );
+}
+
+.pitch-slide-pattern--frame {
+  background:
+    linear-gradient(var(--accent), var(--accent)) left top / 72px 1px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) left top / 1px 72px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) right top / 72px 1px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) right top / 1px 72px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) left bottom / 72px 1px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) left bottom / 1px 72px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) right bottom / 72px 1px no-repeat,
+    linear-gradient(var(--accent), var(--accent)) right bottom / 1px 72px no-repeat;
+  opacity: 0.35;
+}
+
+@media (max-width: 639px) {
+  .pitch-advance-hint {
+    display: none;
+  }
+
+  .pitch-hint {
+    display: none;
+  }
+
+  .pitch-dots {
+    gap: 0.375rem;
+  }
+
+  .pitch-slide-inner {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    overflow-y: auto;
+    align-content: center;
+    max-height: 100%;
+  }
+
+  .pitch-illus {
+    order: -1;
+    max-width: 16rem;
+    margin-inline: auto;
+  }
+
+  .pitch-title {
+    font-size: clamp(1.75rem, 8vw, 2.5rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pitch-slide-pattern,
+  .pitch-illus-float,
+  .pitch-illus-pulse {
+    transform: none !important;
+  }
+}
