@@ -17,9 +17,14 @@ import {
   JarvisPhaseRequestSchema,
   type JarvisDecision,
   type JarvisPhaseRequest,
+  type JarvisPlatformRules,
 } from './jarvis.schemas';
 import { JarvisDataService } from './jarvis-data.service';
-import { getFullJarvisKnowledgeBase } from './jarvis-knowledge';
+import { getFullJarvisKnowledgeBase, getJarvisKnowledge } from './jarvis-knowledge';
+import {
+  JARVIS_LLM_CANDLES_15M_MAX,
+  JARVIS_LLM_CANDLES_1M_MAX,
+} from './jarvis.constants';
 import { createJarvisTools } from './tools/jarvis-tools';
 
 const MAX_AGENT_ITERATIONS = 10;
@@ -35,6 +40,32 @@ function isTransientLlmError(err: unknown): boolean {
     if (status === 429 || (status >= 500 && status < 600)) return true;
   }
   return false;
+}
+
+function isContextOverflowError(err: unknown): boolean {
+  const message = String(err ?? '');
+  return (
+    message.includes('prompt is too long') ||
+    message.includes('ContextOverflowError') ||
+    message.includes('maximum context length')
+  );
+}
+
+function slimPlatformRulesForLlm(rules: JarvisPlatformRules): Record<string, number | string> {
+  return {
+    min_leverage: rules.min_leverage,
+    max_leverage: rules.max_leverage,
+    min_margin_usd: rules.min_margin_usd,
+    max_margin_usd: rules.max_margin_usd,
+    market_slippage_bps: rules.market_slippage_bps,
+    final_window_ms: rules.final_window_ms,
+    final_window_minutes: rules.final_window_minutes,
+    liquidation_threshold_bps: rules.liquidation_threshold_bps,
+    max_markets_fetched: rules.max_markets_fetched,
+    quote_unit_atoms: rules.quote_unit_atoms,
+    min_leverage_bps: rules.min_leverage_bps,
+    max_leverage_bps: rules.max_leverage_bps,
+  };
 }
 
 function sleep(ms: number): Promise<void> {
@@ -158,7 +189,13 @@ export class JarvisAiService {
         }
       }
     } catch (err) {
-      this.logger.warn(`Jarvis agent failed (${parsedRequest.phase}): ${String(err)}`);
+      if (isContextOverflowError(err)) {
+        this.logger.warn(
+          `Jarvis agent context overflow (${parsedRequest.phase}) — shrink initial payload or use tools`,
+        );
+      } else {
+        this.logger.warn(`Jarvis agent failed (${parsedRequest.phase}): ${String(err)}`);
+      }
       return null;
     }
 
@@ -189,7 +226,7 @@ export class JarvisAiService {
       });
     }
 
-    const market_candidates = await this.data.buildMarketsInitialBundle();
+    const market_candidates = await this.data.buildMarketsLlmBundle();
 
     return JarvisInitialContextSchema.parse({
       system: request.systemContext,
@@ -222,7 +259,20 @@ export class JarvisAiService {
         ? 'Review every open position and decide whether to hold, partially repay debt, close, or skip.'
         : 'Scan candidate markets ending soon and decide whether to open a new UP or DOWN trade or skip.';
 
-    const knowledgeBase = getFullJarvisKnowledgeBase();
+    const knowledgeBase =
+      phase === 'markets'
+        ? [
+            getJarvisKnowledge('strategy').content,
+            getJarvisKnowledge('predict').content,
+            getJarvisKnowledge('units').content,
+            getJarvisKnowledge('risk').content,
+          ].join('\n\n---\n\n')
+        : getFullJarvisKnowledgeBase();
+
+    const contextDataLine =
+      phase === 'markets'
+        ? 'Initial JSON has candidate markets with on-chain mint quotes and recent 15m/1m candles (trimmed). Order books are omitted — call get_order_book or get_market_detail for depth.'
+        : 'You have complete account, market, 15m + 1m candle, order-book, and **on-chain quote** data in the initial JSON context.';
 
     const riskHint =
       guardrails.risk_profile === 'conservative'
@@ -249,7 +299,7 @@ export class JarvisAiService {
       knowledgeBase,
       '',
       '## Operating rules',
-      'You have complete account, market, 15m + 1m candle, order-book, and **on-chain quote** data in the initial JSON context.',
+      contextDataLine,
       'All monetary fields use labeled units (dUSDC USD, premium cents, contracts, bps). Quote objects with source on_chain_dev_inspect are live Predict mint/redeem dev-inspect reads — use them for sizing and exit decisions.',
       'Indexed order books show resting limits only — empty bids/asks on testnet is normal. Do not treat empty order books as missing market data if mint quotes and candles are present.',
       'Call get_knowledge_base(topic=risk) before positions phase for health/PnL/user_message rules.',
@@ -272,13 +322,33 @@ export class JarvisAiService {
     request: JarvisPhaseRequest,
     context: z.infer<typeof JarvisInitialContextSchema>,
   ): string {
+    const payload =
+      request.phase === 'markets'
+        ? {
+            system: {
+              ...context.system,
+              platform_rules: slimPlatformRulesForLlm(context.platform_rules),
+            },
+            account: context.account,
+            platform_rules: slimPlatformRulesForLlm(context.platform_rules),
+            market_candidates: context.market_candidates,
+            data_notes: {
+              candles_15m: `last ${JARVIS_LLM_CANDLES_15M_MAX} bars per market (~12h)`,
+              candles_1m: `last ${JARVIS_LLM_CANDLES_1M_MAX} bars per market (~1h)`,
+              order_books:
+                'omitted from initial payload — use get_order_book or get_market_detail if needed',
+              full_rules: 'call get_platform_rules for final-window and health rule text',
+            },
+          }
+        : context;
+
     return [
       `Lifecycle phase: ${request.phase}`,
       `Account: ${request.accountId}`,
       `Owner: ${request.owner}`,
       '',
-      'Initial context (full JSON — analyze thoroughly):',
-      JSON.stringify(context, null, 2),
+      'Initial context JSON:',
+      JSON.stringify(payload),
       '',
       'Analyze the data, use tools if you need more detail, then submit your final decision.',
     ].join('\n');

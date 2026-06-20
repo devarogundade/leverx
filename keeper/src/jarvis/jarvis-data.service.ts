@@ -42,6 +42,10 @@ import {
   type OhlcvCandle,
   type OhlcvInterval,
 } from './jarvis.schemas';
+import {
+  JARVIS_LLM_CANDLES_15M_MAX,
+  JARVIS_LLM_CANDLES_1M_MAX,
+} from './jarvis.constants';
 import { JarvisTradeService } from './jarvis-trade.service';
 import {
   buildPositionRiskReadout,
@@ -235,6 +239,29 @@ export class JarvisDataService {
     }
 
     return markets;
+  }
+
+  /**
+   * Markets-phase LLM payload: recent candles only, no order books (use get_order_book tool).
+   * Full OHLCV is still fetched for trimming; avoids 200k+ token prompts.
+   */
+  async buildMarketsLlmBundle(): Promise<
+    Array<{
+      candidate: JarvisMarketCandidate;
+      candles_15m: OhlcvCandle[];
+      candles_1m: OhlcvCandle[];
+      order_book_up: null;
+      order_book_down: null;
+    }>
+  > {
+    const markets = await this.buildMarketsInitialBundle();
+    return markets.map((market) => ({
+      candidate: market.candidate,
+      candles_15m: trimCandleTail(market.candles_15m, JARVIS_LLM_CANDLES_15M_MAX),
+      candles_1m: trimCandleTail(market.candles_1m, JARVIS_LLM_CANDLES_1M_MAX),
+      order_book_up: null,
+      order_book_down: null,
+    }));
   }
 
   private async buildMarketCandidates(): Promise<JarvisMarketCandidate[]> {
@@ -650,6 +677,11 @@ export class JarvisDataService {
       .map((row) => normalizeOhlcvCandle(row))
       .filter((row): row is OhlcvCandle => row !== null);
   }
+}
+
+function trimCandleTail(candles: OhlcvCandle[], max: number): OhlcvCandle[] {
+  if (candles.length <= max) return candles;
+  return candles.slice(-max);
 }
 
 function estimateMarkPnlPct(position: LeveragedPosition): number | null {

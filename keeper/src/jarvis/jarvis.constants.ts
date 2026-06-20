@@ -13,6 +13,12 @@ export const JARVIS_DEFAULT_MAX_PORTFOLIO_PCT = 20;
 export const JARVIS_DEFAULT_MAX_OPEN_POSITIONS = 3;
 export const JARVIS_DEFAULT_RISK_PROFILE = 'balanced' as const;
 
+/** Max 15m candles per market in LLM context (~12h at 15m). */
+export const JARVIS_LLM_CANDLES_15M_MAX = 48;
+
+/** Max 1m candles per market in LLM context (~1h). */
+export const JARVIS_LLM_CANDLES_1M_MAX = 60;
+
 export function jarvisSchedulerId(accountId: string): string {
   return `jarvis-${accountId.toLowerCase()}`;
 }

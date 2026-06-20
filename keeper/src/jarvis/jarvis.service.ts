@@ -737,7 +737,7 @@ export class JarvisService implements OnModuleInit {
         owner,
         accountId,
         JarvisEventType.ERROR,
-        'AI market analysis failed — I will retry on the next cycle.',
+        'AI market analysis failed — context or model error. I will retry on the next cycle.',
       );
       return;
     }
