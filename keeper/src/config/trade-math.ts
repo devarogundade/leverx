@@ -1,4 +1,7 @@
-import { MIN_LEVERAGE_BPS, PREDICT_PRICE_SCALE } from './constants';
+import { MAX_LEVERAGE_BPS, MIN_LEVERAGE_BPS, PREDICT_PRICE_SCALE } from './constants';
+
+const LEVERAGE_MAX = MAX_LEVERAGE_BPS / 10_000;
+const LEVERAGE_MIN = MIN_LEVERAGE_BPS / 10_000;
 
 export function redeemPayoutFromBid(bidPerUnit: bigint, quantity: bigint): bigint {
   return (bidPerUnit * quantity) / PREDICT_PRICE_SCALE;
@@ -40,6 +43,33 @@ export function isLeveragedMintBlocked(
   return !isLeveragedMintAllowed(expiryMs, MIN_LEVERAGE_BPS + 1, now, windowMs);
 }
 
+/** Timestamp when leveraged mints (>1×) close: expiry − final_window_ms. */
+export function leverageClosesAtMs(expiryMs: number, windowMs: number): number {
+  if (!expiryMs || expiryMs <= 0) return 0;
+  return expiryMs - windowMs;
+}
+
+/**
+ * Recommended max leverage from time remaining (matches app UI policy):
+ * floor(time_to_expiry / final_window_ms) capped at 10×, minimum 1×.
+ * On-chain only blocks >1× inside the final window; this tiers 2×, 3×, … earlier.
+ */
+export function maxLeverageForExpiry(
+  expiryMs: number,
+  now: number,
+  windowMs: number,
+  leverageMax = LEVERAGE_MAX,
+): number {
+  if (!expiryMs || expiryMs <= 0) return leverageMax;
+  if (!windowMs || windowMs <= 0) return leverageMax;
+
+  const remainingMs = Math.max(0, expiryMs - now);
+  if (remainingMs <= 0) return LEVERAGE_MIN;
+
+  const windowUnits = Math.floor(remainingMs / windowMs);
+  return Math.min(leverageMax, Math.max(LEVERAGE_MIN, windowUnits));
+}
+
 /** Runtime final-window fields aligned with on-chain `[expiry - window, expiry)`. */
 export function computeFinalWindowContext(
   expiryMs: number,
@@ -52,11 +82,19 @@ export function computeFinalWindowContext(
   time_to_expiry_hours: number;
   hours_until_final_window: number;
   leveraged_mint_blocked: boolean;
+  final_window_periods_remaining: number;
+  max_leverage_for_time: number;
+  leverage_closes_at_ms: number;
+  ms_until_leverage_closes: number;
 } {
   const timeToExpiryMs = expiryMs > now ? expiryMs - now : 0;
   const inFinalWindow = isFinalHourBeforeExpiry(expiryMs, now, windowMs);
   const finalWindowStartMs = expiryMs - windowMs;
   const msUntilFinalWindow = inFinalWindow ? 0 : Math.max(0, finalWindowStartMs - now);
+  const leverageClosesAt = leverageClosesAtMs(expiryMs, windowMs);
+  const msUntilLeverageCloses = Math.max(0, leverageClosesAt - now);
+  const finalWindowPeriodsRemaining =
+    timeToExpiryMs > 0 && windowMs > 0 ? Math.floor(timeToExpiryMs / windowMs) : 0;
 
   return {
     final_window_ms: windowMs,
@@ -65,6 +103,10 @@ export function computeFinalWindowContext(
     time_to_expiry_hours: timeToExpiryMs / (60 * 60 * 1000),
     hours_until_final_window: msUntilFinalWindow / (60 * 60 * 1000),
     leveraged_mint_blocked: isLeveragedMintBlocked(expiryMs, now, windowMs),
+    final_window_periods_remaining: finalWindowPeriodsRemaining,
+    max_leverage_for_time: maxLeverageForExpiry(expiryMs, now, windowMs),
+    leverage_closes_at_ms: leverageClosesAt,
+    ms_until_leverage_closes: msUntilLeverageCloses,
   };
 }
 

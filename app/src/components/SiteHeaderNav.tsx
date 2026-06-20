@@ -7,9 +7,23 @@ interface Props {
   className?: string;
   onNavigate?: () => void;
   vertical?: boolean;
+  jarvisUnread?: number;
 }
 
-export function SiteHeaderNav({ className, onNavigate, vertical }: Props) {
+function JarvisUnreadBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+
+  return (
+    <span
+      className="absolute -right-2.5 -top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-accent px-0.5 text-[8px] font-bold leading-none text-accent-foreground"
+      aria-label={`${count} unread Jarvis message${count === 1 ? "" : "s"}`}
+    >
+      {count > 9 ? "9+" : count}
+    </span>
+  );
+}
+
+export function SiteHeaderNav({ className, onNavigate, vertical, jarvisUnread = 0 }: Props) {
   const { location } = useRouterState();
   const pathname = location.pathname;
 
@@ -57,9 +71,14 @@ export function SiteHeaderNav({ className, onNavigate, vertical }: Props) {
           );
         }
 
+        const showJarvisBadge = entry.to === "/jarvis" && jarvisUnread > 0;
+
         return (
           <Link key={entry.label} to={entry.to} onClick={onNavigate} className={cls}>
-            {entry.label}
+            <span className="relative inline-flex items-center">
+              {entry.label}
+              {showJarvisBadge ? <JarvisUnreadBadge count={jarvisUnread} /> : null}
+            </span>
           </Link>
         );
       })}

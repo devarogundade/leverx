@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowRight,
@@ -26,6 +26,9 @@ import {
 } from "@/lib/leverx/protocol";
 import { useIndexerProtocol } from "@/hooks/useIndexer";
 import {
+  buildLeverageTimetable,
+  formatLeverage,
+  formatLeverageBadge,
   LEVERAGE_MAX,
   LEVERAGE_MIN,
   LEVERAGE_STEP,
@@ -77,6 +80,10 @@ export function GuideStorybook() {
   const finalWindowPhrase = `final ${finalWindowLong}`;
   const expirationList = PREDICT_TESTNET_EXPIRATION_DAYS.join(", ");
   const configLoading = protocolLoading && !protocol;
+  const leverageTimetable = useMemo(
+    () => buildLeverageTimetable(finalWindowMs),
+    [finalWindowMs],
+  );
 
   useEffect(() => {
     const headings = CHAPTERS.map((c) => document.getElementById(c.id)).filter(Boolean);
@@ -345,17 +352,54 @@ export function GuideStorybook() {
           <GuideChapter
             id="leverage"
             index="04"
-            title="Margin & safety"
-            subtitle={`${LEVERAGE_RANGE} leverage with ${MARGIN_RANGE} margin`}
+            title="Margin & leverage"
+            subtitle={`${LEVERAGE_RANGE} with a time-graded cap before expiry`}
           >
             <p>
               When you open a trade, you deposit dUSDC from your wallet ({MARGIN_RANGE}) and pick
               leverage from {LEVERAGE_MIN}× to {LEVERAGE_MAX}× in {LEVERAGE_STEP}× steps. At 1× there
-              is no vault borrow. New leverage above 1× cannot be opened in the{" "}
-              {finalWindowPhrase} before expiry; existing borrowed positions in that window are
-              force-deleveraged to 1× (or liquidated if underwater). Position size = margin ×
-              leverage; anything above your deposit is borrowed from the shared pool.
+              is no vault borrow. Position size = margin × leverage; anything above your deposit is
+              borrowed from the shared pool.
             </p>
+            <p>
+              Max leverage you can open depends on how much time is left before expiry. Each{" "}
+              {finalWindowLong} counts as one period: 1 period left allows {formatLeverage(1)} only,
+              2 periods allows up to {formatLeverage(2)}, and so on, capped at {LEVERAGE_MAX}×. The
+              trade terminal shows a live countdown and clamps the leverage slider to this cap. On-chain,
+              only the {finalWindowPhrase} hard-blocks vault borrow above 1×; the timetable below is
+              stricter so you are not opening high leverage right before that window. Existing borrowed
+              positions in the final window are force-deleveraged to 1× (or liquidated if underwater).
+            </p>
+            <GuidePanel label="Leverage timetable">
+              {configLoading ? (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              ) : (
+                <>
+                  <p className="guide-timetable-intro">
+                    Based on the current final window of {finalWindowLong}. Ranges use full
+                    final-window periods remaining before expiry.
+                  </p>
+                  <div className="guide-timetable-wrap">
+                    <table className="guide-timetable">
+                      <thead>
+                        <tr>
+                          <th scope="col">Time to expiry</th>
+                          <th scope="col">Max leverage</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {leverageTimetable.map((row) => (
+                          <tr key={row.maxLeverage}>
+                            <td>{row.timeRemainingLabel}</td>
+                            <td>{formatLeverageBadge(row.maxLeverage)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </GuidePanel>
             <div className="guide-leverage-demo">
               <div className="guide-leverage-row guide-leverage-row-highlight">
                 <span className="guide-leverage-label">$10 dUSDC deposit</span>
@@ -664,6 +708,15 @@ export function GuideStorybook() {
                   live redeem bid. Above {healthyPct}% is healthy; {liquidationPct}%–{healthyPct}%
                   is margin-call territory; below {liquidationPct}% a leveraged position can be
                   liquidated.
+                </dd>
+              </div>
+              <div className="guide-faq-item">
+                <dt>Why does max leverage drop as expiry nears?</dt>
+                <dd>
+                  LeverX tiers open leverage by final-window periods: N periods left → at most N×
+                  (1 period → 1×, 2 periods → 2×, … up to {LEVERAGE_MAX}×). The guide timetable
+                  uses the live final window ({configLoading ? "…" : finalWindowLong}). Resting
+                  limit orders above 1× must expire before the final window opens.
                 </dd>
               </div>
               <div className="guide-faq-item">

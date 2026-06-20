@@ -1,3 +1,5 @@
+import { formatProtocolDurationMs } from "@/lib/leverx/protocol";
+
 /** Min/max leverage multiplier for trades (1x = no vault borrow). */
 export const LEVERAGE_MIN = 1;
 export const LEVERAGE_MAX = 10;
@@ -240,4 +242,42 @@ export function maxLeverageLabelForExpiry(
 ): string {
   if (!expiryMs || expiryMs <= 0) return "10X";
   return formatLeverageBadge(maxLeverageForExpiry(expiryMs, windowMs, now));
+}
+
+export type LeverageTimetableRow = {
+  maxLeverage: number;
+  periodsRemaining: number;
+  timeRemainingLabel: string;
+};
+
+/** Rows for guide/UI: max open leverage by final-window periods remaining. */
+export function buildLeverageTimetable(
+  finalWindowMs: number,
+  leverageMax = LEVERAGE_MAX,
+): LeverageTimetableRow[] {
+  if (!finalWindowMs || finalWindowMs <= 0) return [];
+
+  const rows: LeverageTimetableRow[] = [];
+
+  for (let leverage = 1; leverage <= leverageMax; leverage += 1) {
+    let timeRemainingLabel: string;
+
+    if (leverage === 1) {
+      timeRemainingLabel = `Final window — under ${formatProtocolDurationMs(finalWindowMs, "short")}`;
+    } else if (leverage === leverageMax) {
+      timeRemainingLabel = `${formatProtocolDurationMs((leverage - 1) * finalWindowMs, "short")} or more`;
+    } else {
+      const lowMs = (leverage - 1) * finalWindowMs;
+      const highMs = leverage * finalWindowMs;
+      timeRemainingLabel = `${formatProtocolDurationMs(lowMs, "short")} – ${formatProtocolDurationMs(highMs, "short")}`;
+    }
+
+    rows.push({
+      maxLeverage: leverage,
+      periodsRemaining: leverage,
+      timeRemainingLabel,
+    });
+  }
+
+  return rows.reverse();
 }

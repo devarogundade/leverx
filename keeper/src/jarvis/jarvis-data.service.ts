@@ -15,6 +15,7 @@ import { logKeeperWarn } from '../lib/keeper-log';
 import { parsePredictOraclesList } from '../lib/predict-oracle-parse';
 import { SuiService } from '../sui/sui.service';
 import { TelegramMarketsService } from '../telegram/telegram-markets.service';
+import type { PredictOracleRow } from '../telegram/telegram-session.types';
 import {
   atmStrikeRaw,
   baseFromUnderlying,
@@ -111,6 +112,14 @@ export class JarvisDataService {
         `During the final window, new mints with leverage > 1× are blocked (assert_leveraged_mint_window).`,
         `1× mints remain allowed until expiry unless trading is paused.`,
         `Resting leveraged limit orders must expire before the final window opens.`,
+      ].join(' '),
+      time_based_leverage_rules: [
+        `Time-graded max leverage (UI + Jarvis policy): max_leverage_for_time = min(10, max(1, floor(time_to_expiry_ms / final_window_ms))).`,
+        `Equivalently: N final-window periods remaining → at most N× leverage (1 period → 1×, 2 periods → 2×, … up to 10×).`,
+        `Example with final_window_ms = 30 min: 45 min left → 1× only; 90 min left → up to 2×; 5 hours left → up to 10× (capped).`,
+        `On-chain hard gate: only the last final_window_ms before expiry blocks all leverage > 1× (leveraged_mint_blocked).`,
+        `Jarvis must set leverage ≤ max_leverage_for_time on every open, and ≤ user max_leverage guardrail.`,
+        `leverage_closes_at_ms = expiry_ms − final_window_ms — after this timestamp only 1× mints succeed.`,
       ].join(' '),
       one_x_leverage_rules: [
         'At 1× (leverage_bps = 10_000, no vault borrow), positions are never liquidatable via the health-factor path.',
@@ -462,6 +471,10 @@ export class JarvisDataService {
       has_vault_borrow: hasVaultBorrow,
       at_risk_of_force_deleverage: atRiskOfForceDeleverage,
       leveraged_mint_blocked: finalWindow.leveraged_mint_blocked,
+      final_window_periods_remaining: finalWindow.final_window_periods_remaining,
+      max_leverage_for_time: finalWindow.max_leverage_for_time,
+      leverage_closes_at_ms: finalWindow.leverage_closes_at_ms,
+      ms_until_leverage_closes: finalWindow.ms_until_leverage_closes,
       strike_usd: strikeRawToUsd(position.strike),
       strike_raw: position.strike,
       higher_strike_usd: strikeRawToUsd(position.higher_strike),
@@ -516,14 +529,7 @@ export class JarvisDataService {
   }
 
   private async buildMarketCandidate(
-    row: {
-      oracle_id: string;
-      underlying_asset: string;
-      expiry?: number;
-      status?: string;
-      min_strike?: number;
-      tick_size?: number;
-    },
+    row: PredictOracleRow,
     now: number,
   ): Promise<JarvisMarketCandidate | null> {
     const oracleId = row.oracle_id.toLowerCase();
@@ -558,6 +564,10 @@ export class JarvisDataService {
       in_final_window: finalWindow.in_final_window,
       hours_until_final_window: finalWindow.hours_until_final_window,
       leveraged_mint_blocked: finalWindow.leveraged_mint_blocked,
+      final_window_periods_remaining: finalWindow.final_window_periods_remaining,
+      max_leverage_for_time: finalWindow.max_leverage_for_time,
+      leverage_closes_at_ms: finalWindow.leverage_closes_at_ms,
+      ms_until_leverage_closes: finalWindow.ms_until_leverage_closes,
       spot_usd: spotUsd,
       spot_unit: 'USD',
       min_strike_usd: strikeRawToUsd(minStrikeRaw),
@@ -575,16 +585,7 @@ export class JarvisDataService {
     };
   }
 
-  private async fetchLiveOracles(): Promise<
-    Array<{
-      oracle_id: string;
-      underlying_asset: string;
-      expiry?: number;
-      status?: string;
-      min_strike?: number;
-      tick_size?: number;
-    }>
-  > {
+  private async fetchLiveOracles(): Promise<PredictOracleRow[]> {
     const cfg = this.sui.getConfig();
     const url = `${cfg.predictServerUrl}/predicts/${cfg.predictId}/oracles`;
     try {
@@ -614,19 +615,35 @@ export class JarvisDataService {
       interval === '15m' ? OHLCV_15M_LOOKBACK_MS : OHLCV_1M_LOOKBACK_MS;
     const end = Date.now();
     const start = end - lookbackMs;
-    const url = `${this.cfg.deepbookIndexerUrl}/ohlcv/${pair}?interval=${interval}&start_time=${start}&end_time=${end}`;
+    const base = this.cfg.deepbookIndexerUrl.replace(/\/$/, '');
+    const params = new URLSearchParams({
+      interval,
+      start_time: String(Math.floor(start)),
+      end_time: String(Math.floor(end)),
+    });
+    const url = `${base}/ohclv/${encodeURIComponent(pair)}?${params}`;
+
     try {
-      const res = await fetch(url);
-      if (!res.ok) return [];
-      const body = (await res.json()) as
-        | OhlcvCandle[]
-        | { data?: OhlcvCandle[]; candles?: OhlcvCandle[] };
-      if (Array.isArray(body)) return body;
-      return body.data ?? body.candles ?? [];
+      const candles = await this.fetchOhclvCandles(url);
+      if (candles.length > 0) return candles;
+
+      const fallbackUrl = `${base}/ohclv/${encodeURIComponent(pair)}?interval=${interval}&limit=100`;
+      return await this.fetchOhclvCandles(fallbackUrl);
     } catch (err) {
       logKeeperWarn(this.logger, `jarvis ohlcv fetch failed for ${pair} ${interval}`, err);
       return [];
     }
+  }
+
+  /** DeepBook indexer exposes OHLCV at `/ohclv/` (not `/ohlcv/`). */
+  private async fetchOhclvCandles(url: string): Promise<OhlcvCandle[]> {
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const body = (await res.json()) as
+      | OhlcvCandle[]
+      | { data?: OhlcvCandle[]; candles?: OhlcvCandle[] };
+    if (Array.isArray(body)) return body;
+    return body.candles ?? body.data ?? [];
   }
 }
 

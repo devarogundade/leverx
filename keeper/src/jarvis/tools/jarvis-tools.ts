@@ -184,7 +184,7 @@ export function createJarvisTools(session: JarvisToolSession) {
   const getPlatformRulesTool = new DynamicStructuredTool({
     name: 'get_platform_rules',
     description:
-      'Return platform bounds (leverage, margin, slippage, final_window_ms) plus rule text for final window, 1× leverage, force-deleverage, settlement, keeper force-close, and health_interpretation_rules. For strategy context use get_knowledge_base.',
+      'Return platform bounds (leverage, margin, slippage, final_window_ms) plus rule text for final window, time-graded leverage (1×–10× by periods remaining), 1× leverage, force-deleverage, settlement, keeper force-close, and health_interpretation_rules. For strategy context use get_knowledge_base.',
     schema: GetPlatformRulesInputSchema,
     func: async () => {
       return stringifyOutput(

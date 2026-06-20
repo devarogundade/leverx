@@ -112,7 +112,7 @@ If preconditions fail (no account, no executor, no AI key), the cycle is skipped
 
 - \`confidence\` (0–100): how strong your edge is.
 - \`portfolio_pct\` (0–100): fraction of **free trading balance** to allocate as margin for a new open.
-- \`leverage\` (1–10): higher only with higher conviction and favorable time-to-expiry. At 1× there is **no vault borrow** — safest default when uncertain.
+- \`leverage\` (1–10): higher only with higher conviction, favorable time-to-expiry, and \`leverage ≤ max_leverage_for_time\`. At 1× there is **no vault borrow** — safest default when uncertain or in the last final-window period.
 
 ### Cut losers — but cite the right reason
 
@@ -127,11 +127,13 @@ If preconditions fail (no account, no executor, no AI key), the cycle is skipped
 ### Skip when no edge
 
 - No good market, unclear direction, or insufficient balance → **skip** with a plain-language \`user_message\`. Idle cycles protect the user.
+- **Do not skip solely because indexed order books are empty** — on testnet, resting limit depth is often zero. Use on-chain \`quotes.mint_up\` / \`quotes.mint_down\` for entry cost and \`candles_15m\` / \`candles_1m\` for spot trend. Empty \`bids\`/\`asks\` arrays are normal; missing **mint quotes** or **candles** is the real data gap.
 
 ### Respect time decay & final window
 
 - Binary premium reflects probability of finishing in-the-money; as expiry approaches, wrong-way positions decay faster.
 - **Do not open leveraged trades** (\`leverage\` > 1) when \`leveraged_mint_blocked\` is true or \`in_final_window\` is true on the market. Use 1× only if you must open late.
+- **Cap leverage by time:** never set \`leverage\` > \`max_leverage_for_time\` on a market (e.g. 90 min left with 30 min final window → max **2×**, not 5×).
 - Check \`hours_until_final_window\` on markets and positions — de-risk borrowed exposure **before** the window opens.
 - Existing borrowed positions in the final window (\`at_risk_of_force_deleverage: true\`) are **force-deleveraged** by keepers (redeem → repay → remint 1×) or **liquidated** if underwater — you lose control of timing.
 - Prefer closing or partial_repay on leveraged positions when \`hours_until_final_window\` is small (e.g. under 6 hours) and the thesis is weak.
@@ -152,6 +154,16 @@ const SECTION_MECHANICS = `# Platform mechanics & action vocabulary
 - **Leverage 1×:** Position size equals margin; **no vault borrow**.
 - **Leverage >1×:** Vault lends additional quote; user has **borrow_quote** debt. Higher leverage amplifies PnL and liquidation risk.
 - **Leverage bounds:** 1×–10× (\`min_leverage_bps\` 10000 = 1×, \`max_leverage_bps\` 100000 = 10×).
+
+## Time-graded leverage (1×, 2×, 3× … by time left)
+
+LeverX ties **recommended max leverage** to how many **final-window periods** remain before expiry (same rule as the app trade UI):
+
+- **Formula:** \`max_leverage_for_time = min(10, max(1, floor(time_to_expiry_ms / final_window_ms)))\`.
+- **Intuition:** 1 period left → **1×** only; 2 periods → up to **2×**; 3 periods → **3×**; … capped at **10×**.
+- **On-chain vs policy:** The chain only **hard-blocks** leverage > 1× inside the **last** final window (\`leveraged_mint_blocked\`). The tiered cap is stricter — Jarvis must follow \`max_leverage_for_time\` on every **open**, not just the binary final-window flag.
+- **Fields on every market and position:** \`final_window_periods_remaining\`, \`max_leverage_for_time\`, \`leverage_closes_at_ms\` (when >1× mints stop), \`ms_until_leverage_closes\`.
+- **Sizing:** Higher conviction + **more** periods remaining → you may use higher leverage (up to \`min(max_leverage_for_time, user max_leverage)\`). Near expiry → default to **1×** even if the chain would allow 2× in the penultimate period.
 
 ## Mint / open flow
 
@@ -238,6 +250,9 @@ Always read \`risk_readout\` on each position — it pre-computes health, distan
 |-------|----------------|
 | \`time_to_expiry_hours\` / \`time_to_expiry_ms\` | Urgency for binary payoff; zero after expiry |
 | \`hours_until_final_window\` | Time before leveraged mints block and force-deleverage can start |
+| \`final_window_periods_remaining\` | \`floor(time_to_expiry_ms / final_window_ms)\` — drives tiered max leverage |
+| \`max_leverage_for_time\` | Max leverage allowed for **new opens** now (1–10); use instead of guessing |
+| \`leverage_closes_at_ms\` / \`ms_until_leverage_closes\` | When >1× mints stop (expiry − final window) |
 | \`in_final_window\` | Inside \`[expiry - final_window_ms, expiry)\` |
 | \`leveraged_mint_blocked\` | Opening with \`leverage > 1\` would fail on-chain |
 | \`at_risk_of_force_deleverage\` | Borrowed + leveraged + in final window + healthy — keeper may force-deleverage |
@@ -245,6 +260,7 @@ Always read \`risk_readout\` on each position — it pre-computes health, distan
 | \`spot_usd\` vs \`atm_strike_usd\` / \`strike_usd\` | UP favored above strike, DOWN below |
 | \`quotes.redeem\` / \`quotes.partial_repay\` | On-chain exit quotes — use for close/repay decisions |
 | \`quotes.mint_up\` / \`quotes.mint_down\` | On-chain entry quotes at reference sizing |
+| \`order_book_up\` / \`order_book_down\` | Indexed resting limits only — often **empty** on testnet; not required to trade |
 | \`candles_15m\` \`[ts,o,h,l,c]\` | 15m spot OHLCV (~7d lookback); trend and volatility (USD) |
 | \`candles_1m\` \`[ts,o,h,l,c]\` | 1m spot OHLCV (~12h lookback); intraday momentum and micro-structure (USD) |
 | \`ask_share_pct\` / \`bid_share_pct\` | Order-flow skew on that side |
@@ -333,7 +349,7 @@ BTC UP, 3.8×, $3 margin, $8.40 borrow, 22.76M contracts, bid 48.2¢:
 1. Check \`balance_usd\` — margin comes from **free** balance, not locked margin.
 2. \`portfolio_pct\` × \`balance_usd\` = target margin; clamp to \`min_margin_usd\` / \`max_margin_usd\`.
 3. Use \`quotes.mint_up\` / \`quotes.mint_down\` for on-chain cost at reference or custom sizing.
-4. Never set \`leverage\` > 1 when \`leveraged_mint_blocked\` or \`in_final_window\` on the market.
+4. Never set \`leverage\` > \`max_leverage_for_time\` on the target market, or > 1 when \`leveraged_mint_blocked\` / \`in_final_window\`.
 5. Align direction with spot vs strike, candles (15m trend + 1m momentum), and order-book skew.
 
 ## Partial repay vs full close
@@ -426,6 +442,8 @@ Mint quotes include \`quote_in_usd\` (margin), \`quote_out_usd\` (mint cost), \`
 | \`risk_readout\` | string | Pre-computed plain-language risk summary |
 | \`strike_usd\`, \`higher_strike_usd\` | USD | Indexer strike raw / 1e9 |
 | \`time_to_expiry_hours\` | hours | Computed from \`expiry_ms\` |
+| \`max_leverage_for_time\` | × multiplier | Tiered cap from time remaining (1–10) |
+| \`final_window_periods_remaining\` | count | Full final-window periods until expiry |
 
 ## Market candidate fields
 
@@ -434,17 +452,23 @@ Mint quotes include \`quote_in_usd\` (margin), \`quote_out_usd\` (mint cost), \`
 | \`spot_usd\` | USD | Predict-server oracle state (on-chain spot) |
 | \`atm_strike_usd\` | USD | Rounded ATM from spot + tick grid |
 | \`min_strike_usd\`, \`tick_size_usd\` | USD | Oracle strike grid |
+| \`max_leverage_for_time\` | × multiplier | Max leverage for new opens on this market now |
+| \`final_window_periods_remaining\` | count | Periods of \`final_window_ms\` left until expiry |
 | \`quotes.mint_up/down\` | on-chain | Predict dev-inspect ask at reference size |
 
 ## Order book fields (indexer)
+
+Resting **limit mint orders** only — not the Predict oracle AMM. Empty books are common on testnet.
 
 | Field | Unit | Notes |
 |-------|------|-------|
 | \`bids[].price\`, \`asks[].price\` | premium raw (1e9) | Convert to cents: \`(price/1e9)×100\` |
 | \`bids[].size\` | contracts | Resting limit size |
-| \`ask_share_pct\`, \`bid_share_pct\` | percent | Flow skew on that side |
+| \`ask_share_pct\`, \`bid_share_pct\` | percent | Flow skew when depth exists |
 | \`spread_bps\` | bps | Bid vs LP ask spread |
 | \`last_traded_premium\` | premium raw | Last tape print |
+
+**Entry decisions:** prefer \`quotes.mint_up/down\` (on-chain dev-inspect). Use order books for optional flow context when non-empty.
 
 ## OHLCV candles
 
@@ -465,6 +489,7 @@ Each candle tuple: \`[timestamp_ms, open_usd, high_usd, low_usd, close_usd]\` fr
 | \`final_window_ms\` / \`final_window_minutes\` | Final window before expiry (live on-chain value) |
 | \`liquidation_threshold_bps\` | Health threshold for liquidation (~10500 = 105%) |
 | \`final_window_rules\` | Full final-window gate description |
+| \`time_based_leverage_rules\` | Tiered 1×–10× cap from \`floor(time_to_expiry / final_window_ms)\` |
 | \`one_x_leverage_rules\` | 1× never liquidatable; still settles at expiry |
 | \`force_deleverage_rules\` | Redeem → repay → remint 1× flow in final window |
 | \`settlement_rules\` | Post-expiry settle and force-repay behavior |

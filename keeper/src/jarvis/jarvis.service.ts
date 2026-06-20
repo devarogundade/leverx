@@ -911,7 +911,22 @@ export class JarvisService implements OnModuleInit {
       action.portfolio_pct ?? 0,
       guardrails.max_portfolio_pct,
     );
-    const leverage = Math.min(action.leverage ?? 1, guardrails.max_leverage);
+
+    let maxLeverageForTime = guardrails.max_leverage;
+    try {
+      const detail = await this.data.getMarketDetail(action.oracle_id);
+      if (detail.candidate?.max_leverage_for_time != null) {
+        maxLeverageForTime = detail.candidate.max_leverage_for_time;
+      }
+    } catch (err) {
+      logKeeperWarn(this.logger, `jarvis open leverage cap ${action.oracle_id}`, err);
+    }
+
+    const leverage = Math.min(
+      action.leverage ?? 1,
+      guardrails.max_leverage,
+      maxLeverageForTime,
+    );
     const marginUsd = Math.max(
       0.1,
       (balanceUsd * portfolioPct) / 100,

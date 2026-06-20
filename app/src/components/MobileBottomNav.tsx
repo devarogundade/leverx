@@ -1,28 +1,9 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
-import { useJarvisStatus } from "@/hooks/useJarvis";
-import { useWallet } from "@/context/WalletContext";
-import { useIndexerAccounts, useIndexerPositions } from "@/hooks/useIndexer";
-import { resolveTradingAccount } from "@/lib/leverx/account-resolution";
 import { MOBILE_BOTTOM_NAV } from "@/lib/mobile-nav";
-import { useMemo } from "react";
 
-export function MobileBottomNav() {
+export function MobileBottomNav({ jarvisUnread = 0 }: { jarvisUnread?: number }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { address } = useWallet();
-  const { data: accounts = [] } = useIndexerAccounts(address ?? undefined);
-  const { data: positions = [] } = useIndexerPositions(address ?? undefined);
-
-  const account = useMemo(
-    () => resolveTradingAccount(accounts, positions, address ?? ""),
-    [accounts, positions, address],
-  );
-
-  const { data: jarvisStatus } = useJarvisStatus(
-    address ?? null,
-    account?.account_id ?? null,
-  );
-  const unread = jarvisStatus?.unread_count ?? 0;
 
   return (
     <nav
@@ -33,7 +14,7 @@ export function MobileBottomNav() {
         {MOBILE_BOTTOM_NAV.map((item) => {
           const active = item.isActive(pathname);
           const Icon = item.icon;
-          const showBadge = item.featured && unread > 0;
+          const showBadge = item.featured && jarvisUnread > 0;
 
           return (
             <li key={item.to} className="flex min-w-0 flex-1 justify-center">
@@ -54,7 +35,7 @@ export function MobileBottomNav() {
                   />
                   {showBadge ? (
                     <span className="absolute -right-2 -top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-accent px-0.5 text-[8px] font-bold leading-none text-accent-foreground">
-                      {unread > 9 ? "9+" : unread}
+                      {jarvisUnread > 9 ? "9+" : jarvisUnread}
                     </span>
                   ) : null}
                 </span>

@@ -2692,6 +2692,46 @@ select {
     background-color: color-mix(in oklab, var(--color-foreground) 18%, transparent);
   }
 
+  .guide-timetable-intro {
+    margin-bottom: 0.75rem;
+    font-size: 0.8125rem;
+    line-height: 1.55;
+    color: var(--color-muted-foreground);
+  }
+
+  .guide-timetable-wrap {
+    overflow-x: auto;
+  }
+
+  .guide-timetable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+  }
+
+  .guide-timetable th,
+  .guide-timetable td {
+    padding: 0.5rem 0.625rem;
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .guide-timetable th {
+    font-weight: 600;
+    color: var(--color-foreground);
+  }
+
+  .guide-timetable td:last-child {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .guide-timetable tbody tr:last-child td {
+    border-bottom: none;
+  }
+
   .guide-chart-mock-header {
     display: flex;
     align-items: center;

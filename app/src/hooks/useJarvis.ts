@@ -1,9 +1,13 @@
+import { useMemo } from "react";
 import {
   useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
+import { useWallet } from "@/context/WalletContext";
+import { useIndexerAccounts, useIndexerPositions } from "@/hooks/useIndexer";
+import { resolveTradingAccount } from "@/lib/leverx/account-resolution";
 import { appConfig } from "@/lib/config";
 import {
   disableJarvis,
@@ -162,6 +166,26 @@ export function useMarkJarvisRead() {
       });
     },
   });
+}
+
+/** Resolved wallet account + live unread count for chrome (header, bottom nav). */
+export function useJarvisUnreadCount(): number {
+  const { address } = useWallet();
+  const { data: accounts = [] } = useIndexerAccounts(address ?? undefined);
+  const { data: positions = [] } = useIndexerPositions(address ?? undefined);
+
+  const account = useMemo(
+    () => resolveTradingAccount(accounts, positions, address ?? ""),
+    [accounts, positions, address],
+  );
+
+  const owner = address ?? null;
+  const accountId = account?.account_id ?? null;
+
+  const { data: jarvisStatus } = useJarvisStatus(owner, accountId);
+  useJarvisLive(owner, accountId);
+
+  return jarvisStatus?.unread_count ?? 0;
 }
 
 /** Subscribe to live Jarvis events over Socket.IO. */

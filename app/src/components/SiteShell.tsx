@@ -22,9 +22,10 @@ interface Props {
   mainClassName?: string;
   /** Fixed UI rendered outside page-enter animation (e.g. mobile bottom nav). */
   fixedChrome?: ReactNode;
+  jarvisUnread?: number;
 }
 
-export function SiteShell({ children, fullWidth, mainClassName, fixedChrome }: Props) {
+export function SiteShell({ children, fullWidth, mainClassName, fixedChrome, jarvisUnread }: Props) {
   const headerRef = useRef<HTMLElement>(null);
 
   useGsapHeaderScroll(headerRef);
@@ -44,7 +45,10 @@ export function SiteShell({ children, fullWidth, mainClassName, fixedChrome }: P
             </span>
           </Link>
 
-          <SiteHeaderNav className="site-header-nav hidden min-w-0 flex-1 md:flex" />
+          <SiteHeaderNav
+            className="site-header-nav hidden min-w-0 flex-1 md:flex"
+            jarvisUnread={jarvisUnread}
+          />
 
           <Link to="/guide" className="btn-how-it-works btn-how-it-works--compact shrink-0 xl:h-[34px] xl:px-3 xl:text-[0.8125rem]">
             <HelpCircle className="hidden h-3.5 w-3.5 xl:block" aria-hidden />
