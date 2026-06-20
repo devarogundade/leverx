@@ -60,11 +60,11 @@ import { buildQuickAmounts } from "@/lib/leverx/form-helpers";
 import { tradeCtaLabel, tradeNeedsDeposit } from "@/lib/leverx/trade-cta";
 import {
   DEFAULT_LEVERAGE,
+  formatLeverage,
   formatLeverageBadge,
-  isFinalHourBeforeExpiry,
-  isLeveragedMintAllowed,
   LEVERAGE_MAX,
   LEVERAGE_MIN,
+  maxLeverageForExpiry,
   maxLeveragedRestingOrderExpiryMs,
   MAX_MARGIN_USD,
   MIN_MARGIN_USD,
@@ -266,15 +266,10 @@ export function PredictLeveragePanel({
   const now = useNow(1000);
 
   const lev = leverage;
-  const leveragedMintAllowed = isLeveragedMintAllowed(
-    expiryMs ?? 0,
-    finalWindowMs,
-    now,
-  );
-  const inFinalHour = Boolean(
-    expiryMs && isFinalHourBeforeExpiry(expiryMs, finalWindowMs, now),
-  );
-  const maxLeverageForMarket = leveragedMintAllowed ? LEVERAGE_MAX : LEVERAGE_MIN;
+  const maxLeverageForMarket = expiryMs
+    ? maxLeverageForExpiry(expiryMs, finalWindowMs, now)
+    : LEVERAGE_MAX;
+  const leverageSliderAllowed = maxLeverageForMarket > LEVERAGE_MIN + 1e-6;
   const restingLimitAllowed = Boolean(
     expiryMs &&
     expiryMs > now &&
@@ -286,12 +281,6 @@ export function PredictLeveragePanel({
       setLeverage(maxLeverageForMarket);
     }
   }, [leverage, maxLeverageForMarket]);
-
-  useEffect(() => {
-    if (!leveragedMintAllowed) {
-      setLeverage(LEVERAGE_MIN);
-    }
-  }, [leveragedMintAllowed]);
 
   useEffect(() => {
     if (!expiryMs || expiryMs <= 0) return;
@@ -524,7 +513,7 @@ export function PredictLeveragePanel({
     owner: address ?? undefined,
     enabled:
       marginNum > 0 &&
-      (lev <= LEVERAGE_MIN + 1e-6 || leveragedMintAllowed),
+      lev <= maxLeverageForMarket + 1e-6,
     referencePremiumOverride: quoteReferencePremium,
   });
 
@@ -648,12 +637,11 @@ export function PredictLeveragePanel({
       );
     }
     if (
-      lev > LEVERAGE_MIN + 1e-6 &&
-      expiryMs &&
-      !isLeveragedMintAllowed(expiryMs, finalWindowMs, now)
+      lev > maxLeverageForMarket + 1e-6 &&
+      expiryMs
     ) {
       errors.push(
-        "Leverage above 1× is blocked in the final window before this market expires.",
+        `Leverage cannot exceed ${formatLeverage(maxLeverageForMarket)} this close to market expiry.`,
       );
     }
     if (marginNum > 0 && marginNum < MIN_MARGIN_USD) {
@@ -844,6 +832,7 @@ export function PredictLeveragePanel({
     hasLinkedManager,
     duplicateOpenPosition,
     lev,
+    maxLeverageForMarket,
     now,
     finalWindowMs,
   ]);
@@ -1104,7 +1093,7 @@ export function PredictLeveragePanel({
               onChange={(e) => setMargin(e.target.value)}
               placeholder="0.00"
               suffix={
-                leveragedMintAllowed ? (
+                leverageSliderAllowed ? (
                   <span className={leverageBadge}>{formatLeverageBadge(lev)}</span>
                 ) : null
               }
@@ -1129,7 +1118,7 @@ export function PredictLeveragePanel({
             ) : null}
           </div>
 
-          {leveragedMintAllowed ? (
+          {leverageSliderAllowed ? (
             <LeverageSlider
               value={leverage}
               onChange={setLeverage}

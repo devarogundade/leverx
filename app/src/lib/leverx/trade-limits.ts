@@ -52,6 +52,25 @@ export function isLeveragedMintAllowed(
   return now < expiryMs - windowMs;
 }
 
+/**
+ * UI max leverage before oracle settlement: one final-window period remaining → 1×,
+ * two periods → 2×, and so on, capped at 10×.
+ */
+export function maxLeverageForExpiry(
+  expiryMs: number,
+  windowMs: number,
+  now = Date.now(),
+): number {
+  if (!expiryMs || expiryMs <= 0) return LEVERAGE_MAX;
+  if (!windowMs || windowMs <= 0) return LEVERAGE_MAX;
+
+  const remainingMs = Math.max(0, expiryMs - now);
+  if (remainingMs <= 0) return LEVERAGE_MIN;
+
+  const windowUnits = Math.floor(remainingMs / windowMs);
+  return clampLeverage(Math.min(LEVERAGE_MAX, Math.max(LEVERAGE_MIN, windowUnits)));
+}
+
 /** Latest resting-order expiry when opening above 1x (must end before the final hour). */
 export function maxLeveragedRestingOrderExpiryMs(
   expiryMs: number,
@@ -192,5 +211,5 @@ export function maxLeverageLabelForExpiry(
   now = Date.now(),
 ): string {
   if (!expiryMs || expiryMs <= 0) return "10X";
-  return isLeveragedMintAllowed(expiryMs, windowMs, now) ? "10X" : "1X";
+  return formatLeverageBadge(maxLeverageForExpiry(expiryMs, windowMs, now));
 }

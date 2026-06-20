@@ -14,7 +14,7 @@ export function MarketLeverageBadge({ expiryMs, now, className }: Props) {
   const { data: protocol } = useIndexerProtocol();
   const finalWindowMs = resolveFinalWindowMs(protocol);
   const label = maxLeverageLabelForExpiry(expiryMs, finalWindowMs, now);
-  const isReduced = label === "1X";
+  const isReduced = label !== "10X";
   const isMax = label === "10X";
 
   return (
