@@ -3,7 +3,7 @@ import type { WalletWithRequiredFeatures } from "@mysten/wallet-standard";
 import type { WalletAccount } from "@wallet-standard/core";
 import { fetchAccounts } from "@/lib/leverx/indexer-client";
 import { ensureUserPredictManager } from "@/lib/leverx/keeper-client";
-import { signManagerCreateIntent } from "@/lib/leverx/manager-intent-auth";
+import { prepareManagerCreateRequest } from "@/lib/leverx/keeper-intent-request";
 import { ONBOARD_GAS_BUDGET } from "@/lib/leverx/constants";
 import {
   objectMatchesStructType,
@@ -123,7 +123,7 @@ export async function ensureLeverxAccount(params: {
     );
   }
 
-  const managerAuth = await signManagerCreateIntent({
+  const managerAuth = await prepareManagerCreateRequest({
     wallet: params.wallet,
     account: params.account,
     address: params.account.address,

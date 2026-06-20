@@ -6,6 +6,10 @@ import {
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Transaction } from '@mysten/sui/transactions';
+import { withAppAuth, type AppAuthPayload, type AppAuthResponse } from '../auth/app-auth.types';
+import { intentReplayKey, resolveIntentAuth, type SignedIntentPayload } from '../auth/app-intent-auth';
+import { AppJwtService } from '../auth/app-jwt.service';
 import { IndexerService } from '../indexer/indexer.service';
 import { logKeeperError } from '../lib/keeper-log';
 import { PredictQuoteService } from '../sui/predict-quote.service';
@@ -17,6 +21,13 @@ import {
   verifySettleIntentAuth,
   verifyRecoverManagerIntentAuth,
 } from './trade-auth';
+import {
+  assertTradeIntentExpiry,
+  parseMintIntentMessage,
+  parseRedeemIntentMessage,
+  parseSettleIntentMessage,
+  parseRecoverManagerIntentMessage,
+} from './trade-message';
 import type {
   MintIntentFields,
   RedeemIntentFields,
@@ -32,7 +43,11 @@ import type {
   TradeRelayResponse,
 } from './trade.types';
 import { simulationFailureMessage } from '../lib/move-abort';
-import { Transaction } from '@mysten/sui/transactions';
+
+type VerifiedTradeRequest<T> = {
+  intent: T;
+  auth?: AppAuthResponse;
+};
 
 @Injectable()
 export class TradeService {
@@ -44,10 +59,14 @@ export class TradeService {
     private readonly quotes: PredictQuoteService,
     private readonly indexer: IndexerService,
     private readonly replayStore: TradeReplayStore,
+    private readonly appJwt: AppJwtService,
   ) {}
 
-  async relayMint(body: MintTradeBody): Promise<TradeRelayResponse> {
-    const intent = await this.verifyMintRequest(body);
+  async relayMint(
+    body: MintTradeBody,
+    bearerToken?: string,
+  ): Promise<TradeRelayResponse> {
+    const { intent, auth } = await this.verifyMintRequest(body, bearerToken);
     await this.assertRelayReady();
     await this.assertAccountOwnership(intent);
 
@@ -81,11 +100,14 @@ export class TradeService {
       },
     );
 
-    return this.simulateAndExecute(tx, `mint ${intent.accountId}`);
+    return this.simulateAndExecute(tx, `mint ${intent.accountId}`, auth);
   }
 
-  async relayRedeem(body: RedeemTradeBody): Promise<TradeRelayResponse> {
-    const intent = await this.verifyRedeemRequest(body);
+  async relayRedeem(
+    body: RedeemTradeBody,
+    bearerToken?: string,
+  ): Promise<TradeRelayResponse> {
+    const { intent, auth } = await this.verifyRedeemRequest(body, bearerToken);
     await this.assertRelayReady();
     await this.assertAccountOwnership(intent);
 
@@ -107,11 +129,14 @@ export class TradeService {
       minPremiumPerUnit: intent.minPremiumPerUnit,
     });
 
-    return this.simulateAndExecute(tx, `redeem ${intent.accountId}`);
+    return this.simulateAndExecute(tx, `redeem ${intent.accountId}`, auth);
   }
 
-  async relaySettle(body: SettleTradeBody): Promise<TradeRelayResponse> {
-    const intent = await this.verifySettleRequest(body);
+  async relaySettle(
+    body: SettleTradeBody,
+    bearerToken?: string,
+  ): Promise<TradeRelayResponse> {
+    const { intent, auth } = await this.verifySettleRequest(body, bearerToken);
     await this.assertRelayReady();
     await this.assertAccountOwnership(intent);
 
@@ -130,13 +155,17 @@ export class TradeService {
       quantity: intent.quantity,
     });
 
-    return this.simulateAndExecute(tx, `settle ${intent.accountId}`);
+    return this.simulateAndExecute(tx, `settle ${intent.accountId}`, auth);
   }
 
   async relayRecoverManager(
     body: RecoverManagerTradeBody,
+    bearerToken?: string,
   ): Promise<TradeRelayResponse> {
-    const intent = await this.verifyRecoverManagerRequest(body);
+    const { intent, auth } = await this.verifyRecoverManagerRequest(
+      body,
+      bearerToken,
+    );
     await this.assertRelayReady();
     await this.assertAccountOwnership(intent);
     await this.assertRecoverManagerPreconditions(intent);
@@ -156,74 +185,89 @@ export class TradeService {
       managerQuoteAtoms: intent.managerQuoteAtoms,
     });
 
-    return this.simulateAndExecute(tx, `recover_manager ${intent.accountId}`);
+    return this.simulateAndExecute(tx, `recover_manager ${intent.accountId}`, auth);
   }
 
   private async verifyMintRequest(
     body: MintTradeBody,
-  ): Promise<MintIntentFields> {
-    try {
-      this.assertIntentNotReplayed(body);
-      const intent = await verifyMintIntentAuth(body, this.sui.getSuiNetwork());
-      this.replayStore.markUsed(body.signature, intent.expiresAtMs);
-      return intent;
-    } catch (err) {
-      if (err instanceof UnauthorizedException) throw err;
-      const code = err instanceof Error ? err.message : 'invalid_auth';
-      throw new BadRequestException(code);
-    }
+    bearerToken?: string,
+  ): Promise<VerifiedTradeRequest<MintIntentFields>> {
+    return this.verifyTradeRequest(
+      body,
+      bearerToken,
+      parseMintIntentMessage,
+      verifyMintIntentAuth,
+    );
   }
 
   private async verifyRedeemRequest(
     body: RedeemTradeBody,
-  ): Promise<RedeemIntentFields> {
-    try {
-      this.assertIntentNotReplayed(body);
-      const intent = await verifyRedeemIntentAuth(
-        body,
-        this.sui.getSuiNetwork(),
-      );
-      this.replayStore.markUsed(body.signature, intent.expiresAtMs);
-      return intent;
-    } catch (err) {
-      if (err instanceof UnauthorizedException) throw err;
-      const code = err instanceof Error ? err.message : 'invalid_auth';
-      throw new BadRequestException(code);
-    }
+    bearerToken?: string,
+  ): Promise<VerifiedTradeRequest<RedeemIntentFields>> {
+    return this.verifyTradeRequest(
+      body,
+      bearerToken,
+      parseRedeemIntentMessage,
+      verifyRedeemIntentAuth,
+    );
   }
 
   private async verifySettleRequest(
     body: SettleTradeBody,
-  ): Promise<SettleIntentFields> {
-    try {
-      this.assertIntentNotReplayed(body);
-      const intent = await verifySettleIntentAuth(
-        body,
-        this.sui.getSuiNetwork(),
-      );
-      this.replayStore.markUsed(body.signature, intent.expiresAtMs);
-      return intent;
-    } catch (err) {
-      if (err instanceof UnauthorizedException) throw err;
-      const code = err instanceof Error ? err.message : 'invalid_auth';
-      throw new BadRequestException(code);
-    }
+    bearerToken?: string,
+  ): Promise<VerifiedTradeRequest<SettleIntentFields>> {
+    return this.verifyTradeRequest(
+      body,
+      bearerToken,
+      parseSettleIntentMessage,
+      verifySettleIntentAuth,
+    );
   }
 
   private async verifyRecoverManagerRequest(
     body: RecoverManagerTradeBody,
-  ): Promise<RecoverManagerIntentFields> {
+    bearerToken?: string,
+  ): Promise<VerifiedTradeRequest<RecoverManagerIntentFields>> {
+    const verified = await this.verifyTradeRequest(
+      body,
+      bearerToken,
+      parseRecoverManagerIntentMessage,
+      verifyRecoverManagerIntentAuth,
+    );
+    if (verified.intent.managerQuoteAtoms <= 0n) {
+      throw new BadRequestException('zero_amount');
+    }
+    return verified;
+  }
+
+  private async verifyTradeRequest<T extends { address: string; expiresAtMs: number }>(
+    body: AppAuthPayload,
+    bearerToken: string | undefined,
+    parseMessage: (bytes: Uint8Array) => T,
+    verifySigned: (payload: SignedIntentPayload, network: string) => Promise<T>,
+  ): Promise<VerifiedTradeRequest<T>> {
     try {
       this.assertIntentNotReplayed(body);
-      const intent = await verifyRecoverManagerIntentAuth(
-        body,
-        this.sui.getSuiNetwork(),
+      const result = await resolveIntentAuth({
+        payload: body,
+        bearerToken,
+        parseMessage,
+        assertExpiry: assertTradeIntentExpiry,
+        verifySigned,
+        jwt: this.appJwt,
+        network: this.sui.getSuiNetwork(),
+      });
+      this.replayStore.markUsed(
+        intentReplayKey(body),
+        result.intent.expiresAtMs,
       );
-      if (intent.managerQuoteAtoms <= 0n) {
-        throw new BadRequestException('zero_amount');
-      }
-      this.replayStore.markUsed(body.signature, intent.expiresAtMs);
-      return intent;
+      return {
+        intent: result.intent,
+        auth:
+          result.authMethod === 'signed'
+            ? this.appJwt.issue(result.intent.address)
+            : undefined,
+      };
     } catch (err) {
       if (err instanceof UnauthorizedException) throw err;
       const code = err instanceof Error ? err.message : 'invalid_auth';
@@ -231,8 +275,8 @@ export class TradeService {
     }
   }
 
-  private assertIntentNotReplayed(body: { signature: string }): void {
-    if (this.replayStore.isReplayed(body.signature)) {
+  private assertIntentNotReplayed(body: AppAuthPayload): void {
+    if (this.replayStore.isReplayed(intentReplayKey(body))) {
       throw new BadRequestException('intent_replayed');
     }
   }
@@ -316,6 +360,7 @@ export class TradeService {
   private async simulateAndExecute(
     tx: Transaction,
     label: string,
+    auth?: AppAuthResponse,
   ): Promise<TradeRelayResponse> {
     const simulation = await this.sui.tryDevInspect(tx);
     if (!simulation.ok) {
@@ -325,7 +370,7 @@ export class TradeService {
     try {
       const digest = await this.sui.execute(tx);
       this.logger.log(`trade relay ${label} digest=${digest}`);
-      return { digest };
+      return withAppAuth({ digest }, auth);
     } catch (err) {
       logKeeperError(this.logger, `trade relay ${label}`, err);
       throw new ServiceUnavailableException('trade_relay_failed');

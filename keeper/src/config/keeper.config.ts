@@ -16,6 +16,8 @@ export type KeeperConfig = {
   enabled: boolean;
   /** Optional shared secret for ops/admin HTTP routes (`x-keeper-api-key`). */
   apiKey: string;
+  /** HMAC secret for app session JWTs (defaults to a derivative of `KEEPER_PRIVATE_KEY`). */
+  appJwtSecret: string;
   privateKey: string;
   suiNetwork: string;
   suiRpcUrl: string;
@@ -62,6 +64,7 @@ export default registerAs(
   (): KeeperConfig => ({
     enabled: KEEPER_ENABLED,
     apiKey: (process.env.KEEPER_API_KEY ?? '').trim(),
+    appJwtSecret: (process.env.KEEPER_APP_JWT_SECRET ?? '').trim(),
     privateKey: (process.env.KEEPER_PRIVATE_KEY ?? '').trim(),
     suiNetwork: DEFAULT_SUI_NETWORK,
     suiRpcUrl: envOrDefault('SUI_RPC_URL', SUI_RPC_URLS[DEFAULT_SUI_NETWORK]),

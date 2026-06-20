@@ -233,12 +233,6 @@ export function WalletConnectButton({
     ? "Install a Sui wallet, or set VITE_ENOKI_API_KEY and VITE_ENOKI_GOOGLE_CLIENT_ID in .env"
     : "No wallet available. Install a Sui wallet to continue.";
 
-  const walletListNotice = (
-    <p className="px-2 py-1 text-[11px] leading-snug text-muted-foreground/80">
-      Not recommended for fast price changing market
-    </p>
-  );
-
   const walletMenuItems = walletOptions.map((opt) => (
     <DropdownMenuItem key={opt.id} className="gap-2" onClick={() => void opt.onSelect()}>
       {opt.icon}
@@ -357,20 +351,12 @@ export function WalletConnectButton({
                 >
                   Wallets
                 </DropdownMenuCheckboxItem>
-                {showWallets ? (
-                  <>
-                    {walletListNotice}
-                    {walletMenuItems}
-                  </>
-                ) : null}
+                {showWallets ? walletMenuItems : null}
               </>
             ) : null}
           </>
         ) : (
-          <>
-            {walletListNotice}
-            {walletMenuItems}
-          </>
+          walletMenuItems
         )}
       </DropdownMenuContent>
     </DropdownMenu>

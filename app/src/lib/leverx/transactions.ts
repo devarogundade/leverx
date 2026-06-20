@@ -25,11 +25,11 @@ import {
   type PlaceLimitMintParams,
 } from "@/lib/leverx/ptb-builder";
 import {
-  signMintTradeIntent,
-  signRedeemTradeIntent,
-  signSettleTradeIntent,
-  signRecoverManagerTradeIntent,
-} from "@/lib/leverx/trade-intent-auth";
+  prepareMintTradeRequest,
+  prepareRedeemTradeRequest,
+  prepareSettleTradeRequest,
+  prepareRecoverManagerTradeRequest,
+} from "@/lib/leverx/keeper-intent-request";
 import { lxplpCoinType, type LeverxProtocolConfig } from "@/lib/leverx/protocol";
 import { hasIndexerOpenQuantity } from "@/lib/leverx/position-quantity";
 import { fetchManagerOpenQuantity, fetchMintQuote, fetchRedeemQuote, fetchTradingQuoteBalance } from "@/lib/leverx/quotes";
@@ -317,7 +317,7 @@ export async function executeOpenTrade(params: {
     );
   }
 
-  const auth = await signMintTradeIntent({
+  const auth = await prepareMintTradeRequest({
     wallet,
     account,
     intent: {
@@ -379,7 +379,7 @@ export async function executeClosePosition(params: {
   const key = positionToKey(position);
 
   // Redeem mints/burns against the keeper-owned manager → keeper-relay only.
-  const auth = await signRedeemTradeIntent({
+  const auth = await prepareRedeemTradeRequest({
     wallet: params.wallet,
     account: params.account,
     intent: {
@@ -482,7 +482,7 @@ export async function executeSettleExpired(params: {
   const key = positionToKey(params.position);
 
   // Settling an expired position touches the keeper-owned manager → keeper-relay only.
-  const auth = await signSettleTradeIntent({
+  const auth = await prepareSettleTradeRequest({
     wallet: params.wallet,
     account: params.account,
     intent: {
@@ -546,7 +546,7 @@ export async function executeRecoverStrandedCustody(params: {
   }
 
   if (recoverManagerQuote > 0n) {
-    const auth = await signRecoverManagerTradeIntent({
+    const auth = await prepareRecoverManagerTradeRequest({
       wallet: params.wallet,
       account: params.account,
       intent: {

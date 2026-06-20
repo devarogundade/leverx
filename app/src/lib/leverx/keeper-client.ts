@@ -1,8 +1,11 @@
 import { z } from "zod";
 import { appConfig } from "@/lib/config";
-import type { SignedManagerCreateIntent } from "@/lib/leverx/manager-intent-auth";
-import type { SignedTradeIntent } from "@/lib/leverx/trade-intent-auth";
-import { KEEPER_API_KEY_HEADER } from "@/lib/leverx/keeper-headers";
+import type { KeeperManagerCreateRequest, KeeperIntentRequest } from "@/lib/leverx/keeper-intent-request";
+import {
+  captureKeeperAuthFromResponse,
+  type KeeperAppAuth,
+} from "@/lib/leverx/keeper-auth-store";
+import { KEEPER_API_KEY_HEADER, KEEPER_APP_AUTH_HEADER } from "@/lib/leverx/keeper-headers";
 import {
   JarvisEventRecordSchema,
   JarvisGuardrailsSchema,
@@ -39,10 +42,12 @@ export type ManagerApiResponse = {
   address: string;
   manager_id: string | null;
   created?: boolean;
+  auth?: KeeperAppAuth;
 };
 
 export type TradeRelayResponse = {
   digest: string;
+  auth?: KeeperAppAuth;
 };
 
 export type GasSponsorResponse = {
@@ -72,24 +77,40 @@ export async function fetchKeeperHealth(): Promise<KeeperHealthResponse> {
   return res.json() as Promise<KeeperHealthResponse>;
 }
 
-function keeperHeaders(): Record<string, string> {
+function keeperHeaders(params?: { token?: string | null }): Record<string, string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   const apiKey = appConfig.keeperApiKey?.trim();
   if (apiKey) headers[KEEPER_API_KEY_HEADER] = apiKey;
+  const token = params?.token?.trim();
+  if (token) headers[KEEPER_APP_AUTH_HEADER] = `Bearer ${token}`;
   return headers;
 }
 
+function requestAuthToken(body: unknown): string | null {
+  if (!body || typeof body !== "object") return null;
+  const token = (body as { token?: string }).token;
+  return token?.trim() || null;
+}
+
 async function postKeeper<T>(path: string, body: unknown): Promise<T> {
+  const address =
+    body && typeof body === "object" && "address" in body
+      ? String((body as { address: string }).address)
+      : undefined;
   const res = await fetch(`${keeperApiBase()}${path}`, {
     method: "POST",
-    headers: keeperHeaders(),
+    headers: keeperHeaders({ token: requestAuthToken(body) }),
     body: JSON.stringify(body),
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
     throw new Error(`${path}_failed:${res.status}${detail ? `:${detail.slice(0, 200)}` : ""}`);
   }
-  return res.json() as Promise<T>;
+  const json = (await res.json()) as T;
+  if (address && json && typeof json === "object" && "auth" in json) {
+    captureKeeperAuthFromResponse(address, json as { auth?: KeeperAppAuth });
+  }
+  return json;
 }
 
 async function patchKeeper<T>(path: string, body: unknown): Promise<T> {
@@ -120,41 +141,42 @@ export async function fetchUserPredictManager(
 
 /** Create or return the keeper-owned Predict manager for a user wallet. */
 export async function ensureUserPredictManager(
-  payload: SignedManagerCreateIntent,
+  payload: KeeperManagerCreateRequest,
 ): Promise<string> {
   const res = await fetch(`${keeperApiBase()}/create-manager`, {
     method: "POST",
-    headers: keeperHeaders(),
+    headers: keeperHeaders({ token: payload.token }),
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
     throw new Error(`manager_create_failed:${res.status}`);
   }
   const body = (await res.json()) as ManagerApiResponse;
+  captureKeeperAuthFromResponse(payload.address, body);
   if (!body.manager_id) {
     throw new Error("manager_create_empty");
   }
   return body.manager_id;
 }
 
-/** Relay a signed market mint intent — keeper builds and executes the PTB. */
-export async function relayTradeMint(payload: SignedTradeIntent): Promise<TradeRelayResponse> {
+/** Relay a signed or token-authenticated market mint intent. */
+export async function relayTradeMint(payload: KeeperIntentRequest): Promise<TradeRelayResponse> {
   return postKeeper<TradeRelayResponse>("/trade/mint", payload);
 }
 
-/** Relay a signed market redeem intent — keeper builds and executes the PTB. */
-export async function relayTradeRedeem(payload: SignedTradeIntent): Promise<TradeRelayResponse> {
+/** Relay a signed or token-authenticated market redeem intent. */
+export async function relayTradeRedeem(payload: KeeperIntentRequest): Promise<TradeRelayResponse> {
   return postKeeper<TradeRelayResponse>("/trade/redeem", payload);
 }
 
-/** Relay a signed settle intent for an expired position — keeper builds and executes the PTB. */
-export async function relayTradeSettle(payload: SignedTradeIntent): Promise<TradeRelayResponse> {
+/** Relay a signed or token-authenticated settle intent for an expired position. */
+export async function relayTradeSettle(payload: KeeperIntentRequest): Promise<TradeRelayResponse> {
   return postKeeper<TradeRelayResponse>("/trade/settle", payload);
 }
 
 /** Recover orphaned Predict manager quote into the trading account. */
 export async function relayTradeRecoverManager(
-  payload: SignedTradeIntent,
+  payload: KeeperIntentRequest,
 ): Promise<TradeRelayResponse> {
   return postKeeper<TradeRelayResponse>("/trade/recover_manager", payload);
 }

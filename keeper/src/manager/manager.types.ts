@@ -1,14 +1,12 @@
-export type CreateManagerBody = {
-  address: string;
-  expires_at_ms: number;
-  message_bytes: string;
-  signature: string;
-};
+import type { AppAuthPayload, AppAuthResponse } from '../auth/app-auth.types';
+
+export type CreateManagerBody = AppAuthPayload;
 
 export type ManagerResponse = {
   address: string;
   manager_id: string | null;
   created?: boolean;
+  auth?: AppAuthResponse;
 };
 
 export type UserManagerRecord = {

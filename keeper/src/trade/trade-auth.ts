@@ -13,10 +13,9 @@ import {
   type RecoverManagerIntentFields,
 } from './trade-message';
 
-export type SignedTradeIntentPayload = {
-  address: string;
-  expires_at_ms: number;
-  message_bytes: string;
+import type { AppAuthPayload } from '../auth/app-auth.types';
+
+export type SignedTradeIntentPayload = AppAuthPayload & {
   signature: string;
 };
 

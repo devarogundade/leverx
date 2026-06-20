@@ -7,10 +7,9 @@ import {
   type ManagerCreateIntentFields,
 } from './manager-message';
 
-export type SignedManagerCreatePayload = {
-  address: string;
-  expires_at_ms: number;
-  message_bytes: string;
+import type { AppAuthPayload } from '../auth/app-auth.types';
+
+export type SignedManagerCreatePayload = AppAuthPayload & {
   signature: string;
 };
 

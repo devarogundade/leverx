@@ -6,11 +6,15 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Transaction } from '@mysten/sui/transactions';
+import { withAppAuth, type AppAuthResponse } from '../auth/app-auth.types';
+import { resolveIntentAuth } from '../auth/app-intent-auth';
+import { AppJwtService } from '../auth/app-jwt.service';
 import { IndexerService } from '../indexer/indexer.service';
 import { logKeeperError } from '../lib/keeper-log';
 import { PtbBuilderService } from '../sui/ptb-builder.service';
 import { SuiService } from '../sui/sui.service';
 import { verifyManagerCreateAuth } from './manager-auth';
+import { assertManagerIntentExpiry, parseManagerCreateMessage } from './manager-message';
 import { UserManagerRepository } from './user-manager.repository';
 import type { CreateManagerBody, ManagerResponse } from './manager.types';
 
@@ -26,6 +30,7 @@ export class ManagerService {
     private readonly ptb: PtbBuilderService,
     private readonly indexer: IndexerService,
     private readonly managers: UserManagerRepository,
+    private readonly appJwt: AppJwtService,
   ) {}
 
   async getManager(userAddress: string): Promise<ManagerResponse> {
@@ -34,15 +39,30 @@ export class ManagerService {
     return { address, manager_id: managerId };
   }
 
-  async createOrGetManager(body: CreateManagerBody): Promise<ManagerResponse> {
+  async createOrGetManager(
+    body: CreateManagerBody,
+    bearerToken?: string,
+  ): Promise<ManagerResponse> {
     const address = this.parseAddress(body.address);
     const existing = await this.resolveManagerId(address);
     if (existing) {
       return { address, manager_id: existing, created: false };
     }
 
+    let auth: AppAuthResponse | undefined;
     try {
-      await verifyManagerCreateAuth(body, this.sui.getSuiNetwork());
+      const result = await resolveIntentAuth({
+        payload: body,
+        bearerToken,
+        parseMessage: parseManagerCreateMessage,
+        assertExpiry: assertManagerIntentExpiry,
+        verifySigned: verifyManagerCreateAuth,
+        jwt: this.appJwt,
+        network: this.sui.getSuiNetwork(),
+      });
+      if (result.authMethod === 'signed') {
+        auth = this.appJwt.issue(result.intent.address);
+      }
     } catch (err) {
       if (err instanceof UnauthorizedException) throw err;
       const code = err instanceof Error ? err.message : 'invalid_auth';
@@ -52,7 +72,7 @@ export class ManagerService {
     const inflight = this.creationLocks.get(address);
     if (inflight) return inflight;
 
-    const work = this.createManagerForAddress(address);
+    const work = this.createManagerForAddress(address, auth);
     this.creationLocks.set(address, work);
     try {
       return await work;
@@ -61,10 +81,16 @@ export class ManagerService {
     }
   }
 
-  private async createManagerForAddress(address: string): Promise<ManagerResponse> {
+  private async createManagerForAddress(
+    address: string,
+    auth?: AppAuthResponse,
+  ): Promise<ManagerResponse> {
     const existing = await this.resolveManagerId(address);
     if (existing) {
-      return { address, manager_id: existing, created: false };
+      return withAppAuth(
+        { address, manager_id: existing, created: false },
+        auth,
+      );
     }
 
     this.assertKeeperReady();
@@ -89,7 +115,10 @@ export class ManagerService {
       });
 
       this.logger.log(`created manager ${managerId} for ${address} digest=${digest}`);
-      return { address, manager_id: managerId, created: true };
+      return withAppAuth(
+        { address, manager_id: managerId, created: true },
+        auth,
+      );
     } catch (err) {
       logKeeperError(this.logger, `create manager failed for ${address}`, err);
       throw new ServiceUnavailableException('manager_creation_failed');
