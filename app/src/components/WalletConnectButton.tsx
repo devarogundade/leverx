@@ -4,6 +4,7 @@ import type { WalletWithRequiredFeatures } from "@mysten/wallet-standard";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -63,6 +64,7 @@ export function WalletConnectButton({
     useWallet();
   const [open, setOpen] = useState(false);
   const [chooserOpen, setChooserOpen] = useState(false);
+  const [showWallets, setShowWallets] = useState(false);
   const loginEnabled = isEnokiGoogleLoginEnabled();
 
   const externalWallets = wallets.filter((w) => !isGoogleEnokiWallet(w));
@@ -76,6 +78,7 @@ export function WalletConnectButton({
   const handleChooserOpenChange = (next: boolean) => {
     setChooserOpen(next);
     if (next) refreshWallets();
+    if (!next) setShowWallets(false);
   };
 
   const handleGoogleLogin = async () => {
@@ -100,34 +103,35 @@ export function WalletConnectButton({
     await connect(target);
   };
 
-  type ConnectOption = {
+  type WalletOption = {
     id: string;
     label: ReactNode;
     icon: ReactNode;
     onSelect: () => void | Promise<void>;
   };
 
-  const options: ConnectOption[] = [];
-  if (loginEnabled) {
-    options.push({
-      id: "google",
-      label: "Sign in with Google",
-      icon: <GoogleIcon className="h-4 w-4 shrink-0 opacity-90" />,
-      onSelect: handleGoogleLogin,
-    });
-  }
-  for (const w of externalWallets) {
-    options.push({
-      id: w.name,
-      label: w.name,
-      icon: w.icon ? (
-        <img src={w.icon} alt="" className="h-4 w-4 shrink-0 rounded-full" />
-      ) : (
-        <WalletIcon className="h-4 w-4 shrink-0 opacity-90" />
-      ),
-      onSelect: () => handleConnectWallet(w),
-    });
-  }
+  const googleOption: WalletOption | null = loginEnabled
+    ? {
+        id: "google",
+        label: "Sign in with Google",
+        icon: <GoogleIcon className="h-4 w-4 shrink-0 opacity-90" />,
+        onSelect: handleGoogleLogin,
+      }
+    : null;
+
+  const walletOptions: WalletOption[] = externalWallets.map((w) => ({
+    id: w.name,
+    label: w.name,
+    icon: w.icon ? (
+      <img src={w.icon} alt="" className="h-4 w-4 shrink-0 rounded-full" />
+    ) : (
+      <WalletIcon className="h-4 w-4 shrink-0 opacity-90" />
+    ),
+    onSelect: () => handleConnectWallet(w),
+  }));
+
+  const hasGoogle = googleOption !== null;
+  const hasWallets = walletOptions.length > 0;
 
   if (address && wallet) {
     return (
@@ -229,8 +233,21 @@ export function WalletConnectButton({
     ? "Install a Sui wallet, or set VITE_ENOKI_API_KEY and VITE_ENOKI_GOOGLE_CLIENT_ID in .env"
     : "No wallet available. Install a Sui wallet to continue.";
 
+  const walletListNotice = (
+    <p className="px-2 py-1 text-[11px] leading-snug text-muted-foreground/80">
+      Not recommended for fast price changing market
+    </p>
+  );
+
+  const walletMenuItems = walletOptions.map((opt) => (
+    <DropdownMenuItem key={opt.id} className="gap-2" onClick={() => void opt.onSelect()}>
+      {opt.icon}
+      <span className="truncate">{opt.label}</span>
+    </DropdownMenuItem>
+  ));
+
   // Nothing to connect with: no Google sign-in configured and no installed wallets.
-  if (options.length === 0) {
+  if (!hasGoogle && !hasWallets) {
     return (
       <div className={cn("flex flex-col gap-1", fullWidth && "w-full")}>
         <Button
@@ -252,30 +269,26 @@ export function WalletConnectButton({
     );
   }
 
-  // A single option (typically just Google): connect directly without a chooser.
-  if (options.length === 1) {
-    const only = options[0]!;
-    const isGoogle = only.id === "google";
+  // Google only: connect directly without a chooser.
+  if (hasGoogle && !hasWallets) {
     return (
       <div className={cn("flex flex-col gap-1", fullWidth && "w-full")}>
         <Button
           type="button"
           variant="ghost"
           disabled={connecting}
-          onClick={() => void only.onSelect()}
+          onClick={() => void googleOption!.onSelect()}
           className={buttonClasses}
         >
           {connecting ? (
             <>
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              <span className={cn(compact && "hidden sm:inline")}>
-                {isGoogle ? "Signing in…" : "Connecting…"}
-              </span>
+              <span className={cn(compact && "hidden sm:inline")}>Signing in…</span>
             </>
           ) : (
             <>
-              {only.icon}
-              {isGoogle ? loginLabel : <span className="truncate">Connect {only.label}</span>}
+              {googleOption!.icon}
+              {loginLabel}
             </>
           )}
         </Button>
@@ -283,7 +296,13 @@ export function WalletConnectButton({
     );
   }
 
-  // Multiple options: let the user choose Google or an installed wallet.
+  const chooserTriggerLabel = hasGoogle ? loginLabel : connectLabel;
+  const chooserTriggerIcon = hasGoogle ? (
+    <GoogleIcon className="h-4 w-4 shrink-0 opacity-90" />
+  ) : (
+    <WalletIcon className="h-4 w-4 shrink-0 opacity-90" />
+  );
+
   return (
     <DropdownMenu open={chooserOpen} onOpenChange={handleChooserOpenChange}>
       <DropdownMenuTrigger asChild>
@@ -295,8 +314,8 @@ export function WalletConnectButton({
             </>
           ) : (
             <>
-              <WalletIcon className="h-4 w-4 shrink-0 opacity-90" />
-              {connectLabel}
+              {chooserTriggerIcon}
+              {chooserTriggerLabel}
               <ChevronDown
                 className={cn(
                   "h-3.5 w-3.5 shrink-0 opacity-60 transition-transform",
@@ -319,14 +338,40 @@ export function WalletConnectButton({
           Choose how to connect
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {options.map((opt) => (
-          <DropdownMenuItem key={opt.id} className="gap-2" onClick={() => void opt.onSelect()}>
-            {opt.icon}
-            <span className="truncate">
-              {opt.id === "google" ? "Sign in with Google" : opt.label}
-            </span>
-          </DropdownMenuItem>
-        ))}
+        {hasGoogle ? (
+          <>
+            <DropdownMenuItem
+              className="gap-2"
+              onClick={() => void googleOption!.onSelect()}
+            >
+              {googleOption!.icon}
+              <span className="truncate">Sign in with Google</span>
+            </DropdownMenuItem>
+            {hasWallets ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                  checked={showWallets}
+                  onCheckedChange={(checked) => setShowWallets(checked === true)}
+                  onSelect={(event) => event.preventDefault()}
+                >
+                  Wallets
+                </DropdownMenuCheckboxItem>
+                {showWallets ? (
+                  <>
+                    {walletListNotice}
+                    {walletMenuItems}
+                  </>
+                ) : null}
+              </>
+            ) : null}
+          </>
+        ) : (
+          <>
+            {walletListNotice}
+            {walletMenuItems}
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
