@@ -4,6 +4,7 @@ import { DataTable, type Column } from "@/components/DataTable";
 import { AssetBadge } from "@/components/AssetBadge";
 import { PositionActionsTrigger } from "@/components/leverx/PositionActionsModal";
 import { MarketTitle } from "@/components/leverx/MarketTitle";
+import { PredictSideLabel } from "@/components/leverx/PredictSideLabel";
 import { LabelWithInfo } from "@/components/leverx/InfoPopover";
 import { QuoteAmount } from "@/components/leverx/QuoteAmount";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -459,9 +460,16 @@ export function LeverxPositionsTable({
             <div className="min-w-0">
               <PositionTradeLink
                 position={r.position}
-                className="truncate text-sm font-medium hover:underline"
+                className="block min-w-0 hover:underline"
               >
-                <MarketTitle side={r.side} />
+                <span className="block truncate text-sm font-medium">
+                  <MarketTitle side={r.side} />
+                </span>
+                <PredictSideLabel
+                  side={r.side}
+                  colored
+                  className="mt-0.5 text-xs font-medium"
+                />
               </PositionTradeLink>
             </div>
           </div>
