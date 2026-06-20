@@ -243,7 +243,7 @@ function HealthCell({
     return <span className="text-sm text-muted-foreground">—</span>;
   }
 
-  const isLeveraged = position.leverage_bps > 10_000;
+  const isLeveraged = mtm?.isLeveraged ?? position.leverage_bps > 10_000;
 
   if (!isLeveraged) {
     return (

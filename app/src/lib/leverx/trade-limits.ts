@@ -28,6 +28,34 @@ export function formatLeverageBadge(value: number): string {
   return Number.isInteger(clamped) ? `${clamped}X` : `${clamped.toFixed(1)}X`;
 }
 
+/** Distinct pill colors for 1×–10× leverage badges. */
+export function leverageBadgeToneClass(leverage: number): string {
+  const tier = Math.round(clampLeverage(leverage));
+  switch (tier) {
+    case 1:
+      return "border-border/70 bg-muted/30 text-muted-foreground";
+    case 2:
+      return "border-blue-500/35 bg-blue-500/12 text-blue-700 dark:text-blue-300";
+    case 3:
+      return "border-sky-500/35 bg-sky-500/12 text-sky-700 dark:text-sky-300";
+    case 4:
+      return "border-teal-500/35 bg-teal-500/12 text-teal-700 dark:text-teal-300";
+    case 5:
+      return "border-green-500/35 bg-green-500/12 text-green-700 dark:text-green-300";
+    case 6:
+      return "border-lime-500/35 bg-lime-500/12 text-lime-800 dark:text-lime-300";
+    case 7:
+      return "border-amber-500/35 bg-amber-500/12 text-amber-800 dark:text-amber-300";
+    case 8:
+      return "border-orange-500/35 bg-orange-500/12 text-orange-700 dark:text-orange-300";
+    case 9:
+      return "border-rose-500/35 bg-rose-500/12 text-rose-700 dark:text-rose-300";
+    case 10:
+    default:
+      return "border-purple-500/35 bg-purple-500/12 text-purple-700 dark:text-purple-300";
+  }
+}
+
 export function isMarginInBounds(marginUsd: number): boolean {
   return Number.isFinite(marginUsd) && marginUsd >= MIN_MARGIN_USD && marginUsd <= MAX_MARGIN_USD;
 }

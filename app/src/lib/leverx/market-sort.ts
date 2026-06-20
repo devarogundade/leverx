@@ -13,7 +13,7 @@ export type MarketSortId = MarketSortOptionId | "ending-latest";
 export type MarketSortKey = "volume" | "expiry" | "price" | "liquidity";
 export type MarketSortDir = "asc" | "desc";
 
-export const DEFAULT_MARKET_SORT: MarketSortId = "volume-desc";
+export const DEFAULT_MARKET_SORT: MarketSortId = "ending-soon";
 
 export function marketSortLabel(sort: MarketSortId): string {
   const option = MARKET_SORT_OPTIONS.find((entry) => entry.id === sort);

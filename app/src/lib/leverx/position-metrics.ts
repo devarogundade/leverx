@@ -1,4 +1,4 @@
-import type { RedeemQuote } from "@/lib/leverx/quotes";
+import type { PositionLedgerHealthInputs, RedeemQuote } from "@/lib/leverx/quotes";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { DEFAULT_LIQUIDATION_BPS, resolveHealthLabel } from "@/lib/leverx/protocol";
 import { premiumRawToCents, premiumPerUnitFromMintCost } from "@/lib/leverx/trade-math";
@@ -21,6 +21,8 @@ export type PositionMarkToMarket = {
   netEquityUsd: number;
   healthBps: number | null;
   healthLabel: "healthy" | "margin_call" | "at_risk" | "unknown";
+  /** True when on-chain (or indexer fallback) vault borrow exists above 1×. */
+  isLeveraged: boolean;
   isLive: boolean;
 };
 
@@ -255,11 +257,20 @@ export function computePositionMarkToMarket(
   redeemQuote: RedeemQuote | null | undefined,
   quoteLoading: boolean,
   liquidationBps: number = DEFAULT_LIQUIDATION_BPS,
+  ledger?: PositionLedgerHealthInputs | null,
 ): PositionMarkToMarket {
   const entryCostUsd = scaleQuote(position.mint_cost);
   const marginUsd = scaleQuote(position.margin_quote);
-  const borrowedUsd = scaleQuote(position.borrow_quote);
+  const borrowedUsd = scaleQuote(
+    ledger?.borrowedQuote ?? position.borrow_quote,
+  );
+  const leverageBps = Number(
+    ledger?.leverageBps ?? coerceQuoteAtoms(position.leverage_bps),
+  );
+  const keyQuoteUsd = ledger ? scaleQuote(ledger.keyQuoteBalance) : 0;
   const positionSizeUsd = marginUsd + borrowedUsd;
+  const isLeveraged =
+    leverageBps > 10_000 && effectiveHealthDebtUsd(borrowedUsd, marginUsd, leverageBps) > 0;
 
   const entryPremium = entryMarkPremiumRaw(position);
   const entryPremiumCents = entryPremium != null ? premiumRawToCents(entryPremium) : null;
@@ -278,25 +289,23 @@ export function computePositionMarkToMarket(
       netEquityUsd: 0,
       healthBps: null,
       healthLabel: quoteLoading ? "unknown" : "unknown",
+      isLeveraged,
       isLive: false,
     };
   }
 
   const markValueUsd = scaleQuote(Number(redeemQuote.expectedPayout));
+  const collateralUsd = markValueUsd + keyQuoteUsd;
   const netEquityUsd = markValueUsd - borrowedUsd;
   const walletRepaidUsd = walletRepaidPrincipalUsd(position);
   const unrealizedPnlUsd = netEquityUsd - marginUsd - walletRepaidUsd;
   const cashInUsd = marginUsd + walletRepaidUsd;
   const unrealizedPnlPct =
     cashInUsd > 0 ? (unrealizedPnlUsd / cashInUsd) * 100 : null;
-  const healthDebtUsd = effectiveHealthDebtUsd(
-    borrowedUsd,
-    marginUsd,
-    coerceQuoteAtoms(position.leverage_bps),
-  );
+  const healthDebtUsd = effectiveHealthDebtUsd(borrowedUsd, marginUsd, leverageBps);
   const healthBps =
     healthDebtUsd > 0
-      ? Math.round((markValueUsd / healthDebtUsd) * 10_000)
+      ? Math.round((collateralUsd / healthDebtUsd) * 10_000)
       : positionSizeUsd > 0
         ? 100_000
         : null;
@@ -321,6 +330,7 @@ export function computePositionMarkToMarket(
     netEquityUsd,
     healthBps,
     healthLabel,
+    isLeveraged,
     isLive: true,
   };
 }

@@ -335,6 +335,57 @@ export async function fetchManagerQuoteBalance(params: {
   }
 }
 
+export type PositionLedgerHealthInputs = {
+  borrowedQuote: bigint;
+  leverageBps: bigint;
+  keyQuoteBalance: bigint;
+};
+
+/** On-chain key ledger fields used for liquidation health (matches keeper dev-inspect). */
+export async function fetchPositionLedgerHealthInputs(params: {
+  client: SuiJsonRpcClient;
+  leverxPackageId: string;
+  predictPackageId: string;
+  accountId: string;
+  key: MarketKeyArgs;
+}): Promise<PositionLedgerHealthInputs | null> {
+  const tx = new Transaction();
+  tx.setSender(READONLY_SENDER);
+  const marketKey = addLeverxMarketKey(tx, params.key, params.predictPackageId);
+  const borrowedFn = params.key.isRange ? "range_borrowed_quote" : "binary_borrowed_quote";
+  const leverageFn = params.key.isRange ? "range_leverage_bps" : "binary_leverage_bps";
+  const balanceFn = params.key.isRange ? "range_quote_balance" : "binary_quote_balance";
+
+  tx.moveCall({
+    target: `${params.leverxPackageId}::user_proxy::${borrowedFn}`,
+    arguments: [tx.object(params.accountId), marketKey],
+  });
+  tx.moveCall({
+    target: `${params.leverxPackageId}::user_proxy::${leverageFn}`,
+    arguments: [tx.object(params.accountId), marketKey],
+  });
+  tx.moveCall({
+    target: `${params.leverxPackageId}::user_proxy::${balanceFn}`,
+    arguments: [tx.object(params.accountId), marketKey],
+  });
+
+  try {
+    const inspect = await params.client.devInspectTransactionBlock({
+      transactionBlock: tx,
+      sender: READONLY_SENDER,
+    });
+    if (inspect.effects?.status?.status !== "success") return null;
+    const scalars = parseScalarResults(inspect.results);
+    if (scalars.length < 3) return null;
+    const borrowedQuote = scalars[scalars.length - 3]!;
+    const leverageBps = scalars[scalars.length - 2]!;
+    const keyQuoteBalance = scalars[scalars.length - 1]!;
+    return { borrowedQuote, leverageBps, keyQuoteBalance };
+  } catch {
+    return null;
+  }
+}
+
 /** On-chain quote balance held on a market key ledger (not in the trading account). */
 export async function fetchKeyQuoteBalance(params: {
   client: SuiJsonRpcClient;

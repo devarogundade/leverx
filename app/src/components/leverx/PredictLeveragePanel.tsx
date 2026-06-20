@@ -62,6 +62,7 @@ import {
   DEFAULT_LEVERAGE,
   formatLeverage,
   formatLeverageBadge,
+  leverageBadgeToneClass,
   LEVERAGE_MAX,
   LEVERAGE_MIN,
   maxLeverageForExpiry,
@@ -1103,7 +1104,9 @@ export function PredictLeveragePanel({
               placeholder="0.00"
               suffix={
                 leverageSliderAllowed ? (
-                  <span className={leverageBadge}>{formatLeverageBadge(lev)}</span>
+                  <span className={cn(leverageBadge, leverageBadgeToneClass(lev))}>
+                    {formatLeverageBadge(lev)}
+                  </span>
                 ) : null
               }
             />

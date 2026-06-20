@@ -6,7 +6,9 @@ import { leverxInfo } from "@/lib/leverx/info-copy";
 import { resolveFinalWindowMs } from "@/lib/leverx/protocol";
 import {
   formatCountdownStopwatch,
+  formatLeverage,
   leverageCountdownState,
+  maxLeverageForExpiry,
 } from "@/lib/leverx/trade-limits";
 import { leverageCountdown, leverageCountdownTime } from "@/lib/leverx/tw";
 import { cn } from "@/lib/utils";
@@ -33,10 +35,11 @@ export function LeverageWindowCountdown({ expiryMs, className }: Props) {
   const primaryRemaining = inFinalHour
     ? state.marketRemainingMs
     : state.leverageRemainingMs;
+  const maxLeverage = maxLeverageForExpiry(expiryMs!, finalWindowMs, now);
   const label = inFinalHour ? "Market closes" : "Leverage closes";
   const sublabel = inFinalHour
     ? "1× margin only — vault borrow closed"
-    : "10× available until then";
+    : `${formatLeverage(maxLeverage)} available until then`;
 
   return (
     <div

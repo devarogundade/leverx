@@ -16,7 +16,7 @@ import {
   positionRowId,
   type PositionMarkToMarket,
 } from "@/lib/leverx/position-metrics";
-import { fetchRedeemQuote } from "@/lib/leverx/quotes";
+import { fetchPositionLedgerHealthInputs, fetchRedeemQuote } from "@/lib/leverx/quotes";
 import { coerceQuoteAtoms } from "@/lib/predict/scaling";
 
 function positionToMarketKey(position: LeveragedPosition) {
@@ -67,7 +67,44 @@ export function usePositionsMarkToMarket(positions: readonly LeveragedPosition[]
     })),
   });
 
+  const ledgerQueries = useQueries({
+    queries: openPositions.map((position) => ({
+      queryKey: [
+        "position-ledger-health",
+        position.position_key,
+        position.account_id,
+        cfg?.packageId,
+        cfg?.predictPackageId,
+      ],
+      queryFn: async () => {
+        if (!cfg) return null;
+        return fetchPositionLedgerHealthInputs({
+          client,
+          leverxPackageId: cfg.packageId,
+          predictPackageId: cfg.predictPackageId,
+          accountId: position.account_id,
+          key: positionToMarketKey(position),
+        });
+      },
+      enabled: Boolean(
+        cfg?.packageId &&
+          cfg?.predictPackageId &&
+          position.account_id &&
+          coerceQuoteAtoms(position.open_quantity) > 0,
+      ),
+      staleTime: DEV_INSPECT_QUOTE_STALE_MS,
+      refetchInterval: DEV_INSPECT_QUOTE_REFETCH_MS,
+      refetchIntervalInBackground: false,
+      placeholderData: (previous) => previous,
+      retry: 1,
+    })),
+  });
+
   const quoteSignature = quoteQueries
+    .map((q) => `${q.dataUpdatedAt}:${q.isLoading}:${q.fetchStatus}`)
+    .join("|");
+
+  const ledgerSignature = ledgerQueries
     .map((q) => `${q.dataUpdatedAt}:${q.isLoading}:${q.fetchStatus}`)
     .join("|");
 
@@ -81,10 +118,20 @@ export function usePositionsMarkToMarket(positions: readonly LeveragedPosition[]
     [openPositions, quoteSignature],
   );
 
+  const ledgerSnapshot = useMemo(
+    () =>
+      openPositions.map((position, index) => ({
+        positionKey: position.position_key,
+        data: ledgerQueries[index]?.data ?? null,
+      })),
+    [openPositions, ledgerSignature],
+  );
+
   const byPositionId = useMemo(() => {
     const map = new Map<string, PositionMarkToMarket>();
     openPositions.forEach((position, index) => {
       const snapshot = quoteSnapshot[index];
+      const ledger = ledgerSnapshot[index]?.data ?? null;
       map.set(
         positionRowId(position),
         computePositionMarkToMarket(
@@ -92,13 +139,16 @@ export function usePositionsMarkToMarket(positions: readonly LeveragedPosition[]
           snapshot?.data ?? null,
           Boolean(snapshot?.isLoading),
           liquidationBps,
+          ledger,
         ),
       );
     });
     return map;
-  }, [openPositions, quoteSnapshot, liquidationBps]);
+  }, [openPositions, quoteSnapshot, ledgerSnapshot, liquidationBps]);
 
-  const isRefreshing = quoteQueries.some((q) => q.isFetching && q.isPending);
+  const isRefreshing =
+    quoteQueries.some((q) => q.isFetching && q.isPending) ||
+    ledgerQueries.some((q) => q.isFetching && q.isPending);
 
   return { byPositionId, isRefreshing };
 }
