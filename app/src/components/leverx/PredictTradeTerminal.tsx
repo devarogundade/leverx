@@ -15,6 +15,7 @@ import { PortfolioIndexSyncNotice } from "@/components/leverx/PortfolioIndexSync
 import { MarketCommentsPanel } from "@/components/leverx/comments/MarketCommentsPanel";
 import { MarketTradesTable } from "@/components/leverx/MarketTradesTable";
 import { useMarketComments } from "@/hooks/useMarketComments";
+import { mergeCommentsWithSimulated } from "@/lib/comments/simulated-comments";
 import { usePositionsMarkToMarket } from "@/hooks/usePositionsMarkToMarket";
 import { useVerifiedOpenPositions } from "@/hooks/useVerifiedOpenPositions";
 import { useMinMdViewport } from "@/hooks/use-min-md-viewport";
@@ -889,7 +890,7 @@ export function PredictTradeTerminal({ oracleId }: Props) {
     activeTab,
     setActiveTab,
     commentsLoading,
-    commentCount: comments.length,
+    commentCount: mergeCommentsWithSimulated(comments).length,
     commentsState,
     tradesLoading,
     tradeStats,

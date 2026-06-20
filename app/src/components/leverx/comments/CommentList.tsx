@@ -6,6 +6,7 @@ import { CommentComposer } from "@/components/leverx/comments/CommentComposer";
 import { CommentDeleteButton, isOwnComment } from "@/components/leverx/comments/CommentDeleteButton";
 import { shortAddress } from "@/components/leverx/CopyField";
 import { renderCommentBody } from "@/lib/comments/render-comment-text";
+import { isSimulatedComment } from "@/lib/comments/simulated-comments";
 import type { CommentReply, MarketComment } from "@/lib/comments/types";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +38,7 @@ function CommentItem({
   const [replyPosting, setReplyPosting] = useState(false);
   const liked = address ? comment.likes.includes(address) : false;
   const canDeleteComment = isOwnComment(comment.address, address);
+  const simulated = isSimulatedComment(comment.id);
 
   return (
     <article className="flex gap-3">
@@ -47,6 +49,7 @@ function CommentItem({
           <span className="text-xs text-muted-foreground">{formatCommentTime(comment.timestamp)}</span>
         </div>
         <div className="mt-1 text-sm text-foreground">{renderCommentBody(comment)}</div>
+        {simulated ? null : (
         <div className="mt-2 flex items-center gap-3">
           <button
             type="button"
@@ -76,6 +79,7 @@ function CommentItem({
             />
           ) : null}
         </div>
+        )}
 
         {comment.replies.length > 0 ? (
           <div className="mt-3 space-y-3 border-l border-border/60 pl-3">
@@ -90,7 +94,7 @@ function CommentItem({
           </div>
         ) : null}
 
-        {replyOpen ? (
+        {replyOpen && !simulated ? (
           <div className="mt-3">
             <CommentComposer
               address={address}
