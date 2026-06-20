@@ -216,14 +216,90 @@ function PnlCell({
       : mtm.unrealizedPnlUsd < 0
         ? "text-destructive"
         : "text-muted-foreground";
+  const borrowedUsd = positionBorrowUsd(position);
+  const marginUsd = positionMarginUsd(position);
+  const walletRepaidUsd = walletRepaidPrincipalUsd(position);
 
-  return (
-    <div className={cn("text-right tabular-nums", tone)}>
+  const pnlContent = (
+    <>
       <div className="text-sm font-medium">
         <AnimatedPnl value={mtm.unrealizedPnlUsd} />
       </div>
       <div className="text-[11px] opacity-80">{formatPnlPct(mtm.unrealizedPnlPct)}</div>
-    </div>
+    </>
+  );
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "group inline-flex items-center justify-end gap-1 rounded-sm text-right tabular-nums transition-colors hover:opacity-90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+            tone,
+          )}
+          aria-label="Unrealized P&L breakdown"
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <div>{pnlContent}</div>
+          <ChevronDown className="h-3 w-3 shrink-0 opacity-60 group-hover:opacity-100" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="w-56 p-0"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <div className="border-b border-border px-3 py-2.5">
+          <LabelWithInfo
+            label="Unrealized P&L"
+            labelClassName="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
+            info={leverxInfo.unrealizedPnl}
+          />
+        </div>
+        <div className="px-3 py-1">
+          <PnlBreakdownRow
+            label="Redeem bid"
+            value={<QuoteAmount amount={mtm.markValueUsd} hideZero={false} />}
+          />
+          {mtm.keyQuoteUsd > 0 ? (
+            <PnlBreakdownRow
+              label="Locked on key"
+              value={<QuoteAmount amount={mtm.keyQuoteUsd} hideZero={false} />}
+            />
+          ) : null}
+          {borrowedUsd > 0 ? (
+            <PnlBreakdownRow
+              label="Vault borrow"
+              value={
+                <span className="text-destructive">
+                  −<QuoteAmount amount={borrowedUsd} hideZero={false} className="inline-flex" />
+                </span>
+              }
+            />
+          ) : null}
+          <PnlBreakdownRow
+            label="Margin posted"
+            value={<QuoteAmount amount={marginUsd} hideZero={false} />}
+          />
+          {walletRepaidUsd > 0 ? (
+            <PnlBreakdownRow
+              label="Wallet repaid"
+              value={<QuoteAmount amount={walletRepaidUsd} hideZero={false} />}
+            />
+          ) : null}
+          <PnlBreakdownRow
+            label="Net P&L"
+            value={
+              <span className={tone}>
+                <QuoteAmount amount={mtm.unrealizedPnlUsd} hideZero={false} />
+              </span>
+            }
+          />
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -274,6 +350,11 @@ function HealthCell({
 
   const belowLiquidationTone = "bg-destructive/35";
 
+  const collateralHint =
+    mtm.keyQuoteUsd > 0
+      ? `Collateral = redeem bid + ${mtm.keyQuoteUsd.toFixed(2)} locked on key. `
+      : "";
+
   return (
     <div className="min-w-[5.5rem]">
       <div className="mb-1 flex items-center justify-end gap-1.5 text-sm font-medium tabular-nums">
@@ -289,7 +370,7 @@ function HealthCell({
       </div>
       <div
         className="relative h-1.5 overflow-hidden rounded-full bg-muted"
-        title={`Liquidation below ${formatLiquidationThresholdPct(liquidationBps)} health`}
+        title={`${collateralHint}Liquidation below ${formatLiquidationThresholdPct(liquidationBps)} health`}
       >
         {healthPct >= liquidationPct ? (
           <>

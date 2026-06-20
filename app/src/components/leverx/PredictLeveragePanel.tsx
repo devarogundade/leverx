@@ -692,14 +692,14 @@ export function PredictLeveragePanel({
 
         if (!isPlacementPriceAligned(liveAskPremium, limitPremium, slippageBps)) {
           errors.push(
-            `Resting orders need the live price (${liveLabel}) within your limit ± ${placementSlippagePct}% placement slippage. Adjust the limit, widen slippage, or wait for the market to move.`,
+            `Your limit (${cents.toFixed(1)}¢) is too far from the live price (${liveLabel}). Resting limits must be placed within ±${placementSlippagePct}% of the current price. Set a limit closer to market, widen price tolerance (up to ${MAX_LIMIT_ORDER_SLIPPAGE_PCT}%), switch to Market to open now, or wait for the price to move.`,
           );
         }
       }
       if (placementSlippagePct < 0.1) {
-        errors.push("Slippage must be at least 0.1%.");
+        errors.push("Price tolerance must be at least 0.1%.");
       } else if (placementSlippagePct > MAX_LIMIT_ORDER_SLIPPAGE_PCT) {
-        errors.push(`Slippage cannot exceed ${MAX_LIMIT_ORDER_SLIPPAGE_PCT}%.`);
+        errors.push(`Price tolerance cannot exceed ${MAX_LIMIT_ORDER_SLIPPAGE_PCT}%.`);
       }
       if (expiryMs && expiryMs > 0) {
         const restingExpiresMs = now + orderExpiresOffsetMs;

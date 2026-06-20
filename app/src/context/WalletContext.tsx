@@ -8,6 +8,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  clearWalletScopedQueries,
+  invalidateWalletScopedQueries,
+} from "@/lib/leverx/invalidate-queries";
 import {
   getWallets,
   SUI_TESTNET_CHAIN,
@@ -53,11 +58,13 @@ function writeStoredWalletName(name: string | null) {
 }
 
 export function WalletProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [wallets, setWallets] = useState<WalletWithRequiredFeatures[]>([]);
   const [wallet, setWallet] = useState<WalletWithRequiredFeatures | null>(null);
   const [account, setAccount] = useState<WalletAccount | null>(null);
   const [connecting, setConnecting] = useState(false);
   const autoConnectInFlight = useRef(false);
+  const prevAddressRef = useRef<string | null>(null);
 
   const refreshWallets = useCallback(() => {
     setWallets(listConnectableWallets());
@@ -166,6 +173,21 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const address = account?.address ?? null;
   const isWalletConnected = Boolean(address);
   const simulationSender = address ?? READONLY_SENDER;
+
+  useEffect(() => {
+    const prev = prevAddressRef.current;
+    prevAddressRef.current = address;
+
+    if (prev && prev !== address) {
+      clearWalletScopedQueries(queryClient);
+    }
+
+    if (address) {
+      void invalidateWalletScopedQueries(queryClient);
+    } else if (prev) {
+      clearWalletScopedQueries(queryClient);
+    }
+  }, [address, queryClient]);
 
   const value = useMemo<WalletContextValue>(
     () => ({

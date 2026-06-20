@@ -123,6 +123,7 @@ export function usePositionsMarkToMarket(positions: readonly LeveragedPosition[]
       openPositions.map((position, index) => ({
         positionKey: position.position_key,
         data: ledgerQueries[index]?.data ?? null,
+        isLoading: ledgerQueries[index]?.isPending ?? false,
       })),
     [openPositions, ledgerSignature],
   );
@@ -131,15 +132,15 @@ export function usePositionsMarkToMarket(positions: readonly LeveragedPosition[]
     const map = new Map<string, PositionMarkToMarket>();
     openPositions.forEach((position, index) => {
       const snapshot = quoteSnapshot[index];
-      const ledger = ledgerSnapshot[index]?.data ?? null;
+      const ledgerRow = ledgerSnapshot[index];
       map.set(
         positionRowId(position),
         computePositionMarkToMarket(
           position,
           snapshot?.data ?? null,
-          Boolean(snapshot?.isLoading),
+          Boolean(snapshot?.isLoading || ledgerRow?.isLoading),
           liquidationBps,
-          ledger,
+          ledgerRow?.data ?? null,
         ),
       );
     });

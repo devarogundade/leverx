@@ -35,7 +35,7 @@ export const LEVERX_ABORT_MESSAGES: Readonly<Record<number, string>> = {
   27: "Contract price is outside DeepBook Predict's tradable range (1¢–99¢). Try another strike or wait for updated prices.",
   28: "Invalid order type for this action.",
   29: "No resting limit order was found for this market.",
-  30: "Live contract price is outside your limit ± placement slippage. Adjust the limit or widen placement slippage.",
+  30: "Live contract price is outside your limit ± price tolerance. Set a limit closer to market or widen tolerance.",
   31: "A limit order with this ID already exists on this key.",
   32: "Slippage exceeds the maximum allowed (50%). Lower slippage and try again.",
   33: "This limit order has expired.",

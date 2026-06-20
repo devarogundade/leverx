@@ -449,13 +449,19 @@ export class JarvisService implements OnModuleInit {
       }
 
       const guardrails = this.guardrailsFromSettings(settings);
+      const platformRules = this.data.getPlatformRules();
+      const tradeReadiness = await this.getTradeReadiness(
+        normalizedAccountId,
+        guardrails,
+        platformRules.min_margin_usd,
+      );
       const systemContext = {
         jarvis_enabled: true,
         last_run_at_ms: settings.last_run_at_ms
           ? Number(settings.last_run_at_ms)
           : null,
         interval_ms: this.cfg.intervalMs,
-        platform_rules: this.data.getPlatformRules(),
+        platform_rules: platformRules,
         user_guardrails: guardrails,
       };
 
@@ -464,13 +470,28 @@ export class JarvisService implements OnModuleInit {
         normalizedAccountId,
         systemContext,
         guardrails,
+        tradeReadiness.canOpen,
       );
-      await this.runMarketPhase(
-        normalizedOwner,
-        normalizedAccountId,
-        systemContext,
-        guardrails,
-      );
+
+      if (!tradeReadiness.canOpen) {
+        if (tradeReadiness.reason === 'max_positions') {
+          await this.emitEvent(
+            normalizedOwner,
+            normalizedAccountId,
+            JarvisEventType.SKIPPED,
+            `Max open positions (${guardrails.max_open_positions}) reached — skipping market scan.`,
+            { reason: 'max_positions' },
+          );
+        }
+        // low_balance: position phase already explains; skip market AI to avoid noise and API cost.
+      } else {
+        await this.runMarketPhase(
+          normalizedOwner,
+          normalizedAccountId,
+          systemContext,
+          guardrails,
+        );
+      }
 
       await this.emitEvent(
         normalizedOwner,
@@ -501,6 +522,39 @@ export class JarvisService implements OnModuleInit {
         settings.enabled,
       );
     }
+  }
+
+  private async getTradeReadiness(
+    accountId: string,
+    guardrails: JarvisGuardrails,
+    minMarginUsd: number,
+  ): Promise<{
+    canOpen: boolean;
+    balanceUsd: number;
+    reason?: 'low_balance' | 'max_positions';
+  }> {
+    const balanceAtoms = await this.trade.fetchTradingBalanceAtoms(accountId);
+    const balanceUsd = this.trade.formatBalanceUsd(balanceAtoms);
+
+    if (balanceUsd < minMarginUsd) {
+      return { canOpen: false, balanceUsd, reason: 'low_balance' };
+    }
+
+    let openPositionCount = 0;
+    try {
+      const detail = await this.indexer.fetchAccount(accountId);
+      openPositionCount = (detail.open_positions ?? []).filter(
+        (p) => BigInt(p.open_quantity || 0) > 0n,
+      ).length;
+    } catch (err) {
+      logKeeperWarn(this.logger, `jarvis trade readiness ${accountId}`, err);
+    }
+
+    if (openPositionCount >= guardrails.max_open_positions) {
+      return { canOpen: false, balanceUsd, reason: 'max_positions' };
+    }
+
+    return { canOpen: true, balanceUsd };
   }
 
   private async checkHardPreconditions(
@@ -576,6 +630,7 @@ export class JarvisService implements OnModuleInit {
       user_guardrails: JarvisGuardrails;
     },
     guardrails: JarvisGuardrails,
+    canOpenNewTrades: boolean,
   ): Promise<void> {
     await this.emitEvent(
       owner,
@@ -628,13 +683,21 @@ export class JarvisService implements OnModuleInit {
       return;
     }
 
-    if (positions.length === 0 && decision.actions.every((a) => a.type === 'skip' || a.type === 'hold')) {
-      await this.emitEvent(
-        owner,
-        accountId,
-        JarvisEventType.RUNNING,
-        decision.actions[0]?.user_message ?? 'No open positions — moving on to market scan.',
-      );
+    if (
+      positions.length === 0 &&
+      decision.actions.every((a) => a.type === 'skip' || a.type === 'hold')
+    ) {
+      if (!decision.summary_message) {
+        const idleFallback = canOpenNewTrades
+          ? 'No open positions — moving on to market scan.'
+          : 'No open positions — nothing to manage this cycle.';
+        await this.emitEvent(
+          owner,
+          accountId,
+          JarvisEventType.RUNNING,
+          decision.actions[0]?.user_message ?? idleFallback,
+        );
+      }
       return;
     }
 

@@ -3,6 +3,8 @@ export const leverxInfo = {
   orderType:
     "Market orders open right away at the best available price. Limit orders queue under Open Orders until the market reaches your price.",
   marketSlippage: "How far the price can move from your target when your order fills.",
+  placementSlippage:
+    "Resting limits use one tolerance for two checks: the live price must be within ± this % of your limit when you submit, and fills are capped at limit + this %.",
   orderExpires: "How long a waiting order stays open before it is cancelled.",
   collateral: "dUSDC margin posted for a trade.",
   margin:
@@ -84,14 +86,16 @@ export const leverxInfo = {
   funds:
     "Move dUSDC between wallet and trading account. Withdrawable is free surplus you can pull out now (key balance minus borrow).",
   portfolioOverviewDetail:
-    "Net equity, unrealized P&L, margin posted, and vault borrow across open positions. Live marks refresh about every 12 seconds.",
+    "Net equity, unrealized P&L, margin posted, and vault borrow across open positions. P&L and health include quote locked on market keys, matching on-chain liquidation math.",
+  portfolioNetEquity:
+    "What you would keep after redeeming at the live bid and repaying vault borrow, including quote locked on each market key.",
   withdrawEmpty: "Nothing to withdraw right now.",
   withdrawEmptyDetail:
     "Withdrawable is free surplus on your trading account — not borrowed vault debt. Surplus appears on a market key after you close a trade and that key’s payout lands.",
   managerWithdrawLockedDetail:
     "Borrowed is debt on your trading account, not cash you can pull out. Outstanding vault borrow reduces what you can withdraw (withdrawable = trading-account balance − borrow). Close positions or repay debt to free more.",
   estimatedHealth:
-    "Estimated collateral ratio (mark value ÷ borrow). Liquidation can trigger above 100% when extra buffer is required. Health also includes accrued interest.",
+    "Estimated collateral ratio: (live redeem bid + quote locked on the market key) ÷ vault borrow. Matches on-chain liquidation checks.",
 
   vaultSupply: "Add dUSDC to the pool and receive shares that earn from trading fees.",
   vaultWithdraw: "Cash out your shares back to dUSDC, including any earnings.",
@@ -125,7 +129,8 @@ export const leverxInfo = {
   balanceBorrowed:
     "Vault debt from leveraged trades. Not withdrawable — repay by closing positions or repaying debt.",
   balancePositions: "Number of open trades.",
-  unrealizedPnl: "Profit or loss if you closed all open trades at the current redeem bid.",
+  unrealizedPnl:
+    "Profit or loss if you closed now at the live redeem bid, including quote locked on the market key (mint surplus stays on the key until close or recovery).",
   openOrders: "Resting limit orders waiting to be filled.",
   closedPositions:
     "Trades that have been closed or settled. Avg fill is what you paid per contract; P&L is your net return on posted margin (can be positive even when exit price is below entry, after borrow is repaid).",
@@ -142,7 +147,7 @@ export const leverxInfo = {
   positionIndexStaleDetail:
     "On-chain contracts are zero while the portfolio index still shows this row. Funds may be locked on the market key (mint surplus) or in your Predict manager — not in Trading Balance until recovered.",
   lockedKeyQuote:
-    "Mint surplus and collateral locked on this market key — not in Trading Balance until the position is closed or recovered.",
+    "Mint surplus and collateral locked on this market key. Counted in health and unrealized P&L the same way as on-chain — not in free Trading Balance until recovered.",
   managerQuoteBalance:
     "Quote held in your Predict manager. After contracts are flat, use Recover funds to move it into your trading account.",
   positionFullyRedeemed: "Contracts fully redeemed on-chain.",

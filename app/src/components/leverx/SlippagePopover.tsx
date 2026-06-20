@@ -165,9 +165,9 @@ export function SlippagePopover({
         <SlippageInput
           value={placementSlippagePct}
           onChange={onPlacementSlippageChange}
-          label="Slippage"
+          label="Price tolerance"
           info={leverxInfo.placementSlippage}
-          hint="Allowed drift vs market ask when placing your resting order."
+          hint="Live price must be within ± this % of your limit to place the order. The same cap applies when it fills."
         />
         {canRest ? (
           <div>

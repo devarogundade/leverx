@@ -12,6 +12,7 @@ import { usePositionCustody } from "@/hooks/usePositionCustody";
 import { useLeverxProtocolConfig, useLeverxTransactions } from "@/hooks/useLeverxTransactions";
 import { useIndexerTriggers } from "@/hooks/useIndexer";
 import { leverxInfo } from "@/lib/leverx/info-copy";
+import { invalidatePortfolioQueries } from "@/lib/leverx/invalidate-queries";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { positionKeyFromArgs, type MarketKeyArgs } from "@/lib/leverx/market-keys";
 import { formatQuantity } from "@/lib/leverx/format-quantity";
@@ -330,13 +331,7 @@ export function PositionActionsModal({ position, open, onOpenChange }: Props) {
   });
 
   const refreshPortfolio = () => {
-    void Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["indexer-positions"], refetchType: "active" }),
-      queryClient.invalidateQueries({ queryKey: ["manager-open-qty"], refetchType: "active" }),
-      queryClient.invalidateQueries({ queryKey: ["proxy-key-balance"], refetchType: "active" }),
-      queryClient.invalidateQueries({ queryKey: ["manager-quote-balance"], refetchType: "active" }),
-      queryClient.invalidateQueries({ queryKey: ["trading-account-balance"], refetchType: "active" }),
-    ]);
+    void invalidatePortfolioQueries(queryClient);
   };
   const borrowedUsd = scaleQuote(position.borrow_quote);
   const repayNum = parseFloat(repayUsd) || 0;

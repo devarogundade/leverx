@@ -19,11 +19,11 @@ import {
   useDisableJarvis,
   useEnableJarvis,
   useJarvisEvents,
-  useJarvisLive,
   useJarvisStatus,
   useMarkJarvisRead,
+  useJarvisStream,
 } from "@/hooks/useJarvis";
-import type { JarvisConnectionState } from "@/hooks/useJarvisWebSocket";
+import type { JarvisConnectionState } from "@/context/AppStreamContext";
 import { leverxInfo } from "@/lib/leverx/info-copy";
 import type { JarvisEventRecord, JarvisEventType } from "@/lib/leverx/keeper-client";
 import { cn } from "@/lib/utils";
@@ -300,7 +300,7 @@ export function JarvisWorkspace({ owner, accountId, className }: Props) {
   const enableJarvis = useEnableJarvis();
   const disableJarvis = useDisableJarvis();
   const markRead = useMarkJarvisRead();
-  const { connectionState } = useJarvisLive(owner, accountId);
+  const { connectionState } = useJarvisStream();
 
   const events = useMemo(() => {
     const map = new Map<string, JarvisEventRecord>();

@@ -7,6 +7,7 @@ import {
 } from "@/lib/leverx/position-action-availability";
 import { positionIndexerStaleSuspect } from "@/lib/leverx/position-indexer-hints";
 import { isActiveOpenPosition, positionRowId } from "@/lib/leverx/position-metrics";
+import { invalidatePortfolioQueries } from "@/lib/leverx/invalidate-queries";
 
 const INDEXER_CATCH_UP_DELAYS_MS = [2000, 6000, 12000] as const;
 
@@ -64,10 +65,7 @@ export function useVerifiedOpenPositions(positions: readonly LeveragedPosition[]
     scheduledCatchUp.current = true;
     for (const delayMs of INDEXER_CATCH_UP_DELAYS_MS) {
       globalThis.setTimeout(() => {
-        void queryClient.invalidateQueries({
-          queryKey: ["indexer-positions"],
-          refetchType: "active",
-        });
+        void invalidatePortfolioQueries(queryClient);
       }, delayMs);
     }
   }, [stalePositions.length, queryClient]);

@@ -88,7 +88,7 @@ export function PortfolioSummaryBar({ summary, loading, className }: Props) {
       <div className="grid grid-cols-2 divide-x divide-y divide-border lg:grid-cols-4 lg:divide-y-0">
         <SummaryStat
           label="Net equity"
-          info={leverxInfo.balanceTotal}
+          info={leverxInfo.portfolioNetEquity}
           value={
             loading ? "…" : !summary ? (
               "0"

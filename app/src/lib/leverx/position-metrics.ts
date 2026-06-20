@@ -11,6 +11,10 @@ function positionAtoms(value: unknown): bigint {
 export type PositionMarkToMarket = {
   positionKey: string;
   markValueUsd: number;
+  /** Quote locked on the market key (mint surplus + collateral), included in health and P&L. */
+  keyQuoteUsd: number;
+  /** Redeem bid value plus key-locked quote — matches on-chain liquidation collateral. */
+  collateralUsd: number;
   markBidPerUnit: number | null;
   markBidCents: number | null;
   entryCostUsd: number;
@@ -279,6 +283,8 @@ export function computePositionMarkToMarket(
     return {
       positionKey: positionRowId(position),
       markValueUsd: 0,
+      keyQuoteUsd,
+      collateralUsd: keyQuoteUsd,
       markBidPerUnit: null,
       markBidCents: null,
       entryCostUsd,
@@ -296,7 +302,7 @@ export function computePositionMarkToMarket(
 
   const markValueUsd = scaleQuote(Number(redeemQuote.expectedPayout));
   const collateralUsd = markValueUsd + keyQuoteUsd;
-  const netEquityUsd = markValueUsd - borrowedUsd;
+  const netEquityUsd = collateralUsd - borrowedUsd;
   const walletRepaidUsd = walletRepaidPrincipalUsd(position);
   const unrealizedPnlUsd = netEquityUsd - marginUsd - walletRepaidUsd;
   const cashInUsd = marginUsd + walletRepaidUsd;
@@ -320,6 +326,8 @@ export function computePositionMarkToMarket(
   return {
     positionKey: positionRowId(position),
     markValueUsd,
+    keyQuoteUsd,
+    collateralUsd,
     markBidPerUnit: Number(redeemQuote.marketBidPerUnit),
     markBidCents,
     entryCostUsd,

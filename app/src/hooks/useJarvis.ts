@@ -29,7 +29,9 @@ import {
   jarvisSettingsQueryKey,
   jarvisStatusQueryKey,
 } from "@/lib/leverx/jarvis-query-keys";
-import { useJarvisWebSocket } from "@/hooks/useJarvisWebSocket";
+import { useJarvisStream } from "@/context/AppStreamContext";
+
+export { useJarvisStream } from "@/context/AppStreamContext";
 
 export { JARVIS_EVENTS_PAGE_SIZE, jarvisEventsQueryKey, jarvisSettingsQueryKey, jarvisStatusQueryKey };
 
@@ -183,22 +185,13 @@ export function useJarvisUnreadCount(): number {
   const accountId = account?.account_id ?? null;
 
   const { data: jarvisStatus } = useJarvisStatus(owner, accountId);
-  useJarvisLive(owner, accountId);
 
   return jarvisStatus?.unread_count ?? 0;
 }
 
-/** Subscribe to live Jarvis events over Socket.IO. */
-export function useJarvisLive(
-  owner: string | null | undefined,
-  accountId: string | null | undefined,
-  enabled = true,
-) {
-  return useJarvisWebSocket({
-    owner: owner ?? undefined,
-    accountId: accountId ?? undefined,
-    enabled: Boolean(enabled && owner && accountId),
-  });
+/** Live Jarvis stream status — connection lifecycle is managed by AppStreamProvider. */
+export function useJarvisLive() {
+  return useJarvisStream();
 }
 
 export type {
@@ -207,4 +200,4 @@ export type {
   JarvisSettingsResponse,
   JarvisStatusResponse,
 };
-export type { JarvisConnectionState } from "@/hooks/useJarvisWebSocket";
+export type { JarvisConnectionState } from "@/context/AppStreamContext";

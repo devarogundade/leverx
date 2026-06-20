@@ -9,7 +9,7 @@ import type { QueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { APP_NAME } from "../lib/brand";
-import { IndexerStreamProvider } from "../context/IndexerStreamContext";
+import { AppStreamProvider } from "../context/AppStreamContext";
 import { MarketFavoritesProvider } from "../context/MarketFavoritesContext";
 import { PredictOracleProvider } from "../context/PredictOracleContext";
 import { TradeNavigationProvider } from "../context/TradeNavigationContext";
@@ -113,19 +113,19 @@ function RootComponent() {
       <HeadContent />
       <PredictOracleProvider>
         <TradeNavigationProvider>
-          <IndexerStreamProvider>
-            <MarketFavoritesProvider>
-              <EnokiWalletsRegistrar />
-              <WalletProvider>
+          <MarketFavoritesProvider>
+            <EnokiWalletsRegistrar />
+            <WalletProvider>
+              <AppStreamProvider>
                 <GsapMotionProvider>
                   <div className="app-outlet flex min-h-dvh flex-col">
                     <Outlet />
                   </div>
                 </GsapMotionProvider>
                 <Toaster position="bottom-right" richColors closeButton />
-              </WalletProvider>
-            </MarketFavoritesProvider>
-          </IndexerStreamProvider>
+              </AppStreamProvider>
+            </WalletProvider>
+          </MarketFavoritesProvider>
         </TradeNavigationProvider>
       </PredictOracleProvider>
     </>

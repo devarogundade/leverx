@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import type { LeveragedPosition } from "@/lib/leverx/indexer-client";
 import { leverxInfo } from "@/lib/leverx/info-copy";
+import { invalidatePortfolioQueries } from "@/lib/leverx/invalidate-queries";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -26,13 +27,7 @@ export function PortfolioIndexSyncNotice({
       : `${count} portfolio rows are out of sync with the chain`;
 
   const refresh = () => {
-    void Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["indexer-positions"], refetchType: "active" }),
-      queryClient.invalidateQueries({ queryKey: ["manager-open-qty"], refetchType: "active" }),
-      queryClient.invalidateQueries({ queryKey: ["proxy-key-balance"], refetchType: "active" }),
-      queryClient.invalidateQueries({ queryKey: ["manager-quote-balance"], refetchType: "active" }),
-      queryClient.invalidateQueries({ queryKey: ["trading-account-balance"], refetchType: "active" }),
-    ]);
+    void invalidatePortfolioQueries(queryClient);
   };
 
   return (
